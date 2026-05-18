@@ -1887,10 +1887,30 @@ export default function OptionsChainPage({
     }
 
     // Overlay live ticker data from Bybit WebSocket
-    if (Object.keys(storeTickers).length === 0) return rows;
+    if (Object.keys(storeTickers).length === 0) {
+      console.log('[Chain] No store tickers available');
+      return rows;
+    }
 
     const baseCoin = coinCfg.label;
     const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();
+
+    // Debug: log symbol construction and matching
+    if (rows.length > 0) {
+      const sampleRow = rows[Math.floor(rows.length / 2)];
+      const sampleCallSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
+      const samplePutSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-P`;
+      console.log('[Chain] Debug:', {
+        baseCoin,
+        expiryStr,
+        expiryPrefix,
+        sampleCallSym,
+        samplePutSym,
+        storeTickerKeys: Object.keys(storeTickers).slice(0, 5),
+        hasCallMatch: !!storeTickers[sampleCallSym],
+        hasPutMatch: !!storeTickers[samplePutSym],
+      });
+    }
 
     return rows.map(row => {
       const callSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-C`;

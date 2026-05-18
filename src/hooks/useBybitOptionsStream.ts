@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useSimTradingStore } from '../store/useSimTradingStore';
 
 const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/option';
-const SUBSCRIBE_SYMBOLS = ['BTC', 'ETH'];
+const SUBSCRIBE_SYMBOLS = ['BTC', 'ETH', 'SOL'];
 
 interface BybitTickerMsg {
   topic: string;
@@ -72,6 +72,7 @@ export function useBybitOptionsStream(enabled = true) {
               }
             }
             if (Object.keys(tickers).length > 0) {
+              console.log('[Bybit WS] Received tickers:', Object.keys(tickers).slice(0, 5), '...');
               updateRef.current(tickers);
             }
           }

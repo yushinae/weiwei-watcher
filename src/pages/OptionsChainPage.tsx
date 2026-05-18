@@ -1808,6 +1808,7 @@ export default function OptionsChainPage({
   }, [coinCfg.label]);
 
   const expiries = liveExpiries.length > 0 ? liveExpiries : DERIBIT_EXPIRIES;
+  console.log('[Chain Render] expiries:', expiries, 'liveExpiries:', liveExpiries);
 
   // Auto-switch to first available expiry if current one is not in live list
   useEffect(() => {

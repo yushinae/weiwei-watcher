@@ -18,6 +18,7 @@ export function useDeribitSpotStream() {
     { symbol: 'BTC', price: '—', change: '—', up: true },
     { symbol: 'ETH', price: '—', change: '—', up: true },
   ]);
+  const prevPricesRef = useRef<Record<string, number>>({ BTC: 0, ETH: 0 });
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -34,8 +35,8 @@ export function useDeribitSpotStream() {
           method: 'public/subscribe',
           params: {
             channels: [
-              'ticker.BTC-PERPETUAL.raw',
-              'ticker.ETH-PERPETUAL.raw',
+              'deribit_price_index.btc_usd',
+              'deribit_price_index.eth_usd',
             ],
           },
         }));
@@ -44,20 +45,23 @@ export function useDeribitSpotStream() {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.method === 'subscription' && msg.params?.channel?.startsWith('ticker.')) {
+          if (msg.method === 'subscription' && msg.params?.channel?.startsWith('deribit_price_index.')) {
             const data = msg.params.data;
-            if (data?.instrument_name && data.last_price) {
-              const isBTC = data.instrument_name.includes('BTC');
-              const priceNum = data.last_price;
-              const changeNum = data.price_change ?? 0;
-              
+            if (data?.price) {
+              const isBTC = data.index_name?.includes('btc');
+              const priceNum = parseFloat(data.price);
+              const prevPrice = prevPricesRef.current[isBTC ? 'BTC' : 'ETH'] || priceNum;
+              const changePercent = ((priceNum - prevPrice) / prevPrice) * 100;
+
+              prevPricesRef.current[isBTC ? 'BTC' : 'ETH'] = priceNum;
+
               setTickers(prev => prev.map(t => {
                 if ((isBTC && t.symbol === 'BTC') || (!isBTC && t.symbol === 'ETH')) {
                   return {
                     ...t,
                     price: priceNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                    change: `${changeNum >= 0 ? '+' : ''}${changeNum.toFixed(2)}%`,
-                    up: changeNum >= 0,
+                    change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+                    up: changePercent >= 0,
                   };
                 }
                 return t;

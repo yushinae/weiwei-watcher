@@ -100,101 +100,10 @@ import { WIDGET_REGISTRY } from './registry';
 import { DERIBIT_EXPIRIES } from './pages/OptionsChainPage';
 
 /**
- * useBinanceTickers：这是一个“行情接收器”。
- * 它会连接到币安（Binance）的服务器，像接收电报一样，实时听取最新的币价。
+ * useBinanceTickers：已移除 Binance WebSocket，改用静态模拟数据
  */
 function useBinanceTickers() {
-  const updateTickers = useWorkspaceStore(state => state.updateTickers);
-  const liveTickers = useWorkspaceStore(state => state.liveTickers);
-  const pendingUpdates = useRef<Record<string, any>>({}); // 暂时把刚收到还没来得及更新的消息存这儿
-
-  useEffect(() => {
-    let ws: WebSocket | null = null; // 这是一个“网络专线”
-    let isMounted = true;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const connect = () => {
-      // 拨通币安的专线电话
-      ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
-      
-      // 当专线里传来消息时（收到最新币价）
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (Array.isArray(data)) {
-            data.forEach((ticker: any) => {
-              // 记住每一个币的新价格
-              pendingUpdates.current[ticker.s] = ticker;
-            });
-          }
-        } catch (e) {
-          console.error("解析币安数据失败", e);
-        }
-      };
-
-      // 如果专线断了，3秒后自动重拨
-      ws.onclose = () => {
-        if (isMounted) {
-          reconnectTimeout = setTimeout(connect, 3000);
-        }
-      };
-
-      ws.onerror = (err) => {
-        console.error("专线出错了", err);
-        if (ws) ws.close();
-      };
-    };
-
-    connect(); // 开始拨号
-
-    // 每秒钟把收到的新价格同步到我们的“大管家”那里去。
-    const timer = setInterval(() => {
-      const updates = pendingUpdates.current;
-      if (Object.keys(updates).length === 0) return;
-
-      updateTickers(prev => prev.map(t => {
-        const update = updates[t.symbol];
-        if (!update) return t;
-        
-        const currentPriceNum = parseFloat(t.price.replace(/,/g, ''));
-        const newPriceNum = parseFloat(update.c);
-        const openPriceNum = parseFloat(update.o);
-        
-        if (newPriceNum === currentPriceNum) return t; // 价格没变就不用动
-        
-        const changePercent = ((newPriceNum - openPriceNum) / openPriceNum) * 100;
-        const changeSign = changePercent >= 0 ? '+' : '';
-        
-        // 自动决定显示几位小数（便宜的币多显示几位）
-        let minDecimals = 2;
-        let maxDecimals = 2;
-        if (newPriceNum < 1) {
-            minDecimals = 4;
-            maxDecimals = 4;
-        } else if (newPriceNum < 10) {
-            minDecimals = 3;
-            maxDecimals = 3;
-        }
-
-        return {
-          ...t,
-          price: newPriceNum.toLocaleString('en-US', { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals }),
-          up: newPriceNum >= currentPriceNum, // 记下是涨了还是跌了，待会儿要变色
-          change: `${changeSign}${changePercent.toFixed(2)}%`
-        };
-      }));
-      pendingUpdates.current = {}; // 清空暂存区
-    }, 1000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-      clearTimeout(reconnectTimeout);
-      if (ws) ws.close(); // 关掉网页时，挂断电话
-    };
-  }, [updateTickers]);
-  
-  return liveTickers; // 把听到的最新报价给网页显示
+  return MARKET_TICKERS;
 }
 
 const TokenIcon = ({ symbol }: { symbol: string }) => {

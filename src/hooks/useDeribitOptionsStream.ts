@@ -41,7 +41,7 @@ export function useDeribitOptionsStream(enabled = true) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[Deribit WS] Connected!');
+        console.log('[Deribit WS] 已连接!');
         reqId += 1;
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
@@ -70,17 +70,17 @@ export function useDeribitOptionsStream(enabled = true) {
         try {
           const raw = event.data;
           const msg = JSON.parse(raw);
-          console.log('[Deribit WS] Received message type:', msg.method || (msg.result ? 'response' : 'unknown'));
+          console.log('[Deribit WS] 收到消息类型:', msg.method || (msg.result ? '响应' : '未知'));
 
-          // Handle subscription confirmation
+          // 处理订阅确认
           if (msg.result?.channels) {
-            console.log('[Deribit WS] Subscribed to:', msg.result.channels);
+            console.log('[Deribit WS] 已订阅频道:', msg.result.channels);
             return;
           }
 
-          // Handle book summary response (initial snapshot of all options)
+          // 处理期权摘要响应（初始快照）
           if (msg.result && Array.isArray(msg.result)) {
-            console.log('[Deribit WS] Book summary received, items:', msg.result.length);
+            console.log('[Deribit WS] 收到期权摘要，数量:', msg.result.length);
             const tickers: Record<string, any> = {};
             for (const item of msg.result) {
               const name = item.instrument_name;
@@ -101,13 +101,13 @@ export function useDeribitOptionsStream(enabled = true) {
               }
             }
             if (Object.keys(tickers).length > 0) {
-              console.log('[Deribit WS] Calling updateTickers with', Object.keys(tickers).length, 'tickers');
+              console.log('[Deribit WS] 调用 updateTickers，数量:', Object.keys(tickers).length);
               updateRef.current(tickers);
             }
             return;
           }
         } catch (e) {
-          console.error('[Deribit WS] Parse error:', e);
+          console.error('[Deribit WS] 解析错误:', e);
         }
       };
 

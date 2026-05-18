@@ -1833,10 +1833,7 @@ export default function OptionsChainPage({
     // Debug: log symbol construction and matching
     if (rows.length > 0) {
       const allKeys = Object.keys(storeTickers);
-      const expiriesInStore = [...new Set(allKeys.map(k => {
-        const parts = k.split('-');
-        return parts.length >= 3 ? parts[1] : 'unknown';
-      }))].sort();
+      const matchingKeys = allKeys.filter(k => k.includes('22MAY26')).slice(0, 5);
       
       const firstRow = rows[0];
       const sampleRow = rows[Math.floor(rows.length / 2)];
@@ -1847,19 +1844,12 @@ export default function OptionsChainPage({
         baseCoin,
         expiryPrefix,
         totalTickers: allKeys.length,
-        expiriesInStore,
-        firstRowStrike: firstRow.strike,
+        matchingKeysSample: matchingKeys,
         firstSymbol: firstSym,
         hasFirstMatch: !!storeTickers[firstSym],
         sampleSymbol: sampleSym,
         hasSampleMatch: !!storeTickers[sampleSym],
-        sampleTickerData: storeTickers[sampleSym] ? {
-          mark: storeTickers[sampleSym].markPrice,
-          bid: storeTickers[sampleSym].bid,
-          ask: storeTickers[sampleSym].ask,
-        } : null,
         mockCallMark: sampleRow.call.mark,
-        mockCallBid: sampleRow.call.bid,
       });
     }
 

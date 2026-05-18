@@ -94,7 +94,7 @@ const MARKET_TICKERS = [
 
 // 从我们之前写的“管家”那里拿取数据。
 import { useWorkspaceStore } from './store/useWorkspaceStore';
-import { DataConnectionStatus } from './components/DataConnectionStatus';
+
 import { DashboardPage } from './pages/DashboardPage';
 import { WIDGET_REGISTRY } from './registry';
 import { DERIBIT_EXPIRIES } from './pages/OptionsChainPage';
@@ -1319,7 +1319,6 @@ export default function App() {
           <div className="flex items-center gap-6">
             {widgets.time && <DigitalClock />}
             <div className="flex items-center gap-2">
-              <DataConnectionStatus />
               <TopBarSettingsDropdown />
               <NotificationDropdown />
               <UserDropdown />

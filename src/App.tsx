@@ -98,12 +98,14 @@ import { useWorkspaceStore } from './store/useWorkspaceStore';
 import { DashboardPage } from './pages/DashboardPage';
 import { WIDGET_REGISTRY } from './registry';
 import { DERIBIT_EXPIRIES } from './pages/OptionsChainPage';
+import { useDeribitSpotStream } from './hooks/useDeribitSpotStream';
 
 /**
- * useBinanceTickers：已移除 Binance WebSocket，改用静态模拟数据
+ * useBinanceTickers：已替换为 Deribit 实时永续合约价格
  */
 function useBinanceTickers() {
-  return MARKET_TICKERS;
+  const deribitTickers = useDeribitSpotStream();
+  return deribitTickers.map(t => ({ ...t, symbol: t.symbol + 'USDT' }));
 }
 
 const TokenIcon = ({ symbol }: { symbol: string }) => {

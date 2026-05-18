@@ -41,6 +41,7 @@ export function useDeribitOptionsStream(enabled = true) {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log('[Deribit WS] Connected!');
         reqId += 1;
         ws.send(JSON.stringify({
           jsonrpc: '2.0',
@@ -67,7 +68,9 @@ export function useDeribitOptionsStream(enabled = true) {
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const raw = event.data;
+          const msg = JSON.parse(raw);
+          console.log('[Deribit WS] Received message type:', msg.method || (msg.result ? 'response' : 'unknown'));
 
           // Handle subscription confirmation
           if (msg.result?.channels) {
@@ -77,6 +80,7 @@ export function useDeribitOptionsStream(enabled = true) {
 
           // Handle book summary response (initial snapshot of all options)
           if (msg.result && Array.isArray(msg.result)) {
+            console.log('[Deribit WS] Book summary received, items:', msg.result.length);
             const tickers: Record<string, any> = {};
             for (const item of msg.result) {
               const name = item.instrument_name;
@@ -97,11 +101,15 @@ export function useDeribitOptionsStream(enabled = true) {
               }
             }
             if (Object.keys(tickers).length > 0) {
-              console.log('[Deribit WS] Received snapshot tickers:', Object.keys(tickers).length);
+              console.log('[Deribit WS] Calling updateTickers with', Object.keys(tickers).length, 'tickers');
               updateRef.current(tickers);
             }
             return;
           }
+        } catch (e) {
+          console.error('[Deribit WS] Parse error:', e);
+        }
+      };
 
           // Handle real-time ticker notifications
           if (msg.method === 'subscription' && msg.params?.channel?.startsWith('ticker.')) {

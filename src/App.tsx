@@ -1288,10 +1288,7 @@ export default function App() {
   const overflowTickers = activeTickers.slice(4);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative">
-      {/* 背景层 */}
-      <div className="bg-canvas" />
-
+    <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
       {/* Top Header — 毛玻璃效果 */}
       {/* 顶部栏需要高层级，否则会被页面内 sticky 标题栏遮挡（如下拉面板/弹出卡片） */}
       <header className="h-[48px] flex items-center px-2 glass-bar shrink-0 relative z-[150]">

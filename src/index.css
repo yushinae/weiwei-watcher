@@ -48,19 +48,17 @@
 
 /* ===== 毛玻璃主题 ===== */
 
-/* 背景层：固定背景图 + 暗色叠加 */
-.bg-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: url('/bg-canvas.png') center/cover no-repeat;
+/* 背景层：直接应用到 body，避免被父容器裁剪 */
+body {
+  background: url('/bg-canvas.png') center/cover no-repeat fixed;
 }
-.bg-canvas::after {
+body::after {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   pointer-events: none;
+  z-index: 0;
 }
 
 /* EFFECT 1: 毛玻璃卡片 — 28px 中等模糊 */

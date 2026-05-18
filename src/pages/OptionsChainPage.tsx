@@ -1819,6 +1819,12 @@ export default function OptionsChainPage({
 
   const storeTickers = useSimTradingStore(s => s.tickers);
 
+  // Debug: log store tickers count and first few keys
+  useEffect(() => {
+    console.log('[Chain Store] Tickers count:', Object.keys(storeTickers).length);
+    console.log('[Chain Store] First 3 keys:', Object.keys(storeTickers).slice(0, 3));
+  }, [storeTickers]);
+
   const allRows = useMemo(() => {
     const baseCoin = coinCfg.label;
     const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();

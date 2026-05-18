@@ -28,6 +28,7 @@ import {
   Menu,
   Home,
   BookOpen,
+  Calculator,
   FileText,
   Plus,
   Upload,
@@ -46,6 +47,7 @@ import MonitorPage from './pages/MonitorPage';
 import OptionsPage from './pages/OptionsPage';
 import OptionsMarketBrowser from './pages/OptionsMarketBrowser';
 import OptionsChainPage from './pages/OptionsChainPage';
+import PositionBuilderPage from './pages/PositionBuilderPage';
 
 // 引入一些现成的样式表，让网页的排版和方块挪动效果更好看。
 import 'react-grid-layout/css/styles.css';
@@ -480,6 +482,7 @@ const AppNavigationDropdown = () => {
                     { label: '监控', icon: Activity, to: '/monitor' },
                     { label: '交易日志', icon: History, to: '/trade-log' },
                     { label: '账户概览', icon: Wallet, to: '/assets' },
+                    { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
                   ],
                   data: [
                     { label: '监控', icon: Activity, to: '/monitor' },
@@ -489,6 +492,7 @@ const AppNavigationDropdown = () => {
                     { label: '账户概览', icon: Wallet, to: '/assets' },
                   ],
                   help: [
+                    { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
                     { label: '帮助中心', icon: BookOpen },
                   ],
                 };
@@ -1726,6 +1730,18 @@ export default function App() {
                 <div className="w-full h-full rounded-[8px] overflow-hidden border border-[rgba(255,255,255,0.06)]">
                   <OptionsChainPage mode="deribit" />
                 </div>
+              </motion.div>
+            } />
+            <Route path="/position-builder" element={
+              <motion.div
+                key="position-builder"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0"
+              >
+                <PositionBuilderPage />
               </motion.div>
             } />
             <Route path="/" element={<DashboardPage />} />

@@ -1858,29 +1858,31 @@ export default function OptionsChainPage({
     // If we have live data, build rows from it
     if (liveStrikes.size > 0) {
       const strikes = [...liveStrikes.keys()].sort((a, b) => a - b);
-      // Use average of call/ask marks or first available to find spot
-      let spotPrice = coinCfg.spot;
+      // Find ATM strike (where call and put prices are closest)
+      let atmK = strikes[0];
+      let minDiff = Infinity;
       for (const k of strikes) {
         const entry = liveStrikes.get(k)!;
         if (entry.call?.mark && entry.put?.mark) {
-          // ATM is where call and put prices are closest
           const diff = Math.abs(entry.call.mark - entry.put.mark);
-          if (diff < 500) { // rough threshold
-            spotPrice = k;
-            break;
+          if (diff < minDiff) {
+            minDiff = diff;
+            atmK = k;
           }
         }
       }
-      const atmK = strikes.reduce((p, c) => Math.abs(c - spotPrice) < Math.abs(p - spotPrice) ? c : p);
+
+      // Use ATM strike as spot price approximation
+      const effectiveSpot = atmK;
 
       return strikes.map(K => {
         const entry = liveStrikes.get(K)!;
         return {
           strike: K,
           isATM: K === atmK,
-          isITM: K < spotPrice,
-          call: entry.call ?? buildSide(coinCfg.spot, K, T, coinCfg.baseIV, true, () => Math.random()),
-          put: entry.put ?? buildSide(coinCfg.spot, K, T, coinCfg.baseIV, false, () => Math.random()),
+          isITM: K < effectiveSpot,
+          call: entry.call ?? buildSide(effectiveSpot, K, T, coinCfg.baseIV, true, () => Math.random()),
+          put: entry.put ?? buildSide(effectiveSpot, K, T, coinCfg.baseIV, false, () => Math.random()),
         };
       });
     }

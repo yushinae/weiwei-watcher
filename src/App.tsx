@@ -27,7 +27,6 @@ import {
   LayoutGrid,
   Menu,
   Home,
-  BookOpen,
   Calculator,
   FileText,
   Plus,
@@ -407,7 +406,7 @@ const NineDots = ({ size = 24, className = "" }: { size?: number, className?: st
 
 const AppNavigationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeCat, setActiveCat] = useState<'all'|'data'|'account'|'help'>('all');
+  const [activeCat, setActiveCat] = useState<'all'|'account'|'help'>('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -452,7 +451,6 @@ const AppNavigationDropdown = () => {
 
               {([
                 { k: 'all' as const,     l: '所有' },
-                { k: 'data' as const,    l: '监控' },
                 { k: 'account' as const, l: '账户' },
                 { k: 'help' as const,    l: '工具' },
               ]).map(({ k, l }) => {
@@ -484,16 +482,11 @@ const AppNavigationDropdown = () => {
                     { label: '账户概览', icon: Wallet, to: '/assets' },
                     { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
                   ],
-                  data: [
-                    { label: '监控', icon: Activity, to: '/monitor' },
-                    { label: '交易日志', icon: History, to: '/trade-log' },
-                  ],
                   account: [
                     { label: '账户概览', icon: Wallet, to: '/assets' },
                   ],
                   help: [
                     { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
-                    { label: '帮助中心', icon: BookOpen },
                   ],
                 };
                 const items = map[activeCat] ?? map.all;

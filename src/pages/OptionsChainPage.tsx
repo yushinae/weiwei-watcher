@@ -13,6 +13,7 @@ import {
 import { cn } from '../lib/utils';
 import { useWorkspaceStore } from '../store/useWorkspaceStore';
 import { useSimTradingStore } from '../store/useSimTradingStore';
+import { useBybitOptionsStream } from '../hooks/useBybitOptionsStream';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { Popover, HoverPopover } from '../components/popup/Popup';
 import { getJSON } from '../api/client';
@@ -1617,6 +1618,9 @@ export default function OptionsChainPage({
   const setActiveOptionsTab   = useWorkspaceStore(s => s.setActiveOptionsTab);
   const updateOptionsChainTab = useWorkspaceStore(s => s.updateOptionsChainTab);
   const openComponentLibrary  = useWorkspaceStore(s => s.openComponentLibrary);
+
+  // 连接 Bybit 实时行情 WebSocket
+  useBybitOptionsStream(true);
 
   // 注意：不要在 activeOptionsTabId=null 时 fallback 到 tabs[0]，否则 append 新 tab 时会“看起来像替换当前 tab”
   const activeTab = activeOptionsTabId

@@ -1782,18 +1782,18 @@ export default function OptionsChainPage({
 
     // Debug: log symbol construction and matching
     if (rows.length > 0) {
+      const matchingKeys = Object.keys(storeTickers).filter(k => k.includes('09MAY26'));
       const sampleRow = rows[Math.floor(rows.length / 2)];
       const sampleCallSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
-      const samplePutSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-P`;
       console.log('[Chain] Debug:', {
         baseCoin,
-        expiryStr,
         expiryPrefix,
         sampleCallSym,
-        samplePutSym,
-        storeTickerKeys: Object.keys(storeTickers).slice(0, 5),
-        hasCallMatch: !!storeTickers[sampleCallSym],
-        hasPutMatch: !!storeTickers[samplePutSym],
+        totalTickers: Object.keys(storeTickers).length,
+        matchingExpiryCount: matchingKeys.length,
+        sampleMatchingKeys: matchingKeys.slice(0, 5),
+        hasSampleMatch: !!storeTickers[sampleCallSym],
+        allStrikes: rows.map(r => r.strike).slice(0, 5),
       });
     }
 

@@ -1761,11 +1761,57 @@ export default function OptionsChainPage({
 
   const cols = useMemo<ViewCol[]>(() => {
     if (!isDeribit) return ALL_17_COLS;
-    // Deribit：默认 35 列全开，Columns 菜单可开关
     return ALL_17_COLS.filter(c => visibleColIds.has(c.id));
   }, [isDeribit, visibleColIds]);
 
-  const expiries = DERIBIT_EXPIRIES;
+  // Fetch live expiries from Deribit
+  const [liveExpiries, setLiveExpiries] = useState<string[]>([]);
+  useEffect(() => {
+    const base = coinCfg.label;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://www.deribit.com/api/v2/public/get_instruments?currency=${base}&kind=option&expired=false`
+        );
+        const json = await res.json();
+        if (cancelled) return;
+        if (json?.result) {
+          const expSet = new Set<string>();
+          for (const inst of json.result) {
+            const name = inst.instrument_name; // e.g. "BTC-31JUL26-83000-C"
+            const parts = name.split('-');
+            if (parts.length >= 3) {
+              const rawExpiry = parts[1]; // "31JUL26"
+              // Convert to display format: "31 JUL 26"
+              const formatted = rawExpiry.replace(/(\d+)([A-Z]{3})(\d{2})/, '$1 $2 $3');
+              expSet.add(formatted);
+            }
+          }
+          setLiveExpiries([...expSet].sort((a, b) => {
+            const parseDate = (s: string) => {
+              const [d, m, y] = s.split(' ');
+              const months: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
+              return new Date(2000 + parseInt(y), months[m] ?? 0, parseInt(d)).getTime();
+            };
+            return parseDate(a) - parseDate(b);
+          }));
+        }
+      } catch {
+        // fallback to hardcoded
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coinCfg.label]);
+
+  const expiries = liveExpiries.length > 0 ? liveExpiries : DERIBIT_EXPIRIES;
+
+  // Auto-switch to first available expiry if current one is not in live list
+  useEffect(() => {
+    if (liveExpiries.length === 0) return;
+    if (liveExpiries.includes(expiryStr)) return;
+    changeActiveTabExpiry(liveExpiries[0]);
+  }, [liveExpiries, expiryStr, changeActiveTabExpiry]);
 
   const storeTickers = useSimTradingStore(s => s.tickers);
 

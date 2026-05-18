@@ -118,7 +118,7 @@
   }
 
   body {
-    @apply bg-bg-deep text-slate-400 font-sans antialiased font-normal;
+    @apply text-slate-400 font-sans antialiased font-normal;
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;

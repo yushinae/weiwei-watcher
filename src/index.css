@@ -15,31 +15,19 @@
   /* Brand */
   --color-brand-blue: #4D7CFF;
   --color-brand-blue-deep: #191970;
-  /* 蓝色高亮背景（按钮 hover/active） */
   --color-brand-blue-soft: #C0CBF6;
-  /* 蓝色柔和文字 */
 
-  /* Surface elevations — 从最深到最浅依次提升 */
+  /* Surface elevations — 毛玻璃主题：更深的底色让玻璃效果更突出 */
   --color-bg-base: #060606;
-  /* 最底层：header / main / footer */
   --color-bg-dim: #1F2021;
-  /* ticker / 次底层组件背景 */
-  --color-bg-deep: #3E3F40;
-  /* App 背景 */
+  --color-bg-deep: #0A0A0D;
   --color-bg-card: #131318;
-  /* 卡片 */
   --color-surface-1: #15151A;
-  /* 弹层底色 */
   --color-surface-2: #1A1A24;
-  /* 卡片之上一级 */
   --color-surface-3: #1C1C24;
-  /* hover / 输入背景 */
   --color-surface-4: #1E1E26;
-  /* tab 默认 */
   --color-surface-5: #2A2A35;
-  /* tab active / 描边 */
   --color-surface-6: #31333F;
-  /* 输入框激活、按钮按下 */
   --color-bg-hover: #26262E;
 
   /* Borders */
@@ -56,6 +44,65 @@
 
   --radius-button: 8px;
   --radius-modal: 12px;
+}
+
+/* ===== 毛玻璃主题 ===== */
+
+/* 背景层：固定背景图 + 暗色叠加 */
+.bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: url('/bg-canvas.png') center/cover no-repeat;
+}
+.bg-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* EFFECT 1: 毛玻璃卡片 — 28px 中等模糊 */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* EFFECT 2: 毛玻璃顶栏 — 40px 强模糊 + 更透底 */
+.glass-header {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* 毛玻璃顶栏变体：全宽无圆角（用于 App 顶部栏） */
+.glass-bar {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.40);
+}
+
+/* 毛玻璃变体：更轻的卡片（用于下拉菜单等） */
+.glass-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 @layer base {
@@ -170,30 +217,35 @@ html.is-scrolling * {
   display: none !important;
 }
 
-/* ── Widget Card — gradient border + depth ── */
+/* ── Widget Card — 毛玻璃效果 + gradient border ── */
 .widget-card {
   background:
-    linear-gradient(#12121A, #12121A) padding-box,
+    rgba(255, 255, 255, 0.06) padding-box,
     linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
-  border: 1px solid transparent;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 2px 12px rgba(0, 0, 0, 0.4);
+    0 8px 32px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
   transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
 }
 
 .widget-card:not(.is-fullscreen):hover {
   transform: translateY(calc(var(--lift-card) * -1));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 10px 28px rgba(0, 0, 0, 0.55),
-    0 0 20px rgba(77, 124, 255, 0.06);
+    0 16px 48px rgba(0, 0, 0, 0.50),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 0 20px rgba(77, 124, 255, 0.08);
 }
 
 .widget-card.is-fullscreen {
   background:
-    linear-gradient(#0A0A0D, #0A0A0D) padding-box,
+    rgba(255, 255, 255, 0.06) padding-box,
     linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
 }
 
 /* ── Trade number glow ── */

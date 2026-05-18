@@ -53,7 +53,7 @@ export default function AssetsPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   return (
-    <div className="absolute inset-0 overflow-y-auto bg-[#0A0A0D] px-2 py-2">
+    <div className="absolute inset-0 overflow-y-auto px-2 py-2">
       <div className="max-w-5xl mx-auto flex flex-col gap-6">
 
         {/* 总账户价值横幅 */}
@@ -81,7 +81,7 @@ export default function AssetsPage() {
         </div>
 
         {/* 资产列表 */}
-        <div className="bg-[#0A0A0D] rounded-[12px] border border-[#1E1E26] overflow-hidden">
+        <div className="glass rounded-[12px] overflow-hidden">
           {/* 表头 */}
           <div className="grid grid-cols-[1fr_140px_180px_140px_56px] px-6 py-3 border-b border-[#1E1E26]">
             <span className="text-[12px] font-bold text-slate-500 flex items-center gap-1">

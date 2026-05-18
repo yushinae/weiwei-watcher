@@ -1,15 +1,16 @@
 /* Deribit-like options chain theme + micro-interactions
    Scope: only applies inside .db-oc-root
+   Updated for glassmorphism theme
 */
 
-.db-oc-root{
-  /* Surfaces */
-  --db-bg-main: #0b0f16;        /* app background */
-  --db-bg-header: #0f1520;      /* sticky header rows */
-  --db-bg-row-even: #0b0f16;
-  --db-bg-row-odd: #0d1320;
-  --db-bg-strike: #0d1420;
-  --db-bg-hover: rgba(255,255,255,.045);
+.db-oc-root {
+  /* Surfaces — 半透明以配合毛玻璃背景 */
+  --db-bg-main: transparent;        /* app background — 透明让背景画布透出 */
+  --db-bg-header: rgba(15, 21, 32, 0.6);  /* sticky header rows — 半透明 */
+  --db-bg-row-even: rgba(11, 15, 22, 0.5);
+  --db-bg-row-odd: rgba(13, 19, 32, 0.5);
+  --db-bg-strike: rgba(13, 20, 32, 0.6);
+  --db-bg-hover: rgba(255, 255, 255, .045);
   --db-bg-selected: rgba(61, 125, 255, .16);
 
   /* Lines */
@@ -18,18 +19,18 @@
 
   /* Text */
   --db-text: #d9e2f2;
-  --db-muted: rgba(217,226,242,.58);
-  --db-dim: rgba(217,226,242,.22);
+  --db-muted: rgba(217, 226, 242, .58);
+  --db-dim: rgba(217, 226, 242, .22);
 
   /* Trading colors */
   --db-up: #35d07f;
   --db-down: #ff5c74;
   --db-warn: #f0b90b;
 
-  /* Accent (Deribit UI often uses cool-blue highlights) */
+  /* Accent */
   --db-accent: #3d7dff;
-  --db-accent-soft: rgba(61,125,255,.28);
-  --db-accent-weak: rgba(61,125,255,.12);
+  --db-accent-soft: rgba(61, 125, 255, .28);
+  --db-accent-weak: rgba(61, 125, 255, .12);
 
   /* Sizing rhythm */
   --db-row-h: 32px;
@@ -43,34 +44,40 @@
 }
 
 /* Desktop Deribit screenshot-matched tuning (blue UI + purple strike/spot) */
-.db-oc-root.deribit{
-  --db-bg-main: #0b0c0e;
-  --db-bg-header: #111315;
-  --db-bg-row-even: #14171a;
-  --db-bg-row-odd: #15191c;
-  --db-bg-strike: #0c0d10;
-  --db-border: rgba(255,255,255,.08);
-  --db-border-strong: rgba(255,255,255,.12);
+.db-oc-root.deribit {
+  --db-bg-main: transparent;
+  --db-bg-header: rgba(17, 19, 21, 0.6);
+  --db-bg-row-even: rgba(20, 23, 26, 0.5);
+  --db-bg-row-odd: rgba(21, 25, 28, 0.5);
+  --db-bg-strike: rgba(12, 13, 16, 0.6);
+  --db-border: rgba(255, 255, 255, .08);
+  --db-border-strong: rgba(255, 255, 255, .12);
 
-  --db-text: rgba(255,255,255,.92);
-  --db-muted: rgba(255,255,255,.55);
-  --db-dim: rgba(255,255,255,.22);
+  --db-text: rgba(255, 255, 255, .92);
+  --db-muted: rgba(255, 255, 255, .55);
+  --db-dim: rgba(255, 255, 255, .22);
 
-  --db-accent: #2f6bff;              /* UI blue */
-  --db-accent-soft: rgba(47,107,255,.35);
-  --db-accent-weak: rgba(47,107,255,.14);
+  --db-accent: #2f6bff;
+  --db-accent-soft: rgba(47, 107, 255, .35);
+  --db-accent-weak: rgba(47, 107, 255, .14);
 
-  --db-spot: #9b4dff;                /* strike/spot purple */
-  --db-spot-soft: rgba(155,77,255,.35);
-  --db-spot-weak: rgba(155,77,255,.16);
+  --db-spot: #9b4dff;
+  --db-spot-soft: rgba(155, 77, 255, .35);
+  --db-spot-weak: rgba(155, 77, 255, .16);
 
   --db-row-h: 32px;
   --db-cell-px: 7px;
-  /* 用户要求：单元格字体更大 */
   --db-font-cell: 13px;
   --db-font-sub: 11px;
-  /* 表头（列名）更大，尽量“占满”单元格 */
   --db-font-header: 13px;
+}
+
+.db-oc-root.deribit {
+  /* subtle vignette like Deribit + glass overlay */
+  background:
+    radial-gradient(1200px 600px at 30% 15%, rgba(255, 255, 255, .04), transparent 60%),
+    radial-gradient(900px 540px at 70% 35%, rgba(47, 107, 255, .04), transparent 62%),
+    transparent;
 }
 
 .db-oc-root.deribit{
@@ -112,11 +119,13 @@
   transform: translateY(0.5px);
 }
 
-.db-oc-root.deribit .db-menu-panel{
-  background: #14171a;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 12px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+.db-oc-root.deribit .db-menu-panel {
+  background: rgba(20, 23, 26, 0.7);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   overflow: hidden;
 }
 

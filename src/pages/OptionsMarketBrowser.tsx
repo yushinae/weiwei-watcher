@@ -136,9 +136,9 @@ const DetailOverlay = ({
 
   return (
     <>
-      {/* ── Backdrop ── */}
+      {/* ── Backdrop — 毛玻璃 ── */}
       <motion.div
-        className="absolute inset-0 z-40 bg-[#070710]/80"
+        className="absolute inset-0 z-40 bg-[#070710]/60 backdrop-blur-md"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -146,11 +146,11 @@ const DetailOverlay = ({
         onClick={onClose}
       />
 
-      {/* ── Shared-element card ── */}
+      {/* ── Shared-element card — 毛玻璃 ── */}
       <motion.div
         layoutId={layoutId}
-        className="absolute inset-0 z-50 bg-[#0D0D18] flex flex-col overflow-hidden"
-        style={{ borderRadius: 0 }}
+        className="absolute inset-0 z-50 flex flex-col overflow-hidden"
+        style={{ background: 'rgba(13,13,24,0.7)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '16px', boxShadow: '0 24px 60px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.07)' }}
         transition={SPRING}
       >
         {/* Header — fades in after layout settles */}
@@ -396,7 +396,7 @@ export default function OptionsMarketBrowser() {
     : null;
 
   return (
-    <div className="absolute inset-0 bg-[#0B0C0E] flex flex-col overflow-hidden select-none">
+    <div className="absolute inset-0 flex flex-col overflow-hidden select-none">
       <LayoutGroup>
 
         {/* ── Grid ── */}

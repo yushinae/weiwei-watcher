@@ -441,10 +441,10 @@ export default function OptionsPage({ initialCoin = 'BTC', initialSettlement = '
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-[#090910]">
+    <div className="absolute inset-0 flex flex-col">
 
-      {/* ── Tab bar ── */}
-      <div className="flex items-center h-9 border-b border-[#1A1A28] px-2 gap-0.5 shrink-0 bg-[#0D0D16]">
+      {/* ── Tab bar — 毛玻璃效果 ── */}
+      <div className="flex items-center h-9 border-b border-white/10 px-2 gap-0.5 shrink-0" style={{ background: 'rgba(13,13,22,0.6)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         {tabs.map(tab => {
           const isActive = tab.id === activeId;
           const isHovered = tab.id === hoveredId;

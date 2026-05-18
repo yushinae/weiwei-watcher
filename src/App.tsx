@@ -1288,10 +1288,13 @@ export default function App() {
   const overflowTickers = activeTickers.slice(4);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30">
-      {/* Top Header */}
+    <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative">
+      {/* 背景层 */}
+      <div className="bg-canvas" />
+
+      {/* Top Header — 毛玻璃效果 */}
       {/* 顶部栏需要高层级，否则会被页面内 sticky 标题栏遮挡（如下拉面板/弹出卡片） */}
-      <header className="h-[48px] flex items-center px-2 bg-bg-base shrink-0 relative z-[150] border-b border-surface-2">
+      <header className="h-[48px] flex items-center px-2 glass-bar shrink-0 relative z-[150]">
         {/* Logo and Nav */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
@@ -1328,7 +1331,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-hidden bg-bg-base">
+      <main className="flex-1 relative overflow-hidden z-[1]">
         <AnimatePresence mode="wait">
           {/* @ts-ignore */}
           <Routes location={location} key={location.pathname}>
@@ -1743,7 +1746,7 @@ export default function App() {
       </main>
 
       {/* 底部导航栏和活动条 */}
-      <footer className="h-[38px] bg-bg-base flex items-center justify-between px-2 shrink-0 z-10 w-full relative">
+      <footer className="h-[38px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: '1px solid rgba(255,255,255,0.14)', borderBottom: 'none' }}>
         <div className="flex items-center gap-1.5 h-full py-1">
           {pages.map((page) => (
             <FooterTab

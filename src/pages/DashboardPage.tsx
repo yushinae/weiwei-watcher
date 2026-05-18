@@ -52,7 +52,7 @@ export const DashboardPage = () => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="absolute inset-0 bg-[#0A0A0D]"
+      className="absolute inset-0"
     >
       <ElasticLayout>
         <div className="min-h-full flex flex-col">
@@ -82,7 +82,7 @@ export const DashboardPage = () => {
             <div className="relative p-2 pb-24 flex-1" ref={containerRef}>
               {fullscreenId && (
                 <div
-                  className="fixed inset-0 bg-[#0A0A0B]/80 z-[90] backdrop-blur-sm"
+                  className="fixed inset-0 bg-[#0A0A0B]/60 z-[90] backdrop-blur-md"
                   onClick={() => setFullscreenId(null)}
                 />
               )}

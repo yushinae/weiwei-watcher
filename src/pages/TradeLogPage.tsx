@@ -1609,7 +1609,7 @@ export default function TradeLogPage() {
         <ElasticLayout
           restGap={4}
           header={
-            <div className="flex flex-col gap-3 px-2 pt-2 pb-0 bg-[#0A0A0D]">
+            <div className="flex flex-col gap-3 px-2 pt-2 pb-0" style={{ background: 'rgba(10,10,13,0.5)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
               {/* ── 顶部：标题 + 主操作（专业报表风格） ── */}
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -1734,7 +1734,7 @@ export default function TradeLogPage() {
           }
         >
           {/* ── 主表格（可滚动内容区） ── */}
-          <div className="px-2 pt-2 pb-2 h-full flex flex-col bg-[#0A0A0D]">
+          <div className="px-2 pt-2 pb-2 h-full flex flex-col">
             <div ref={tableWrapRef} className="flex-1 min-h-0 overflow-hidden rounded-[10px] border border-[#1E1E26]">
               <Table<TradeRecord>
                 dataSource={filteredData}

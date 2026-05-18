@@ -1820,72 +1820,73 @@ export default function OptionsChainPage({
   const storeTickers = useSimTradingStore(s => s.tickers);
 
   const allRows = useMemo(() => {
-    const rows = buildChain(coinCfg, T, seed);
-
-    // Overlay live ticker data from Bybit WebSocket
-    if (Object.keys(storeTickers).length === 0) {
-      return rows;
-    }
-
     const baseCoin = coinCfg.label;
     const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();
 
-    // Debug: log symbol construction and matching
-    if (rows.length > 0) {
-      const allKeys = Object.keys(storeTickers);
-      const matchingKeys = allKeys.filter(k => k.includes('22MAY26')).slice(0, 5);
-      
-      const firstRow = rows[0];
-      const sampleRow = rows[Math.floor(rows.length / 2)];
-      const firstSym = `${baseCoin}-${expiryPrefix}-${firstRow.strike}-C`;
-      const sampleSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
-      
-      console.log('[Chain Overlay Debug]', {
-        baseCoin,
-        expiryPrefix,
-        totalTickers: allKeys.length,
-        matchingKeysSample: matchingKeys,
-        firstSymbol: firstSym,
-        hasFirstMatch: !!storeTickers[firstSym],
-        sampleSymbol: sampleSym,
-        hasSampleMatch: !!storeTickers[sampleSym],
-        mockCallMark: sampleRow.call.mark,
+    // Collect live strikes from store tickers for current expiry
+    const liveStrikes = new Map<number, { call?: any; put?: any }>();
+    for (const [symbol, ticker] of Object.entries(storeTickers)) {
+      const parts = symbol.split('-');
+      if (parts.length >= 4 && parts[0] === baseCoin && parts[1] === expiryPrefix) {
+        const strike = parseFloat(parts[2]);
+        const type = parts[3]; // 'C' or 'P'
+        if (Number.isFinite(strike) && ticker?.markPrice > 0) {
+          if (!liveStrikes.has(strike)) liveStrikes.set(strike, {});
+          const entry = liveStrikes.get(strike)!;
+          const data = {
+            bid: Number.isFinite(ticker.bid) && ticker.bid > 0 ? ticker.bid : null,
+            ask: Number.isFinite(ticker.ask) && ticker.ask > 0 ? ticker.ask : null,
+            mark: ticker.markPrice,
+            iv: Number.isFinite(ticker.iv) && ticker.iv > 0 ? ticker.iv * 100 : 0,
+            ivBid: null,
+            ivAsk: null,
+            delta: Number.isFinite(ticker.delta) ? ticker.delta : 0,
+            gamma: Number.isFinite(ticker.gamma) ? ticker.gamma : 0,
+            vega: Number.isFinite(ticker.vega) ? ticker.vega : 0,
+            theta: Number.isFinite(ticker.theta) ? ticker.theta : 0,
+            oi: null,
+            dOI: null,
+            size: null,
+            pos: null,
+          };
+          if (type === 'C') entry.call = data;
+          else entry.put = data;
+        }
+      }
+    }
+
+    // If we have live data, build rows from it
+    if (liveStrikes.size > 0) {
+      const strikes = [...liveStrikes.keys()].sort((a, b) => a - b);
+      // Use average of call/ask marks or first available to find spot
+      let spotPrice = coinCfg.spot;
+      for (const k of strikes) {
+        const entry = liveStrikes.get(k)!;
+        if (entry.call?.mark && entry.put?.mark) {
+          // ATM is where call and put prices are closest
+          const diff = Math.abs(entry.call.mark - entry.put.mark);
+          if (diff < 500) { // rough threshold
+            spotPrice = k;
+            break;
+          }
+        }
+      }
+      const atmK = strikes.reduce((p, c) => Math.abs(c - spotPrice) < Math.abs(p - spotPrice) ? c : p);
+
+      return strikes.map(K => {
+        const entry = liveStrikes.get(K)!;
+        return {
+          strike: K,
+          isATM: K === atmK,
+          isITM: K < spotPrice,
+          call: entry.call ?? buildSide(coinCfg.spot, K, T, coinCfg.baseIV, true, () => Math.random()),
+          put: entry.put ?? buildSide(coinCfg.spot, K, T, coinCfg.baseIV, false, () => Math.random()),
+        };
       });
     }
 
-    return rows.map(row => {
-      const callSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-C`;
-      const putSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-P`;
-
-      const callTicker = storeTickers[callSymbol];
-      const putTicker = storeTickers[putSymbol];
-
-      const newCall = callTicker ? {
-        ...row.call,
-        bid: Number.isFinite(callTicker.bid) && callTicker.bid > 0 ? callTicker.bid : row.call.bid,
-        ask: Number.isFinite(callTicker.ask) && callTicker.ask > 0 ? callTicker.ask : row.call.ask,
-        mark: Number.isFinite(callTicker.markPrice) && callTicker.markPrice > 0 ? callTicker.markPrice : row.call.mark,
-        iv: Number.isFinite(callTicker.iv) && callTicker.iv > 0 ? callTicker.iv * 100 : row.call.iv,
-        delta: Number.isFinite(callTicker.delta) ? callTicker.delta : row.call.delta,
-        gamma: Number.isFinite(callTicker.gamma) ? callTicker.gamma : row.call.gamma,
-        vega: Number.isFinite(callTicker.vega) ? callTicker.vega : row.call.vega,
-        theta: Number.isFinite(callTicker.theta) ? callTicker.theta : row.call.theta,
-      } : row.call;
-
-      const newPut = putTicker ? {
-        ...row.put,
-        bid: Number.isFinite(putTicker.bid) && putTicker.bid > 0 ? putTicker.bid : row.put.bid,
-        ask: Number.isFinite(putTicker.ask) && putTicker.ask > 0 ? putTicker.ask : row.put.ask,
-        mark: Number.isFinite(putTicker.markPrice) && putTicker.markPrice > 0 ? putTicker.markPrice : row.put.mark,
-        iv: Number.isFinite(putTicker.iv) && putTicker.iv > 0 ? putTicker.iv * 100 : row.put.iv,
-        delta: Number.isFinite(putTicker.delta) ? putTicker.delta : row.put.delta,
-        gamma: Number.isFinite(putTicker.gamma) ? putTicker.gamma : row.put.gamma,
-        vega: Number.isFinite(putTicker.vega) ? putTicker.vega : row.put.vega,
-        theta: Number.isFinite(putTicker.theta) ? putTicker.theta : row.put.theta,
-      } : row.put;
-
-      return { ...row, call: newCall, put: newPut };
-    });
+    // Fallback to mock data
+    return buildChain(coinCfg, T, seed);
   }, [coinCfg, T, seed, storeTickers, expiryStr]);
   const rows = useMemo(() => {
     if (filterKey === 'all') return allRows;

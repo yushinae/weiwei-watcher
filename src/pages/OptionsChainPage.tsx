@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useWorkspaceStore } from '../store/useWorkspaceStore';
+import { useSimTradingStore } from '../store/useSimTradingStore';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { Popover, HoverPopover } from '../components/popup/Popup';
 import { getJSON } from '../api/client';
@@ -553,12 +554,12 @@ const TradingPanel = memo(({
 }) => {
   const { row, side } = selected;
   const opt   = side === 'call' ? row.call : row.put;
-  // 合约名称里不展示 USDT/USDC 字样，仅显示标的
   const coin  = coinCfg.label.split(/[\s-]/)[0];
   const contractName = `${coin}-${row.strike}-${side === 'call' ? 'C' : 'P'}`;
+  const symbol = `${coin}-${expiryStr.replace(/\s+/g, '')}-${row.strike}-${side === 'call' ? 'C' : 'P'}`;
 
   const [orderType, setOrderType] = useState<'limit' | 'market' | 'stop'>('limit');
-  const [quoteMode, setQuoteMode] = useState<'price' | 'iv'>('price'); // 期权下单：用价格 or 用 IV 报价
+  const [quoteMode, setQuoteMode] = useState<'price' | 'iv'>('price');
   const [price,  setPrice]  = useState((opt.ask ?? opt.mark).toFixed(dec));
   const [trigger, setTrigger] = useState((opt.mark).toFixed(dec));
   const [iv,     setIv]     = useState(opt.iv.toFixed(1));
@@ -569,6 +570,13 @@ const TradingPanel = memo(({
   const [postOnly, setPostOnly] = useState(false);
   const [rtab,   setRtab]   = useState<'book' | 'trades' | 'greeks'>('book');
   const [btab,   setBtab]   = useState<'position' | 'open' | 'history' | 'trades'>('position');
+
+  // Trading store
+  const placeOrder = useSimTradingStore(s => s.placeOrder);
+  const positions = useSimTradingStore(s => s.positions);
+  const openOrders = useSimTradingStore(s => s.openOrders);
+  const orderHistory = useSimTradingStore(s => s.orderHistory);
+  const fills = useSimTradingStore(s => s.fills);
 
   const { asks, bids } = useMemo(() => genBook(opt.bid, opt.ask, opt.iv, dec, seed ^ row.strike), [opt.bid, opt.ask, opt.iv, dec, seed, row.strike]);
   const maxAskTotal = asks[asks.length - 1]?.total ?? 1;
@@ -583,9 +591,37 @@ const TradingPanel = memo(({
     return Number.isFinite(q) ? q : 0;
   }, [qty]);
   const notional = useMemo(() => nPrice * nQty, [nPrice, nQty]);
-  const fee = useMemo(() => notional * 0.0005, [notional]); // demo: 5bps
-  const margin = useMemo(() => notional * 0.12, [notional]); // demo: 12%
+  const fee = useMemo(() => notional * 0.0005, [notional]);
+  const margin = useMemo(() => notional * 0.12, [notional]);
   const totalCost = useMemo(() => notional + fee, [notional, fee]);
+
+  const handleBuy = () => {
+    placeOrder({
+      side: 'buy',
+      type: orderType,
+      symbol,
+      qty: nQty,
+      price: orderType === 'market' ? opt.mark : nPrice,
+      iv: quoteMode === 'iv' ? parseFloat(iv) / 100 : undefined,
+      tif: tif as any,
+      reduceOnly,
+      postOnly,
+    });
+  };
+
+  const handleSell = () => {
+    placeOrder({
+      side: 'sell',
+      type: orderType,
+      symbol,
+      qty: nQty,
+      price: orderType === 'market' ? opt.mark : nPrice,
+      iv: quoteMode === 'iv' ? parseFloat(iv) / 100 : undefined,
+      tif: tif as any,
+      reduceOnly,
+      postOnly,
+    });
+  };
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: BG_MAIN }}>
@@ -822,12 +858,12 @@ const TradingPanel = memo(({
 
             {/* 买卖 */}
             <div className="mt-3 flex gap-2">
-              <button className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black"
+              <button onClick={handleBuy} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all"
                 style={{ background: 'rgba(90,196,140,0.92)' }}
               >
                 买入
               </button>
-              <button className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black"
+              <button onClick={handleSell} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all"
                 style={{ background: 'rgba(240,92,104,0.92)' }}
               >
                 卖出
@@ -937,13 +973,13 @@ const TradingPanel = memo(({
           </div>
 
           {/* BOTTOM area (tabs like Deribit) */}
-          <div className="shrink-0 border-t" style={{ borderTop: BORDER, backgroundColor: '#0B0C0E' }}>
-            <div className="flex items-center gap-3 px-3 h-9">
+          <div className="shrink-0 border-t flex flex-col" style={{ borderTop: BORDER, backgroundColor: '#0B0C0E', maxHeight: 220 }}>
+            <div className="flex items-center gap-3 px-3 h-9 shrink-0">
               {([
-                { k: 'position' as const, l: '仓位', c: 0 },
-                { k: 'open' as const, l: '未结订单', c: 0 },
-                { k: 'history' as const, l: '订单历史记录', c: 0 },
-                { k: 'trades' as const, l: '交易历史记录', c: 0 },
+                { k: 'position' as const, l: '仓位', c: positions.length },
+                { k: 'open' as const, l: '未结订单', c: openOrders.length },
+                { k: 'history' as const, l: '订单历史记录', c: orderHistory.length },
+                { k: 'trades' as const, l: '交易历史记录', c: fills.length },
               ]).map(t => {
                 const on = btab === t.k;
                 return (
@@ -961,7 +997,7 @@ const TradingPanel = memo(({
             </div>
 
             {/* table header */}
-            <div className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[11px] border-t" style={{ borderTop: BORDER, color: 'rgba(255,255,255,0.35)' }}>
+            <div className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[11px] border-t shrink-0" style={{ borderTop: BORDER, color: 'rgba(255,255,255,0.35)' }}>
               <div>产品</div>
               <div className="text-right">数量</div>
               <div className="text-right">值</div>
@@ -971,9 +1007,69 @@ const TradingPanel = memo(({
               <div className="text-right">Δ</div>
             </div>
 
-            {/* empty state */}
-            <div className="h-[180px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
-              这里什么都没有...
+            {/* content */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {btab === 'position' && positions.length === 0 && (
+                <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无持仓</div>
+              )}
+              {btab === 'position' && positions.map(p => (
+                <div key={p.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="font-mono font-bold" style={{ color: p.side === 'long' ? '#5AC48C' : '#F05C68' }}>{p.symbol}</div>
+                  <div className="text-right font-mono">{p.qty.toFixed(2)}</div>
+                  <div className="text-right font-mono">{(p.markPrice * p.qty).toFixed(2)}</div>
+                  <div className="text-right font-mono">{p.avgEntryPrice.toFixed(2)}</div>
+                  <div className="text-right font-mono">{p.markPrice.toFixed(2)}</div>
+                  <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? '#5AC48C' : '#F05C68' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
+                  <div className="text-right font-mono">{p.delta.toFixed(3)}</div>
+                </div>
+              ))}
+
+              {btab === 'open' && openOrders.length === 0 && (
+                <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无未结订单</div>
+              )}
+              {btab === 'open' && openOrders.map(o => (
+                <div key={o.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="font-mono font-bold">{o.symbol}</div>
+                  <div className="text-right font-mono">{o.qty.toFixed(2)}</div>
+                  <div className="text-right font-mono">—</div>
+                  <div className="text-right font-mono">{o.price.toFixed(2)}</div>
+                  <div className="text-right font-mono">—</div>
+                  <div className="text-right font-mono" style={{ color: o.side === 'buy' ? '#5AC48C' : '#F05C68' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
+                  <div className="text-right font-mono">{o.type}</div>
+                </div>
+              ))}
+
+              {btab === 'history' && orderHistory.length === 0 && (
+                <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无历史订单</div>
+              )}
+              {btab === 'history' && orderHistory.slice(-20).reverse().map(o => (
+                <div key={o.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="font-mono font-bold">{o.symbol}</div>
+                  <div className="text-right font-mono">{o.qty.toFixed(2)}</div>
+                  <div className="text-right font-mono">—</div>
+                  <div className="text-right font-mono">{(o.filledPrice ?? o.price).toFixed(2)}</div>
+                  <div className="text-right font-mono">—</div>
+                  <div className="text-right font-mono" style={{ color: o.status === 'filled' ? '#5AC48C' : o.status === 'cancelled' ? '#848E9C' : '#F0B90B' }}>
+                    {o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}
+                  </div>
+                  <div className="text-right font-mono">{new Date(o.createdAt).toLocaleTimeString()}</div>
+                </div>
+              ))}
+
+              {btab === 'trades' && fills.length === 0 && (
+                <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无成交记录</div>
+              )}
+              {btab === 'trades' && fills.slice(-20).reverse().map(f => (
+                <div key={f.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="font-mono font-bold">{f.symbol}</div>
+                  <div className="text-right font-mono">{f.qty.toFixed(2)}</div>
+                  <div className="text-right font-mono">{(f.price * f.qty).toFixed(2)}</div>
+                  <div className="text-right font-mono">{f.price.toFixed(2)}</div>
+                  <div className="text-right font-mono">{f.fee.toFixed(4)}</div>
+                  <div className="text-right font-mono" style={{ color: f.side === 'buy' ? '#5AC48C' : '#F05C68' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
+                  <div className="text-right font-mono">{new Date(f.timestamp).toLocaleTimeString()}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

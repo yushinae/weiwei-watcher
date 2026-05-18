@@ -19,6 +19,48 @@ import {
   PolymarketWidget,
 } from './monitorWidgets';
 import { PositionsWidget } from './positionsWidget';
+import { useSimTradingStore } from '../store/useSimTradingStore';
+
+function SimAccountWidget() {
+  const balance = useSimTradingStore(s => s.balance);
+  const resetAccount = useSimTradingStore(s => s.resetAccount);
+  const positions = useSimTradingStore(s => s.positions);
+  const openOrders = useSimTradingStore(s => s.openOrders);
+
+  return (
+    <div className="h-full w-full p-3 flex flex-col gap-2 min-h-0">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-bold text-white/40 uppercase tracking-wider">模拟账户</div>
+        <button
+          onClick={() => { if (confirm('确定重置账户？所有持仓和订单将被清除。')) resetAccount(); }}
+          className="text-[10px] text-white/30 hover:text-rose-400 transition-colors"
+        >
+          重置
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0 content-start">
+        <div className="bg-white/[0.04] rounded-[8px] p-2 border border-white/[0.06]">
+          <div className="text-[9px] text-white/35 mb-0.5">账户权益</div>
+          <div className="text-[16px] font-bold font-mono text-white/90 tnum">${balance.equity.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>
+        </div>
+        <div className="bg-white/[0.04] rounded-[8px] p-2 border border-white/[0.06]">
+          <div className="text-[9px] text-white/35 mb-0.5">可用余额</div>
+          <div className="text-[16px] font-bold font-mono text-emerald-400 tnum">${balance.availableBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>
+        </div>
+        <div className="bg-white/[0.04] rounded-[8px] p-2 border border-white/[0.06]">
+          <div className="text-[9px] text-white/35 mb-0.5">总 PnL</div>
+          <div className={cn("text-[16px] font-bold font-mono tnum", balance.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {balance.totalPnL >= 0 ? '+' : ''}${balance.totalPnL.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+          </div>
+        </div>
+        <div className="bg-white/[0.04] rounded-[8px] p-2 border border-white/[0.06]">
+          <div className="text-[9px] text-white/35 mb-0.5">持仓 / 挂单</div>
+          <div className="text-[16px] font-bold font-mono text-white/70 tnum">{positions.length} / {openOrders.length}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Mock data ────────────────────────────────────────────────────────────────
 
@@ -423,6 +465,21 @@ export const WIDGET_REGISTRY: Record<string, WidgetDefinition> = {
             <div key={t} className="h-6 rounded-[8px] bg-white/[0.03] border border-white/[0.06]" />
           ))}
         </div>
+      </div>
+    ),
+  },
+  'sim-account': {
+    id: 'sim-account',
+    label: '模拟账户 (Sim Account)',
+    icon: Calculator,
+    category: 'account',
+    description: '模拟交易账户总览：权益、可用余额、总 PnL、持仓/挂单数量。支持一键重置。',
+    defaultSize: { w: 4, h: 3, minW: 3, minH: 2 },
+    component: SimAccountWidget,
+    preview: (
+      <div className="h-[80px] w-[160px] p-2 bg-white/[0.04] border border-white/[0.08] rounded-[8px]">
+        <div className="text-[9px] text-white/35">账户权益</div>
+        <div className="text-[14px] font-bold font-mono text-white/90">$100,000.00</div>
       </div>
     ),
   },

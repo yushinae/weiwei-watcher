@@ -458,19 +458,13 @@ const AppNavigationDropdown = () => {
   );
 };
 
-const OPTIONS_EXPIRIES_INVERSE = [
-  '07 MAY 26', '08 MAY 26', '09 MAY 26', '10 MAY 26',
-  '15 MAY 26', '22 MAY 26', '29 MAY 26',
-  '26 JUN 26', '31 JUL 26', '25 SEP 26', '25 DEC 26', '26 MAR 27',
-];
-
 const LINEAR_COINS_BASE = [
-  { base: 'AVAX', color: '#E84142', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
-  { base: 'BTC',  color: '#F7931A', expiries: ['07 MAY 26','08 MAY 26','09 MAY 26','10 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
-  { base: 'ETH',  color: '#627EEA', expiries: ['07 MAY 26','08 MAY 26','09 MAY 26','10 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
-  { base: 'SOL',  color: '#9945FF', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
-  { base: 'TRX',  color: '#EF0027', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
-  { base: 'XRP',  color: '#346AA9', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'AVAX', color: '#E84142' },
+  { base: 'BTC',  color: '#F7931A' },
+  { base: 'ETH',  color: '#627EEA' },
+  { base: 'SOL',  color: '#9945FF' },
+  { base: 'TRX',  color: '#EF0027' },
+  { base: 'XRP',  color: '#346AA9' },
 ];
 
 // ── OptionsDropdown animation variants ───────────────────────────────────────
@@ -514,13 +508,51 @@ const dropRowVariants = {
 const OptionsDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  // 结算币种：当前界面不暴露 USDT / 交易所字样，统一按 USDC 展示
   const [linearSettlement] = useState<'USDC'>('USDC');
+  const [expiries, setExpiries] = useState<Record<string, string[]>>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isOptions = location.pathname === '/options';
+
+  // Fetch live expiries from Deribit
+  useEffect(() => {
+    const fetchExpiries = async (base: string) => {
+      try {
+        const res = await fetch(
+          `https://www.deribit.com/api/v2/public/get_instruments?currency=${base}&kind=option&expired=false`
+        );
+        const json = await res.json();
+        if (json?.result) {
+          const expSet = new Set<string>();
+          for (const inst of json.result) {
+            const name = inst.instrument_name;
+            const parts = name.split('-');
+            if (parts.length >= 3) {
+              const rawExpiry = parts[1];
+              const formatted = rawExpiry.replace(/(\d+)([A-Z]{3})(\d{2})/, '$1 $2 $3');
+              expSet.add(formatted);
+            }
+          }
+          const sorted = [...expSet].sort((a, b) => {
+            const parseDate = (s: string) => {
+              const [d, m, y] = s.split(' ');
+              const months: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
+              return new Date(2000 + parseInt(y), months[m] ?? 0, parseInt(d)).getTime();
+            };
+            return parseDate(a) - parseDate(b);
+          });
+          setExpiries(prev => ({ ...prev, [base]: sorted }));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    for (const coin of LINEAR_COINS_BASE) {
+      fetchExpiries(coin.base);
+    }
+  }, []);
 
   const openPanel = () => {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
@@ -601,7 +633,7 @@ const OptionsDropdown = () => {
                     </div>
                   </motion.button>
                   <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
-                    {OPTIONS_EXPIRIES_INVERSE.map(exp => (
+                    {(expiries['BTC'] ?? []).map(exp => (
                       <motion.button
                         key={`btc-${exp}`}
                         variants={dropRowVariants}
@@ -639,7 +671,7 @@ const OptionsDropdown = () => {
                     </div>
                   </motion.button>
                   <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
-                    {OPTIONS_EXPIRIES_INVERSE.map(exp => (
+                    {(expiries['ETH'] ?? []).map(exp => (
                       <motion.button
                         key={`eth-${exp}`}
                         variants={dropRowVariants}
@@ -699,7 +731,7 @@ const OptionsDropdown = () => {
                         </motion.button>
 
                         <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
-                          {coin.expiries.map(exp => (
+                          {(expiries[coin.base] ?? []).map(exp => (
                             <motion.button
                               key={`${label}-${exp}`}
                               variants={dropRowVariants}

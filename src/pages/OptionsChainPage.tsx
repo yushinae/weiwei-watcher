@@ -1838,16 +1838,28 @@ export default function OptionsChainPage({
         return parts.length >= 3 ? parts[1] : 'unknown';
       }))].sort();
       
+      const firstRow = rows[0];
       const sampleRow = rows[Math.floor(rows.length / 2)];
-      const sampleCallSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
+      const firstSym = `${baseCoin}-${expiryPrefix}-${firstRow.strike}-C`;
+      const sampleSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
       
-      console.log('[Chain] Debug:', {
+      console.log('[Chain Overlay Debug]', {
         baseCoin,
         expiryPrefix,
-        sampleCallSym,
         totalTickers: allKeys.length,
         expiriesInStore,
-        hasSampleMatch: !!storeTickers[sampleCallSym],
+        firstRowStrike: firstRow.strike,
+        firstSymbol: firstSym,
+        hasFirstMatch: !!storeTickers[firstSym],
+        sampleSymbol: sampleSym,
+        hasSampleMatch: !!storeTickers[sampleSym],
+        sampleTickerData: storeTickers[sampleSym] ? {
+          mark: storeTickers[sampleSym].markPrice,
+          bid: storeTickers[sampleSym].bid,
+          ask: storeTickers[sampleSym].ask,
+        } : null,
+        mockCallMark: sampleRow.call.mark,
+        mockCallBid: sampleRow.call.bid,
       });
     }
 

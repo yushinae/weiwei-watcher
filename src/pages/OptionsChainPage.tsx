@@ -1538,8 +1538,8 @@ const ToolBtn = ({ icon, label, active, onClick }: { icon?: React.ReactNode; lab
 export type OptionsChainMode = 'nexus' | 'deribit';
 
 export const DERIBIT_EXPIRIES = [
-  '09 MAY 26','10 MAY 26','11 MAY 26','12 MAY 26',
-  '15 MAY 26','22 MAY 26','29 MAY 26','26 JUN 26','31 JUL 26','25 SEP 26',
+  '19 MAY 26','20 MAY 26','21 MAY 26','22 MAY 26','29 MAY 26',
+  '5 JUN 26','26 JUN 26','31 JUL 26','25 SEP 26','25 DEC 26','26 MAR 27',
 ] as const;
 
 export default function OptionsChainPage({
@@ -1782,18 +1782,22 @@ export default function OptionsChainPage({
 
     // Debug: log symbol construction and matching
     if (rows.length > 0) {
-      const matchingKeys = Object.keys(storeTickers).filter(k => k.includes('09MAY26'));
+      const allKeys = Object.keys(storeTickers);
+      const expiriesInStore = [...new Set(allKeys.map(k => {
+        const parts = k.split('-');
+        return parts.length >= 3 ? parts[1] : 'unknown';
+      }))].sort();
+      
       const sampleRow = rows[Math.floor(rows.length / 2)];
       const sampleCallSym = `${baseCoin}-${expiryPrefix}-${sampleRow.strike}-C`;
+      
       console.log('[Chain] Debug:', {
         baseCoin,
         expiryPrefix,
         sampleCallSym,
-        totalTickers: Object.keys(storeTickers).length,
-        matchingExpiryCount: matchingKeys.length,
-        sampleMatchingKeys: matchingKeys.slice(0, 5),
+        totalTickers: allKeys.length,
+        expiriesInStore,
         hasSampleMatch: !!storeTickers[sampleCallSym],
-        allStrikes: rows.map(r => r.strike).slice(0, 5),
       });
     }
 

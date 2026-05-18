@@ -16,7 +16,6 @@ import { useSimTradingStore } from '../store/useSimTradingStore';
 import { useBybitOptionsStream } from '../hooks/useBybitOptionsStream';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { Popover, HoverPopover } from '../components/popup/Popup';
-import { getJSON } from '../api/client';
 import './deribit-options-chain.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1543,60 +1542,6 @@ export const DERIBIT_EXPIRIES = [
   '15 MAY 26','22 MAY 26','29 MAY 26','26 JUN 26','31 JUL 26','25 SEP 26',
 ] as const;
 
-type ApiChainRow = { K: number; call: any; put: any };
-type ApiChainPayload = { base: string; expiryTs: string; strikes: ApiChainRow[] };
-type ApiChainSnapshot = {
-  ts: string;
-  exchange: string;
-  base: string;
-  expiry_ts: string;
-  payload: ApiChainPayload;
-};
-
-function mapApiChainToRows(payload: ApiChainPayload, spot: number): ChainRow[] {
-  const strikes = (payload?.strikes ?? []).map((s) => Number(s.K)).filter(Number.isFinite);
-  const atmK = strikes.length ? strikes.reduce((p, c) => (Math.abs(c - spot) < Math.abs(p - spot) ? c : p)) : spot;
-
-  const mapSide = (x: any): Side => {
-    const mark = Number(x?.mark);
-    const iv = Number(x?.iv);
-    const delta = Number(x?.delta);
-    const gamma = Number(x?.gamma);
-    const vega = Number(x?.vega);
-    const theta = Number(x?.theta);
-    return {
-      bid: Number.isFinite(x?.bid) ? Number(x.bid) : null,
-      ask: Number.isFinite(x?.ask) ? Number(x.ask) : null,
-      mark: Number.isFinite(mark) ? mark : 0,
-      iv: Number.isFinite(iv) ? iv : 0,
-      ivBid: null,
-      ivAsk: null,
-      delta: Number.isFinite(delta) ? delta : 0,
-      gamma: Number.isFinite(gamma) ? gamma : 0,
-      vega: Number.isFinite(vega) ? vega : 0,
-      theta: Number.isFinite(theta) ? theta : 0,
-      oi: x?.oi != null && Number.isFinite(Number(x.oi)) ? Number(x.oi) : null,
-      dOI: null,
-      size: null,
-      pos: null,
-    };
-  };
-
-  return (payload?.strikes ?? [])
-    .map((s) => {
-      const K = Number(s.K);
-      if (!Number.isFinite(K)) return null;
-      return {
-        strike: K,
-        isATM: K === atmK,
-        isITM: K < spot,
-        call: mapSide(s.call),
-        put: mapSide(s.put),
-      } as ChainRow;
-    })
-    .filter(Boolean) as ChainRow[];
-}
-
 export default function OptionsChainPage({
   mode = 'nexus',
   hideHeader = false,
@@ -1820,75 +1765,15 @@ export default function OptionsChainPage({
     return ALL_17_COLS.filter(c => visibleColIds.has(c.id));
   }, [isDeribit, visibleColIds]);
 
-  // Live expiries from backend (only for BTC/ETH in nexus mode)
-  const isLiveCoin = !isDeribit && (coinCfg.label === 'BTC' || coinCfg.label === 'ETH');
-  const [liveExpiries, setLiveExpiries] = useState<string[]>([]);
-  const [liveSnap, setLiveSnap] = useState<ApiChainSnapshot | null>(null);
-  const expiries = isDeribit ? DERIBIT_EXPIRIES : (liveExpiries.length ? liveExpiries : DERIBIT_EXPIRIES);
-
-  useEffect(() => {
-    if (!isLiveCoin) return;
-    const base = coinCfg.label;
-    let cancelled = false;
-    (async () => {
-      try {
-        const out = await getJSON<{ items: string[] }>(`/api/options/expiries?exchange=bybit&base=${encodeURIComponent(base)}`);
-        if (cancelled) return;
-        const items = (out?.items ?? []).filter(Boolean);
-        setLiveExpiries(items);
-        // if current expiry is not in list, switch to first available
-        if (items.length && !items.includes(expiryStr)) {
-          changeActiveTabExpiry(items[0]!);
-        }
-      } catch {
-        // keep fallback expiries
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLiveCoin, coinCfg.label, expiryStr, changeActiveTabExpiry]);
-
-  // Poll latest chain snapshot from backend
-  useEffect(() => {
-    if (!isLiveCoin) return;
-    if (!expiryStr.includes('T')) return; // backend expiry is ISO
-    const base = coinCfg.label;
-    let cancelled = false;
-
-    const fetchOnce = async () => {
-      try {
-        const snap = await getJSON<ApiChainSnapshot | null>(
-          `/api/options/chain/latest?exchange=bybit&base=${encodeURIComponent(base)}&expiry=${encodeURIComponent(expiryStr)}`,
-        );
-        if (cancelled) return;
-        setLiveSnap(snap);
-      } catch {
-        // ignore (server might be off)
-      }
-    };
-
-    void fetchOnce();
-    const timer = setInterval(fetchOnce, 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [isLiveCoin, coinCfg.label, expiryStr]);
+  const expiries = DERIBIT_EXPIRIES;
 
   const storeTickers = useSimTradingStore(s => s.tickers);
 
   const allRows = useMemo(() => {
-    let rows: ChainRow[];
-    if (isLiveCoin && liveSnap?.payload?.strikes?.length) {
-      rows = mapApiChainToRows(liveSnap.payload, coinCfg.spot);
-    } else {
-      rows = buildChain(coinCfg, T, seed);
-    }
+    const rows = buildChain(coinCfg, T, seed);
 
     // Overlay live ticker data from Bybit WebSocket
     if (Object.keys(storeTickers).length === 0) {
-      console.log('[Chain] No store tickers available');
       return rows;
     }
 
@@ -1945,7 +1830,7 @@ export default function OptionsChainPage({
 
       return { ...row, call: newCall, put: newPut };
     });
-  }, [coinCfg, T, seed, isLiveCoin, liveSnap, storeTickers, expiryStr]);
+  }, [coinCfg, T, seed, storeTickers, expiryStr]);
   const rows = useMemo(() => {
     if (filterKey === 'all') return allRows;
     const ai = allRows.findIndex(r => r.isATM);

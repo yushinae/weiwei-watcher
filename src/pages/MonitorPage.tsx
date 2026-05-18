@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { WidgetCard } from '../components/card/WidgetCard';
-import { getJSON } from '../api/client';
 import { MonitorHeader } from '../features/monitor/components/MonitorHeader';
 import { MonitorLayout } from '../features/monitor/components/MonitorLayout';
 import { InspectorDrawer } from '../features/monitor/components/InspectorDrawer';
@@ -22,100 +21,6 @@ import {
   VolOverviewWidget,
   VolSmileWidget,
 } from '../registry/monitorWidgets';
-
-type ApiChainRow = { K: number; call: any; put: any };
-type ApiChainPayload = { base: string; expiryTs: string; strikes: ApiChainRow[] };
-type ApiChainSnapshot = { ts: string; exchange: string; base: string; expiry_ts: string; payload: ApiChainPayload };
-
-function LiveChainMini({ base }: { base: 'BTC' | 'ETH' }) {
-  const [expiry, setExpiry] = useState<string | null>(null);
-  const [snap, setSnap] = useState<ApiChainSnapshot | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const out = await getJSON<{ items: string[] }>(`/api/options/expiries?exchange=bybit&base=${encodeURIComponent(base)}`);
-        if (cancelled) return;
-        const first = out.items?.[0] ?? null;
-        setExpiry(first);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [base]);
-
-  useEffect(() => {
-    if (!expiry) return;
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const s = await getJSON<ApiChainSnapshot | null>(
-          `/api/options/chain/latest?exchange=bybit&base=${encodeURIComponent(base)}&expiry=${encodeURIComponent(expiry)}`,
-        );
-        if (cancelled) return;
-        setSnap(s);
-      } catch {
-        // ignore
-      }
-    };
-    void run();
-    const t = setInterval(run, 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [base, expiry]);
-
-  const rows = useMemo(() => {
-    const strikes = snap?.payload?.strikes ?? [];
-    return strikes.slice(0, 12);
-  }, [snap]);
-
-  return (
-    <div className="h-full w-full overflow-auto px-3 pb-3">
-      <div className="pt-2 text-[11px] text-text-muted flex items-center justify-between">
-        <span>Bybit 快照 · {expiry ? new Date(expiry).toLocaleString() : '加载到期日…'}</span>
-        <span className="tnum">{snap?.ts ? new Date(snap.ts).toLocaleTimeString() : '—'}</span>
-      </div>
-      <div className="mt-2 rounded-[12px] border border-border-subtle overflow-hidden">
-        <table className="w-full text-[12px]">
-          <thead className="bg-surface-2/60 text-text-muted">
-            <tr>
-              <th className="px-2 py-2 text-left font-bold">K</th>
-              <th className="px-2 py-2 text-right font-bold">Call Bid</th>
-              <th className="px-2 py-2 text-right font-bold">Call Ask</th>
-              <th className="px-2 py-2 text-right font-bold">Put Bid</th>
-              <th className="px-2 py-2 text-right font-bold">Put Ask</th>
-            </tr>
-          </thead>
-          <tbody className="bg-bg-card">
-            {rows.length ? (
-              rows.map((r, idx) => (
-                <tr key={idx} className="border-t border-border-subtle/70">
-                  <td className="px-2 py-2 font-mono tnum text-slate-200">{Number(r.K).toFixed(0)}</td>
-                  <td className="px-2 py-2 font-mono tnum text-right text-slate-200">{r.call?.bid ?? '—'}</td>
-                  <td className="px-2 py-2 font-mono tnum text-right text-slate-200">{r.call?.ask ?? '—'}</td>
-                  <td className="px-2 py-2 font-mono tnum text-right text-slate-200">{r.put?.bid ?? '—'}</td>
-                  <td className="px-2 py-2 font-mono tnum text-right text-slate-200">{r.put?.ask ?? '—'}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-text-muted">
-                  暂无链快照数据（请确认采集器已启用，且已订阅到期权 symbol）。
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
 export default function MonitorPage() {
   const navigate = useNavigate();
@@ -232,7 +137,9 @@ export default function MonitorPage() {
                     },
                   ]}
                 >
-                  <LiveChainMini base={coin} />
+                  <div className="flex h-full items-center justify-center text-[12px] text-text-muted">
+                    请使用 WebSocket 实时数据源，查看完整期权链 →
+                  </div>
                 </WidgetCard>
               </div>
             )}

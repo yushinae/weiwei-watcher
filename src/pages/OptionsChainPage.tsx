@@ -1771,34 +1771,37 @@ export default function OptionsChainPage({
     let cancelled = false;
     (async () => {
       try {
+        console.log('[Deribit API] Fetching instruments for', base);
         const res = await fetch(
           `https://www.deribit.com/api/v2/public/get_instruments?currency=${base}&kind=option&expired=false`
         );
         const json = await res.json();
         if (cancelled) return;
+        console.log('[Deribit API] Response:', json?.result?.length, 'instruments');
         if (json?.result) {
           const expSet = new Set<string>();
           for (const inst of json.result) {
-            const name = inst.instrument_name; // e.g. "BTC-31JUL26-83000-C"
+            const name = inst.instrument_name;
             const parts = name.split('-');
             if (parts.length >= 3) {
-              const rawExpiry = parts[1]; // "31JUL26"
-              // Convert to display format: "31 JUL 26"
+              const rawExpiry = parts[1];
               const formatted = rawExpiry.replace(/(\d+)([A-Z]{3})(\d{2})/, '$1 $2 $3');
               expSet.add(formatted);
             }
           }
-          setLiveExpiries([...expSet].sort((a, b) => {
+          const sorted = [...expSet].sort((a, b) => {
             const parseDate = (s: string) => {
               const [d, m, y] = s.split(' ');
               const months: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
               return new Date(2000 + parseInt(y), months[m] ?? 0, parseInt(d)).getTime();
             };
             return parseDate(a) - parseDate(b);
-          }));
+          });
+          console.log('[Deribit API] Live expiries:', sorted);
+          setLiveExpiries(sorted);
         }
-      } catch {
-        // fallback to hardcoded
+      } catch (e) {
+        console.error('[Deribit API] Failed to fetch instruments:', e);
       }
     })();
     return () => { cancelled = true; };

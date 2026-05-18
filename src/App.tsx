@@ -1,0 +1,2040 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// --- 下面这些 import 就像是去商场里买现成的零件 ---
+
+// React 是我们造网页的大框架。useState 帮我们记住东西（比如现在几点），useEffect 帮我们做一些杂事（比如去网上拿数据）。
+import React, { useState, useEffect, useRef } from 'react';
+// Lucide 是一个图标店，我们从这里拿“趋势向上”、“时钟”、“设置”等小图标。
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Clock, 
+  ChevronRight, 
+  ChevronDown,
+  Activity, 
+  Search, 
+  Bell, 
+  Wallet, 
+  Settings, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  PieChart as PieChartIcon,
+  BarChart3,
+  History,
+  LayoutGrid,
+  Menu,
+  Home,
+  BookOpen,
+  FileText,
+  Plus,
+  Upload,
+  ChevronUp,
+  Copy,
+  Trash2,
+  Edit2,
+} from 'lucide-react';
+import { Modal } from './components/popup/Popup';
+import { HoverPopover, Popover } from './components/popup/Popup';
+// react-router-dom 是网页的“导航员”，负责在“首页”、“账户页”之间切换。
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import TradeLogPage from './pages/TradeLogPage';
+import AssetsPage from './pages/AssetsPage';
+import MonitorPage from './pages/MonitorPage';
+import OptionsPage from './pages/OptionsPage';
+import OptionsMarketBrowser from './pages/OptionsMarketBrowser';
+import OptionsChainPage from './pages/OptionsChainPage';
+
+// 引入一些现成的样式表，让网页的排版和方块挪动效果更好看。
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+// Recharts 是画图专家，我们用它画各种复杂的行情线。
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
+// motion 是动画大师，专门负责让网页里的东西飞入飞出、变大变小，显得很高级。
+import { motion, AnimatePresence } from 'motion/react';
+// cn 是一个小助手，帮我们方便地组合不同的样式（比如“背景变红”+“字体变粗”）。
+import { cn } from './lib/utils';
+
+// --- Mock Data ---
+const CHART_DATA = Array.from({ length: 48 }, (_, i) => ({
+  time: `${Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+  price: 64200 + Math.random() * 1200 - 600,
+  volume: 400 + Math.random() * 800,
+}));
+
+const POSITION_DATA = [
+  { symbol: 'BTCUSDT', type: 'Long', qty: '1.24', entry: '63,450.0', mark: '64,120.2', pnl: '+831.24', pnlPct: '+1.06%', leverage: '20x' },
+  { symbol: 'ETHUSDT', type: 'Short', qty: '15.0', entry: '3,452.1', mark: '3,421.5', pnl: '+459.00', pnlPct: '+0.88%', leverage: '10x' },
+  { symbol: 'SOLUSDT', type: 'Long', qty: '142.5', entry: '154.2', mark: '152.8', pnl: '-199.50', pnlPct: '-0.91%', leverage: '5x' },
+];
+
+const MARKET_TICKERS = [
+  { symbol: 'BTCUSDT', price: '64,123.50', change: '+1.2%', up: true },
+  { symbol: 'ETHUSDT', price: '3,425.80', change: '+0.8%', up: true },
+  { symbol: 'SOLUSDT', price: '152.45', change: '-2.4%', up: false },
+  { symbol: 'BNBUSDT', price: '588.20', change: '+0.1%', up: true },
+];
+
+// --- 组件和状态工具 ---
+
+// 从我们之前写的“管家”那里拿取数据。
+import { useWorkspaceStore } from './store/useWorkspaceStore';
+import { DataConnectionStatus } from './components/DataConnectionStatus';
+import { DashboardPage } from './pages/DashboardPage';
+import { WIDGET_REGISTRY } from './registry';
+import { DERIBIT_EXPIRIES } from './pages/OptionsChainPage';
+
+/**
+ * useBinanceTickers：这是一个“行情接收器”。
+ * 它会连接到币安（Binance）的服务器，像接收电报一样，实时听取最新的币价。
+ */
+function useBinanceTickers() {
+  const updateTickers = useWorkspaceStore(state => state.updateTickers);
+  const liveTickers = useWorkspaceStore(state => state.liveTickers);
+  const pendingUpdates = useRef<Record<string, any>>({}); // 暂时把刚收到还没来得及更新的消息存这儿
+
+  useEffect(() => {
+    let ws: WebSocket | null = null; // 这是一个“网络专线”
+    let isMounted = true;
+    let reconnectTimeout: NodeJS.Timeout;
+
+    const connect = () => {
+      // 拨通币安的专线电话
+      ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
+      
+      // 当专线里传来消息时（收到最新币价）
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (Array.isArray(data)) {
+            data.forEach((ticker: any) => {
+              // 记住每一个币的新价格
+              pendingUpdates.current[ticker.s] = ticker;
+            });
+          }
+        } catch (e) {
+          console.error("解析币安数据失败", e);
+        }
+      };
+
+      // 如果专线断了，3秒后自动重拨
+      ws.onclose = () => {
+        if (isMounted) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("专线出错了", err);
+        if (ws) ws.close();
+      };
+    };
+
+    connect(); // 开始拨号
+
+    // 每秒钟把收到的新价格同步到我们的“大管家”那里去。
+    const timer = setInterval(() => {
+      const updates = pendingUpdates.current;
+      if (Object.keys(updates).length === 0) return;
+
+      updateTickers(prev => prev.map(t => {
+        const update = updates[t.symbol];
+        if (!update) return t;
+        
+        const currentPriceNum = parseFloat(t.price.replace(/,/g, ''));
+        const newPriceNum = parseFloat(update.c);
+        const openPriceNum = parseFloat(update.o);
+        
+        if (newPriceNum === currentPriceNum) return t; // 价格没变就不用动
+        
+        const changePercent = ((newPriceNum - openPriceNum) / openPriceNum) * 100;
+        const changeSign = changePercent >= 0 ? '+' : '';
+        
+        // 自动决定显示几位小数（便宜的币多显示几位）
+        let minDecimals = 2;
+        let maxDecimals = 2;
+        if (newPriceNum < 1) {
+            minDecimals = 4;
+            maxDecimals = 4;
+        } else if (newPriceNum < 10) {
+            minDecimals = 3;
+            maxDecimals = 3;
+        }
+
+        return {
+          ...t,
+          price: newPriceNum.toLocaleString('en-US', { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals }),
+          up: newPriceNum >= currentPriceNum, // 记下是涨了还是跌了，待会儿要变色
+          change: `${changeSign}${changePercent.toFixed(2)}%`
+        };
+      }));
+      pendingUpdates.current = {}; // 清空暂存区
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+      clearTimeout(reconnectTimeout);
+      if (ws) ws.close(); // 关掉网页时，挂断电话
+    };
+  }, [updateTickers]);
+  
+  return liveTickers; // 把听到的最新报价给网页显示
+}
+
+const TokenIcon = ({ symbol }: { symbol: string }) => {
+  if (symbol.includes('BTC')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+        <path d="M22.1 13.7c.4-2.6-1.6-4-4.3-4.9l.9-3.6-2.2-.5-.9 3.5-1.7-.4.9-3.5-2.2-.5-.9 3.6-1.4-.3-3.1-.8-.6 2.4s1.6.4 1.6.4c.9.2 1.1.8 1 1.4l-2.5 10.1c-.1.4-.5.9-1.3.7l-1.6-.4-1.1 2.6 2.9.7 1.7.4-.9 3.7 2.2.5.9-3.7 1.7.4-.9 3.6 2.2.5.9-3.6c3.8.7 6.6.4 7.8-3 1-2.7-.1-4.2-2-5.2 1.4-.3 2.4-1.2 2.7-3zm-4.8 6.7c-.7 2.8-5.4.9-6.9.7l1.2-4.9c1.5.4 6.5.9 5.7 4.2zm.7-6.9c-.6 2.5-4.5.9-5.8.7l1.1-4.4c1.2.3 5.4.8 4.7 3.7z" fill="#FFF"/>
+      </svg>
+    );
+  }
+  if (symbol.includes('ETH')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="16" fill="#6270E0"/>
+        <path d="M16 5L15.8 5.8V20.2L16 20.4L23.5 16L16 5Z" fill="#D0D8FF"/>
+        <path d="M16 5L8.5 16L16 20.4V5Z" fill="#FFF"/>
+        <path d="M16 21.8L15.8 22V27.5L16 28L23.5 17.4L16 21.8Z" fill="#D0D8FF"/>
+        <path d="M16 28V21.8L8.5 17.4L16 28Z" fill="#FFF"/>
+        <path d="M16 20.4L23.5 16L16 12.6V20.4Z" fill="#8A9CE8"/>
+        <path d="M8.5 16L16 20.4V12.6L8.5 16Z" fill="#D0D8FF"/>
+      </svg>
+    );
+  }
+  if (symbol.includes('SOL')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="solGrad" x1="7" y1="26.75" x2="25" y2="8.25" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#9945FF"/>
+            <stop offset="100%" stopColor="#14F195"/>
+          </linearGradient>
+        </defs>
+        <circle cx="16" cy="16" r="16" fill="#1A0B38"/>
+        <polygon points="7,11.25 25,8.25 25,11.75 7,14.75" fill="url(#solGrad)"/>
+        <polygon points="7,17.25 25,14.25 25,17.75 7,20.75" fill="url(#solGrad)"/>
+        <polygon points="7,23.25 25,20.25 25,23.75 7,26.75" fill="url(#solGrad)"/>
+      </svg>
+    );
+  }
+  if (symbol.includes('BNB')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="16" fill="#181A20"/>
+        {/* 顶面：左三角块 */}
+        <polygon points="16,7.5 9.5,12 15,15.5" fill="#F0B90B"/>
+        {/* 顶面：右三角块 */}
+        <polygon points="16,7.5 17,15.5 22.5,12" fill="#F0B90B"/>
+        {/* 左侧面上块 */}
+        <polygon points="9.5,13 15,16.5 15,19.5 9.5,16" fill="#A08010"/>
+        {/* 左侧面下块 */}
+        <polygon points="9.5,17 15,20.5 16,24.5 9.5,21" fill="#A08010"/>
+        {/* 右侧面上块 */}
+        <polygon points="22.5,13 22.5,16 17,19.5 17,16.5" fill="#C9A012"/>
+        {/* 右侧面下块 */}
+        <polygon points="22.5,17 22.5,21 16,24.5 17,20.5" fill="#C9A012"/>
+      </svg>
+    );
+  }
+  return (
+    <div className="w-[28px] h-[28px] rounded-full bg-[#2F2F38] flex items-center justify-center text-[13px] font-bold text-white uppercase">
+      {symbol[0]}
+    </div>
+  );
+};
+
+/**
+ * PriceTicker：显示一个小币种的价格标签。
+ * 价格涨了会闪一下绿，跌了会闪一下红。
+ */
+const PriceTicker = ({ symbol, price, change, up }: { symbol: string, price: string, change: string, up: boolean }) => {
+  const [flashColor, setFlashColor] = useState<'text-trade-up' | 'text-trade-down' | null>(null);
+  const prevPriceRef = useRef(price);
+
+  useEffect(() => {
+    // 检查价格是不是变了
+    if (price !== prevPriceRef.current) {
+      const numPrice = parseFloat(price.replace(/,/g, ''));
+      const prevNumPrice = parseFloat(prevPriceRef.current.replace(/,/g, ''));
+      
+      if (numPrice > prevNumPrice) {
+        setFlashColor('text-trade-up'); // 涨了变绿
+      } else if (numPrice < prevNumPrice) {
+        setFlashColor('text-trade-down'); // 跌了变红
+      }
+      
+      prevPriceRef.current = price;
+      
+      // 0.2秒后把颜色变回去
+      const timer = setTimeout(() => {
+        setFlashColor(null);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [price]);
+
+  const noDecimalSymbols = ['BTC', 'ETH', 'BNB', 'SOL'];
+  const rawPrice = price.startsWith('$') ? price.slice(1) : price;
+  const displayPrice = noDecimalSymbols.some(s => symbol.includes(s))
+    ? rawPrice.replace(/\.\d+$/, '')
+    : rawPrice;
+  const formattedPrice = `$${displayPrice}`;
+
+  return (
+    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-bg-dim border border-border-subtle hover:bg-surface-2 hover:border-[#4D7CFF]/40 hover:shadow-[0_0_10px_rgba(77,124,255,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
+      <TokenIcon symbol={symbol} />
+      <span className={cn(
+        "text-[16px] font-bold font-mono tnum transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ml-1.5",
+        flashColor ? flashColor : (up ? "text-trade-up" : "text-trade-down")
+      )}>{formattedPrice}</span>
+    </div>
+  );
+};
+
+const DigitalClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center gap-2 px-2.5 h-[40px] bg-transparent border border-border-subtle hover:bg-surface-3 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] text-slate-300">
+      <Clock size={22} strokeWidth={2} className="text-[#5D6580]" />
+      <span className="text-[18px] font-mono font-bold tnum tracking-wide mt-px text-slate-200">
+        {time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
+    </div>
+  );
+};
+
+/**
+ * MarginMonitor：保证金监控条。
+ * 像个小仪表盘，显示你账户里的风险情况。
+ */
+const MarginMonitor = ({ rate }: { rate: number }) => {
+  const [displayRate, setDisplayRate] = useState(rate);
+
+  useEffect(() => {
+    // 让数字变动的时候有种“跳动”的感觉，而不是直接变。
+    const diff = rate - displayRate;
+    if (Math.abs(diff) < 0.01) {
+      if (displayRate !== rate) setDisplayRate(rate);
+      return;
+    }
+    
+    const timeout = setTimeout(() => {
+      setDisplayRate(prev => Math.abs(diff) < 0.05 ? rate : prev + diff * 0.15);
+    }, 16);
+    return () => clearTimeout(timeout);
+  }, [rate, displayRate]);
+
+  const imRate = Math.min(displayRate * 2.5, 100);
+
+  return (
+    <div className="hidden md:flex items-center h-[40px] bg-[#131318] border border-border-subtle rounded-[8px] pl-2.5 pr-0.5 py-0.5 gap-3 shadow-sm">
+      <div className="flex flex-col justify-center gap-1 mt-px">
+        {/* IM 进度条 */}
+        <div className="flex items-center gap-1.5 text-[13px] leading-none">
+          <span className="font-bold text-slate-100 w-[18px] text-right">IM</span>
+          <div className="w-14 h-[8px] bg-border-subtle rounded-full overflow-hidden relative">
+            <motion.div
+              style={{ width: `${imRate}%` }}
+              className="h-full bg-[#4D7CFF] rounded-full"
+            />
+          </div>
+          <span className="font-mono tnum font-bold text-slate-100 w-[28px] text-right">{imRate.toFixed(0)}%</span>
+        </div>
+        {/* MM 进度条 */}
+        <div className="flex items-center gap-1.5 text-[13px] leading-none">
+          <span className="font-bold text-slate-100 w-[18px] text-right">MM</span>
+          <div className="w-14 h-[8px] bg-border-subtle rounded-full overflow-hidden relative">
+            <motion.div 
+              style={{ width: `${displayRate}%` }}
+              className={cn(
+                "h-full rounded-full relative overflow-hidden",
+                displayRate > 80 ? "bg-trade-down" : displayRate > 50 ? "bg-[#F59E0B]" : "bg-trade-up"
+              )}
+            >
+              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            </motion.div>
+          </div>
+          <span className="font-mono tnum font-bold text-slate-100 w-[28px] text-right">{displayRate.toFixed(0)}%</span>
+        </div>
+      </div>
+      
+      <div className="h-full flex items-center justify-center px-3 bg-surface-3 hover:bg-[#26262E] transition-colors rounded-[6px] border border-border-subtle cursor-pointer">
+        <span className="text-[14px] font-bold tracking-wide">
+          <span className="text-brand-blue">S:</span> <span className="text-slate-100 ml-0.5">SM</span>
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const NineDots = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <circle cx="5" cy="5" r="2.2" />
+    <circle cx="12" cy="5" r="2.2" />
+    <circle cx="19" cy="5" r="2.2" />
+    <circle cx="5" cy="12" r="2.2" />
+    <circle cx="12" cy="12" r="2.2" />
+    <circle cx="19" cy="12" r="2.2" />
+    <circle cx="5" cy="19" r="2.2" />
+    <circle cx="12" cy="19" r="2.2" />
+    <circle cx="19" cy="19" r="2.2" />
+  </svg>
+);
+
+const AppNavigationDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeCat, setActiveCat] = useState<'all'|'data'|'account'|'help'>('all');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAssets  = location.pathname === '/assets';
+  const isMonitor = location.pathname === '/monitor';
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative flex items-center gap-4" ref={containerRef}>
+      <div
+        onMouseEnter={() => { setActiveCat('all'); setIsOpen(true); }}
+        onMouseLeave={() => setIsOpen(false)}
+        className="relative"
+      >
+        <button
+          className={cn(
+            "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] transition-all duration-200 border hover:scale-[1.08] active:scale-[0.94]",
+            isOpen ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-300 border-transparent hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:border-[#4D7CFF]"
+          )}
+        >
+          <NineDots size={24} />
+        </button>
+
+        <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden">
+          {/* 二级菜单：左侧分类 + 右侧条目（同一张卡片内） */}
+          <div className="flex w-[420px]">
+            {/* Left: categories */}
+            <div className="w-[130px] p-2 border-r border-white/10 bg-white/[0.015]">
+              <div className="flex items-center gap-2 px-2 py-2 text-[12px] font-semibold text-white/35">
+                <Search size={14} className="text-white/30" />
+                <span>查找组件</span>
+              </div>
+
+              {([
+                { k: 'all' as const,     l: '所有' },
+                { k: 'data' as const,    l: '监控' },
+                { k: 'account' as const, l: '账户' },
+                { k: 'help' as const,    l: '工具' },
+              ]).map(({ k, l }) => {
+                const on = activeCat === k;
+                return (
+                  <button
+                    key={k}
+                    onMouseEnter={() => setActiveCat(k)}
+                    onClick={(e) => { e.stopPropagation(); setActiveCat(k); }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 h-9 rounded-[10px] text-[13px] font-semibold transition-colors",
+                      on ? "bg-white/[0.06] text-white" : "text-white/45 hover:bg-white/[0.04] hover:text-white/80"
+                    )}
+                  >
+                    <span>{l}</span>
+                    <ChevronRight size={14} className={cn("transition-opacity", on ? "opacity-70" : "opacity-30")} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: items */}
+            <div className="flex-1 p-2">
+              {(() => {
+                const map: Record<typeof activeCat, { label: string; icon: React.ElementType; to?: string }[]> = {
+                  all: [
+                    { label: '监控', icon: Activity, to: '/monitor' },
+                    { label: '交易日志', icon: History, to: '/trade-log' },
+                    { label: '账户概览', icon: Wallet, to: '/assets' },
+                  ],
+                  data: [
+                    { label: '监控', icon: Activity, to: '/monitor' },
+                    { label: '交易日志', icon: History, to: '/trade-log' },
+                  ],
+                  account: [
+                    { label: '账户概览', icon: Wallet, to: '/assets' },
+                  ],
+                  help: [
+                    { label: '帮助中心', icon: BookOpen },
+                  ],
+                };
+                const items = map[activeCat] ?? map.all;
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    {items.map((it) => {
+                      const Icon = it.icon;
+                      const disabled = !it.to;
+                      return (
+                        <button
+                          key={it.label}
+                          disabled={disabled}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!it.to) return;
+                            navigate(it.to);
+                            setIsOpen(false);
+                          }}
+                          className={cn(
+                            "flex items-center gap-3 px-3 h-11 rounded-[12px] text-left transition-colors",
+                            disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.06]"
+                          )}
+                        >
+                          <Icon size={16} className="text-white/55 shrink-0" />
+                          <span className="text-[13px] font-semibold text-white/80">{it.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </HoverPopover>
+      </div>
+
+      <div
+        className={cn(
+          "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] text-slate-100 border border-transparent",
+          isAssets && "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]"
+        )}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] opacity-90 mb-px">
+          <path d="M11.47 3.84a.75.75 0 011.06 0l8.99 8.99a.75.75 0 11-1.06 1.06L20 13.43V20.25A1.75 1.75 0 0118.25 22H15.5a.75.75 0 01-.75-.75v-3.5a.75.75 0 00-.75-.75h-4a.75.75 0 00-.75.75v3.5a.75.75 0 01-.75.75H5.75A1.75 1.75 0 014 20.25v-6.82l-.46.46a.75.75 0 11-1.06-1.06l8.99-8.99z" />
+        </svg>
+      </div>
+
+      <button
+        onClick={() => navigate('/monitor')}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] border transition-all duration-200 hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:shadow-[0_0_12px_rgba(25,25,112,0.4)] hover:scale-[1.05] active:scale-[0.95] text-[13px] font-bold",
+          isMonitor ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]" : "bg-transparent text-slate-300 border-transparent"
+        )}>
+        监控
+      </button>
+      <OptionsDropdown />
+    </div>
+  );
+};
+
+const OPTIONS_EXPIRIES_INVERSE = [
+  '07 MAY 26', '08 MAY 26', '09 MAY 26', '10 MAY 26',
+  '15 MAY 26', '22 MAY 26', '29 MAY 26',
+  '26 JUN 26', '31 JUL 26', '25 SEP 26', '25 DEC 26', '26 MAR 27',
+];
+
+const LINEAR_COINS_BASE = [
+  { base: 'AVAX', color: '#E84142', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'BTC',  color: '#F7931A', expiries: ['07 MAY 26','08 MAY 26','09 MAY 26','10 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'ETH',  color: '#627EEA', expiries: ['07 MAY 26','08 MAY 26','09 MAY 26','10 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'SOL',  color: '#9945FF', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'TRX',  color: '#EF0027', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+  { base: 'XRP',  color: '#346AA9', expiries: ['07 MAY 26','08 MAY 26','15 MAY 26','29 MAY 26','26 JUN 26'] },
+];
+
+// ── OptionsDropdown animation variants ───────────────────────────────────────
+
+const DROP_SPRING = { type: 'spring' as const, stiffness: 260, damping: 25 };
+
+const dropPanelVariants = {
+  hidden: { opacity: 0, y: -8, scale: 0.97 },
+  visible: {
+    opacity: 1, y: 0, scale: 1,
+    transition: { ...DROP_SPRING, staggerChildren: 0.045, delayChildren: 0.04 },
+  },
+  exit: { opacity: 0, y: -6, scale: 0.97, transition: { duration: 0.13, ease: 'easeIn' } },
+};
+
+const dropSectionVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: DROP_SPRING },
+};
+
+const dropColsVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+};
+
+const dropColVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: DROP_SPRING },
+};
+
+const dropRowsVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.018 } },
+};
+
+const dropRowVariants = {
+  hidden: { opacity: 0, x: -5 },
+  visible: { opacity: 1, x: 0, transition: { ...DROP_SPRING, stiffness: 320, damping: 28 } },
+};
+
+const OptionsDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  // 结算币种：当前界面不暴露 USDT / 交易所字样，统一按 USDC 展示
+  const [linearSettlement] = useState<'USDC'>('USDC');
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isOptions = location.pathname === '/options';
+
+  const openPanel = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    if (buttonRef.current) {
+      const r = buttonRef.current.getBoundingClientRect();
+      setPanelPos({ top: r.bottom + 6, left: r.left });
+    }
+    setIsOpen(true);
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+
+  return (
+    <div className="relative">
+      {/* ── Trigger button ── */}
+      <button
+        ref={buttonRef}
+        onMouseEnter={openPanel}
+        onMouseLeave={scheduleClose}
+        className={cn(
+          "flex items-center justify-center gap-1 px-3 h-[32px] rounded-[8px] border transition-all duration-200 hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:shadow-[0_0_12px_rgba(25,25,112,0.4)] hover:scale-[1.05] active:scale-[0.95] text-[13px] font-bold",
+          isOptions || isOpen
+            ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]"
+            : "bg-transparent text-slate-300 border-transparent"
+        )}>
+        期权
+        <motion.span
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ ...DROP_SPRING, stiffness: 320 }}
+          style={{ display: 'flex' }}
+        >
+          <ChevronDown size={12} />
+        </motion.span>
+      </button>
+
+      {/* ── Dropdown panel (fixed, floats above layout) ── */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            variants={dropPanelVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
+            className="popup-card flex overflow-hidden"
+            style={{ position: 'fixed', top: panelPos.top, left: panelPos.left, zIndex: 9999, transformOrigin: 'top left' }}
+          >
+
+            {/* ── Inverse Options ── */}
+            <motion.div
+              variants={dropSectionVariants}
+              className="border-r border-[#1E1E28]"
+              style={{ width: 280, flexShrink: 0 }}
+            >
+              <div className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-[#1E1E28] flex items-center gap-2">
+                Inverse Options
+              </div>
+
+              <motion.div variants={dropColsVariants} className="flex">
+                {/* BTC column */}
+                <motion.div variants={dropColVariants} className="flex-1 border-r border-[#1E1E28]">
+                  <motion.button
+                    onClick={() => setIsOpen(false)}
+                    whileHover={{ backgroundColor: '#1E1E28', transition: { duration: 0.1 } }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 border-b border-[#1A1A22]"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-bold text-amber-400">₿</span>
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[15px] font-bold text-slate-100">BTC</div>
+                      <div className="text-[12px] text-slate-600">DVOL 58.4</div>
+                    </div>
+                  </motion.button>
+                  <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
+                    {OPTIONS_EXPIRIES_INVERSE.map(exp => (
+                      <motion.button
+                        key={`btc-${exp}`}
+                        variants={dropRowVariants}
+                        whileHover={{ backgroundColor: '#1E1E28', color: '#f1f5f9', transition: { duration: 0.1 } }}
+                        onClick={() => { setIsOpen(false); navigate(`/options-chain?coin=BTC-USD&expiry=${encodeURIComponent(exp)}`); }}
+                        className="px-4 py-1.5 text-[14px] font-bold text-slate-400 text-center flex items-center justify-center"
+                      >
+                        {exp}
+                      </motion.button>
+                    ))}
+                    <motion.button
+                      variants={dropRowVariants}
+                      whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
+                      onClick={() => setIsOpen(false)}
+                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                    >
+                      <span className="text-amber-500/60">₿</span> 组合
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+
+                {/* ETH column */}
+                <motion.div variants={dropColVariants} className="flex-1">
+                  <motion.button
+                    onClick={() => setIsOpen(false)}
+                    whileHover={{ backgroundColor: '#1E1E28', transition: { duration: 0.1 } }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 border-b border-[#1A1A22]"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-bold text-blue-400">Ξ</span>
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[15px] font-bold text-slate-100">ETH</div>
+                      <div className="text-[12px] text-slate-600">DVOL 68.2</div>
+                    </div>
+                  </motion.button>
+                  <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
+                    {OPTIONS_EXPIRIES_INVERSE.map(exp => (
+                      <motion.button
+                        key={`eth-${exp}`}
+                        variants={dropRowVariants}
+                        whileHover={{ backgroundColor: '#1E1E28', color: '#f1f5f9', transition: { duration: 0.1 } }}
+                        onClick={() => { setIsOpen(false); navigate(`/options-chain?coin=ETH-USD&expiry=${encodeURIComponent(exp)}`); }}
+                        className="px-4 py-1.5 text-[14px] font-bold text-slate-400 text-center flex items-center justify-center"
+                      >
+                        {exp}
+                      </motion.button>
+                    ))}
+                    <motion.button
+                      variants={dropRowVariants}
+                      whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
+                      onClick={() => setIsOpen(false)}
+                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                    >
+                      <span className="text-blue-400/60">Ξ</span> 组合
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+
+            {/* ── Linear Options ── */}
+            <motion.div variants={dropSectionVariants} style={{ width: 660, flexShrink: 0 }}>
+              <div className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-[#1E1E28] flex items-center gap-2">
+                Linear Options
+              </div>
+
+              {/* Coin columns — re-animate on settlement change */}
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={linearSettlement}
+                  variants={dropColsVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                  className="flex"
+                >
+                  {LINEAR_COINS_BASE.map((coin, ci) => {
+                    const label = `${coin.base}-${linearSettlement}`;
+                    return (
+                      <motion.div
+                        key={label}
+                        variants={dropColVariants}
+                        className={cn('flex-1', ci < LINEAR_COINS_BASE.length - 1 && 'border-r border-[#1E1E28]')}
+                      >
+                        <motion.button
+                          onClick={() => setIsOpen(false)}
+                          whileHover={{ backgroundColor: '#1E1E28', transition: { duration: 0.1 } }}
+                          className="w-full flex items-center justify-center gap-1.5 px-2 py-2.5 border-b border-[#1A1A22]"
+                        >
+                          <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: coin.color + '33', border: `1px solid ${coin.color}66` }}>
+                            <div className="w-full h-full rounded-full" style={{ backgroundColor: coin.color, opacity: 0.7 }} />
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">{label}</span>
+                        </motion.button>
+
+                        <motion.div variants={dropRowsVariants} className="flex flex-col py-1">
+                          {coin.expiries.map(exp => (
+                            <motion.button
+                              key={`${label}-${exp}`}
+                              variants={dropRowVariants}
+                              whileHover={{ backgroundColor: '#1E1E28', color: '#f1f5f9', transition: { duration: 0.1 } }}
+                              onClick={() => { setIsOpen(false); navigate(`/options-chain?coin=${coin.base}-${linearSettlement}&expiry=${encodeURIComponent(exp)}`); }}
+                              className="px-3 py-1.5 text-[14px] font-bold text-slate-400 text-center flex items-center justify-center"
+                            >
+                              {exp}
+                            </motion.button>
+                          ))}
+                          <motion.button
+                            variants={dropRowVariants}
+                            whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
+                            onClick={() => setIsOpen(false)}
+                            className="mx-2 my-2 flex items-center justify-center gap-1 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: coin.color, opacity: 0.6 }} />
+                            组合
+                          </motion.button>
+                        </motion.div>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
+
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets: Record<string, boolean | undefined> }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const enabledTickers = tickers.filter(t => widgets[t.symbol] !== false);
+  const disabledTickers = tickers.filter(t => widgets[t.symbol] === false);
+  const [visibleCount, setVisibleCount] = useState(enabledTickers.length);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const updateCount = () => {
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.clientWidth;
+      const dropDownButtonWidth = 42; // button + gap
+      const itemWidth = 145; // average ticker width + gap
+
+      let maxTickers = Math.floor(containerWidth / itemWidth);
+      // Reserve space for the dropdown button if there will be hidden tickers
+      // (either due to overflow OR due to being toggled off in widget settings).
+      if (maxTickers < enabledTickers.length || disabledTickers.length > 0) {
+        maxTickers = Math.floor((containerWidth - dropDownButtonWidth) / itemWidth);
+      }
+
+      setVisibleCount(Math.max(0, Math.min(enabledTickers.length, maxTickers)));
+    };
+
+    const observer = new ResizeObserver(() => requestAnimationFrame(updateCount));
+    if (containerRef.current) observer.observe(containerRef.current);
+
+    updateCount();
+    return () => observer.disconnect();
+  }, [enabledTickers.length, disabledTickers.length]);
+
+  // When elements overflow, we hide the "oldest" ones on the left.
+  const overflowCount = Math.max(0, enabledTickers.length - visibleCount);
+  const overflowTickers = enabledTickers.slice(0, overflowCount);
+  const visibleTickers = enabledTickers.slice(overflowCount);
+  // Tickers hidden because they overflow OR because the user toggled them off.
+  const hiddenTickers = [...overflowTickers, ...disabledTickers];
+
+  return (
+    <div className="flex items-center w-full h-full justify-end gap-1.5 min-w-0" ref={containerRef}>
+      {/* Dropdown at the far left if we have any hidden tickers */}
+      {hiddenTickers.length > 0 && (
+        <div 
+          className="relative flex items-center shrink-0" 
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <button 
+            className={cn(
+              "flex items-center justify-center w-[40px] h-[36px] rounded-[8px] bg-transparent border border-border-subtle text-slate-400 transition-all cursor-pointer relative z-10",
+              isOpen ? "bg-surface-2 text-slate-200" : "hover:bg-surface-2 hover:border-border-strong hover:text-slate-200"
+            )}
+          >
+            <ChevronDown size={20} strokeWidth={3} className={cn("transition-transform duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-slate-100", isOpen ? "rotate-180" : "rotate-0")} />
+          </button>
+          
+          <HoverPopover
+            open={isOpen}
+            panelZ={60}
+            panelClassName="absolute top-full left-0 mt-2 min-w-[150px]"
+          >
+            <div className="p-1.5 flex flex-col gap-1 w-full">
+              {hiddenTickers.map(ticker => (
+                <PriceTicker key={ticker.symbol} {...ticker} />
+              ))}
+            </div>
+          </HoverPopover>
+        </div>
+      )}
+      
+      {/* Visible tickers on the right */}
+      {visibleTickers.map(ticker => (
+        <PriceTicker key={ticker.symbol} {...ticker} />
+      ))}
+    </div>
+  );
+};
+
+const WidgetToggle: React.FC<{ label: string, checked: boolean, onChange: () => void }> = ({ label, checked, onChange }) => (
+  <label className="flex items-center justify-between px-2 py-2 hover:bg-surface-3 rounded-[4px] cursor-pointer group transition-colors">
+
+    <span className="text-xs text-[#848E9C] group-hover:text-slate-200 transition-colors">{label}</span>
+    <input type="checkbox" checked={checked} onChange={onChange} className="hidden" />
+    <div className={cn("w-7 h-4 rounded-full relative transition-colors duration-200", checked ? "bg-[#4D7CFF]" : "bg-[#2F2F38]")}>
+      <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform duration-200 shadow-sm", checked ? "translate-x-3 bg-white" : "translate-x-0 bg-slate-400")} />
+    </div>
+  </label>
+);
+
+const TopBarSettingsDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const widgets = useWorkspaceStore(state => state.widgets);
+  const toggleWidget = useWorkspaceStore(state => state.toggleWidget);
+  
+  return (
+    <div 
+      className="relative" 
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.08] active:scale-[0.94]", isOpen ? "bg-brand-blue-deep text-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-100 hover:bg-brand-blue-deep hover:text-[#4D7CFF]")}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[26px] h-[26px] opacity-90">
+          <path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clipRule="evenodd" />
+        </svg>
+      </button>
+      <HoverPopover
+        open={isOpen}
+        panelZ={60}
+        panelClassName="absolute top-full right-0 mt-2 w-48"
+      >
+        <div className="p-2 flex flex-col gap-1">
+          <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">行情组件 (Tickers)</div>
+          <div className="h-px w-full bg-white/10 my-1" />
+          <div className="flex flex-col gap-0.5">
+            {MARKET_TICKERS.map(t => (
+              <WidgetToggle
+                key={t.symbol}
+                label={t.symbol.replace('USDT', '')}
+                checked={widgets[t.symbol] ?? true}
+                onChange={() => toggleWidget(t.symbol)}
+              />
+            ))}
+            <div className="h-px w-full bg-white/10 my-1" />
+            <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">其它 (Others)</div>
+            <WidgetToggle label="保证金" checked={widgets.margin} onChange={() => toggleWidget('margin')} />
+            <WidgetToggle label="平台时间" checked={widgets.time} onChange={() => toggleWidget('time')} />
+          </div>
+        </div>
+      </HoverPopover>
+    </div>
+  );
+};
+
+const NotificationDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div 
+      className="relative" 
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.08] active:scale-[0.94]", isOpen ? "bg-brand-blue-deep text-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-100 hover:bg-brand-blue-deep hover:text-[#4D7CFF]")}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[26px] h-[26px] opacity-90">
+          <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0113.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 01-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 11-7.48 0 24.585 24.585 0 01-4.831-1.244.75.75 0 01-.298-1.205A8.217 8.217 0 005.25 9.75V9zm4.502 8.9a2.25 2.25 0 104.496 0 25.057 25.057 0 01-4.496 0z" clipRule="evenodd" />
+        </svg>
+      </button>
+      <HoverPopover
+        open={isOpen}
+        panelZ={60}
+        panelClassName="absolute top-full right-0 mt-2 w-64"
+      >
+        <div className="p-2 flex flex-col gap-1">
+          <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">通知中心</div>
+          <div className="h-px w-full bg-white/10 my-1" />
+          <div className="px-2 py-3 text-sm text-white/45 text-center">暂无新通知</div>
+        </div>
+      </HoverPopover>
+    </div>
+  );
+};
+
+const UserDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  return (
+    <div 
+      className="relative" 
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <div className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]", isOpen ? "bg-brand-blue-deep shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent hover:bg-brand-blue-deep")}>
+        <div className="w-7 h-7 rounded-[5px] overflow-hidden">
+          <img 
+            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
+            alt="Avatar" 
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+      <HoverPopover
+        open={isOpen}
+        panelZ={60}
+        panelClassName="absolute top-full right-0 mt-2 w-48 overflow-hidden"
+      >
+        <div className="px-3 py-2.5 flex flex-col" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          <span className="text-sm font-bold text-white/90">User</span>
+          <span className="text-xs text-white/45">user@nexus.com</span>
+        </div>
+        <div className="h-px w-full bg-white/10" />
+        <div className="flex flex-col p-1.5 gap-0.5">
+          <button
+            onClick={() => { navigate('/assets'); setIsOpen(false); }}
+            className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.06] rounded-[8px] cursor-pointer group transition-colors w-full text-left"
+          >
+            <Wallet size={15} className="text-white/55 group-hover:text-white transition-colors shrink-0" />
+            <span className="text-sm text-white/75 group-hover:text-white transition-colors">账户</span>
+          </button>
+          <button className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.06] rounded-[8px] cursor-pointer group transition-colors w-full text-left">
+            <Settings size={15} className="text-white/55 group-hover:text-white transition-colors shrink-0" />
+            <span className="text-sm text-white/75 group-hover:text-white transition-colors">设置</span>
+          </button>
+        </div>
+      </HoverPopover>
+    </div>
+  );
+};
+
+
+
+type FooterTabProps = {
+  tab: { id: string, label: string },
+  activeTab: string,
+  onClick: () => void,
+  onEdit: (newLabel: string) => void,
+  onClone: () => void,
+  onDelete: () => void
+};
+
+const FooterTab: React.FC<FooterTabProps> = ({
+  tab,
+  activeTab,
+  onClick,
+  onEdit,
+  onClone,
+  onDelete
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(tab.label);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isActive = activeTab === tab.id;
+
+  const handleChevronClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleEditSave = () => {
+    setIsEditing(false);
+    if (editValue.trim() !== '' && editValue !== tab.label) {
+      onEdit(editValue.trim());
+    } else {
+      setEditValue(tab.label); // Revert on empty
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleEditSave();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditValue(tab.label);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick(); // Make sure it becomes active
+    setIsMenuOpen(true);
+  };
+
+  return (
+    <div 
+      className="relative h-full flex"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setIsMenuOpen(false); }}
+      onContextMenu={handleContextMenu}
+    >
+      {/* 
+        This wrapper is needed to avoid overflow:hidden clipping the menu popup,
+        we apply overflow:hidden only to the button background/slide area. 
+      */}
+      <div
+        className={cn(
+          "relative h-full rounded-[8px] overflow-hidden flex items-center transition-colors",
+          isActive ? "bg-surface-5 text-white" : "bg-surface-4 text-slate-300 hover:bg-surface-5 hover:text-white"
+        )}
+      >
+        {/* Main Tab Button */}
+        <button
+          onClick={onClick}
+          className="flex items-center px-4 h-full text-[13px] font-bold z-0 relative min-w-[60px]"
+        >
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleEditSave}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-transparent text-white outline-none w-[60px] relative z-20"
+            />
+          ) : (
+            tab.label
+          )}
+        </button>
+
+        {/* Sliding Chevron — slides in from the right, overlays the tab's right portion */}
+        <button
+          onClick={handleChevronClick}
+          className={cn(
+            "absolute top-1 bottom-1 right-1 bg-[#E2E8F0] hover:bg-[#D1D5DB] text-[#111827] flex items-center justify-center transition-transform duration-200 ease-out z-30 outline-none rounded-[6px] w-7 cursor-pointer",
+            (isActive && (isHovered || isMenuOpen)) ? "translate-x-0" : "translate-x-[calc(100%+0.5rem)] pointer-events-none"
+          )}
+        >
+          {isMenuOpen ? <ChevronUp size={18} strokeWidth={2} /> : <ChevronDown size={18} strokeWidth={2} />}
+        </button>
+      </div>
+
+      {/* Dropdown Menu */}
+      <Popover
+        open={!!(isMenuOpen && isActive)}
+        onClose={() => setIsMenuOpen(false)}
+        backdropZ={90}
+        panelZ={91}
+        panelClassName="absolute bottom-full mb-2 left-0 min-w-[124px] p-1 after:absolute after:-bottom-2 after:left-0 after:w-full after:h-2"
+      >
+            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
+              <Edit2 size={14} strokeWidth={2} />
+              编辑标签
+            </button>
+            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onClone(); }}>
+              <Copy size={14} strokeWidth={2} />
+              复制选项卡
+            </button>
+            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-[#F05252] hover:bg-surface-5 rounded-[4px] transition-colors text-left mt-0.5" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onDelete(); }}>
+              <Trash2 size={14} strokeWidth={2} />
+              删除选项卡
+            </button>
+      </Popover>
+    </div>
+  );
+};
+
+const AddTabModal = ({
+  isOpen,
+  onClose,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+}) => {
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setName('');
+  }, [isOpen]);
+
+  return (
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      zIndex={100}
+      className="w-full max-w-[360px] border border-white/10"
+    >
+      <motion.div
+        layoutId="addTabModalBackground"
+        className="p-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, delay: 0.08 }}
+      >
+        <h2 className="text-white text-lg font-bold mb-6">添加自定义标签</h2>
+        <div className="mb-8">
+          <label className="block text-white/55 text-[13px] mb-2 font-bold">标签名</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) { onSave(name.trim()); } }}
+            className="w-full bg-white/[0.03] border border-white/10 hover:border-white/20 focus:border-white/25 focus:outline-none text-white px-3.5 py-2.5 rounded-[8px] transition-colors text-[14px]"
+            placeholder="输入标签名称..."
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3">
+          <button onClick={onClose}
+            className="px-5 py-2 rounded-[8px] border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-colors text-[13px] font-bold">
+            取消
+          </button>
+          <button
+            onClick={() => { if (name.trim()) { onSave(name.trim()); } }}
+            className="px-5 py-2 rounded-[8px] bg-[#007bff] hover:bg-[#0056b3] text-white transition-colors text-[13px] font-bold">
+            保存
+          </button>
+        </div>
+      </motion.div>
+    </Modal>
+  );
+};
+
+
+/**
+ * App：这是整个网页的主管。
+ */
+export default function App() {
+  const liveTickers = useBinanceTickers();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      document.documentElement.classList.add('is-scrolling');
+      clearTimeout(timer);
+      timer = setTimeout(() => document.documentElement.classList.remove('is-scrolling'), 800);
+    };
+    window.addEventListener('scroll', onScroll, true);
+    return () => { window.removeEventListener('scroll', onScroll, true); clearTimeout(timer); };
+  }, []);
+
+  const pages = useWorkspaceStore(state => state.pages);
+  const activePageId = useWorkspaceStore(state => state.activePageId);
+  const addPage = useWorkspaceStore(state => state.addPage);
+  const removePage = useWorkspaceStore(state => state.removePage);
+  const setActivePage = useWorkspaceStore(state => state.setActivePage);
+  const renamePage = useWorkspaceStore(state => state.renamePage);
+  const clonePage = useWorkspaceStore(state => state.clonePage);
+  const addInstance = useWorkspaceStore(state => state.addInstance);
+  const widgets = useWorkspaceStore(state => state.widgets);
+  const isComponentLibraryOpen = useWorkspaceStore(state => state.isComponentLibraryOpen);
+  const componentLibraryPreset = useWorkspaceStore(state => state.componentLibraryPreset);
+  const openComponentLibrary = useWorkspaceStore(state => state.openComponentLibrary);
+  const closeComponentLibrary = useWorkspaceStore(state => state.closeComponentLibrary);
+  const appendOptionsChainTab = useWorkspaceStore(state => state.appendOptionsChainTab);
+
+  // Active tab: route pages matched by pathname, workspace pages matched by activePageId
+  const activeTab = location.pathname !== '/'
+    ? (pages.find(p => p.routePath === location.pathname)?.id ?? '')
+    : activePageId;
+
+  const [marginRate] = useState(12.5);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [activeWidgetCategory, setActiveWidgetCategory] = useState('all');
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+  const [widgetConfig, setWidgetConfig] = useState<Record<string, string>>({});
+
+  // 允许从不同页面打开组件库，并预选组件与配置（例如：期权链页点 +）
+  useEffect(() => {
+    if (!isComponentLibraryOpen) return;
+    if (!componentLibraryPreset) return;
+    if (componentLibraryPreset.category) setActiveWidgetCategory(componentLibraryPreset.category);
+    if (componentLibraryPreset.widgetId) setSelectedWidgetId(componentLibraryPreset.widgetId);
+    if (componentLibraryPreset.initialConfig) setWidgetConfig(componentLibraryPreset.initialConfig);
+  }, [isComponentLibraryOpen, componentLibraryPreset]);
+
+  const activeTickers = liveTickers.filter(t => widgets[t.symbol] !== false);
+
+  const displayTickers = activeTickers.slice(0, 4);
+  const overflowTickers = activeTickers.slice(4);
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30">
+      {/* Top Header */}
+      {/* 顶部栏需要高层级，否则会被页面内 sticky 标题栏遮挡（如下拉面板/弹出卡片） */}
+      <header className="h-[48px] flex items-center px-2 bg-bg-base shrink-0 relative z-[150] border-b border-surface-2">
+        {/* Logo and Nav */}
+        <div className="flex items-center gap-6 shrink-0">
+          <div className="flex items-center justify-center gap-2 cursor-pointer group">
+            <div className="w-8 h-8 bg-brand-blue rounded-[6px] flex items-center justify-center shadow-[0_0_15px_rgba(77,124,255,0.4)] group-hover:bg-[#5E8AFF] transition-colors">
+              <Activity className="text-white" size={16} strokeWidth={3} />
+            </div>
+            <span className="font-bold text-sm tracking-tight text-slate-100">
+              NEXUS
+            </span>
+          </div>
+          
+          <AppNavigationDropdown />
+        </div>
+
+        {/* Market Tickers */}
+        <div className="hidden lg:flex items-center flex-1 min-w-0 pl-4 pr-2 h-full">
+          <DynamicTickerContainer tickers={liveTickers} widgets={widgets} />
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Margin Rate Bar */}
+          {widgets.margin && <MarginMonitor rate={marginRate} />}
+
+          {/* Clock & Actions */}
+          <div className="flex items-center gap-6">
+            {widgets.time && <DigitalClock />}
+            <div className="flex items-center gap-2">
+              <DataConnectionStatus />
+              <TopBarSettingsDropdown />
+              <NotificationDropdown />
+              <UserDropdown />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 relative overflow-hidden bg-bg-base">
+        <AnimatePresence mode="wait">
+          {/* @ts-ignore */}
+          <Routes location={location} key={location.pathname}>
+            <Route path="/market" element={
+              <motion.div 
+                key="market"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 flex p-2 gap-3 overflow-y-auto"
+              >
+              {/* Left Panel: Charts & Stats */}
+              <section className="flex-1 flex flex-col gap-6 min-w-0">
+                {/* Main Chart View */}
+                <div className="flex-1 bg-bg-card rounded-xl p-6 flex flex-col relative group">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        BTCUSDT PERP <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] rounded uppercase">Live</span>
+                      </h2>
+                      <div className="flex items-center gap-1 bg-slate-900 rounded-md p-1">
+                        {['1M', '5M', '15M', '1H', '4H', '1D'].map(tf => (
+                          <button 
+                            key={tf} 
+                            className={cn(
+                              "px-2 py-0.5 text-[10px] font-bold rounded transition-colors",
+                              tf === '15M' ? "bg-brand-blue text-white" : "text-slate-500 hover:text-slate-300"
+                            )}
+                          >
+                            {tf}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
+                        <Settings size={16} />
+                      </button>
+                      <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
+                        <Menu size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 -ml-8 -mb-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={CHART_DATA}>
+                        <defs>
+                          <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#4D7CFF" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#4D7CFF" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1F1F27" vertical={false} />
+                        <XAxis 
+                          dataKey="time" 
+                          hide 
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']} 
+                          orientation="right" 
+                          stroke="#4B5565" 
+                          fontSize={10} 
+                          fontFamily="JetBrains Mono"
+                          tickFormatter={(v) => `$${v.toLocaleString()}`}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#131318', border: '1px solid #23232A', borderRadius: '8px' }}
+                          itemStyle={{ color: '#F1F5F9', fontFamily: 'JetBrains Mono', fontSize: '12px' }}
+                          labelStyle={{ color: '#64748B', marginBottom: '4px', fontSize: '10px' }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="price" 
+                          stroke="#4D7CFF" 
+                          strokeWidth={2}
+                          fillOpacity={1} 
+                          fill="url(#colorPrice)" 
+                          animationDuration={1000}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* Real-time Order Book Preview (Overlay Right) */}
+                  <div className="absolute right-8 top-28 bottom-8 w-44 bg-bg-card/80 backdrop-blur-md border border-border-subtle rounded-xl p-3 flex flex-col gap-4 invisible xl:visible opacity-0 group-hover:opacity-100 transition-opacity">
+                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order Book</h3>
+                    <div className="flex-1 flex flex-col gap-1 overflow-hidden">
+                      {[...Array(8)].map((_, i) => (
+                        <div key={`sell-${i}`} className="flex justify-between text-[11px] tnum font-mono text-rose-400">
+                          <span>64,2{(i*1.5).toFixed(1)}</span>
+                          <span className="text-slate-400">0.245</span>
+                        </div>
+                      ))}
+                      <div className="h-px bg-border-subtle my-2" />
+                      {[...Array(8)].map((_, i) => (
+                        <div key={`buy-${i}`} className="flex justify-between text-[11px] tnum font-mono text-emerald-400">
+                          <span>64,1{(9-i*1.2).toFixed(1)}</span>
+                          <span className="text-slate-400">1.120</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: '昨日总盈亏', value: '$2,450.80', trend: '+12.5%', icon: ArrowUpRight, color: 'text-emerald-400' },
+                    { label: '账户总权益', value: '$68,124.20', trend: '+2.1%', icon: Wallet, color: 'text-brand-blue' },
+                    { label: '最大回撤', value: '4.2%', trend: '-0.3%', icon: ArrowDownRight, color: 'text-rose-400' },
+                    { label: '高胜率因子', value: '62.5%', trend: '+4.2%', icon: TrendingUp, color: 'text-emerald-400' },
+                  ].map((stat, i) => (
+                    <div 
+                      key={stat.label}
+                      className="bg-bg-card p-4 rounded-xl flex flex-col gap-2 hover:bg-bg-hover transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between text-slate-500">
+                        <span className="text-xs font-bold">{stat.label}</span>
+                        <stat.icon size={16} className={stat.color} />
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <span className="text-xl font-bold font-mono tracking-tight tnum">{stat.value}</span>
+                        <span className={cn("text-[10px] font-mono font-bold tnum", stat.color)}>{stat.trend}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Right Panel: Side Data / Watchlist */}
+              <aside className="w-80 hidden lg:flex flex-col gap-6 overflow-hidden shrink-0">
+                <div className="flex-1 bg-bg-card rounded-xl flex flex-col overflow-hidden">
+                  <div className="p-4 border-b border-border-subtle/30 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                      <Activity size={16} className="text-brand-blue" />
+                      自选行情 (WATCHLIST)
+                    </h3>
+                    <Search size={14} className="text-slate-500 cursor-pointer hover:text-slate-300" />
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2">
+                    <div className="space-y-1">
+                      {MARKET_TICKERS.map((ticker) => (
+                        <div key={ticker.symbol} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800/30 group transition-all cursor-pointer">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-100">{ticker.symbol}</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-mono tracking-tight">Perpetual</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs font-mono font-bold tnum text-slate-100">{ticker.price}</span>
+                            <span className={cn("text-[10px] font-mono font-bold tnum", ticker.up ? "text-emerald-400" : "text-rose-400")}>
+                              {ticker.change}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Quick Trade Panel (Simplified) */}
+                  <div className="p-4 border-t border-border-subtle/30 bg-bg-deep">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button className="py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
+                        BUY / LONG
+                      </button>
+                      <button className="py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
+                        SELL / SHORT
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </motion.div>
+            } />
+
+            <Route path="/positions" element={
+              <motion.div 
+                key="positions"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 p-2 overflow-y-auto"
+              >
+              <div className="bg-bg-card rounded-xl p-6 flex flex-col">
+                <div className="flex items-center justify-between mb-4 border-b border-border-subtle/30 pb-4">
+                  <h3 className="text-sm font-bold text-slate-100">当前持仓与委托 (POSITIONS & ORDERS)</h3>
+                  <div className="flex items-center gap-6 text-xs font-bold">
+                    <span className="text-slate-400">总持仓价值: <span className="text-slate-100 font-mono tnum">$124,500.20</span></span>
+                    <span className="text-slate-400">未实现损益: <span className="text-emerald-400 font-mono tnum">+$1,290.74</span></span>
+                  </div>
+                </div>
+                <div className="pr-2">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-bg-card z-10 before:absolute before:inset-0 before:border-b before:border-border-subtle/50 before:pointer-events-none">
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <th className="py-3 px-2">合约</th>
+                        <th className="py-3 px-2">仓位 / 杠杆</th>
+                        <th className="py-3 px-2">入口价格</th>
+                        <th className="py-3 px-2">标记价格</th>
+                        <th className="py-3 px-2">未实现损益 (P&L)</th>
+                        <th className="py-3 px-2 text-right">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      {POSITION_DATA.map((pos) => (
+                        <tr key={pos.symbol} className="border-b border-border-subtle/30 hover:bg-bg-hover transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                          <td className="py-4 px-2 font-bold text-slate-100">{pos.symbol}</td>
+                          <td className="py-4 px-2">
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold",
+                                pos.type === 'Long' ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                              )}>
+                                {pos.type}
+                              </span>
+                              <span className="font-mono tnum text-slate-300">{pos.qty}</span>
+                              <span className="text-[10px] text-slate-500 font-bold">{pos.leverage}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-2 font-mono tnum text-slate-400">{pos.entry}</td>
+                          <td className="py-4 px-2 font-mono tnum text-slate-100">{pos.mark}</td>
+                          <td className="py-4 px-2">
+                            <div className="flex flex-col">
+                              <span className={cn("font-mono font-bold tnum", pos.pnl.startsWith('+') ? "text-emerald-400" : "text-rose-400")}>
+                                {pos.pnl}
+                              </span>
+                              <span className={cn("text-[10px] font-mono tnum", pos.pnl.startsWith('+') ? "text-emerald-500" : "text-rose-500")}>
+                                ({pos.pnlPct})
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-2 text-right">
+                            <button className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[6px] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] font-bold">
+                              平仓
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </motion.div>
+            } />
+
+            <Route path="/logs" element={
+              <motion.div 
+                key="logs"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 p-2 overflow-y-auto"
+              >
+              <div className="bg-bg-card rounded-xl p-6 flex flex-col">
+                <h3 className="text-sm font-bold text-slate-100 mb-4 border-b border-border-subtle/30 pb-4 uppercase tracking-wider">最近交易日志 (RECENT TRADE LOGS)</h3>
+                <div className="space-y-3 pr-2">
+                  {[...Array(12)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-bg-deep rounded-lg border border-border-subtle/30 hover:border-border-subtle/80 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                      <div className="flex items-center gap-4">
+                        <div className={cn("w-2 h-2 rounded-full", i % 2 === 0 ? "bg-emerald-500" : "bg-rose-500")} />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-200">{i % 2 === 0 ? 'Buy / Long' : 'Sell / Short'} BTCUSDT</span>
+                          <span className="text-[10px] text-slate-500">2024-05-05 14:24:{30+i}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-10 items-center font-mono text-xs">
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-500 text-[10px]">价格</span>
+                          <span className="text-slate-100 tnum font-bold">64,120.5</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-500 text-[10px]">数量</span>
+                          <span className="text-slate-100 tnum font-bold">0.024</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-500 text-[10px]">手续费</span>
+                          <span className="text-slate-500 tnum">0.0001 BTC</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+            } />
+
+            <Route path="/stats" element={
+              <motion.div 
+                key="stats"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 p-2 overflow-auto"
+              >
+              <div className="bg-bg-card rounded-xl p-6 h-full">
+                <div className="grid grid-cols-3 gap-8 h-full">
+                  <div className="col-span-1 space-y-6 flex flex-col items-center justify-center border-r border-border-subtle/30 pr-8">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">盈利因子 (PROFIT FACTOR)</h4>
+                    <div className="h-40 w-40 mx-auto relative flex items-center justify-center">
+                       <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="80" cy="80" r="72" stroke="#1F1F27" strokeWidth="12" fill="transparent" />
+                        <circle cx="80" cy="80" r="72" stroke="#4D7CFF" strokeWidth="12" fill="transparent" strokeDasharray="452.4" strokeDashoffset="113.1" strokeLinecap="round" />
+                      </svg>
+                      <span className="absolute font-mono font-bold text-3xl tnum text-slate-100">2.41</span>
+                    </div>
+                    <p className="text-xs text-center text-slate-400 max-w-[200px] leading-relaxed">近30天平均获利能力出色，盈亏比维持在健康水平。</p>
+                  </div>
+                  <div className="col-span-2 space-y-6 flex flex-col justify-center pl-4">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">单周胜率统计 (WIN RATE)</h4>
+                    <div className="h-48 flex items-end gap-3 max-w-lg">
+                      {[45, 62, 58, 42, 75, 68, 55].map((h, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
+                          <motion.div 
+                            initial={{ height: 0 }}
+                            animate={{ height: `${h}%` }}
+                            transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                            className={cn("w-full rounded-t-sm transition-colors duration-[120ms]", i === 4 ? "bg-brand-blue" : "bg-slate-700/50 group-hover:bg-slate-600")}
+                          />
+                          <span className="text-[10px] text-slate-500 font-mono font-bold">D{i+1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+            } />
+            <Route path="/trade-log" element={
+              <motion.div
+                key="trade-log"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 overflow-hidden"
+              >
+                <TradeLogPage />
+              </motion.div>
+            } />
+            <Route path="/assets" element={
+              <motion.div
+                key="assets"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 overflow-hidden"
+              >
+                <AssetsPage />
+              </motion.div>
+            } />
+            <Route path="/monitor" element={
+              <motion.div
+                key="monitor"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0"
+              >
+                <MonitorPage />
+              </motion.div>
+            } />
+            <Route path="/options" element={
+              <motion.div
+                key="options"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0"
+              >
+                <OptionsMarketBrowser />
+              </motion.div>
+            } />
+            <Route path="/options-chain" element={
+              <motion.div
+                key="options-chain"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 p-1"
+                style={{ backgroundColor: '#0A0A0D' }}
+              >
+                <div className="w-full h-full rounded-[8px] overflow-hidden border border-[rgba(255,255,255,0.06)]">
+                  <OptionsChainPage mode="deribit" />
+                </div>
+              </motion.div>
+            } />
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="*" element={<DashboardPage />} />
+          </Routes>
+        </AnimatePresence>
+      </main>
+
+      {/* 底部导航栏和活动条 */}
+      <footer className="h-[38px] bg-bg-base flex items-center justify-between px-2 shrink-0 z-10 w-full relative">
+        <div className="flex items-center gap-1.5 h-full py-1">
+          {pages.map((page) => (
+            <FooterTab
+              key={page.id}
+              tab={{ id: page.id, label: page.label }}
+              activeTab={activeTab}
+              onClick={() => {
+                if (page.routePath) {
+                  navigate(page.routePath);
+                  setActivePage(page.id);
+                } else {
+                  setActivePage(page.id);
+                  if (location.pathname !== '/') navigate('/');
+                }
+              }}
+              onEdit={(newLabel) => renamePage(page.id, newLabel)}
+              onClone={() => clonePage(page.id)}
+              onDelete={() => {
+                const remaining = pages.filter(p => p.id !== page.id);
+                removePage(page.id);
+                if (activeTab === page.id) {
+                  const next = remaining[0];
+                  if (next) {
+                    if (next.routePath) navigate(next.routePath);
+                    else { setActivePage(next.id); navigate('/'); }
+                  }
+                }
+              }}
+            />
+          ))}
+          {/* “+”按钮：用来添加新标签 */}
+          <div className="relative h-full flex items-center group">
+            <motion.button 
+              layoutId="addTabModalBackground"
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center justify-center w-10 h-full bg-surface-4 border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
+              style={{ pointerEvents: isAddModalOpen ? "none" : "auto" }}
+            >
+              <motion.div animate={{ opacity: isAddModalOpen ? 0 : 1 }} transition={{ duration: 0.1 }}>
+                <Plus size={16} strokeWidth={2} />
+              </motion.div>
+            </motion.button>
+            {!isAddModalOpen && (
+              <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#181820] text-white text-xs font-bold rounded-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                添加选项卡
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#181820] rotate-45" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 h-full py-1">
+          {/* “添加组件”按钮：点击弹出可以选方块的窗口 */}
+          <motion.button 
+            layoutId="addWidgetModalBackground"
+            onClick={() => openComponentLibrary()}
+            className={cn(
+              "flex items-center justify-center gap-1.5 px-3 h-full bg-surface-4 border border-transparent rounded-[8px] text-[13px] font-bold text-slate-200 transition-colors overflow-hidden",
+              !isComponentLibraryOpen && "hover:bg-[#31333F] hover:shadow-[0_0_8px_rgba(255,255,255,0.08)] hover:border-slate-500/40 cursor-pointer"
+            )}
+            style={{ pointerEvents: isComponentLibraryOpen ? "none" : "auto" }}
+          >
+            <motion.div 
+              initial={false}
+              animate={{ opacity: isComponentLibraryOpen ? 0 : 1 }}
+              transition={{ duration: 0.1 }}
+              className="flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Plus size={14} strokeWidth={2} />
+              <span>添加组件</span>
+            </motion.div>
+          </motion.button>
+          <button className="flex items-center justify-center w-8 h-full bg-transparent hover:bg-surface-4 transition-colors rounded-[8px] text-slate-300">
+            <Upload size={16} strokeWidth={2} />
+          </button>
+        </div>
+      </footer>
+
+      <AnimatePresence>
+        {isComponentLibraryOpen && (
+          <Modal
+            open={isComponentLibraryOpen}
+            onClose={() => closeComponentLibrary()}
+            zIndex={220}
+            className="relative bg-surface-4 w-[660px] h-[520px] rounded-[16px] flex flex-col overflow-hidden border border-surface-5"
+            style={{ boxShadow: '0 16px 40px rgba(0,0,0,0.6)' }}
+          >
+            <motion.div
+              layoutId="addWidgetModalBackground"
+              className="flex-1 flex flex-col p-4 pb-3 min-h-0 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, delay: 0.08 }}
+            >
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-white text-[15px] font-bold">添加组件</h2>
+                  <button onClick={() => closeComponentLibrary()} className="text-slate-400 hover:text-white transition-colors">
+                    <Plus size={20} className="rotate-45" />
+                  </button>
+                </div>
+                
+                <div className="flex-1 flex min-h-0 border-t border-surface-5 mt-1 pt-3">
+                   {/* Left Column: Categories */}
+                   <div className="w-[100px] flex flex-col pr-2 border-r border-surface-5 min-h-0">
+                      <div className="relative mb-1 shrink-0">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B93A5]" />
+                        <input
+                          type="text"
+                          placeholder="查找组件"
+                          className="w-full h-[32px] bg-[#31333F]/50 text-slate-200 text-[12px] pl-8 pr-2 rounded-[6px] outline-none placeholder:text-[#8B93A5]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0 mt-1 overflow-y-auto min-h-0">
+                        <div
+                          onClick={() => setActiveWidgetCategory('all')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'all' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>所有</span>
+                          {activeWidgetCategory === 'all' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                        <div
+                          onClick={() => setActiveWidgetCategory('options')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'options' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>期权</span>
+                          {activeWidgetCategory === 'options' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                        <div
+                          onClick={() => setActiveWidgetCategory('monitor')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'monitor' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>监控</span>
+                          {activeWidgetCategory === 'monitor' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                        <div
+                          onClick={() => setActiveWidgetCategory('charts')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'charts' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>图表</span>
+                          {activeWidgetCategory === 'charts' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                        <div
+                          onClick={() => setActiveWidgetCategory('account')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'account' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>账户</span>
+                          {activeWidgetCategory === 'account' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                        <div
+                          onClick={() => setActiveWidgetCategory('tools')}
+                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'tools' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                        >
+                          <span>工具</span>
+                          {activeWidgetCategory === 'tools' && <ChevronRight size={14} className="text-white" />}
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* Middle Column: Widget List */}
+                   <div className="w-[150px] flex flex-col overflow-y-auto min-h-0 px-2 gap-0 border-r border-surface-5">
+                     {Object.values(WIDGET_REGISTRY).filter(w => activeWidgetCategory === 'all' || w.category === activeWidgetCategory).map((widget) => {
+                       const isSelected = selectedWidgetId === widget.id;
+                       return (
+                         <div
+                           key={widget.id}
+                           onClick={() => {
+                              setSelectedWidgetId(widget.id);
+                              // reset config to defaults for this widget
+                              const defaults: Record<string, string> = {};
+                              (widget.configSchema ?? []).forEach(f => { defaults[f.key] = f.default; });
+                              setWidgetConfig(defaults);
+                           }}
+                           onMouseEnter={() => setHoveredWidgetId(widget.id)}
+                           onMouseLeave={() => setHoveredWidgetId(null)}
+                           className={cn(
+                             "relative flex items-center justify-between px-3 py-1.5 rounded-[6px] cursor-pointer transition-colors border",
+                             isSelected ? "bg-[#31333F] border-transparent" : "bg-transparent border-transparent hover:bg-[#31333F]/50"
+                           )}
+                         >
+                           <div className="text-[13px] font-bold text-white truncate">{widget.label.split(' (')[0]}</div>
+                           {isSelected && <ChevronRight size={14} className="text-white" />}
+                         </div>
+                       );
+                     })}
+                   </div>
+
+                   {/* Right Column: Preview Detail */}
+                   <div className="flex-1 flex flex-col pl-3 pr-1 relative overflow-y-auto min-h-0">
+                      {(() => {
+                        const targetId = hoveredWidgetId || selectedWidgetId;
+                        if (!targetId) {
+                          return (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                              <Activity size={24} className="mb-2 opacity-30" />
+                              <span className="text-[13px]">请在左侧选择一个组件查看预览</span>
+                            </div>
+                          );
+                        }
+                        const widget = WIDGET_REGISTRY[targetId];
+                        return (
+                          <div className="flex flex-col h-auto min-h-full w-full">
+                            <h3 className="text-white font-bold text-[15px] mb-3">{widget?.label}</h3>
+
+                            {/* Config fields — only shown for the selected widget (not hovered) */}
+                            {targetId === selectedWidgetId && widget?.configSchema && widget.configSchema.length > 0 && (
+                              <div className="mb-3 flex flex-col gap-2 shrink-0">
+                                {widget.configSchema.map(field => (
+                                  <div key={field.key}>
+                                    <div className="text-[11px] font-bold text-slate-400 mb-1">{field.label}</div>
+                                    <select
+                                      value={widgetConfig[field.key] ?? field.default}
+                                      onChange={e => setWidgetConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                      className="w-full bg-[#1A1A24] border border-[#2A2A38] text-slate-100 text-[12px] px-3 py-2 rounded-[6px] outline-none focus:border-[#4D7CFF] cursor-pointer appearance-none"
+                                    >
+                                      {field.options.map(o => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="text-slate-400 text-[11px] font-bold mb-1.5 shrink-0 uppercase tracking-wider">预览</div>
+                            <div className="relative flex-1 w-full bg-surface-2 border border-surface-5 rounded-[8px] flex items-center justify-center overflow-hidden p-4 mb-3 min-h-[160px]">
+                              <div className="absolute inset-0 bg-[#131318]" />
+                              <div className="relative w-full h-full flex flex-col justify-center">
+                                {widget?.preview}
+                              </div>
+                            </div>
+                            <div className="bg-surface-2 rounded-[8px] p-4 border border-surface-5 flex items-start gap-3 min-h-[80px] shrink-0">
+                              <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+                                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
+                                  <div className="bg-slate-400/20 rounded-[1px]" />
+                                  <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
+                                  <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
+                                  <div className="bg-slate-400/20 rounded-[1px]" />
+                                </div>
+                              </div>
+                              <p className="text-slate-300 text-[12px] leading-relaxed m-0">{widget?.description}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                   </div>
+                </div>
+                
+                <div className="flex justify-end gap-2 mt-4 shrink-0">
+                  <button 
+                    onClick={() => closeComponentLibrary()}
+                    className="px-4 py-2 rounded-[6px] border border-slate-700/50 text-slate-300 hover:bg-surface-5 hover:text-white transition-colors text-[12px] font-bold"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedWidgetId) {
+                        const defn = WIDGET_REGISTRY[selectedWidgetId];
+                        const finalProps: Record<string, string> = {};
+                        (defn.configSchema ?? []).forEach(f => {
+                          finalProps[f.key] = widgetConfig[f.key] ?? f.default;
+                        });
+                        if (defn.kind === 'action' && defn.id === 'options-chain') {
+                          // 期权链：只追加到 /options-chain 页面的右侧 Tab，不切换当前页面
+                          appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
+                          closeComponentLibrary();
+                          return;
+                        }
+
+                        addInstance(activePageId, selectedWidgetId, {
+                          x: 0, y: Infinity,
+                          w: defn.defaultSize.w,
+                          h: defn.defaultSize.h,
+                          minW: defn.defaultSize.minW,
+                          minH: defn.defaultSize.minH,
+                        }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+                        closeComponentLibrary();
+                      }
+                    }}
+                    disabled={!selectedWidgetId}
+                    className="px-4 py-2 rounded-[6px] bg-[#4D7CFF] hover:bg-[#3d63cc] disabled:bg-surface-4 disabled:text-slate-500 disabled:shadow-none shadow-[0_0_12px_rgba(77,124,255,0.4)] text-white transition-all text-[12px] font-bold border disabled:border-slate-700/50 border-transparent shrink-0"
+                  >
+                    添加组件
+                  </button>
+                </div>
+            </motion.div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      <AddTabModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={(name) => {
+          addPage(name);
+          setIsAddModalOpen(false);
+          navigate('/');
+        }}
+      />
+    </div>
+  );
+}

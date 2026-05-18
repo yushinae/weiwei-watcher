@@ -1,0 +1,25 @@
+/* Unified popup card + motion styling
+   Goal: reuse the OptionsChain dropdown card look site-wide.
+*/
+
+:root{
+  --popup-card-bg: #14171a;
+  --popup-card-border: rgba(255,255,255,0.10);
+  --popup-card-radius: 12px;
+  --popup-card-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  --popup-backdrop-dim: rgba(0,0,0,0.60);
+}
+
+.popup-card{
+  background: var(--popup-card-bg);
+  border: 1px solid var(--popup-card-border);
+  border-radius: var(--popup-card-radius);
+  box-shadow: var(--popup-card-shadow);
+  overflow: hidden;
+}
+
+.popup-backdrop{
+  position: fixed;
+  inset: 0;
+}
+

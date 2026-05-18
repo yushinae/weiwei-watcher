@@ -1,0 +1,226 @@
+/* Deribit-like options chain theme + micro-interactions
+   Scope: only applies inside .db-oc-root
+*/
+
+.db-oc-root{
+  /* Surfaces */
+  --db-bg-main: #0b0f16;        /* app background */
+  --db-bg-header: #0f1520;      /* sticky header rows */
+  --db-bg-row-even: #0b0f16;
+  --db-bg-row-odd: #0d1320;
+  --db-bg-strike: #0d1420;
+  --db-bg-hover: rgba(255,255,255,.045);
+  --db-bg-selected: rgba(61, 125, 255, .16);
+
+  /* Lines */
+  --db-border: rgba(165, 185, 220, .14);
+  --db-border-strong: rgba(165, 185, 220, .22);
+
+  /* Text */
+  --db-text: #d9e2f2;
+  --db-muted: rgba(217,226,242,.58);
+  --db-dim: rgba(217,226,242,.22);
+
+  /* Trading colors */
+  --db-up: #35d07f;
+  --db-down: #ff5c74;
+  --db-warn: #f0b90b;
+
+  /* Accent (Deribit UI often uses cool-blue highlights) */
+  --db-accent: #3d7dff;
+  --db-accent-soft: rgba(61,125,255,.28);
+  --db-accent-weak: rgba(61,125,255,.12);
+
+  /* Sizing rhythm */
+  --db-row-h: 32px;
+  --db-cell-px: 6px;
+  --db-font-cell: 12px;
+  --db-font-sub: 10.5px;
+  --db-font-header: 11px;
+
+  color: var(--db-text);
+  background: var(--db-bg-main);
+}
+
+/* Desktop Deribit screenshot-matched tuning (blue UI + purple strike/spot) */
+.db-oc-root.deribit{
+  --db-bg-main: #0b0c0e;
+  --db-bg-header: #111315;
+  --db-bg-row-even: #14171a;
+  --db-bg-row-odd: #15191c;
+  --db-bg-strike: #0c0d10;
+  --db-border: rgba(255,255,255,.08);
+  --db-border-strong: rgba(255,255,255,.12);
+
+  --db-text: rgba(255,255,255,.92);
+  --db-muted: rgba(255,255,255,.55);
+  --db-dim: rgba(255,255,255,.22);
+
+  --db-accent: #2f6bff;              /* UI blue */
+  --db-accent-soft: rgba(47,107,255,.35);
+  --db-accent-weak: rgba(47,107,255,.14);
+
+  --db-spot: #9b4dff;                /* strike/spot purple */
+  --db-spot-soft: rgba(155,77,255,.35);
+  --db-spot-weak: rgba(155,77,255,.16);
+
+  --db-row-h: 32px;
+  --db-cell-px: 7px;
+  /* 用户要求：单元格字体更大 */
+  --db-font-cell: 13px;
+  --db-font-sub: 11px;
+  /* 表头（列名）更大，尽量“占满”单元格 */
+  --db-font-header: 13px;
+}
+
+.db-oc-root.deribit{
+  /* subtle vignette like Deribit */
+  background:
+    radial-gradient(1200px 600px at 30% 15%, rgba(255,255,255,.06), transparent 60%),
+    radial-gradient(900px 540px at 70% 35%, rgba(47,107,255,.06), transparent 62%),
+    radial-gradient(700px 520px at 50% 95%, rgba(0,0,0,.42), transparent 65%),
+    var(--db-bg-main);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Deribit-style menu buttons / dropdowns (Expiry / Columns / Filter)
+   ───────────────────────────────────────────────────────────── */
+
+.db-oc-root.deribit .db-menu-btn{
+  /* 参考 Deribit：更高更厚的 pill 按钮 */
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.88);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+.db-oc-root.deribit .db-menu-btn:hover{
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+}
+.db-oc-root.deribit .db-menu-btn:active{
+  transform: translateY(0.5px);
+}
+
+.db-oc-root.deribit .db-menu-panel{
+  background: #14171a;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  overflow: hidden;
+}
+
+.db-oc-root.deribit .db-frame-title{
+  /* 左上角标题：更接近 Deribit 的“大号粗体” */
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: rgba(255,255,255,.92);
+}
+
+.db-oc-root.deribit .db-frame-iconbtn{
+  /* Deribit 顶部右侧按钮更“轻”，hover 才出现底色 */
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.70);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+.db-oc-root.deribit .db-frame-iconbtn:hover{
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,.88);
+}
+.db-oc-root.deribit .db-frame-iconbtn:active{
+  transform: translateY(0.5px);
+}
+
+.db-oc-root.deribit .db-iv-trigger{
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-oc-root.deribit .db-iv-value{
+  color: rgba(168, 85, 247, 0.98);
+  font-weight: 800;
+  padding-bottom: 1px;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.55);
+}
+
+.db-oc-root.deribit .db-iv-trigger:hover .db-iv-value{
+  border-bottom-color: rgba(168, 85, 247, 0.85);
+}
+
+.db-oc-root.deribit .db-menu-item{
+  height: 34px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,0.80);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.db-oc-root.deribit .db-menu-item:hover{
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+}
+
+.db-oc-root.deribit .db-check{
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.db-oc-root.deribit .db-check.is-on{
+  background: var(--db-accent);
+  border-color: var(--db-accent);
+}
+
+/* Slightly crisper table feel */
+.db-oc-root .db-oc-cell{
+  padding-inline: var(--db-cell-px);
+  font-size: var(--db-font-cell);
+}
+
+.db-oc-root .db-oc-strike{
+  background: var(--db-bg-strike);
+}
+
+/* Hover: keep it subtle and uniform across both sides */
+.db-oc-root .db-oc-row:hover > .db-oc-cell-wrap{
+  filter: brightness(1.06);
+}
+
+/* Scrollbars: visible but restrained */
+.db-oc-root ::-webkit-scrollbar{ width: 8px; height: 8px; }
+.db-oc-root ::-webkit-scrollbar-track{ background: transparent; }
+.db-oc-root ::-webkit-scrollbar-thumb{
+  background: rgba(61,125,255,.28);
+  border-radius: 999px;
+}
+.db-oc-root ::-webkit-scrollbar-thumb:active{
+  background: rgba(61,125,255,.45);
+}

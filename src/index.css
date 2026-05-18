@@ -1,0 +1,336 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, sans-serif;
+  --font-mono: "Inter", "PingFang SC", ui-sans-serif, sans-serif;
+
+  /* Motion tokens */
+  --ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-pop: 140ms;
+  --dur-card: 160ms;
+  --lift-card: 1.5px;
+
+  /* Brand */
+  --color-brand-blue: #4D7CFF;
+  --color-brand-blue-deep: #191970;
+  /* 蓝色高亮背景（按钮 hover/active） */
+  --color-brand-blue-soft: #C0CBF6;
+  /* 蓝色柔和文字 */
+
+  /* Surface elevations — 从最深到最浅依次提升 */
+  --color-bg-base: #060606;
+  /* 最底层：header / main / footer */
+  --color-bg-dim: #1F2021;
+  /* ticker / 次底层组件背景 */
+  --color-bg-deep: #3E3F40;
+  /* App 背景 */
+  --color-bg-card: #131318;
+  /* 卡片 */
+  --color-surface-1: #15151A;
+  /* 弹层底色 */
+  --color-surface-2: #1A1A24;
+  /* 卡片之上一级 */
+  --color-surface-3: #1C1C24;
+  /* hover / 输入背景 */
+  --color-surface-4: #1E1E26;
+  /* tab 默认 */
+  --color-surface-5: #2A2A35;
+  /* tab active / 描边 */
+  --color-surface-6: #31333F;
+  /* 输入框激活、按钮按下 */
+  --color-bg-hover: #26262E;
+
+  /* Borders */
+  --color-border-subtle: #2F2F38;
+  --color-border-strong: #3E3E4A;
+
+  /* Input / Form */
+  --color-input-bg: #31333F;
+  --color-text-muted: #8B93A5;
+
+  /* Trade colors */
+  --color-trade-up: #1EC98C;
+  --color-trade-down: #FF4D6A;
+
+  --radius-button: 8px;
+  --radius-modal: 12px;
+}
+
+@layer base {
+
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  html {
+    /* 1rem = 16px，避免页面整体“被放大” */
+    font-size: 100%;
+  }
+
+  body {
+    @apply bg-bg-deep text-slate-400 font-sans antialiased font-normal;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer utilities {
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Monitor page local theme scope (避免污染全局 token) */
+.monitor-scope {
+  --monitor-signal-glow: rgba(77, 124, 255, 0.65);
+  --monitor-accent-btc: #F59E0B;
+  --monitor-accent-eth: #4D7CFF;
+  --monitor-gridline: rgba(47, 47, 56, 0.9);
+}
+
+/* 期权链数字：Inter tabular-nums，无 Mono */
+.data-num {
+  font-family: "Inter", "PingFang SC", sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Strike 执行价：稍粗，Inter 600 */
+.strike-num {
+  font-family: "Inter", "PingFang SC", sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Custom Scrollbar — hidden at rest, blue when scrolling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(77, 124, 255, 0);
+  border-radius: 999px;
+  transition: background-color 0.3s ease;
+}
+
+html.is-scrolling ::-webkit-scrollbar-thumb {
+  background: rgba(77, 124, 255, 0.65);
+}
+
+html.is-scrolling ::-webkit-scrollbar-thumb:active {
+  background: rgba(77, 124, 255, 0.9);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+html.is-scrolling * {
+  scrollbar-color: rgba(77, 124, 255, 0.65) transparent;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* ── Widget Card — gradient border + depth ── */
+.widget-card {
+  background:
+    linear-gradient(#12121A, #12121A) padding-box,
+    linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
+  border: 1px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 2px 12px rgba(0, 0, 0, 0.4);
+  transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
+}
+
+.widget-card:not(.is-fullscreen):hover {
+  transform: translateY(calc(var(--lift-card) * -1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(77, 124, 255, 0.06);
+}
+
+.widget-card.is-fullscreen {
+  background:
+    linear-gradient(#0A0A0D, #0A0A0D) padding-box,
+    linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
+}
+
+/* ── Trade number glow ── */
+.glow-green {
+  text-shadow: 0 0 14px rgba(30, 201, 140, 0.5);
+}
+
+.glow-red {
+  text-shadow: 0 0 14px rgba(255, 77, 106, 0.5);
+}
+
+.glow-blue {
+  text-shadow: 0 0 14px rgba(77, 124, 255, 0.55);
+}
+
+/* ── Ant Design Table 暗色主题覆写 ── */
+.trade-log-table .ant-table {
+  background: #131318 !important;
+  color: #CBD5E1;
+}
+
+.trade-log-table .ant-table-thead>tr>th {
+  background: #0B0C0E !important;
+  color: rgba(255,255,255,0.45) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #1E1E26 !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.trade-log-table .ant-table-tbody>tr>td {
+  border-bottom: 1px solid #1a1a22 !important;
+  background: transparent !important;
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+}
+
+.trade-log-table .ant-table-tbody>tr:nth-child(even)>td{
+  background: rgba(255,255,255,0.012) !important;
+}
+
+.trade-log-table .ant-table-tbody>tr:hover>td {
+  background: rgba(255,255,255,0.04) !important;
+}
+
+/* 行内操作按钮（hover 才显示） */
+.trade-log-table .tl-actions{
+  opacity: 0;
+}
+.trade-log-table .ant-table-tbody>tr:hover .tl-actions{
+  opacity: 1;
+}
+
+.tl-menu-item{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.tl-menu-item:hover{
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+}
+.tl-menu-item.tl-danger{
+  color: rgba(255,120,120,0.95);
+}
+.tl-menu-item.tl-danger:hover{
+  background: rgba(255, 77, 106, 0.10);
+  color: rgba(255, 160, 170, 0.98);
+}
+
+.trade-log-table .ant-table-wrapper {
+  height: 100%;
+}
+
+.trade-log-table .ant-spin-nested-loading,
+.trade-log-table .ant-spin-container,
+.trade-log-table .ant-table-container {
+  height: 100%;
+}
+
+.trade-log-table .ant-table-body {
+  overflow-y: auto !important;
+}
+
+.trade-log-table .ant-checkbox-inner {
+  background: transparent !important;
+  border-color: #3F3F50 !important;
+  border-radius: 3px !important;
+}
+
+.trade-log-table .ant-checkbox-checked .ant-checkbox-inner {
+  background: #4D7CFF !important;
+  border-color: #4D7CFF !important;
+}
+
+.trade-log-table .ant-table-selection-column {
+  border-right: 1px solid #1E1E26 !important;
+}
+
+/* 水平滚动条蓝色 */
+.trade-log-table .ant-table-body::-webkit-scrollbar-thumb,
+.trade-log-table .ant-table-content::-webkit-scrollbar-thumb {
+  background: rgba(77, 124, 255, 0.45) !important;
+  border-radius: 4px;
+}
+
+.trade-log-table .ant-table-body::-webkit-scrollbar-thumb:active,
+.trade-log-table .ant-table-content::-webkit-scrollbar-thumb:active {
+  background: rgba(77, 124, 255, 0.8) !important;
+}
+
+/* 水平滚动蓝色光晕 — 持续平滑过渡防止中断 */
+.trade-log-table .ant-table-container::before,
+.trade-log-table .ant-table-container::after {
+  transition: box-shadow 0.2s ease, opacity 0.2s ease !important;
+  will-change: opacity, box-shadow;
+}
+
+.trade-log-table .ant-table-ping-left .ant-table-container::before {
+  box-shadow: inset 12px 0 12px -8px rgba(77, 124, 255, 0.5) !important;
+}
+
+.trade-log-table .ant-table-ping-right .ant-table-container::after {
+  box-shadow: inset -12px 0 12px -8px rgba(77, 124, 255, 0.5) !important;
+}
+
+/* 日期选择器暗色 */
+.ant-picker-dropdown {
+  z-index: 9999;
+}

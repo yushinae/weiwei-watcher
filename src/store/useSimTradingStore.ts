@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
-  Order, Position, Fill, AccountBalance,
-  TradingState, TradingActions, OrderInput,
-  OrderSide, OrderType, PositionSide, InstrumentType,
+  Order, Position, Fill, AccountBalance, TickerData,
+  TradingState, TradingActions, OrderInput, OrderSide,
 } from '../types/trading';
-
-// ── Black-Scholes helpers for Greeks ──
 
 function normCdf(x: number): number {
   const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
@@ -38,19 +35,17 @@ function bsGreeks(S: number, K: number, T: number, sigma: number, type: 'call' |
   return { delta, gamma, theta, vega };
 }
 
-// Parse symbol like "BTC-29MAY26-65000-C"
 function parseSymbol(symbol: string) {
   const parts = symbol.split('-');
-  if (parts.length < 4) return { coin: symbol, expiry: '', strike: 0, instrumentType: 'call' as InstrumentType };
+  if (parts.length < 4) return { coin: symbol, expiry: '', strike: 0, instrumentType: 'call' as const };
   return {
     coin: parts[0],
     expiry: parts[1],
     strike: parseFloat(parts[2]),
-    instrumentType: parts[3].toLowerCase() as InstrumentType,
+    instrumentType: parts[3].toLowerCase() as 'call' | 'put',
   };
 }
 
-// Estimate days to expiry from string like "29MAY26"
 function daysToExpiry(expiry: string): number {
   const months: Record<string, number> = {
     JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
@@ -66,16 +61,13 @@ function daysToExpiry(expiry: string): number {
   return Math.max(1, Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-// ── Store ──
-
-const DEFAULT_INITIAL_BALANCE = 100000; // 100k USDC
+const DEFAULT_INITIAL_BALANCE = 100000;
 
 interface SimTradingStore extends TradingState, TradingActions {}
 
 export const useSimTradingStore = create<SimTradingStore>()(
   persist(
     (set, get) => ({
-      // ── Initial State ──
       initialBalance: DEFAULT_INITIAL_BALANCE,
       balance: {
         equity: DEFAULT_INITIAL_BALANCE,
@@ -89,11 +81,10 @@ export const useSimTradingStore = create<SimTradingStore>()(
       orderHistory: [],
       positions: [],
       fills: [],
+      tickers: {},
       slippage: 0.001,
       makerFee: 0.0002,
       takerFee: 0.0005,
-
-      // ── Actions ──
 
       resetAccount: (initialBalance = DEFAULT_INITIAL_BALANCE) => {
         set({
@@ -114,9 +105,13 @@ export const useSimTradingStore = create<SimTradingStore>()(
       },
 
       placeOrder: (orderInput: OrderInput) => {
-        const { slippage, makerFee, takerFee, balance, positions } = get();
+        const { slippage, makerFee, takerFee, balance, positions, tickers } = get();
         const id = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const { coin, expiry, strike, instrumentType } = parseSymbol(orderInput.symbol);
+
+        // Use real mark price from tickers if available
+        const realTicker = tickers[orderInput.symbol];
+        const markPrice = realTicker?.markPrice ?? orderInput.price;
 
         const order: Order = {
           id,
@@ -137,13 +132,11 @@ export const useSimTradingStore = create<SimTradingStore>()(
           createdAt: Date.now(),
         };
 
-        // ── 撮合逻辑 ──
         let filledOrder: Order = { ...order };
         let fill: Fill | null = null;
 
         if (order.type === 'market') {
-          // 市价单：立即成交，加上滑点
-          const slipPrice = order.price * (1 + (order.side === 'buy' ? slippage : -slippage));
+          const slipPrice = markPrice * (1 + (order.side === 'buy' ? slippage : -slippage));
           const feeRate = takerFee;
           const fee = slipPrice * order.qty * feeRate;
 
@@ -166,10 +159,6 @@ export const useSimTradingStore = create<SimTradingStore>()(
             timestamp: Date.now(),
           };
         } else if (order.type === 'limit') {
-          // 限价单：检查是否可立即成交（价格穿过）
-          // 简化：如果限价单价格优于当前标记价，立即成交
-          // 实际应该用订单簿，这里用标记价近似
-          const markPrice = order.price; // 下单时的标记价
           const shouldFill =
             (order.side === 'buy' && order.price >= markPrice) ||
             (order.side === 'sell' && order.price <= markPrice);
@@ -197,30 +186,25 @@ export const useSimTradingStore = create<SimTradingStore>()(
               timestamp: Date.now(),
             };
           }
-          // 否则保持 pending，等待后续 mark price 更新触发
         }
 
-        // ── 更新持仓 ──
         let newPositions = [...positions];
         let newBalance = { ...balance };
 
         if (fill) {
-          const posKey = `${order.symbol}_${order.side === 'buy' ? 'long' : 'short'}`;
           const existingPos = newPositions.find(
             p => p.symbol === order.symbol &&
               p.side === (order.side === 'buy' ? 'long' : 'short')
           );
 
           if (existingPos) {
-            // 加仓：更新均价和数量
             const totalCost = existingPos.avgEntryPrice * existingPos.qty + fill.price * fill.qty;
             const totalQty = existingPos.qty + fill.qty;
             existingPos.avgEntryPrice = totalCost / totalQty;
             existingPos.qty = totalQty;
           } else {
-            // 开新仓
             const T = daysToExpiry(order.expiry) / 365;
-            const spotPrice = strike; // 简化：用行权价近似标的价
+            const spotPrice = strike;
             const iv = order.iv ?? 0.6;
             const greeks = bsGreeks(spotPrice, strike, T, iv, instrumentType);
 
@@ -246,7 +230,6 @@ export const useSimTradingStore = create<SimTradingStore>()(
             newPositions.push(newPos);
           }
 
-          // 更新余额
           const cost = fill.price * fill.qty;
           const fee = fill.fee;
           if (order.side === 'buy') {
@@ -257,21 +240,16 @@ export const useSimTradingStore = create<SimTradingStore>()(
           newBalance.totalFees += fee;
         }
 
-        // ── 更新状态 ──
         const allOrders = [...get().orders, filledOrder];
         const openOrders = allOrders.filter(o => o.status === 'pending');
         const orderHistory = allOrders.filter(o => o.status !== 'pending');
         const allFills = fill ? [...get().fills, fill] : get().fills;
 
-        // 重新计算 PnL
         const totalUnrealizedPnL = newPositions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
         const totalRealizedPnL = newPositions.reduce((sum, p) => sum + p.realizedPnL, 0);
         newBalance.totalPnL = totalUnrealizedPnL + totalRealizedPnL;
         newBalance.equity = newBalance.availableBalance + newBalance.usedMargin + totalUnrealizedPnL;
-        newBalance.usedMargin = newPositions.reduce((sum, p) => {
-          // 简化保证金计算：期权权利金的 20%
-          return sum + p.avgEntryPrice * p.qty * 0.2;
-        }, 0);
+        newBalance.usedMargin = newPositions.reduce((sum, p) => sum + p.avgEntryPrice * p.qty * 0.2, 0);
 
         set({
           orders: allOrders,
@@ -308,13 +286,15 @@ export const useSimTradingStore = create<SimTradingStore>()(
       },
 
       closePosition: (positionId) => {
-        const { positions, balance, fills, slippage, takerFee } = get();
+        const { positions, balance, fills, slippage, takerFee, tickers } = get();
         const pos = positions.find(p => p.id === positionId);
         if (!pos) return;
 
-        // 平仓：以当前标记价反向成交
+        const realTicker = tickers[pos.symbol];
+        const markPrice = realTicker?.markPrice ?? pos.markPrice;
+
         const closeSide: OrderSide = pos.side === 'long' ? 'sell' : 'buy';
-        const slipPrice = pos.markPrice * (1 + (closeSide === 'buy' ? slippage : -slippage));
+        const slipPrice = markPrice * (1 + (closeSide === 'buy' ? slippage : -slippage));
         const fee = slipPrice * pos.qty * takerFee;
         const pnl = (closeSide === 'sell' ? 1 : -1) * (slipPrice - pos.avgEntryPrice) * pos.qty - fee;
 
@@ -344,146 +324,153 @@ export const useSimTradingStore = create<SimTradingStore>()(
         });
       },
 
-      updateMarkPrices: (prices) => {
-        const { positions, balance } = get();
+      updateTickers: (tickerUpdates) => {
+        const { tickers, positions, balance } = get();
+        const newTickers = { ...tickers };
         let hasChanges = false;
 
+        for (const [symbol, update] of Object.entries(tickerUpdates)) {
+          const existing = newTickers[symbol];
+          newTickers[symbol] = {
+            symbol,
+            markPrice: update.markPrice ?? existing?.markPrice ?? 0,
+            iv: update.iv ?? existing?.iv ?? 0,
+            delta: update.delta ?? existing?.delta ?? 0,
+            gamma: update.gamma ?? existing?.gamma ?? 0,
+            theta: update.theta ?? existing?.theta ?? 0,
+            vega: update.vega ?? existing?.vega ?? 0,
+            bid: update.bid ?? existing?.bid ?? 0,
+            ask: update.ask ?? existing?.ask ?? 0,
+            lastPrice: update.lastPrice ?? existing?.lastPrice ?? 0,
+            change24h: update.change24h ?? existing?.change24h ?? 0,
+            updatedAt: Date.now(),
+          };
+          hasChanges = true;
+        }
+
+        if (!hasChanges) return;
+
+        // Update position PnL with new mark prices
         const newPositions = positions.map(pos => {
-          const newMark = prices[pos.symbol];
-          if (newMark === undefined) return pos;
+          const ticker = newTickers[pos.symbol];
+          if (!ticker || ticker.markPrice <= 0) return pos;
 
-          const oldPnL = pos.unrealizedPnL;
           const newPnL = pos.side === 'long'
-            ? (newMark - pos.avgEntryPrice) * pos.qty
-            : (pos.avgEntryPrice - newMark) * pos.qty;
+            ? (ticker.markPrice - pos.avgEntryPrice) * pos.qty
+            : (pos.avgEntryPrice - ticker.markPrice) * pos.qty;
 
-          if (Math.abs(newPnL - oldPnL) > 0.01) {
-            hasChanges = true;
-            // 更新 Greeks（简化：假设 IV 不变）
-            const T = daysToExpiry(pos.expiry) / 365;
-            const iv = 0.6;
-            const greeks = bsGreeks(pos.strike, pos.strike, T, iv, pos.instrumentType);
+          const T = daysToExpiry(pos.expiry) / 365;
+          const iv = ticker.iv || 0.6;
+          const greeks = bsGreeks(pos.strike, pos.strike, T, iv, pos.instrumentType);
 
-            return {
-              ...pos,
-              markPrice: newMark,
-              unrealizedPnL: newPnL,
-              delta: greeks.delta * pos.qty,
-              gamma: greeks.gamma * pos.qty,
-              theta: greeks.theta * pos.qty,
-              vega: greeks.vega * pos.qty,
-            };
-          }
-          return pos;
+          return {
+            ...pos,
+            markPrice: ticker.markPrice,
+            unrealizedPnL: newPnL,
+            delta: greeks.delta * pos.qty,
+            gamma: greeks.gamma * pos.qty,
+            theta: greeks.theta * pos.qty,
+            vega: greeks.vega * pos.qty,
+          };
         });
 
-        if (hasChanges) {
-          const totalUnrealizedPnL = newPositions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
-          const totalRealizedPnL = newPositions.reduce((sum, p) => sum + p.realizedPnL, 0);
-          const newBalance = {
-            ...balance,
-            totalPnL: totalUnrealizedPnL + totalRealizedPnL,
-            equity: balance.availableBalance + balance.usedMargin + totalUnrealizedPnL,
-          };
+        const totalUnrealizedPnL = newPositions.reduce((sum, p) => sum + p.unrealizedPnL, 0);
+        const totalRealizedPnL = newPositions.reduce((sum, p) => sum + p.realizedPnL, 0);
+        const newBalance = {
+          ...balance,
+          totalPnL: totalUnrealizedPnL + totalRealizedPnL,
+          equity: balance.availableBalance + balance.usedMargin + totalUnrealizedPnL,
+        };
 
-          set({ positions: newPositions, balance: newBalance });
+        set({ tickers: newTickers, positions: newPositions, balance: newBalance });
 
-          // ── 检查限价单是否触发 ──
-          const { orders, openOrders } = get();
-          const triggeredOrders: Order[] = [];
+        // Check if any limit orders should be filled
+        const { openOrders, orders } = get();
+        const triggeredOrders = openOrders.filter(o => {
+          const ticker = newTickers[o.symbol];
+          if (!ticker || ticker.markPrice <= 0) return false;
+          return (o.side === 'buy' && o.price >= ticker.markPrice) ||
+                 (o.side === 'sell' && o.price <= ticker.markPrice);
+        });
 
-          for (const order of openOrders) {
-            const mark = prices[order.symbol];
-            if (mark === undefined) continue;
+        if (triggeredOrders.length > 0) {
+          for (const order of triggeredOrders) {
+            const ticker = newTickers[order.symbol];
+            if (!ticker) continue;
 
-            const shouldFill =
-              (order.side === 'buy' && order.price >= mark) ||
-              (order.side === 'sell' && order.price <= mark);
+            const fee = order.price * order.qty * get().takerFee;
+            const fill: Fill = {
+              id: `fill_${order.id}`,
+              orderId: order.id,
+              symbol: order.symbol,
+              side: order.side,
+              qty: order.qty,
+              price: order.price,
+              fee,
+              timestamp: Date.now(),
+            };
 
-            if (shouldFill) {
-              triggeredOrders.push(order);
-            }
-          }
+            const updatedOrders = orders.map(o =>
+              o.id === order.id
+                ? { ...o, status: 'filled' as const, filledAt: Date.now(), filledQty: order.qty, filledPrice: order.price }
+                : o
+            );
 
-          if (triggeredOrders.length > 0) {
-            // 递归触发成交（简化处理）
-            for (const order of triggeredOrders) {
-              const fee = order.price * order.qty * get().takerFee;
-              const fill: Fill = {
-                id: `fill_${order.id}`,
-                orderId: order.id,
+            const existingPos = newPositions.find(
+              p => p.symbol === order.symbol && p.side === (order.side === 'buy' ? 'long' : 'short')
+            );
+
+            let finalPositions = [...newPositions];
+            if (existingPos) {
+              const totalCost = existingPos.avgEntryPrice * existingPos.qty + order.price * order.qty;
+              const totalQty = existingPos.qty + order.qty;
+              existingPos.avgEntryPrice = totalCost / totalQty;
+              existingPos.qty = totalQty;
+            } else {
+              const { coin, expiry, strike, instrumentType } = parseSymbol(order.symbol);
+              const T = daysToExpiry(expiry) / 365;
+              const greeks = bsGreeks(strike, strike, T, 0.6, instrumentType);
+
+              finalPositions.push({
+                id: `pos_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 symbol: order.symbol,
-                side: order.side,
+                coin,
+                expiry,
+                strike,
+                instrumentType,
+                side: order.side === 'buy' ? 'long' : 'short',
                 qty: order.qty,
-                price: order.price,
-                fee,
-                timestamp: Date.now(),
-              };
-
-              // 更新订单状态
-              const updatedOrders = orders.map(o =>
-                o.id === order.id
-                  ? { ...o, status: 'filled' as const, filledAt: Date.now(), filledQty: order.qty, filledPrice: order.price }
-                  : o
-              );
-
-              // 更新持仓
-              const existingPos = newPositions.find(
-                p => p.symbol === order.symbol && p.side === (order.side === 'buy' ? 'long' : 'short')
-              );
-
-              let finalPositions = [...newPositions];
-              if (existingPos) {
-                const totalCost = existingPos.avgEntryPrice * existingPos.qty + order.price * order.qty;
-                const totalQty = existingPos.qty + order.qty;
-                existingPos.avgEntryPrice = totalCost / totalQty;
-                existingPos.qty = totalQty;
-              } else {
-                const { coin, expiry, strike, instrumentType } = parseSymbol(order.symbol);
-                const T = daysToExpiry(expiry) / 365;
-                const greeks = bsGreeks(strike, strike, T, 0.6, instrumentType);
-
-                finalPositions.push({
-                  id: `pos_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                  symbol: order.symbol,
-                  coin,
-                  expiry,
-                  strike,
-                  instrumentType,
-                  side: order.side === 'buy' ? 'long' : 'short',
-                  qty: order.qty,
-                  avgEntryPrice: order.price,
-                  markPrice: order.price,
-                  unrealizedPnL: 0,
-                  realizedPnL: 0,
-                  delta: greeks.delta * order.qty,
-                  gamma: greeks.gamma * order.qty,
-                  theta: greeks.theta * order.qty,
-                  vega: greeks.vega * order.qty,
-                  openedAt: Date.now(),
-                });
-              }
-
-              const newBal = { ...get().balance };
-              if (order.side === 'buy') {
-                newBal.availableBalance -= (order.price * order.qty + fee);
-              } else {
-                newBal.availableBalance += (order.price * order.qty - fee);
-              }
-              newBal.totalFees += fee;
-              const totalUPnL = finalPositions.reduce((s, p) => s + p.unrealizedPnL, 0);
-              newBal.totalPnL = totalUPnL + finalPositions.reduce((s, p) => s + p.realizedPnL, 0);
-              newBal.equity = newBal.availableBalance + newBal.usedMargin + totalUPnL;
-
-              set({
-                orders: updatedOrders,
-                openOrders: updatedOrders.filter(o => o.status === 'pending'),
-                orderHistory: updatedOrders.filter(o => o.status !== 'pending'),
-                positions: finalPositions,
-                fills: [...get().fills, fill],
-                balance: newBal,
+                avgEntryPrice: order.price,
+                markPrice: order.price,
+                unrealizedPnL: 0,
+                realizedPnL: 0,
+                delta: greeks.delta * order.qty,
+                gamma: greeks.gamma * order.qty,
+                theta: greeks.theta * order.qty,
+                vega: greeks.vega * order.qty,
+                openedAt: Date.now(),
               });
             }
+
+            const newBal = { ...get().balance };
+            if (order.side === 'buy') {
+              newBal.availableBalance -= (order.price * order.qty + fee);
+            } else {
+              newBal.availableBalance += (order.price * order.qty - fee);
+            }
+            newBal.totalFees += fee;
+            const totalUPnL = finalPositions.reduce((s, p) => s + p.unrealizedPnL, 0);
+            newBal.totalPnL = totalUPnL + finalPositions.reduce((s, p) => s + p.realizedPnL, 0);
+            newBal.equity = newBal.availableBalance + newBal.usedMargin + totalUPnL;
+
+            set({
+              orders: updatedOrders,
+              openOrders: updatedOrders.filter(o => o.status === 'pending'),
+              orderHistory: updatedOrders.filter(o => o.status !== 'pending'),
+              positions: finalPositions,
+              fills: [...get().fills, fill],
+              balance: newBal,
+            });
           }
         }
       },

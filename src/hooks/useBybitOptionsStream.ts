@@ -1,17 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useSimTradingStore } from '../store/useSimTradingStore';
 
-// Bybit V5 公开 WebSocket 端点（期权）
 const BYBIT_WS_URL = 'wss://stream.bybit.com/v5/public/option';
-
-// 订阅的标的
 const SUBSCRIBE_SYMBOLS = ['BTC', 'ETH'];
 
 interface BybitTickerMsg {
   topic: string;
   type: string;
   data: {
-    symbol: string;       // e.g. "BTC-29MAY26-65000-C"
+    symbol: string;
     markPrice: string;
     iv: string;
     delta: string;
@@ -31,9 +28,9 @@ interface BybitTickerMsg {
 export function useBybitOptionsStream(enabled = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const updateMarkPrices = useSimTradingStore(s => s.updateMarkPrices);
-  const updateRef = useRef(updateMarkPrices);
-  updateRef.current = updateMarkPrices;
+  const updateTickers = useSimTradingStore(s => s.updateTickers);
+  const updateRef = useRef(updateTickers);
+  updateRef.current = updateTickers;
 
   const connect = useCallback(() => {
     if (!enabled) return;
@@ -44,7 +41,6 @@ export function useBybitOptionsStream(enabled = true) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // 订阅每个标的的 ticker
         for (const sym of SUBSCRIBE_SYMBOLS) {
           ws.send(JSON.stringify({
             op: 'subscribe',
@@ -57,24 +53,34 @@ export function useBybitOptionsStream(enabled = true) {
         try {
           const msg: BybitTickerMsg = JSON.parse(event.data);
           if (msg.topic?.startsWith('tickers.') && msg.type === 'snapshot' && msg.data) {
-            const prices: Record<string, number> = {};
+            const tickers: Record<string, any> = {};
             for (const item of msg.data) {
               const mark = parseFloat(item.markPrice);
               if (Number.isFinite(mark) && mark > 0) {
-                prices[item.symbol] = mark;
+                tickers[item.symbol] = {
+                  markPrice: mark,
+                  iv: parseFloat(item.iv) / 100,
+                  delta: parseFloat(item.delta),
+                  gamma: parseFloat(item.gamma),
+                  theta: parseFloat(item.theta),
+                  vega: parseFloat(item.vega),
+                  bid: parseFloat(item.bid1Price),
+                  ask: parseFloat(item.ask1Price),
+                  lastPrice: parseFloat(item.lastPrice),
+                  change24h: parseFloat(item.change24h),
+                };
               }
             }
-            if (Object.keys(prices).length > 0) {
-              updateRef.current(prices);
+            if (Object.keys(tickers).length > 0) {
+              updateRef.current(tickers);
             }
           }
         } catch {
-          // 忽略解析错误（心跳等）
+          // ignore parse errors (heartbeats etc)
         }
       };
 
       ws.onclose = () => {
-        // 5 秒后重连
         reconnectTimerRef.current = setTimeout(connect, 5000);
       };
 

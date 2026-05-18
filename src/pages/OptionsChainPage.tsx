@@ -1876,12 +1876,56 @@ export default function OptionsChainPage({
     };
   }, [isLiveCoin, coinCfg.label, expiryStr]);
 
+  const storeTickers = useSimTradingStore(s => s.tickers);
+
   const allRows = useMemo(() => {
+    let rows: ChainRow[];
     if (isLiveCoin && liveSnap?.payload?.strikes?.length) {
-      return mapApiChainToRows(liveSnap.payload, coinCfg.spot);
+      rows = mapApiChainToRows(liveSnap.payload, coinCfg.spot);
+    } else {
+      rows = buildChain(coinCfg, T, seed);
     }
-    return buildChain(coinCfg, T, seed);
-  }, [coinCfg, T, seed, isLiveCoin, liveSnap]);
+
+    // Overlay live ticker data from Bybit WebSocket
+    if (Object.keys(storeTickers).length === 0) return rows;
+
+    const baseCoin = coinCfg.label;
+    const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();
+
+    return rows.map(row => {
+      const callSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-C`;
+      const putSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-P`;
+
+      const callTicker = storeTickers[callSymbol];
+      const putTicker = storeTickers[putSymbol];
+
+      const newCall = callTicker ? {
+        ...row.call,
+        bid: Number.isFinite(callTicker.bid) && callTicker.bid > 0 ? callTicker.bid : row.call.bid,
+        ask: Number.isFinite(callTicker.ask) && callTicker.ask > 0 ? callTicker.ask : row.call.ask,
+        mark: Number.isFinite(callTicker.markPrice) && callTicker.markPrice > 0 ? callTicker.markPrice : row.call.mark,
+        iv: Number.isFinite(callTicker.iv) && callTicker.iv > 0 ? callTicker.iv * 100 : row.call.iv,
+        delta: Number.isFinite(callTicker.delta) ? callTicker.delta : row.call.delta,
+        gamma: Number.isFinite(callTicker.gamma) ? callTicker.gamma : row.call.gamma,
+        vega: Number.isFinite(callTicker.vega) ? callTicker.vega : row.call.vega,
+        theta: Number.isFinite(callTicker.theta) ? callTicker.theta : row.call.theta,
+      } : row.call;
+
+      const newPut = putTicker ? {
+        ...row.put,
+        bid: Number.isFinite(putTicker.bid) && putTicker.bid > 0 ? putTicker.bid : row.put.bid,
+        ask: Number.isFinite(putTicker.ask) && putTicker.ask > 0 ? putTicker.ask : row.put.ask,
+        mark: Number.isFinite(putTicker.markPrice) && putTicker.markPrice > 0 ? putTicker.markPrice : row.put.mark,
+        iv: Number.isFinite(putTicker.iv) && putTicker.iv > 0 ? putTicker.iv * 100 : row.put.iv,
+        delta: Number.isFinite(putTicker.delta) ? putTicker.delta : row.put.delta,
+        gamma: Number.isFinite(putTicker.gamma) ? putTicker.gamma : row.put.gamma,
+        vega: Number.isFinite(putTicker.vega) ? putTicker.vega : row.put.vega,
+        theta: Number.isFinite(putTicker.theta) ? putTicker.theta : row.put.theta,
+      } : row.put;
+
+      return { ...row, call: newCall, put: newPut };
+    });
+  }, [coinCfg, T, seed, isLiveCoin, liveSnap, storeTickers, expiryStr]);
   const rows = useMemo(() => {
     if (filterKey === 'all') return allRows;
     const ai = allRows.findIndex(r => r.isATM);

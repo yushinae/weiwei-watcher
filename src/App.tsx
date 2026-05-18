@@ -255,7 +255,7 @@ const TokenIcon = ({ symbol }: { symbol: string }) => {
     );
   }
   return (
-    <div className="w-[28px] h-[28px] rounded-full bg-[#2F2F38] flex items-center justify-center text-[13px] font-bold text-white uppercase">
+    <div className="w-[28px] h-[28px] rounded-full bg-white/10 flex items-center justify-center text-[13px] font-bold text-white uppercase">
       {symbol[0]}
     </div>
   );
@@ -299,7 +299,7 @@ const PriceTicker = ({ symbol, price, change, up }: { symbol: string, price: str
   const formattedPrice = `$${displayPrice}`;
 
   return (
-    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-bg-dim border border-border-subtle hover:bg-surface-2 hover:border-[#4D7CFF]/40 hover:shadow-[0_0_10px_rgba(77,124,255,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
+    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#4D7CFF]/40 hover:shadow-[0_0_10px_rgba(77,124,255,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
       <TokenIcon symbol={symbol} />
       <span className={cn(
         "text-[16px] font-bold font-mono tnum transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ml-1.5",
@@ -317,7 +317,7 @@ const DigitalClock = () => {
   }, []);
 
   return (
-    <div className="flex items-center justify-center gap-2 px-2.5 h-[40px] bg-transparent border border-border-subtle hover:bg-surface-3 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] text-slate-300">
+    <div className="flex items-center justify-center gap-2 px-2.5 h-[40px] bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] text-slate-200">
       <Clock size={22} strokeWidth={2} className="text-[#5D6580]" />
       <span className="text-[18px] font-mono font-bold tnum tracking-wide mt-px text-slate-200">
         {time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -350,12 +350,12 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
   const imRate = Math.min(displayRate * 2.5, 100);
 
   return (
-    <div className="hidden md:flex items-center h-[40px] bg-[#131318] border border-border-subtle rounded-[8px] pl-2.5 pr-0.5 py-0.5 gap-3 shadow-sm">
+    <div className="hidden md:flex items-center h-[40px] bg-white/5 border border-white/10 rounded-[8px] pl-2.5 pr-0.5 py-0.5 gap-3">
       <div className="flex flex-col justify-center gap-1 mt-px">
         {/* IM 进度条 */}
         <div className="flex items-center gap-1.5 text-[13px] leading-none">
           <span className="font-bold text-slate-100 w-[18px] text-right">IM</span>
-          <div className="w-14 h-[8px] bg-border-subtle rounded-full overflow-hidden relative">
+          <div className="w-14 h-[8px] bg-white/10 rounded-full overflow-hidden relative">
             <motion.div
               style={{ width: `${imRate}%` }}
               className="h-full bg-[#4D7CFF] rounded-full"
@@ -366,7 +366,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
         {/* MM 进度条 */}
         <div className="flex items-center gap-1.5 text-[13px] leading-none">
           <span className="font-bold text-slate-100 w-[18px] text-right">MM</span>
-          <div className="w-14 h-[8px] bg-border-subtle rounded-full overflow-hidden relative">
+          <div className="w-14 h-[8px] bg-white/10 rounded-full overflow-hidden relative">
             <motion.div 
               style={{ width: `${displayRate}%` }}
               className={cn(
@@ -381,7 +381,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
         </div>
       </div>
       
-      <div className="h-full flex items-center justify-center px-3 bg-surface-3 hover:bg-[#26262E] transition-colors rounded-[6px] border border-border-subtle cursor-pointer">
+      <div className="h-full flex items-center justify-center px-3 bg-white/5 hover:bg-white/10 transition-colors rounded-[6px] border border-white/10 cursor-pointer">
         <span className="text-[14px] font-bold tracking-wide">
           <span className="text-brand-blue">S:</span> <span className="text-slate-100 ml-0.5">SM</span>
         </span>
@@ -705,7 +705,7 @@ const OptionsDropdown = () => {
                       variants={dropRowVariants}
                       whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
                       onClick={() => setIsOpen(false)}
-                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-white/5 text-[11px] font-bold text-slate-300"
                     >
                       <span className="text-amber-500/60">₿</span> 组合
                     </motion.button>
@@ -743,7 +743,7 @@ const OptionsDropdown = () => {
                       variants={dropRowVariants}
                       whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
                       onClick={() => setIsOpen(false)}
-                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                      className="mx-3 my-2 flex items-center justify-center gap-1.5 py-1.5 rounded-[6px] bg-white/5 text-[11px] font-bold text-slate-300"
                     >
                       <span className="text-blue-400/60">Ξ</span> 组合
                     </motion.button>
@@ -803,7 +803,7 @@ const OptionsDropdown = () => {
                             variants={dropRowVariants}
                             whileHover={{ backgroundColor: '#252530', color: '#e2e8f0', transition: { duration: 0.1 } }}
                             onClick={() => setIsOpen(false)}
-                            className="mx-2 my-2 flex items-center justify-center gap-1 py-1.5 rounded-[6px] bg-[#1E1E28] text-[11px] font-bold text-slate-400"
+                            className="mx-2 my-2 flex items-center justify-center gap-1 py-1.5 rounded-[6px] bg-white/5 text-[11px] font-bold text-slate-300"
                           >
                             <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: coin.color, opacity: 0.6 }} />
                             组合
@@ -906,7 +906,7 @@ const WidgetToggle: React.FC<{ label: string, checked: boolean, onChange: () => 
 
     <span className="text-xs text-[#848E9C] group-hover:text-slate-200 transition-colors">{label}</span>
     <input type="checkbox" checked={checked} onChange={onChange} className="hidden" />
-    <div className={cn("w-7 h-4 rounded-full relative transition-colors duration-200", checked ? "bg-[#4D7CFF]" : "bg-[#2F2F38]")}>
+    <div className={cn("w-7 h-4 rounded-full relative transition-colors duration-200", checked ? "bg-[#4D7CFF]" : "bg-white/10")}>
       <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform duration-200 shadow-sm", checked ? "translate-x-3 bg-white" : "translate-x-0 bg-slate-400")} />
     </div>
   </label>
@@ -1108,7 +1108,7 @@ const FooterTab: React.FC<FooterTabProps> = ({
       <div
         className={cn(
           "relative h-full rounded-[8px] overflow-hidden flex items-center transition-colors",
-          isActive ? "bg-surface-5 text-white" : "bg-surface-4 text-slate-300 hover:bg-surface-5 hover:text-white"
+          isActive ? "bg-white/10 text-white" : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
         )}
       >
         {/* Main Tab Button */}
@@ -1344,13 +1344,13 @@ export default function App() {
               {/* Left Panel: Charts & Stats */}
               <section className="flex-1 flex flex-col gap-6 min-w-0">
                 {/* Main Chart View */}
-                <div className="flex-1 bg-bg-card rounded-xl p-6 flex flex-col relative group">
+                <div className="flex-1 glass rounded-xl p-6 flex flex-col relative group">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
                       <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                         BTCUSDT PERP <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] rounded uppercase">Live</span>
                       </h2>
-                      <div className="flex items-center gap-1 bg-slate-900 rounded-md p-1">
+                      <div className="flex items-center gap-1 bg-white/5 rounded-md p-1">
                         {['1M', '5M', '15M', '1H', '4H', '1D'].map(tf => (
                           <button 
                             key={tf} 
@@ -1417,7 +1417,7 @@ export default function App() {
                   </div>
                   
                   {/* Real-time Order Book Preview (Overlay Right) */}
-                  <div className="absolute right-8 top-28 bottom-8 w-44 bg-bg-card/80 backdrop-blur-md border border-border-subtle rounded-xl p-3 flex flex-col gap-4 invisible xl:visible opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute right-8 top-28 bottom-8 w-44 glass-light rounded-xl p-3 flex flex-col gap-4 invisible xl:visible opacity-0 group-hover:opacity-100 transition-opacity">
                     <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order Book</h3>
                     <div className="flex-1 flex flex-col gap-1 overflow-hidden">
                       {[...Array(8)].map((_, i) => (
@@ -1447,7 +1447,7 @@ export default function App() {
                   ].map((stat, i) => (
                     <div 
                       key={stat.label}
-                      className="bg-bg-card p-4 rounded-xl flex flex-col gap-2 hover:bg-bg-hover transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
+                      className="bg-white/5 p-4 rounded-xl flex flex-col gap-2 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
                     >
                       <div className="flex items-center justify-between text-slate-500">
                         <span className="text-xs font-bold">{stat.label}</span>
@@ -1464,7 +1464,7 @@ export default function App() {
 
               {/* Right Panel: Side Data / Watchlist */}
               <aside className="w-80 hidden lg:flex flex-col gap-6 overflow-hidden shrink-0">
-                <div className="flex-1 bg-bg-card rounded-xl flex flex-col overflow-hidden">
+                <div className="flex-1 glass rounded-xl flex flex-col overflow-hidden">
                   <div className="p-4 border-b border-border-subtle/30 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                       <Activity size={16} className="text-brand-blue" />
@@ -1515,7 +1515,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
-              <div className="bg-bg-card rounded-xl p-6 flex flex-col">
+              <div className="glass rounded-xl p-6 flex flex-col">
                 <div className="flex items-center justify-between mb-4 border-b border-border-subtle/30 pb-4">
                   <h3 className="text-sm font-bold text-slate-100">当前持仓与委托 (POSITIONS & ORDERS)</h3>
                   <div className="flex items-center gap-6 text-xs font-bold">
@@ -1525,7 +1525,7 @@ export default function App() {
                 </div>
                 <div className="pr-2">
                   <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-bg-card z-10 before:absolute before:inset-0 before:border-b before:border-border-subtle/50 before:pointer-events-none">
+                    <thead className="sticky top-0 bg-white/5 z-10 before:absolute before:inset-0 before:border-b before:border-white/10 before:pointer-events-none">
                       <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         <th className="py-3 px-2">合约</th>
                         <th className="py-3 px-2">仓位 / 杠杆</th>
@@ -1537,7 +1537,7 @@ export default function App() {
                     </thead>
                     <tbody className="text-xs">
                       {POSITION_DATA.map((pos) => (
-                        <tr key={pos.symbol} className="border-b border-border-subtle/30 hover:bg-bg-hover transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                        <tr key={pos.symbol} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
                           <td className="py-4 px-2 font-bold text-slate-100">{pos.symbol}</td>
                           <td className="py-4 px-2">
                             <div className="flex items-center gap-2">
@@ -1586,7 +1586,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
-              <div className="bg-bg-card rounded-xl p-6 flex flex-col">
+              <div className="glass rounded-xl p-6 flex flex-col">
                 <h3 className="text-sm font-bold text-slate-100 mb-4 border-b border-border-subtle/30 pb-4 uppercase tracking-wider">最近交易日志 (RECENT TRADE LOGS)</h3>
                 <div className="space-y-3 pr-2">
                   {[...Array(12)].map((_, i) => (
@@ -1628,7 +1628,7 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-auto"
               >
-              <div className="bg-bg-card rounded-xl p-6 h-full">
+              <div className="glass rounded-xl p-6 h-full">
                 <div className="grid grid-cols-3 gap-8 h-full">
                   <div className="col-span-1 space-y-6 flex flex-col items-center justify-center border-r border-border-subtle/30 pr-8">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">盈利因子 (PROFIT FACTOR)</h4>

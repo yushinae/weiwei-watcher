@@ -63,7 +63,7 @@ body::after {
 
 /* EFFECT 1: 毛玻璃卡片 — 22px 模糊 macOS Widget 风格 */
 .glass {
-  background: rgba(26,26,30,0.80);
+  background: var(--widget-glass);
   backdrop-filter: blur(22px) saturate(1.5);
   -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border: 1px solid rgba(255,255,255,0.06);
@@ -75,7 +75,7 @@ body::after {
 
 /* EFFECT 2: 毛玻璃顶栏 — 30px 强模糊 + 更透底 */
 .glass-header {
-  background: rgba(26,26,30,0.70);
+  background: var(--widget-glass-dim);
   backdrop-filter: blur(30px) saturate(1.6);
   -webkit-backdrop-filter: blur(30px) saturate(1.6);
   border: 1px solid rgba(255,255,255,0.08);
@@ -87,7 +87,7 @@ body::after {
 
 /* 毛玻璃顶栏变体：全宽无圆角（用于 App 顶部栏） */
 .glass-bar {
-  background: rgba(26,26,30,0.70);
+  background: var(--widget-glass-dim);
   backdrop-filter: blur(30px) saturate(1.6);
   -webkit-backdrop-filter: blur(30px) saturate(1.6);
   border: none;
@@ -234,11 +234,16 @@ html.is-scrolling * {
   --nexus-text-sec: rgba(255,255,255,0.58);
   --nexus-text-dim: rgba(255,255,255,0.32);
   --nexus-radius: 18px;  /* macOS Widget standard corner radius */
+
+  /* Widget 材料色 — 暗色半透毛玻璃 */
+  --widget-bg:       rgba(26,26,30,0.80);  /* 卡片背景（语义命名） */
+  --widget-glass:      rgba(26,26,30,0.80);  /* 默认卡片材料 */
+  --widget-glass-dim:  rgba(26,26,30,0.70);  /* 顶栏/次要面板 */
 }
 
 /* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
 .widget-card {
-  background: rgba(26,26,30,0.80);
+  background: var(--widget-glass);
   backdrop-filter: blur(22px) saturate(1.5);
   -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border-radius: var(--nexus-radius);

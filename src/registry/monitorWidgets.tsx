@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
+import { useCardHeader } from '../components/card/WidgetCard';
 import type { Coin } from '../features/monitor/types';
 import {
   BTC_POLY,
@@ -321,19 +322,28 @@ function useCoinControl({ coin: coinProp, onCoinChange }: CoinControlProps) {
   return { coin, setCoin };
 }
 
-const WidgetShell = ({ children, coin, setCoin }: { children: React.ReactNode; coin: Coin; setCoin: (c: Coin) => void }) => (
-  <div className="w-full h-full flex flex-col min-h-0 p-2 overflow-hidden">
-    <div className="flex justify-end mb-1.5 shrink-0">
-      <CoinTabs v={coin} set={setCoin} />
+const WidgetShell = ({ children, coin, setCoin }: { children: React.ReactNode; coin: Coin; setCoin: (c: Coin) => void }) => {
+  const { setHeaderRight } = useCardHeader();
+  useEffect(() => {
+    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+    return () => setHeaderRight(null);
+  }, [coin, setCoin, setHeaderRight]);
+  return (
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+        {children}
+      </div>
     </div>
-    <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-      {children}
-    </div>
-  </div>
-);
+  );
+};
 
 export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
+  const { setHeaderRight } = useCardHeader();
+  useEffect(() => {
+    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+    return () => setHeaderRight(null);
+  }, [coin, setCoin, setHeaderRight]);
   const d = VOL[coin];
   const ivrc = ivrColor(d.ivRank);
   const pcrc = pcrColor(d.pcr);
@@ -341,9 +351,8 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const termRange = Math.max(...d.term.map(t => t.iv)) - termMin || 1;
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-y-auto">
-      <div className="flex justify-between items-center px-3 pt-2.5 pb-1.5 shrink-0">
+      <div className="flex items-center px-3 pt-2.5 pb-1.5 shrink-0">
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">波动率概览</span>
-        <CoinTabs v={coin} set={setCoin} />
       </div>
       <div className="mx-2 mb-2 rounded-[8px] bg-[#0F0F14] border border-[#1E1E26] overflow-hidden shrink-0">
         <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-[#1A1A22]">
@@ -452,9 +461,13 @@ export const IVSurfaceWidget = ({
   onPickCell?: (p: { coin: Coin; row: string; col: string; value: number }) => void;
 }) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
+  const { setHeaderRight } = useCardHeader();
+  useEffect(() => {
+    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+    return () => setHeaderRight(null);
+  }, [coin, setCoin, setHeaderRight]);
   return (
-    <div className="w-full h-full flex flex-col min-h-0 p-2 overflow-auto">
-      <div className="flex justify-end mb-1.5 shrink-0"><CoinTabs v={coin} set={setCoin} /></div>
+    <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-[11px]">
           <thead>
@@ -507,10 +520,14 @@ export const IVSurfaceWidget = ({
 
 export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
+  const { setHeaderRight } = useCardHeader();
+  useEffect(() => {
+    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+    return () => setHeaderRight(null);
+  }, [coin, setCoin, setHeaderRight]);
   const rows = OPTIONS_SKEW[coin];
   return (
-    <div className="w-full h-full flex flex-col min-h-0 p-2 overflow-auto">
-      <div className="flex justify-end mb-1.5 shrink-0"><CoinTabs v={coin} set={setCoin} /></div>
+    <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-[11px]">
           <thead>
@@ -540,12 +557,16 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
 export const PolymarketWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
+  const { setHeaderRight } = useCardHeader();
+  useEffect(() => {
+    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+    return () => setHeaderRight(null);
+  }, [coin, setCoin, setHeaderRight]);
   const markets = coin === 'BTC' ? BTC_POLY : ETH_POLY;
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
-      <div className="flex items-center justify-between px-3 pt-2 pb-1.5 shrink-0">
+      <div className="flex items-center px-3 pt-2 pb-1.5 shrink-0">
         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Polymarket</span>
-        <CoinTabs v={coin} set={setCoin} />
       </div>
       {markets.map((m, i) => {
         const yc = m.yes >= 50 ? '#1EC98C' : '#F59E0B';

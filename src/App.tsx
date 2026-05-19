@@ -86,8 +86,6 @@ const POSITION_DATA = [
 const MARKET_TICKERS = [
   { symbol: 'BTCUSDT', price: '64,123.50', change: '+1.2%', up: true },
   { symbol: 'ETHUSDT', price: '3,425.80', change: '+0.8%', up: true },
-  { symbol: 'SOLUSDT', price: '152.45', change: '-2.4%', up: false },
-  { symbol: 'BNBUSDT', price: '588.20', change: '+0.1%', up: true },
 ];
 
 // --- 组件和状态工具 ---

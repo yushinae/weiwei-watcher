@@ -53,10 +53,10 @@ const TEXT_MUTED = 'var(--color-text-muted)';
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
 const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
-  <div className="flex gap-0.5 rounded-[8px] p-0.5 bg-bg-base/40 ring-1 ring-inset ring-border-subtle/70">
+  <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-bg-base/40 ring-1 ring-inset ring-border-subtle/70">
     {(['BTC', 'ETH'] as Coin[]).map(c => (
       <button key={c} onClick={() => set(c)}
-        className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[3px] transition-colors',
+        className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
           v === c
             ? (c === 'BTC' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400')
             : 'text-slate-600 hover:text-slate-400'

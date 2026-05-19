@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Maximize2, Minimize2, X, LayoutGrid } from 'lucide-react';
+import { Minimize2, LayoutGrid } from 'lucide-react';
 import { Responsive as ResponsiveGridLayout, useContainerWidth, Layout, LayoutItem } from 'react-grid-layout';
 import { cn } from '../lib/utils';
 import { useWorkspaceStore } from '../store/useWorkspaceStore';
@@ -114,21 +114,6 @@ export const DashboardPage = () => {
                         title={defn.label}
                         icon={defn.icon}
                         dragHandle
-                        actions={[
-                          {
-                            id: 'fullscreen',
-                            icon: Maximize2,
-                            label: '全屏',
-                            onClick: () => setFullscreenId(prev => (prev === inst.instanceId ? null : inst.instanceId)),
-                          },
-                          {
-                            id: 'close',
-                            icon: X,
-                            label: '关闭',
-                            tone: 'danger',
-                            onClick: () => removeInstance(activePage.id, inst.instanceId),
-                          },
-                        ]}
                       >
                         <Component {...(inst.props ?? {})} />
                       </WidgetCard>
@@ -159,13 +144,6 @@ export const DashboardPage = () => {
                             icon: Minimize2,
                             label: '退出全屏',
                             onClick: () => setFullscreenId(null),
-                          },
-                          {
-                            id: 'close',
-                            icon: X,
-                            label: '关闭',
-                            tone: 'danger',
-                            onClick: () => removeInstance(activePage.id, fullscreenInst.instanceId),
                           },
                         ]}
                       >

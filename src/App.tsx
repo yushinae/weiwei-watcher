@@ -1726,9 +1726,13 @@ export default function App() {
               </motion.div>
             </motion.button>
             {!isAddModalOpen && (
-              <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#181820] text-white text-xs font-bold rounded-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+              <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 px-3 py-1.5 text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+                style={{ background: 'rgba(30, 30, 30, 0.85)', backdropFilter: 'blur(24px) saturate(1.6)', WebkitBackdropFilter: 'blur(24px) saturate(1.6)', boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15)', borderRadius: '10px' }}
+              >
                 添加选项卡
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#181820] rotate-45" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
+                  style={{ background: 'rgba(30, 30, 30, 0.85)' }}
+                />
               </div>
             )}
           </div>

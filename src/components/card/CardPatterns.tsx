@@ -1,6 +1,12 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
+/* HIG 字体层次：
+   - 数据值: 14px semibold/bold, tabular-nums
+   - 标签: 9px regular/medium, uppercase
+   - 小字: 10px regular
+*/
+
 /* Stat Highlight */
 export function StatHl({
   value,
@@ -18,10 +24,21 @@ export function StatHl({
   className?: string;
 }) {
   return (
-    <div className={cn('stat-hl', tone === 'red' && 'hl-red', className)}>
-      <span className={cn('big', tone === 'blue' ? 'big blue' : 'big red')}>{value}</span>
-      {sub && <span className="sub">{sub}</span>}
-      {chg && <span className={cn('chg', chgDir === 'up' ? 'up' : chgDir === 'down' ? 'down' : '')}>{chg}</span>}
+    <div className={cn(
+      'flex items-baseline gap-3 px-3 py-2.5 rounded-[12px]',
+      'bg-white/[0.03] border border-white/[0.04]',
+      tone === 'red' ? 'bg-[rgba(255,69,58,0.06)]' : 'bg-[rgba(77,124,255,0.06)]',
+      className
+    )}>
+      <span className={cn(
+        'text-[20px] font-bold tnum leading-none',
+        tone === 'blue' ? 'text-[var(--nexus-accent)]' : 'text-[var(--nexus-red)]'
+      )}>{value}</span>
+      {sub && <span className="text-[11px] font-medium text-white/40">{sub}</span>}
+      {chg && <span className={cn(
+        'text-[12px] font-semibold tnum ml-auto',
+        chgDir === 'up' ? 'up' : chgDir === 'down' ? 'down' : ''
+      )}>{chg}</span>}
     </div>
   );
 }
@@ -37,7 +54,13 @@ export function MGrid({
   className?: string;
 }) {
   return (
-    <div className={cn('m-grid', `c${columns}`, className)}>
+    <div className={cn(
+      'grid gap-3',
+      columns === 4 && 'grid-cols-4',
+      columns === 3 && 'grid-cols-3',
+      columns === 2 && 'grid-cols-2',
+      className
+    )}>
       {children}
     </div>
   );
@@ -54,9 +77,9 @@ export function MItem({
   className?: string;
 }) {
   return (
-    <div className={cn('m-item', className)}>
-      <label>{label}</label>
-      <span className="v">{value}</span>
+    <div className={cn('flex flex-col gap-1', className)}>
+      <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20">{label}</label>
+      <span className="text-[14px] font-semibold tnum text-white/90">{value}</span>
     </div>
   );
 }
@@ -76,10 +99,10 @@ export function TickerRow({
   className?: string;
 }) {
   return (
-    <div className={cn('ticker-row', className)}>
-      <span className="ticker-name">{name}</span>
-      <span className="ticker-price">{price}</span>
-      {chg && <span className={cn('ticker-chg', chgDir === 'up' ? 'up' : chgDir === 'down' ? 'down' : '')}>{chg}</span>}
+    <div className={cn('flex items-center gap-3 mb-3', className)}>
+      <span className="text-[13px] font-semibold text-white/50">{name}</span>
+      <span className="text-[18px] font-bold tnum text-white/90">{price}</span>
+      {chg && <span className={cn('text-[12px] font-semibold tnum', chgDir === 'up' ? 'up' : chgDir === 'down' ? 'down' : '')}>{chg}</span>}
     </div>
   );
 }
@@ -95,9 +118,13 @@ export function GammaZone({
   className?: string;
 }) {
   return (
-    <div className={cn('gamma-zone', className)}>
-      <span className="l">{label}</span>
-      <span className="v">{value}</span>
+    <div className={cn(
+      'flex justify-between items-center mt-3 px-2.5 py-2 rounded-[8px]',
+      'bg-white/[0.02] text-[11px]',
+      className
+    )}>
+      <span className="text-white/25">{label}</span>
+      <span className="font-medium tnum text-white/50">{value}</span>
     </div>
   );
 }
@@ -111,7 +138,10 @@ export function Breakdown({
   className?: string;
 }) {
   return (
-    <div className={cn('breakdown', className)}>
+    <div className={cn(
+      'grid grid-cols-2 gap-1 mt-1 pt-2.5 border-t border-white/[0.05]',
+      className
+    )}>
       {children}
     </div>
   );
@@ -128,9 +158,9 @@ export function BdItem({
   className?: string;
 }) {
   return (
-    <div className={cn('bd-item', className)}>
-      <span className="l">{label}</span>
-      <span className="v">{value}</span>
+    <div className={cn('flex justify-between items-center text-[11px] py-0.5', className)}>
+      <span className="text-white/25">{label}</span>
+      <span className="font-medium tnum text-white/50">{value}</span>
     </div>
   );
 }
@@ -144,7 +174,7 @@ export function ListNum({
   className?: string;
 }) {
   return (
-    <div className={cn('list-num', className)}>
+    <div className={cn('flex flex-col gap-2.5', className)}>
       {children}
     </div>
   );
@@ -167,11 +197,18 @@ export function ListItem({
   className?: string;
 }) {
   return (
-    <div className={cn('list-item', className)}>
-      <span className="num">{num}</span>
-      <span className="text">{text}</span>
-      {tag && <span className={cn('tag', tagType)}>{tag}</span>}
-      {value && <span className="val-r">{value}</span>}
+    <div className={cn(
+      'flex items-baseline gap-2 py-1 text-[13px] leading-snug border-b border-white/[0.04] last:border-none',
+      className
+    )}>
+      <span className="font-medium tnum text-[11px] text-white/20 w-[18px] text-right shrink-0">{num}</span>
+      <span className="text-white/85 flex-1">{text}</span>
+      {tag && <span className={cn(
+        'text-[9px] font-medium px-1.5 py-0.5 rounded-[3px] shrink-0',
+        tagType === 'hot' && 'bg-amber-500/15 text-amber-400',
+        tagType === 'new' && 'bg-emerald-500/12 text-emerald-400',
+      )}>{tag}</span>}
+      {value && <span className="font-medium tnum text-[11px] text-white/20 shrink-0">{value}</span>}
     </div>
   );
 }
@@ -185,7 +222,7 @@ export function PredList({
   className?: string;
 }) {
   return (
-    <div className={cn('pred', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       {children}
     </div>
   );
@@ -210,17 +247,23 @@ export function PredItem({
   className?: string;
 }) {
   return (
-    <div className={cn('pred-item', className)}>
-      <div className="p-top">
-        <span className="p-l">{label}</span>
-        {date && <span className="p-r">{date}</span>}
+    <div className={cn('', className)}>
+      <div className="flex justify-between mb-1">
+        <span className="text-[12px] font-semibold text-white/85">{label}</span>
+        {date && <span className="text-[10px] tnum font-medium text-white/20">{date}</span>}
       </div>
-      <div className="pred-bar">
-        <div className={cn('fill', pctDir)} style={{ width: barWidth }} />
+      <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+        <div className={cn(
+          'h-full rounded-full transition-[width] duration-300',
+          pctDir === 'yes' ? 'bg-[var(--nexus-green)]' : 'bg-[var(--nexus-red)]'
+        )} style={{ width: barWidth }} />
       </div>
-      <div className="p-bot">
-        <span className={cn('p-pct', pctDir)}>{pct}</span>
-        {value && <span className="p-date">{value}</span>}
+      <div className="flex justify-between mt-0.5">
+        <span className={cn(
+          'text-[10px] font-bold tnum',
+          pctDir === 'yes' ? 'up' : 'down'
+        )}>{pct}</span>
+        {value && <span className="text-[10px] text-white/20">{value}</span>}
       </div>
     </div>
   );
@@ -237,9 +280,12 @@ export function SectionLabel({
   className?: string;
 }) {
   return (
-    <div className={cn('section-label', className)}>
-      <span className="l">{left}</span>
-      {right && <span className="r">{right}</span>}
+    <div className={cn(
+      'flex items-center justify-between mb-3 pb-2 border-b border-white/[0.04]',
+      className
+    )}>
+      <span className="text-[9px] font-medium uppercase tracking-[0.10em] text-white/20">{left}</span>
+      {right && <span className="text-[10px] text-white/20">{right}</span>}
     </div>
   );
 }

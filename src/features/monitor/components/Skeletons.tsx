@@ -8,6 +8,5 @@ export function CardSkeleton({
   title?: string;
   className?: string;
 }) {
-  // 保持旧导出名，内部统一复用共享 skeleton（避免体系分叉）
-  return <WidgetCardSkeleton className={className} headerDensity="compact" />;
+  return <WidgetCardSkeleton className={className} />;
 }

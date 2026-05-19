@@ -20,7 +20,7 @@ export type WidgetCardStatus =
   | { type: 'error'; title?: string; description?: string; action?: WidgetCardAction }
   | { type: 'stale'; since?: number };
 
-export type CardTone = 'blue' | 'red' | 'accent';
+export type CardTone = 'blue' | 'red' | 'accent' | 'green';
 
 function StatusPane({
   status,
@@ -36,14 +36,14 @@ function StatusPane({
 
   return (
     <div className="h-full w-full p-4">
-      <div className="h-full w-full rounded-[14px] border border-border-subtle bg-bg-card p-4 flex flex-col justify-between">
+      <div className="h-full w-full rounded-[14px] border border-white/6 bg-white/[0.03] p-4 flex flex-col justify-between">
         <div className="flex items-start gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-[12px] bg-rose-500/10 text-rose-400">
             <AlertTriangle size={16} />
           </div>
           <div className="min-w-0">
-            <div className="text-[12px] font-extrabold text-slate-100">{title}</div>
-            <div className="mt-1 text-[11px] text-text-muted leading-snug">{desc}</div>
+            <div className="text-[12px] font-bold text-slate-100">{title}</div>
+            <div className="mt-1 text-[11px] text-white/30 leading-snug">{desc}</div>
           </div>
         </div>
 
@@ -65,14 +65,15 @@ function StatusPane({
   );
 }
 
-function CardLogo({ tone, children }: { tone: CardTone; children: React.ReactNode }) {
-  const logoClass = cn(
-    'card-logo',
-    tone === 'blue' && 'lg-btc',
-    tone === 'red' && 'lg-eth',
-    tone === 'accent' && 'lg-btc-a',
+function WidgetIcon({ tone, children }: { tone: CardTone; children: React.ReactNode }) {
+  const iconClass = cn(
+    'widget-icon',
+    tone === 'blue' && 'ico-blue',
+    tone === 'red' && 'ico-red',
+    tone === 'accent' && 'ico-yellow',
+    tone === 'green' && 'ico-green',
   );
-  return <div className={logoClass}>{children}</div>;
+  return <div className={iconClass}>{children}</div>;
 }
 
 export function WidgetCard({
@@ -104,79 +105,74 @@ export function WidgetCard({
 }) {
   const { actionsBaseOpacityClass } = useWidgetCardActions();
 
-  const contentPad = padding === 'none' ? '' : headerDensity === 'compact' ? 'pt-2' : 'pt-2';
-
+  const contentPad = padding === 'none' ? '' : 'pt-1';
   const showStatusPane = status.type !== 'ready' && status.type !== 'stale';
 
-  const shellClass = cn(
-    'card-shell',
-    tone === 'blue' && 'shell-blue',
-    tone === 'red' && 'shell-red',
-    tone === 'accent' && 'shell-accent',
-  );
-
   return (
-    <div className={cn('w-full h-full @container relative rounded-[16px] overflow-hidden group/card', shellClass, className)}>
-      <div className="card-inner">
-        {/* Header */}
-        <div className={cn('card-head', dragHandle && 'widget-drag-handle cursor-move')}>
-          <div className="card-head-left">
-            {logo ? logo : (Icon ? <CardLogo tone={tone}><Icon size={14} /></CardLogo> : null)}
-            <div className="card-name-group">
-              <span className="card-name">{title}</span>
-              {subtitle && <span className="card-meta">{subtitle}</span>}
-            </div>
-            {status.type === 'stale' && (
-              <span
-                className="ml-1 rounded-[8px] px-2 py-0.5 text-[10px] font-bold text-amber-300 bg-amber-500/10 ring-1 ring-inset ring-amber-500/20"
-                title="实时数据可能已过期（连接中断或更新延迟）"
-              >
-                STALE
-              </span>
-            )}
+    <div className={cn(
+      'w-full h-full @container relative rounded-[18px] overflow-hidden group/card',
+      'widget-card',
+      status.type === 'stale' && 'opacity-80',
+      className
+    )}>
+      {/* Header */}
+      <div className={cn('widget-head', dragHandle && 'widget-drag-handle cursor-move')}>
+        <div className="widget-head-left">
+          {logo ? logo : (Icon ? <WidgetIcon tone={tone}><Icon size={13} strokeWidth={2} /></WidgetIcon> : null)}
+          <div className="min-w-0">
+            <span className={cn('widget-name', subtitle ? '' : '')}>{title}</span>
+            {subtitle && <div className="widget-meta">{subtitle}</div>}
           </div>
-
-          {/* Header right (actions) */}
-          {actions?.length ? (
-            <div className={cn('card-head-actions', actionsBaseOpacityClass)}>
-              {actions.map(a => {
-                const AIcon = a.icon;
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    disabled={a.disabled}
-                    aria-label={a.label}
-                    title={a.label}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      a.onClick();
-                    }}
-                    className={cn(
-                      'btn',
-                      a.tone === 'danger'
-                        ? 'hover:bg-rose-500/20 hover:text-rose-400'
-                        : '',
-                      a.disabled && 'opacity-40 pointer-events-none',
-                    )}
-                  >
-                    <AIcon size={13} strokeWidth={2} />
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Content */}
-        <div className={cn('w-full relative z-[1]', contentPad)}>
-          {showStatusPane ? (
-            <StatusPane status={status as any} />
-          ) : (
-            children
+          {status.type === 'stale' && (
+            <span
+              className="ml-1 rounded-[6px] px-1.5 py-0.5 text-[9px] font-medium text-amber-300 bg-amber-500/10 ring-1 ring-inset ring-amber-500/20"
+              title="实时数据可能已过期（连接中断或更新延迟）"
+            >
+              STALE
+            </span>
           )}
         </div>
+
+        {/* Header right (actions) */}
+        {actions?.length ? (
+          <div className={cn('widget-actions', actionsBaseOpacityClass)}>
+            {actions.map(a => {
+              const AIcon = a.icon;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  disabled={a.disabled}
+                  aria-label={a.label}
+                  title={a.label}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    a.onClick();
+                  }}
+                  className={cn(
+                    'btn',
+                    a.tone === 'danger'
+                      ? 'hover:bg-rose-500/15 hover:text-rose-400'
+                      : '',
+                    a.disabled && 'opacity-40 pointer-events-none',
+                  )}
+                >
+                  <AIcon size={12} strokeWidth={2} />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Content */}
+      <div className={cn('w-full', contentPad)}>
+        {showStatusPane ? (
+          <StatusPane status={status as any} />
+        ) : (
+          children
+        )}
       </div>
     </div>
   );

@@ -61,50 +61,51 @@ body::after {
   z-index: 0;
 }
 
-/* EFFECT 1: 毛玻璃卡片 — 28px 中等模糊 */
+/* EFFECT 1: 毛玻璃卡片 — 22px 模糊 macOS Widget 风格 */
 .glass {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid transparent;
-  border-radius: 16px;
+  background: rgba(26,26,30,0.80);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    0 8px 30px rgba(0,0,0,0.40),
+    0 2px 8px rgba(0,0,0,0.20);
 }
 
-/* EFFECT 2: 毛玻璃顶栏 — 40px 强模糊 + 更透底 */
+/* EFFECT 2: 毛玻璃顶栏 — 30px 强模糊 + 更透底 */
 .glass-header {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid transparent;
-  border-radius: 16px;
+  background: rgba(26,26,30,0.70);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    0 12px 36px rgba(0,0,0,0.40),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 /* 毛玻璃顶栏变体：全宽无圆角（用于 App 顶部栏） */
 .glass-bar {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
+  background: rgba(26,26,30,0.70);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
   border: none;
   box-shadow: none;
 }
 
 .glass-bar-shadow {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.40);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.40);
 }
 
 /* 毛玻璃变体：更轻的卡片（用于下拉菜单等） */
 .glass-light {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid transparent;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  background: rgba(30,30,34,0.88);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
 
 @layer base {
@@ -219,179 +220,153 @@ html.is-scrolling * {
   display: none !important;
 }
 
-/* ── NEXUS Card System — 双层结构（外壳+磨砂内层） ── */
+/* ═══════════════════════════════════════════
+   macOS Widget Card System — Apple HIG 设计语言
+   圆角: 18px (standard) / 字体: SF Pro / 材料: 暗色毛玻璃
+   ═══════════════════════════════════════════ */
 
 :root {
-  --nexus-accent: #2F6FEB;
-  --nexus-green: #1EC98C;
-  --nexus-red: #FF4D6A;
-  --nexus-yellow: #F0B429;
+  --nexus-accent: #4D7CFF;
+  --nexus-green: #30D158;
+  --nexus-red: #FF453A;
+  --nexus-yellow: #F59E0B;
   --nexus-text-pri: rgba(255,255,255,0.93);
   --nexus-text-sec: rgba(255,255,255,0.58);
   --nexus-text-dim: rgba(255,255,255,0.32);
-  --nexus-radius: 16px;
+  --nexus-radius: 18px;  /* macOS Widget standard corner radius */
 }
 
-/* 外层壳 — 品牌色半透边界 */
-.card-shell {
+/* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
+.widget-card {
+  background: rgba(26,26,30,0.80);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border-radius: var(--nexus-radius);
+  box-shadow:
+    0 8px 30px rgba(0,0,0,0.40),
+    0 2px 8px rgba(0,0,0,0.20);
+  border: 1px solid rgba(255,255,255,0.06);
   padding: 14px;
-  position: relative;
-  transition: all 0.3s ease;
-  cursor: default;
+  color: rgba(255,255,255,0.86);
+  transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
 }
 
-.card-shell.shell-blue {
-  background: rgba(47,111,235,0.12);
-  box-shadow: inset 0 0 0 1px rgba(47,111,235,0.08);
+.widget-card:not(.is-fullscreen):hover {
+  transform: translateY(calc(var(--lift-card) * -1));
+  box-shadow:
+    0 10px 36px rgba(0,0,0,0.45),
+    0 3px 10px rgba(0,0,0,0.25);
 }
 
-.card-shell.shell-red {
-  background: rgba(255,77,106,0.10);
-  box-shadow: inset 0 0 0 1px rgba(255,77,106,0.06);
+.widget-card.is-fullscreen {
+  border-radius: 0;
 }
 
-.card-shell.shell-accent {
-  background: rgba(47,111,235,0.08);
-  box-shadow: inset 0 0 0 1px rgba(47,111,235,0.04);
+/* ── HIG 字体层次 ── */
+/* 标题: 13px semibold (SF Pro Display Semibold) */
+.widget-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.90);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+/* 副标题/标签: 9px regular */
+.widget-label {
+  font-size: 9px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.18);
 }
 
-.card-shell:hover {
-  transform: translateY(-2px);
-}
-
-.card-shell.shell-blue:hover {
-  background: rgba(47,111,235,0.18);
-  box-shadow: inset 0 0 0 1px rgba(47,111,235,0.14), 0 4px 24px rgba(47,111,235,0.06);
-}
-
-.card-shell.shell-red:hover {
-  background: rgba(255,77,106,0.16);
-  box-shadow: inset 0 0 0 1px rgba(255,77,106,0.12), 0 4px 24px rgba(255,77,106,0.05);
-}
-
-.card-shell.shell-accent:hover {
-  background: rgba(47,111,235,0.14);
-  box-shadow: inset 0 0 0 1px rgba(47,111,235,0.10), 0 4px 24px rgba(47,111,235,0.04);
-}
-
-/* 内层 — 半透磨砂玻璃，透出最底层背景图 */
-.card-inner {
-  border-radius: calc(var(--nexus-radius) - 4px);
-  padding: 18px 20px 16px;
-  position: relative;
-  background: rgba(8,8,18,0.35);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  overflow: hidden;
-}
-
-.card-inner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 60%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* 卡片头部 */
-.card-head {
+/* ── 卡片头部 ── */
+.widget-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
-  position: relative;
-  z-index: 1;
+  margin-bottom: 10px;
 }
 
-.card-head-left {
+.widget-head-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
-.card-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.card-logo.lg-btc {
-  background: rgba(47,111,235,0.30);
-  color: var(--nexus-accent);
-}
-
-.card-logo.lg-eth {
-  background: rgba(255,77,106,0.25);
-  color: var(--nexus-red);
-}
-
-.card-logo.lg-poly {
-  background: rgba(47,111,235,0.25);
-  color: var(--nexus-accent);
-}
-
-.card-logo.lg-btc-a {
-  background: rgba(240,180,41,0.25);
-  color: var(--nexus-yellow);
-}
-
-.card-name-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.card-name {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: var(--nexus-text-pri);
-}
-
-.card-meta {
-  font-size: 10px;
-  color: var(--nexus-text-dim);
-}
-
-.card-head-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.card-head-actions .btn {
+.widget-icon {
   width: 24px;
   height: 24px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  color: var(--nexus-text-dim);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  background: rgba(255,255,255,0.05);
 }
 
-.card-head-actions .btn:hover {
-  background: rgba(255,255,255,0.10);
-  color: var(--nexus-text-sec);
+.widget-icon.ico-blue {
+  background: rgba(77,124,255,0.20);
+  color: var(--nexus-accent);
+}
+
+.widget-icon.ico-red {
+  background: rgba(255,69,58,0.18);
+  color: var(--nexus-red);
+}
+
+.widget-icon.ico-yellow {
+  background: rgba(245,158,11,0.18);
+  color: var(--nexus-yellow);
+}
+
+.widget-icon.ico-green {
+  background: rgba(48,209,88,0.15);
+  color: var(--nexus-green);
+}
+
+.widget-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: rgba(255,255,255,0.90);
+}
+
+.widget-meta {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.18);
+  margin-top: 1px;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.widget-actions .btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.2);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: transparent;
+}
+
+.widget-actions .btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
 }
 
 /* 数据展示 */
@@ -722,37 +697,6 @@ html.is-scrolling * {
   .cards-grid.three {
     grid-template-columns: 1fr;
   }
-}
-
-/* ── Widget Card — 毛玻璃效果 + gradient border ── */
-.widget-card {
-  background:
-    rgba(255, 255, 255, 0.06) padding-box,
-    linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid transparent;
-  border-radius: 16px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
-}
-
-.widget-card:not(.is-fullscreen):hover {
-  transform: translateY(calc(var(--lift-card) * -1));
-  box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.50),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 0 20px rgba(77, 124, 255, 0.08);
-}
-
-.widget-card.is-fullscreen {
-  background:
-    rgba(255, 255, 255, 0.06) padding-box,
-    linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
 }
 
 /* ── Trade number glow ── */

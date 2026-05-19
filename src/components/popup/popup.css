@@ -20,6 +20,16 @@
   overflow: hidden;
 }
 
+/* Status bar popups — unified darker glass */
+header .popup-card,
+footer .popup-card {
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15);
+  border-radius: 10px;
+}
+
 .popup-backdrop {
   position: fixed;
   inset: 0;

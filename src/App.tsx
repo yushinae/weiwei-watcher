@@ -1722,7 +1722,7 @@ export default function App() {
             <motion.button 
               layoutId="addTabModalBackground"
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center justify-center w-10 h-full bg-surface-4 border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
+              className="flex items-center justify-center w-10 h-full bg-white/[0.08] border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
               style={{ pointerEvents: isAddModalOpen ? "none" : "auto" }}
             >
               <motion.div animate={{ opacity: isAddModalOpen ? 0 : 1 }} transition={{ duration: 0.1 }}>
@@ -1744,7 +1744,7 @@ export default function App() {
             layoutId="addWidgetModalBackground"
             onClick={() => openComponentLibrary()}
             className={cn(
-              "flex items-center justify-center gap-1.5 px-3 h-full bg-surface-4 border border-transparent rounded-[8px] text-[13px] font-bold text-slate-200 transition-colors overflow-hidden",
+              "flex items-center justify-center gap-1.5 px-3 h-full bg-white/[0.08] border border-transparent rounded-[8px] text-[13px] font-bold text-slate-200 transition-colors overflow-hidden",
               !isComponentLibraryOpen && "hover:bg-[#31333F] hover:shadow-[0_0_8px_rgba(255,255,255,0.08)] hover:border-slate-500/40 cursor-pointer"
             )}
             style={{ pointerEvents: isComponentLibraryOpen ? "none" : "auto" }}

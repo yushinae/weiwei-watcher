@@ -338,9 +338,9 @@ export const PosCalcWidget = () => {
 };
 
 export const MonthlyStatsWidget = () => (
-  <div className="w-full h-full p-2 grid grid-cols-3 @min-[300px]:grid-cols-4 @min-[450px]:grid-cols-6 gap-1.5 content-start overflow-y-auto min-h-0">
+  <div className="w-full grid grid-cols-3 @min-[300px]:grid-cols-4 @min-[450px]:grid-cols-6 gap-1.5 content-start">
     {MONTHLY.map(({ m, v, up }) => (
-      <div key={m} className="flex flex-col items-center bg-surface-2/40 border border-surface-5/40 rounded-[6px] py-1.5 px-1">
+      <div key={m} className="flex flex-col items-center justify-center bg-surface-2/40 border border-surface-5/40 rounded-[6px] py-1.5 px-1">
         <span className="text-[9px] text-slate-600 mb-0.5">{m}</span>
         <span className={cn('text-[11px] font-bold font-mono', up ? 'text-emerald-400' : 'text-rose-400')}>{v}</span>
       </div>

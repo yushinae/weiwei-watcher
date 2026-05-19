@@ -79,7 +79,7 @@ export const DashboardPage = () => {
           )}
 
           {activePage.instances.length > 0 && (
-            <div className="relative p-2 pb-24 flex-1" ref={containerRef}>
+            <div className="relative px-2 pb-24 flex-1" ref={containerRef}>
               {fullscreenId && (
                 <div
                   className="fixed inset-0 bg-[#0A0A0B]/60 z-[90] backdrop-blur-md"

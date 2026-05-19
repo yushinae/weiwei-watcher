@@ -1269,7 +1269,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-hidden z-[1] bg-[#060606]">
+      <main className="flex-1 relative overflow-hidden z-[1]">
         <AnimatePresence mode="wait">
           {/* @ts-ignore */}
           <Routes location={location} key={location.pathname}>

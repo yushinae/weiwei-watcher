@@ -65,20 +65,8 @@ function StatusPane({
   );
 }
 
-function WidgetIcon({ tone, children }: { tone: CardTone; children: React.ReactNode }) {
-  const iconClass = cn(
-    'widget-icon',
-    tone === 'blue' && 'ico-blue',
-    tone === 'red' && 'ico-red',
-    tone === 'accent' && 'ico-yellow',
-    tone === 'green' && 'ico-green',
-  );
-  return <div className={iconClass}>{children}</div>;
-}
-
 export function WidgetCard({
   title,
-  icon: Icon,
   subtitle,
   className,
   dragHandle = false,
@@ -87,11 +75,9 @@ export function WidgetCard({
   headerDensity = 'default',
   padding = 'default',
   tone = 'blue',
-  logo,
   children,
 }: {
   title: string;
-  icon?: React.ComponentType<{ size?: number; className?: string }>;
   subtitle?: React.ReactNode;
   className?: string;
   dragHandle?: boolean;
@@ -100,12 +86,11 @@ export function WidgetCard({
   headerDensity?: 'default' | 'compact';
   padding?: 'none' | 'default';
   tone?: CardTone;
-  logo?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { actionsBaseOpacityClass } = useWidgetCardActions();
 
-  const contentPad = padding === 'none' ? '' : 'pt-1';
+  const contentPad = padding === 'none' ? '' : '';
   const showStatusPane = status.type !== 'ready' && status.type !== 'stale';
 
   return (
@@ -118,7 +103,6 @@ export function WidgetCard({
       {/* Header */}
       <div className={cn('widget-head', dragHandle && 'widget-drag-handle cursor-move')}>
         <div className="widget-head-left">
-          {logo ? logo : (Icon ? <WidgetIcon tone={tone}><Icon size={13} strokeWidth={2} /></WidgetIcon> : null)}
           <div className="min-w-0">
             <span className={cn('widget-name', subtitle ? '' : '')}>{title}</span>
             {subtitle && <div className="widget-meta">{subtitle}</div>}

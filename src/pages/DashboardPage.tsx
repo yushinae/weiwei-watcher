@@ -112,7 +112,6 @@ export const DashboardPage = () => {
                     >
                       <WidgetCard
                         title={defn.label}
-                        icon={defn.icon}
                         dragHandle
                       >
                         <Component {...(inst.props ?? {})} />
@@ -136,7 +135,6 @@ export const DashboardPage = () => {
                     >
                       <WidgetCard
                         title={fullscreenDefn.label}
-                        icon={fullscreenDefn.icon}
                         className="is-fullscreen shadow-2xl"
                         actions={[
                           {

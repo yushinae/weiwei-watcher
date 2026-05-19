@@ -13,8 +13,8 @@ export function MonitorLayout({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-border-subtle bg-bg-base/40 px-5">
-        <div className="flex items-end gap-1">
+      <div className="px-5 glass-nav border-t-0">
+        <div className="flex items-end gap-1" style={{ marginTop: 0 }}>
           {MONITOR_TABS.map(t => (
             <button
               key={t.id}

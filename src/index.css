@@ -96,6 +96,15 @@ body::after {
   box-shadow: none;
 }
 
+/* 毛玻璃导航栏变体：全宽无圆角 + 底部边框（用于 MonitorHeader / 次级顶栏） */
+.glass-nav {
+  background: var(--widget-glass-dim);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
 .glass-bar-shadow {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.40);
 }
@@ -297,7 +306,8 @@ html.is-scrolling * {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: px;
+  padding-top: 7px;
+  margin-bottom: 2px;
 }
 
 .widget-head-left {
@@ -305,6 +315,7 @@ html.is-scrolling * {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  padding-left: 8px;
 }
 
 .widget-icon {

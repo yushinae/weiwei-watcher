@@ -53,7 +53,7 @@ const TEXT_MUTED = 'var(--color-text-muted)';
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
 const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
-  <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-bg-base/40 ring-1 ring-inset ring-border-subtle/70">
+  <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)] ring-1 ring-inset ring-white/6">
     {(['BTC', 'ETH'] as Coin[]).map(c => (
       <button key={c} onClick={() => set(c)}
         className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
@@ -366,7 +366,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           </div>
         </div>
         <div className="grid grid-cols-3 divide-x divide-surface-2/80">
-          <div className="px-3 py-2">
+          <div className="py-2">
             <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase mb-1">IV Rank</div>
             <div className="text-[16px] font-mono font-bold tnum leading-none mb-1" style={{ color: ivrc }}>{d.ivRank}</div>
             <div className="h-1 rounded-full bg-surface-2/80 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${d.ivRank}%`, backgroundColor: ivrc }} /></div>

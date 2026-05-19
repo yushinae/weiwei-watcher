@@ -354,8 +354,8 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       <div className="flex items-center px-3 pt-2.5 pb-1.5 shrink-0">
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">波动率概览</span>
       </div>
-      <div className="mx-2 mb-2 rounded-[8px] bg-[#0F0F14] border border-[#1E1E26] overflow-hidden shrink-0">
-        <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-[#1A1A22]">
+      <div className="mx-2 mb-2 rounded-[8px] bg-surface-1/40 border border-surface-4/50 overflow-hidden shrink-0">
+        <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-surface-2/80">
           <span className="text-[13px] font-bold text-slate-100">{coin} DVOL</span>
           <div className="flex items-baseline gap-1">
             <span className="text-[22px] font-mono font-bold tnum text-slate-100 leading-none">{d.dvol.toFixed(1)}</span>
@@ -365,11 +365,11 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-[#1A1A22]">
+        <div className="grid grid-cols-3 divide-x divide-surface-2/80">
           <div className="px-3 py-2">
             <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase mb-1">IV Rank</div>
             <div className="text-[16px] font-mono font-bold tnum leading-none mb-1" style={{ color: ivrc }}>{d.ivRank}</div>
-            <div className="h-1 rounded-full bg-[#1E1E26] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${d.ivRank}%`, backgroundColor: ivrc }} /></div>
+            <div className="h-1 rounded-full bg-surface-2/80 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${d.ivRank}%`, backgroundColor: ivrc }} /></div>
             <div className="text-[9px] font-mono mt-0.5" style={{ color: ivrc }}>{ivrLabel(d.ivRank)}</div>
           </div>
           <div className="px-3 py-2">
@@ -388,7 +388,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             </div>
           </div>
         </div>
-        <div className="border-t border-[#1A1A22] px-3 pt-2 pb-2.5">
+        <div className="border-t border-surface-2/80 px-3 pt-2 pb-2.5">
           <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase mb-2">期限结构</div>
           <div className="flex gap-0.5 items-end h-[40px]">
             {d.term.map((t, i) => {

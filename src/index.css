@@ -21,14 +21,14 @@
   --color-bg-base: #060606;
   --color-bg-dim: #1F2021;
   --color-bg-deep: #0A0A0D;
-  --color-bg-card: #131318;
-  --color-surface-1: #15151A;
-  --color-surface-2: #1A1A24;
-  --color-surface-3: #1C1C24;
-  --color-surface-4: #1E1E26;
-  --color-surface-5: #2A2A35;
-  --color-surface-6: #31333F;
-  --color-bg-hover: #26262E;
+  --color-bg-card: rgba(255,255,255,0.02);  /* 卡片内部元素背景 — 半透明白而非纯黑 */
+  --color-surface-1: rgba(255,255,255,0.03);
+  --color-surface-2: rgba(255,255,255,0.05);
+  --color-surface-3: rgba(255,255,255,0.07);
+  --color-surface-4: rgba(255,255,255,0.09);
+  --color-surface-5: rgba(255,255,255,0.12);
+  --color-surface-6: rgba(255,255,255,0.15);
+  --color-bg-hover: rgba(255,255,255,0.06);
 
   /* Borders */
   --color-border-subtle: #2F2F38;
@@ -719,12 +719,12 @@ html.is-scrolling * {
 
 /* ── Ant Design Table 暗色主题覆写 ── */
 .trade-log-table .ant-table {
-  background: #131318 !important;
+  background: rgba(255,255,255,0.02) !important;
   color: #CBD5E1;
 }
 
 .trade-log-table .ant-table-thead>tr>th {
-  background: #0B0C0E !important;
+  background: rgba(255,255,255,0.04) !important;
   color: rgba(255,255,255,0.45) !important;
   font-size: 12px !important;
   font-weight: 700 !important;

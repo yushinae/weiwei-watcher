@@ -73,21 +73,20 @@ function xorRng(seed: number) {
 interface CoinCfg { label: string; spot: number; baseIV: number }
 
 const COIN_CFG: Record<string, CoinCfg> = {
-  // label 仅用于 UI 展示：不显示 USDT/USDC/交易所字样，统一用标的简称
-  'BTC-USD':   { label: 'BTC', spot: 64123.5, baseIV: 0.58 },
-  'ETH-USD':   { label: 'ETH', spot: 3425.8,  baseIV: 0.68 },
-  'SOL-USDC':  { label: 'SOL', spot: 89.4343, baseIV: 0.48 },
-  'SOL-USDT':  { label: 'SOL', spot: 89.4343, baseIV: 0.48 },
-  'BTC-USDC':  { label: 'BTC', spot: 64123.5, baseIV: 0.58 },
-  'BTC-USDT':  { label: 'BTC', spot: 64123.5, baseIV: 0.58 },
-  'ETH-USDC':  { label: 'ETH', spot: 3425.8,  baseIV: 0.68 },
-  'ETH-USDT':  { label: 'ETH', spot: 3425.8,  baseIV: 0.68 },
-  'AVAX-USDC': { label: 'AVAX', spot: 28.45,  baseIV: 0.75 },
-  'AVAX-USDT': { label: 'AVAX', spot: 28.45,  baseIV: 0.75 },
-  'XRP-USDC':  { label: 'XRP', spot: 2.341,   baseIV: 0.72 },
-  'XRP-USDT':  { label: 'XRP', spot: 2.341,   baseIV: 0.72 },
-  'TRX-USDC':  { label: 'TRX', spot: 0.2651,  baseIV: 0.85 },
-  'TRX-USDT':  { label: 'TRX', spot: 0.2651,  baseIV: 0.85 },
+  'BTC-USD':   { label: 'BTC', spot: 77000.0, baseIV: 0.58 },
+  'ETH-USD':   { label: 'ETH', spot: 2520.0,  baseIV: 0.68 },
+  'SOL-USDC':  { label: 'SOL', spot: 165.0, baseIV: 0.48 },
+  'SOL-USDT':  { label: 'SOL', spot: 165.0, baseIV: 0.48 },
+  'BTC-USDC':  { label: 'BTC', spot: 77000.0, baseIV: 0.58 },
+  'BTC-USDT':  { label: 'BTC', spot: 77000.0, baseIV: 0.58 },
+  'ETH-USDC':  { label: 'ETH', spot: 2520.0,  baseIV: 0.68 },
+  'ETH-USDT':  { label: 'ETH', spot: 2520.0,  baseIV: 0.68 },
+  'AVAX-USDC': { label: 'AVAX', spot: 22.5,  baseIV: 0.75 },
+  'AVAX-USDT': { label: 'AVAX', spot: 22.5,  baseIV: 0.75 },
+  'XRP-USDC':  { label: 'XRP', spot: 2.15,   baseIV: 0.72 },
+  'XRP-USDT':  { label: 'XRP', spot: 2.15,   baseIV: 0.72 },
+  'TRX-USDC':  { label: 'TRX', spot: 0.245,  baseIV: 0.85 },
+  'TRX-USDT':  { label: 'TRX', spot: 0.245,  baseIV: 0.85 },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +145,16 @@ function buildSide(S: number, K: number, T: number, σ: number, call: boolean, r
     pos:   r() > 0.75 ? Math.floor(r() * 60 - 30) : null,
   };
 }
+
+function buildEmptySide(): Side {
+  return {
+    bid: null, ask: null, mark: 0,
+    iv: 0, ivBid: null, ivAsk: null,
+    delta: 0, gamma: 0, vega: 0, theta: 0,
+    oi: null, dOI: null, size: null, pos: null,
+  };
+}
+
 function buildChain(cfg: CoinCfg, T: number, seed: number): ChainRow[] {
   const { spot: S, baseIV } = cfg;
   const rand    = xorRng(seed);
@@ -298,7 +307,10 @@ function getCellValue(side: Side, col: ViewCol, dec: number): { text: string; co
     case 'ivBid': return { text: fmtIV(side.ivBid), colorKey: 'muted' };
     // 价格类：强制最多 2 位小数
     case 'bid':   return { text: fmt2(side.bid),  colorKey: side.bid !== null ? 'green' : 'dim' };
-    case 'mark':  return { text: fmt2(side.mark), colorKey: 'bright' };
+    case 'mark':  {
+      console.log('[getCellValue] side.mark:', side.mark, 'type:', typeof side.mark);
+      return { text: fmt2(side.mark), colorKey: 'bright' };
+    }
     case 'ask':   return { text: fmt2(side.ask),  colorKey: side.ask !== null ? 'red' : 'dim' };
     case 'ivAsk': return { text: fmtIV(side.ivAsk), colorKey: 'muted' };
     // Greeks：最多 2 位小数；Gamma 固定 5 位小数
@@ -391,6 +403,7 @@ const ChainRowComp = memo(({
   variant?: 'nexus' | 'deribit';
 }) => {
   const { call: c, put: p, strike, isATM, isITM } = row;
+  console.log('[ChainRowComp] strike:', strike, 'cols.length:', cols.length, 'c.mark:', c.mark);
   const callITM = isITM;
   const putITM  = !isITM && !isATM;
 
@@ -408,6 +421,10 @@ const ChainRowComp = memo(({
   const putCols   = cols;               // 持仓 closest to strike, Speed outermost
   const colWidths = cols.map(c => `${c.w}px`).join(' ');
   const gridTpl   = `${colWidths} ${STRIKE_W}px ${colWidths}`;
+  
+  if (strike === 77000) {
+    console.log('[ChainRow ATM] colWidths:', colWidths, 'gridTpl:', gridTpl);
+  }
 
   // Distance % from spot price
   const distPct = spot > 0 ? ((strike - spot) / spot) * 100 : 0;
@@ -548,9 +565,9 @@ function genBook(bid: number | null, ask: number | null, iv: number, dec: number
 const BORDER = `1px solid ${BORDER_C}`;
 
 const TradingPanel = memo(({
-  selected, coinCfg, expiryStr, dec, seed, onClose,
+  selected, coinCfg, effectiveSpot, expiryStr, dec, seed, onClose,
 }: {
-  selected: SelectedCell; coinCfg: CoinCfg; expiryStr: string; dec: number; seed: number; onClose: () => void;
+  selected: SelectedCell; coinCfg: CoinCfg; effectiveSpot: number; expiryStr: string; dec: number; seed: number; onClose: () => void;
 }) => {
   const { row, side } = selected;
   const opt   = side === 'call' ? row.call : row.put;
@@ -578,7 +595,12 @@ const TradingPanel = memo(({
   const orderHistory = useSimTradingStore(s => s.orderHistory);
   const fills = useSimTradingStore(s => s.fills);
 
-  const { asks, bids } = useMemo(() => genBook(opt.bid, opt.ask, opt.iv, dec, seed ^ row.strike), [opt.bid, opt.ask, opt.iv, dec, seed, row.strike]);
+  const { asks, bids } = useMemo(() => {
+    if (opt.bid === null && opt.ask === null) {
+      return { asks: [], bids: [] };
+    }
+    return genBook(opt.bid, opt.ask, opt.iv, dec, seed ^ row.strike);
+  }, [opt.bid, opt.ask, opt.iv, dec, seed, row.strike]);
   const maxAskTotal = asks[asks.length - 1]?.total ?? 1;
   const maxBidTotal = bids[bids.length - 1]?.total ?? 1;
 
@@ -647,7 +669,7 @@ const TradingPanel = memo(({
             {[
               { label: '标记', value: opt.mark.toFixed(dec), color: 'var(--db-text)' },
               { label: 'IV', value: opt.iv.toFixed(1) + '%', color: 'var(--db-warn)' },
-              { label: 'Spot', value: coinCfg.spot.toLocaleString('en-US', { maximumFractionDigits: 2 }), color: 'var(--db-muted)' },
+              { label: 'Spot', value: effectiveSpot.toLocaleString('en-US', { maximumFractionDigits: 2 }), color: 'var(--db-muted)' },
               { label: 'Δ', value: opt.delta.toFixed(3), color: opt.delta > 0 ? 'var(--db-up)' : 'var(--db-down)' },
               { label: 'Θ', value: opt.theta.toFixed(4), color: 'var(--db-down)' },
             ].map(item => (
@@ -927,30 +949,38 @@ const TradingPanel = memo(({
             <div className="flex-1 min-h-0 overflow-y-auto">
               {rtab === 'book' && (
                 <div>
-                  <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#848E9C' }}>
-                  <span className="text-right">总计</span><span className="text-right">数量</span><span className="text-right">IV%</span>
-                  <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
-                  <span className="text-right">IV%</span><span className="text-right">数量</span><span className="text-right">总计</span>
-                </div>
-                {Array.from({ length: Math.max(asks.length, bids.length) }, (_, i) => {
-                  const a = asks[i], b = bids[i];
-                  return (
-                    <div key={i} className="relative grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 hover:bg-white/[0.03] cursor-pointer" style={{ height: 26 }}>
-                      {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(246,70,93,0.07)' }} />}
-                      {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(46,189,133,0.07)' }} />}
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#848E9C' }}>{a ? a.total.toFixed(2) : ''}</span>
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : ''}</span>
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#848E9C' }}>{a ? a.iv.toFixed(1) + '%' : ''}</span>
-                      <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: '#F6465D' }} onClick={() => setPrice(a?.price.toFixed(dec) ?? price)}>{a ? a.price.toFixed(dec) : ''}</span>
-                      <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: '#2EBD85' }} onClick={() => setPrice(b?.price.toFixed(dec) ?? price)}>{b ? b.price.toFixed(dec) : ''}</span>
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#848E9C' }}>{b ? b.iv.toFixed(1) + '%' : ''}</span>
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : ''}</span>
-                      <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#848E9C' }}>{b ? b.total.toFixed(2) : ''}</span>
+                  {asks.length === 0 && bids.length === 0 ? (
+                    <div className="flex items-center justify-center h-[200px] text-[13px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
+                      暂无订单簿数据
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#848E9C' }}>
+                        <span className="text-right">总计</span><span className="text-right">数量</span><span className="text-right">IV%</span>
+                        <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
+                        <span className="text-right">IV%</span><span className="text-right">数量</span><span className="text-right">总计</span>
+                      </div>
+                      {Array.from({ length: Math.max(asks.length, bids.length) }, (_, i) => {
+                        const a = asks[i], b = bids[i];
+                        return (
+                          <div key={i} className="relative grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 hover:bg-white/[0.03] cursor-pointer" style={{ height: 26 }}>
+                            {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(246,70,93,0.07)' }} />}
+                            {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(46,189,133,0.07)' }} />}
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#848E9C' }}>{a ? a.total.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#848E9C' }}>{a ? a.iv.toFixed(1) + '%' : '—'}</span>
+                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: '#F6465D' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: '#2EBD85' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#848E9C' }}>{b ? b.iv.toFixed(1) + '%' : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#848E9C' }}>{b ? b.total.toFixed(2) : '—'}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              )}
             {rtab === 'greeks' && (
               <div className="p-4 grid grid-cols-2 gap-3">
                 {[
@@ -1232,9 +1262,9 @@ ColHeaderRow.displayName = 'ColHeaderRow';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SectionRow = memo(({
-  coinCfg, expiryStr, atmIV, spotDp, dte, callSideWidth, emLower, emUpper, variant = 'nexus',
+  coinCfg, effectiveSpot, expiryStr, atmIV, spotDp, dte, callSideWidth, emLower, emUpper, variant = 'nexus',
 }: {
-  coinCfg: CoinCfg; expiryStr: string; atmIV: number; spotDp: number; dte: string;
+  coinCfg: CoinCfg; effectiveSpot: number; expiryStr: string; atmIV: number; spotDp: number; dte: string;
   callSideWidth: number;
   emLower?: number;
   emUpper?: number;
@@ -1295,7 +1325,7 @@ const SectionRow = memo(({
       <IVBadge
         variant={variant}
         atmIV={atmIV}
-        spot={coinCfg.spot}
+        spot={effectiveSpot}
         spotDp={spotDp}
         emLower={emLower}
         emUpper={emUpper}
@@ -1351,7 +1381,7 @@ const SectionRow = memo(({
             textDecorationColor: variant === 'deribit' ? 'rgba(255,255,255,0.25)' : undefined,
           }}
         >
-          ($){coinCfg.spot.toLocaleString('en-US', { minimumFractionDigits: spotDp, maximumFractionDigits: spotDp })}
+          ($){effectiveSpot.toLocaleString('en-US', { minimumFractionDigits: spotDp, maximumFractionDigits: spotDp })}
         </span>
       </span>
     </div>
@@ -1549,11 +1579,13 @@ export default function OptionsChainPage({
   mode?: OptionsChainMode;
   hideHeader?: boolean;
 } = {}) {
+  console.log('[OptionsChainPage] Rendered, mode:', mode);
+  
   const [params]   = useSearchParams();
   const navigate   = useNavigate();
   const isDeribit = mode === 'deribit';
 
-  const urlCoinId    = params.get('coin')   ?? 'SOL-USDC';
+  const urlCoinId    = params.get('coin')   ?? 'BTC-USD';
   const urlExpiryStr = params.get('expiry') ?? DERIBIT_EXPIRIES[0];
 
   const optionsChainTabs      = useWorkspaceStore(s => s.optionsChainTabs);
@@ -1563,9 +1595,6 @@ export default function OptionsChainPage({
   const setActiveOptionsTab   = useWorkspaceStore(s => s.setActiveOptionsTab);
   const updateOptionsChainTab = useWorkspaceStore(s => s.updateOptionsChainTab);
   const openComponentLibrary  = useWorkspaceStore(s => s.openComponentLibrary);
-
-  // 连接 Deribit 实时行情 WebSocket
-  useDeribitOptionsStream(true);
 
   // 注意：不要在 activeOptionsTabId=null 时 fallback 到 tabs[0]，否则 append 新 tab 时会“看起来像替换当前 tab”
   const activeTab = activeOptionsTabId
@@ -1631,7 +1660,17 @@ export default function OptionsChainPage({
 
   const coinId    = activeTab?.coinId   ?? urlCoinId;
   const expiryStr = activeTab?.expiry   ?? urlExpiryStr;
-  const coinCfg   = COIN_CFG[coinId] ?? COIN_CFG['SOL-USDC'];
+  const coinCfg   = COIN_CFG[coinId] ?? COIN_CFG['BTC-USD'];
+
+  // 连接 Deribit 实时行情 WebSocket（根据当前选择的币种和到期日动态订阅）
+  const { underlyingPrice } = useDeribitOptionsStream(coinCfg.label, expiryStr, true);
+  
+  // 使用 Deribit 实时价格覆盖硬编码的 spot 价格
+  const effectiveSpot = underlyingPrice ?? coinCfg.spot;
+  
+  // 获取真实持仓数据
+  const positions = useSimTradingStore(s => s.positions);
+  const storeTickers = useSimTradingStore(s => s.tickers);
 
   // store(activeTab) → URL：只有用户切换 Tab 时才同步 URL（replace，避免历史栈膨胀）
   useEffect(() => {
@@ -1808,7 +1847,6 @@ export default function OptionsChainPage({
   }, [coinCfg.label]);
 
   const expiries = liveExpiries.length > 0 ? liveExpiries : DERIBIT_EXPIRIES;
-  console.log('[Chain Render] expiries:', expiries, 'liveExpiries:', liveExpiries);
 
   // Auto-switch to first available expiry if current one is not in live list
   useEffect(() => {
@@ -1817,47 +1855,54 @@ export default function OptionsChainPage({
     changeActiveTabExpiry(liveExpiries[0]);
   }, [liveExpiries, expiryStr, changeActiveTabExpiry]);
 
-  const storeTickers = useSimTradingStore(s => s.tickers);
-
-  // Debug: log store tickers count and first few keys
-  useEffect(() => {
-    console.log('[Chain Store] Tickers count:', Object.keys(storeTickers).length);
-    console.log('[Chain Store] First 3 keys:', Object.keys(storeTickers).slice(0, 3));
-  }, [storeTickers]);
-
   const allRows = useMemo(() => {
     const baseCoin = coinCfg.label;
     const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();
 
     // Collect live strikes from store tickers for current expiry
     const liveStrikes = new Map<number, { call?: any; put?: any }>();
+    const T = expiryT(expiryStr);
+    const spot = effectiveSpot;
+    
     for (const [symbol, ticker] of Object.entries(storeTickers)) {
-      const parts = symbol.split('-');
-      if (parts.length >= 4 && parts[0] === baseCoin && parts[1] === expiryPrefix) {
-        const strike = parseFloat(parts[2]);
-        const type = parts[3]; // 'C' or 'P'
-        if (Number.isFinite(strike) && ticker?.markPrice > 0) {
-          if (!liveStrikes.has(strike)) liveStrikes.set(strike, {});
-          const entry = liveStrikes.get(strike)!;
-          const data = {
-            bid: Number.isFinite(ticker.bid) && ticker.bid > 0 ? ticker.bid : null,
-            ask: Number.isFinite(ticker.ask) && ticker.ask > 0 ? ticker.ask : null,
-            mark: ticker.markPrice,
-            iv: Number.isFinite(ticker.iv) && ticker.iv > 0 ? ticker.iv * 100 : 0,
-            ivBid: null,
-            ivAsk: null,
-            delta: Number.isFinite(ticker.delta) ? ticker.delta : 0,
-            gamma: Number.isFinite(ticker.gamma) ? ticker.gamma : 0,
-            vega: Number.isFinite(ticker.vega) ? ticker.vega : 0,
-            theta: Number.isFinite(ticker.theta) ? ticker.theta : 0,
-            oi: null,
-            dOI: null,
-            size: null,
-            pos: null,
-          };
-          if (type === 'C') entry.call = data;
-          else entry.put = data;
-        }
+      const match = symbol.match(/^([A-Z]+)(?:_USDC)?-([A-Z0-9]+)-(\d+(?:\.\d+)?)-([CP])$/);
+      if (!match) continue;
+      
+      const [, coin, expiry, strikeStr, type] = match;
+      
+      if (coin !== baseCoin) continue;
+      if (expiry !== expiryPrefix) continue;
+      
+      const strike = parseFloat(strikeStr);
+      if (Number.isFinite(strike) && ticker?.markPrice > 0) {
+        if (!liveStrikes.has(strike)) liveStrikes.set(strike, {});
+        const entry = liveStrikes.get(strike)!;
+        
+        // Deribit REST 不返回希腊字母，用 Black-Scholes 计算
+        const iv = ticker.iv ?? 0; // 已经是小数形式 (e.g. 0.3887)
+        const delta = iv > 0 ? bsDelta(spot, strike, T, iv, type === 'C') : 0;
+        const gamma = iv > 0 ? bsGamma(spot, strike, T, iv) : 0;
+        const vega = iv > 0 ? bsVega(spot, strike, T, iv) : 0;
+        const theta = iv > 0 ? bsTheta(spot, strike, T, iv, type === 'C') : 0;
+        
+        const data = {
+          bid: ticker.bid != null ? ticker.bid : null,
+          ask: ticker.ask != null ? ticker.ask : null,
+          mark: ticker.markPrice,
+          iv: iv * 100, // 转换为百分比显示
+          ivBid: null,
+          ivAsk: null,
+          delta,
+          gamma,
+          vega,
+          theta,
+          oi: Number.isFinite(ticker.oi) ? ticker.oi : null,
+          dOI: null,
+          size: Number.isFinite(ticker.volume) ? ticker.volume : null,
+          pos: null,
+        };
+        if (type === 'C') entry.call = data;
+        else entry.put = data;
       }
     }
 
@@ -1881,27 +1926,59 @@ export default function OptionsChainPage({
       // Use ATM strike as spot price approximation
       const effectiveSpot = atmK;
 
-      return strikes.map(K => {
+      const rows = strikes.map(K => {
         const entry = liveStrikes.get(K)!;
         return {
           strike: K,
           isATM: K === atmK,
           isITM: K < effectiveSpot,
-          call: entry.call ?? buildSide(effectiveSpot, K, T, coinCfg.baseIV, true, () => Math.random()),
-          put: entry.put ?? buildSide(effectiveSpot, K, T, coinCfg.baseIV, false, () => Math.random()),
+          call: entry.call ?? buildEmptySide(),
+          put: entry.put ?? buildEmptySide(),
         };
       });
-    }
+      
+      console.log('[Chain Data] Using LIVE data, rows:', rows.length);
+      return rows;
+  }
 
-    // Fallback to mock data
-    return buildChain(coinCfg, T, seed);
-  }, [coinCfg, T, seed, storeTickers, expiryStr]);
+  // No live data, return empty array
+  console.log('[Chain Data] No live data for', expiryPrefix);
+  return [];
+}, [coinCfg, T, seed, storeTickers, expiryStr, effectiveSpot]);
   const rows = useMemo(() => {
-    if (filterKey === 'all') return allRows;
-    const ai = allRows.findIndex(r => r.isATM);
-    const n  = filterKey === 'atm5' ? 5 : 10;
-    return allRows.slice(Math.max(0, ai - n), ai + n + 1);
-  }, [allRows, filterKey]);
+    const filtered = filterKey === 'all' ? allRows : (() => {
+      const ai = allRows.findIndex(r => r.isATM);
+      const n  = filterKey === 'atm5' ? 5 : 10;
+      return allRows.slice(Math.max(0, ai - n), ai + n + 1);
+    })();
+
+    // 注入真实持仓数据
+    const baseCoin = coinCfg.label;
+    const expiryPrefix = expiryStr.replace(/\s+/g, '').toUpperCase();
+    
+    return filtered.map(row => {
+      // 支持两种格式：BTC-21MAY26-77000-C 和 BTC_USDC-19MAY26-70000-C
+      const callSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-C`;
+      const putSymbol = `${baseCoin}-${expiryPrefix}-${row.strike}-P`;
+      const callSymbolUsdc = `${baseCoin}_USDC-${expiryPrefix}-${row.strike}-C`;
+      const putSymbolUsdc = `${baseCoin}_USDC-${expiryPrefix}-${row.strike}-P`;
+      
+      const callPos = positions.find(p => p.symbol === callSymbol || p.symbol === callSymbolUsdc);
+      const putPos = positions.find(p => p.symbol === putSymbol || p.symbol === putSymbolUsdc);
+      
+      return {
+        ...row,
+        call: {
+          ...row.call,
+          pos: callPos ? (callPos.side === 'long' ? callPos.qty : -callPos.qty) : null,
+        },
+        put: {
+          ...row.put,
+          pos: putPos ? (putPos.side === 'long' ? putPos.qty : -putPos.qty) : null,
+        },
+      };
+    });
+  }, [allRows, filterKey, positions, coinCfg.label, expiryStr]);
 
   const handleFilter = useCallback((k: FilterKey) => {
     if (k === filterKey) return;
@@ -1922,8 +1999,8 @@ export default function OptionsChainPage({
 
   const atmRow = allRows.find(r => r.isATM);
   const atmIV  = atmRow?.call.iv ?? 48;
-  const dec    = coinCfg.spot < 1 ? 6 : coinCfg.spot < 100 ? 4 : 2;
-  const spotDp = coinCfg.spot < 1 ? 6 : coinCfg.spot < 100 ? 4 : 2;
+  const dec    = effectiveSpot < 1 ? 6 : effectiveSpot < 100 ? 4 : 2;
+  const spotDp = effectiveSpot < 1 ? 6 : effectiveSpot < 100 ? 4 : 2;
   const dte    = useMemo(() => expiryDTE(expiryStr), [expiryStr]);
 
   // Total content width: 17 cols * 2 + strike
@@ -1938,9 +2015,9 @@ export default function OptionsChainPage({
   }, [expiryStr]);
 
   const { emLower, emUpper } = useMemo(() => {
-    const em = coinCfg.spot * (atmIV / 100) * Math.sqrt(dteDays / 365);
-    return { emLower: coinCfg.spot - em, emUpper: coinCfg.spot + em };
-  }, [coinCfg.spot, atmIV, dteDays]);
+    const em = effectiveSpot * (atmIV / 100) * Math.sqrt(dteDays / 365);
+    return { emLower: effectiveSpot - em, emUpper: effectiveSpot + em };
+  }, [effectiveSpot, atmIV, dteDays]);
 
   // Map price → Y coordinate in virtualised list
   const priceToY = useCallback((price: number): number => {
@@ -1992,7 +2069,7 @@ export default function OptionsChainPage({
 
   // Spot Y：严格线性插值（以“行中心点”为基准），确保落在两行文字的空白间隙
   const spotY = useMemo(() => {
-    const currentPrice = coinCfg.spot;
+    const currentPrice = effectiveSpot;
     const strikes = rows.map(r => r.strike);
     const rowHeight = ROW_H;
 
@@ -2001,8 +2078,8 @@ export default function OptionsChainPage({
 
     // 直接返回上下两行之间的【物理缝隙坐标】（上面那一行的底边缘）
     return upperIndex * rowHeight;
-  }, [rows, coinCfg.spot]);
-  const currentPrice = coinCfg.spot;
+  }, [rows, effectiveSpot]);
+  const currentPrice = effectiveSpot;
 
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -2012,7 +2089,16 @@ export default function OptionsChainPage({
     overscan: 14,
   });
 
+  console.log('[Virtualizer] rows.length:', rows.length, 'virtual items:', virtualizer.getVirtualItems().length, 'total size:', virtualizer.getTotalSize());
+  if (virtualizer.getVirtualItems().length > 0) {
+    console.log('[Virtualizer] First virtual item index:', virtualizer.getVirtualItems()[0].index, 'start:', virtualizer.getVirtualItems()[0].start);
+  }
+
   useEffect(() => {
+    if (parentRef.current) {
+      const rect = parentRef.current.getBoundingClientRect();
+      console.log('[Container] clientHeight:', parentRef.current.clientHeight, 'rect.height:', rect.height, 'offsetHeight:', parentRef.current.offsetHeight);
+    }
     const ai = rows.findIndex(r => r.isATM);
     if (ai >= 0) virtualizer.scrollToIndex(ai, { align: 'center', behavior: 'smooth' });
   }, [rows.length, filterKey]);
@@ -2475,7 +2561,6 @@ export default function OptionsChainPage({
           style={{
             width: '100%',
             height: autoHeight ? 'auto' : 'calc(100vh - 160px)',
-            // Clip to viewport container
             maxWidth: '100%',
           }}
         >
@@ -2483,10 +2568,10 @@ export default function OptionsChainPage({
           <div style={{ minWidth: totalWidth, position: 'relative' }}>
 
             {/* ── Sticky header block ── */}
-            {/* z-index 需要高于行数据，否则滚动时会出现“标题栏和数据混在一起”的视觉问题 */}
             <div className="sticky top-0 z-30" style={{ backgroundColor: BG_HEADER }}>
               <SectionRow
                 coinCfg={coinCfg}
+                effectiveSpot={effectiveSpot}
                 expiryStr={expiryStr}
                 atmIV={atmIV}
                 spotDp={spotDp}
@@ -2505,6 +2590,18 @@ export default function OptionsChainPage({
             </div>
 
             {/* ── Virtualised data rows ── */}
+            {allRows.length === 0 ? (
+              <div className="flex items-center justify-center" style={{ height: 400 }}>
+                <div className="text-center">
+                  <div className="text-[14px] font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>
+                    正在连接 Deribit 实时行情...
+                  </div>
+                  <div className="mt-2 text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
+                    请确保已选择有效的到期日
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
 
               {/* 1) ±1σ 光带：彻底垫底 (z-0)，保证连续；执行价列背景挖空用于“透视窗”透出 */}
@@ -2525,6 +2622,9 @@ export default function OptionsChainPage({
               <div className="relative z-10" style={{ height: virtualizer.getTotalSize() }}>
                 {virtualizer.getVirtualItems().map(vItem => {
                   const row    = rows[vItem.index];
+                  if (!row) {
+                    return null;
+                  }
                   const isEven = vItem.index % 2 === 0;
                   const isSelectedSide =
                     selectedCell?.row.strike === row.strike
@@ -2544,7 +2644,7 @@ export default function OptionsChainPage({
                         isSelected={isSelectedSide}
                         onRowClick={handleRowClick}
                         showDist={showDist}
-                        spot={coinCfg.spot}
+                        spot={effectiveSpot}
                         emBandStrikeMin={emBandStrikeMin}
                         emBandStrikeMax={emBandStrikeMax}
                         variant={isDeribit ? 'deribit' : 'nexus'}
@@ -2572,6 +2672,7 @@ export default function OptionsChainPage({
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
 
@@ -2604,6 +2705,7 @@ export default function OptionsChainPage({
                 <TradingPanel
                   selected={selectedCell}
                   coinCfg={coinCfg}
+                  effectiveSpot={effectiveSpot}
                   expiryStr={expiryStr}
                   dec={dec}
                   seed={seed}

@@ -343,6 +343,8 @@ export const useSimTradingStore = create<SimTradingStore>()(
             ask: update.ask ?? existing?.ask ?? 0,
             lastPrice: update.lastPrice ?? existing?.lastPrice ?? 0,
             change24h: update.change24h ?? existing?.change24h ?? 0,
+            oi: update.oi ?? existing?.oi ?? null,
+            volume: update.volume ?? existing?.volume ?? null,
             updatedAt: Date.now(),
           };
           hasChanges = true;

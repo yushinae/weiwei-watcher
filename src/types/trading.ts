@@ -92,6 +92,8 @@ export interface TickerData {
   ask: number;
   lastPrice: number;
   change24h: number;
+  oi: number | null;
+  volume: number | null;
   updatedAt: number;
 }
 

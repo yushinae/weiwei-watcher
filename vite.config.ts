@@ -29,6 +29,13 @@ export default defineConfig(({mode}) => {
           ws: true,
           changeOrigin: true,
         },
+        '/deribit-ws': {
+          target: 'wss://www.deribit.com',
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/deribit-ws/, '/ws/api/v2'),
+        },
       },
     },
   };

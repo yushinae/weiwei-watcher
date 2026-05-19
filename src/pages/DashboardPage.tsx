@@ -79,7 +79,7 @@ export const DashboardPage = () => {
           )}
 
           {activePage.instances.length > 0 && (
-            <div className="relative px-2 pb-24 flex-1" ref={containerRef}>
+            <div className="relative px-2 pb-0 flex-1" ref={containerRef}>
               {fullscreenId && (
                 <div
                   className="fixed inset-0 bg-[#0A0A0B]/60 z-[90] backdrop-blur-md"
@@ -97,7 +97,7 @@ export const DashboardPage = () => {
                 onLayoutChange={onLayoutChange}
                 dragConfig={{ handle: ".widget-drag-handle" }}
                 margin={[8, 8]}
-                containerPadding={[8, 8]}
+                containerPadding={[8, 0]}
               >
                 {activePage.instances.map(inst => {
                   const defn = WIDGET_REGISTRY[inst.widgetId];

@@ -1232,15 +1232,13 @@ export default function App() {
     <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
       {/* Top Header — 毛玻璃效果 */}
       {/* 顶部栏需要高层级，否则会被页面内 sticky 标题栏遮挡（如下拉面板/弹出卡片） */}
-      <header className="h-[44px] flex items-center px-2 glass-bar shrink-0 relative z-[150]">
+      <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]">
         {/* Logo and Nav */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
-            <div className="w-8 h-8 bg-brand-blue rounded-[6px] flex items-center justify-center shadow-[0_0_15px_rgba(77,124,255,0.4)] group-hover:bg-[#5E8AFF] transition-colors">
-              <Activity className="text-white" size={16} strokeWidth={3} />
-            </div>
+            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(77,124,255,0.4)]" />
             <span className="font-bold text-sm tracking-tight text-slate-100">
-              NEXUS
+              薇薇看板
             </span>
           </div>
 
@@ -1684,8 +1682,8 @@ export default function App() {
       </main>
 
       {/* 底部导航栏和活动条 */}
-      <footer className="h-[36px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: 'none', borderBottom: 'none', boxShadow: 'none' }}>
-        <div className="flex items-center gap-1.5 h-full py-1">
+      <footer className="h-[34px] glass-bar flex items-center justify-between px-1.5 shrink-0 z-10 w-full relative">
+        <div className="flex items-center gap-1 h-full py-0.5">
           {pages.map((page) => (
             <FooterTab
               key={page.id}
@@ -1736,7 +1734,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 h-full py-1">
+        <div className="flex items-center gap-1.5 h-full py-0.5">
           {/* “添加组件”按钮：点击弹出可以选方块的窗口 */}
           <motion.button
             layoutId="addWidgetModalBackground"

@@ -8,18 +8,18 @@
 // React 是我们造网页的大框架。useState 帮我们记住东西（比如现在几点），useEffect 帮我们做一些杂事（比如去网上拿数据）。
 import React, { useState, useEffect, useRef } from 'react';
 // Lucide 是一个图标店，我们从这里拿“趋势向上”、“时钟”、“设置”等小图标。
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  ChevronRight, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  ChevronRight,
   ChevronDown,
-  Activity, 
-  Search, 
-  Bell, 
-  Wallet, 
-  Settings, 
-  ArrowUpRight, 
+  Activity,
+  Search,
+  Bell,
+  Wallet,
+  Settings,
+  ArrowUpRight,
   ArrowDownRight,
   PieChart as PieChartIcon,
   BarChart3,
@@ -53,13 +53,13 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 // Recharts 是画图专家，我们用它画各种复杂的行情线。
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -110,21 +110,21 @@ const TokenIcon = ({ symbol }: { symbol: string }) => {
   if (symbol.includes('BTC')) {
     return (
       <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="16" cy="16" r="16" fill="#F7931A"/>
-        <path d="M22.1 13.7c.4-2.6-1.6-4-4.3-4.9l.9-3.6-2.2-.5-.9 3.5-1.7-.4.9-3.5-2.2-.5-.9 3.6-1.4-.3-3.1-.8-.6 2.4s1.6.4 1.6.4c.9.2 1.1.8 1 1.4l-2.5 10.1c-.1.4-.5.9-1.3.7l-1.6-.4-1.1 2.6 2.9.7 1.7.4-.9 3.7 2.2.5.9-3.7 1.7.4-.9 3.6 2.2.5.9-3.6c3.8.7 6.6.4 7.8-3 1-2.7-.1-4.2-2-5.2 1.4-.3 2.4-1.2 2.7-3zm-4.8 6.7c-.7 2.8-5.4.9-6.9.7l1.2-4.9c1.5.4 6.5.9 5.7 4.2zm.7-6.9c-.6 2.5-4.5.9-5.8.7l1.1-4.4c1.2.3 5.4.8 4.7 3.7z" fill="#FFF"/>
+        <circle cx="16" cy="16" r="16" fill="#F7931A" />
+        <path d="M22.1 13.7c.4-2.6-1.6-4-4.3-4.9l.9-3.6-2.2-.5-.9 3.5-1.7-.4.9-3.5-2.2-.5-.9 3.6-1.4-.3-3.1-.8-.6 2.4s1.6.4 1.6.4c.9.2 1.1.8 1 1.4l-2.5 10.1c-.1.4-.5.9-1.3.7l-1.6-.4-1.1 2.6 2.9.7 1.7.4-.9 3.7 2.2.5.9-3.7 1.7.4-.9 3.6 2.2.5.9-3.6c3.8.7 6.6.4 7.8-3 1-2.7-.1-4.2-2-5.2 1.4-.3 2.4-1.2 2.7-3zm-4.8 6.7c-.7 2.8-5.4.9-6.9.7l1.2-4.9c1.5.4 6.5.9 5.7 4.2zm.7-6.9c-.6 2.5-4.5.9-5.8.7l1.1-4.4c1.2.3 5.4.8 4.7 3.7z" fill="#FFF" />
       </svg>
     );
   }
   if (symbol.includes('ETH')) {
     return (
       <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="16" cy="16" r="16" fill="#6270E0"/>
-        <path d="M16 5L15.8 5.8V20.2L16 20.4L23.5 16L16 5Z" fill="#D0D8FF"/>
-        <path d="M16 5L8.5 16L16 20.4V5Z" fill="#FFF"/>
-        <path d="M16 21.8L15.8 22V27.5L16 28L23.5 17.4L16 21.8Z" fill="#D0D8FF"/>
-        <path d="M16 28V21.8L8.5 17.4L16 28Z" fill="#FFF"/>
-        <path d="M16 20.4L23.5 16L16 12.6V20.4Z" fill="#8A9CE8"/>
-        <path d="M8.5 16L16 20.4V12.6L8.5 16Z" fill="#D0D8FF"/>
+        <circle cx="16" cy="16" r="16" fill="#6270E0" />
+        <path d="M16 5L15.8 5.8V20.2L16 20.4L23.5 16L16 5Z" fill="#D0D8FF" />
+        <path d="M16 5L8.5 16L16 20.4V5Z" fill="#FFF" />
+        <path d="M16 21.8L15.8 22V27.5L16 28L23.5 17.4L16 21.8Z" fill="#D0D8FF" />
+        <path d="M16 28V21.8L8.5 17.4L16 28Z" fill="#FFF" />
+        <path d="M16 20.4L23.5 16L16 12.6V20.4Z" fill="#8A9CE8" />
+        <path d="M8.5 16L16 20.4V12.6L8.5 16Z" fill="#D0D8FF" />
       </svg>
     );
   }
@@ -133,33 +133,33 @@ const TokenIcon = ({ symbol }: { symbol: string }) => {
       <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="solGrad" x1="7" y1="26.75" x2="25" y2="8.25" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#9945FF"/>
-            <stop offset="100%" stopColor="#14F195"/>
+            <stop offset="0%" stopColor="#9945FF" />
+            <stop offset="100%" stopColor="#14F195" />
           </linearGradient>
         </defs>
-        <circle cx="16" cy="16" r="16" fill="#1A0B38"/>
-        <polygon points="7,11.25 25,8.25 25,11.75 7,14.75" fill="url(#solGrad)"/>
-        <polygon points="7,17.25 25,14.25 25,17.75 7,20.75" fill="url(#solGrad)"/>
-        <polygon points="7,23.25 25,20.25 25,23.75 7,26.75" fill="url(#solGrad)"/>
+        <circle cx="16" cy="16" r="16" fill="#1A0B38" />
+        <polygon points="7,11.25 25,8.25 25,11.75 7,14.75" fill="url(#solGrad)" />
+        <polygon points="7,17.25 25,14.25 25,17.75 7,20.75" fill="url(#solGrad)" />
+        <polygon points="7,23.25 25,20.25 25,23.75 7,26.75" fill="url(#solGrad)" />
       </svg>
     );
   }
   if (symbol.includes('BNB')) {
     return (
       <svg width="28" height="28" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="16" cy="16" r="16" fill="#181A20"/>
+        <circle cx="16" cy="16" r="16" fill="#181A20" />
         {/* 顶面：左三角块 */}
-        <polygon points="16,7.5 9.5,12 15,15.5" fill="#F0B90B"/>
+        <polygon points="16,7.5 9.5,12 15,15.5" fill="#F0B90B" />
         {/* 顶面：右三角块 */}
-        <polygon points="16,7.5 17,15.5 22.5,12" fill="#F0B90B"/>
+        <polygon points="16,7.5 17,15.5 22.5,12" fill="#F0B90B" />
         {/* 左侧面上块 */}
-        <polygon points="9.5,13 15,16.5 15,19.5 9.5,16" fill="#A08010"/>
+        <polygon points="9.5,13 15,16.5 15,19.5 9.5,16" fill="#A08010" />
         {/* 左侧面下块 */}
-        <polygon points="9.5,17 15,20.5 16,24.5 9.5,21" fill="#A08010"/>
+        <polygon points="9.5,17 15,20.5 16,24.5 9.5,21" fill="#A08010" />
         {/* 右侧面上块 */}
-        <polygon points="22.5,13 22.5,16 17,19.5 17,16.5" fill="#C9A012"/>
+        <polygon points="22.5,13 22.5,16 17,19.5 17,16.5" fill="#C9A012" />
         {/* 右侧面下块 */}
-        <polygon points="22.5,17 22.5,21 16,24.5 17,20.5" fill="#C9A012"/>
+        <polygon points="22.5,17 22.5,21 16,24.5 17,20.5" fill="#C9A012" />
       </svg>
     );
   }
@@ -183,15 +183,15 @@ const PriceTicker = ({ symbol, price, change, up }: { symbol: string, price: str
     if (price !== prevPriceRef.current) {
       const numPrice = parseFloat(price.replace(/,/g, ''));
       const prevNumPrice = parseFloat(prevPriceRef.current.replace(/,/g, ''));
-      
+
       if (numPrice > prevNumPrice) {
         setFlashColor('text-trade-up'); // 涨了变绿
       } else if (numPrice < prevNumPrice) {
         setFlashColor('text-trade-down'); // 跌了变红
       }
-      
+
       prevPriceRef.current = price;
-      
+
       // 0.2秒后把颜色变回去
       const timer = setTimeout(() => {
         setFlashColor(null);
@@ -249,7 +249,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
       if (displayRate !== rate) setDisplayRate(rate);
       return;
     }
-    
+
     const timeout = setTimeout(() => {
       setDisplayRate(prev => Math.abs(diff) < 0.05 ? rate : prev + diff * 0.15);
     }, 16);
@@ -276,7 +276,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
         <div className="flex items-center gap-1.5 text-[13px] leading-none">
           <span className="font-bold text-slate-100 w-[18px] text-right">MM</span>
           <div className="w-14 h-[8px] bg-white/10 rounded-full overflow-hidden relative">
-            <motion.div 
+            <motion.div
               style={{ width: `${displayRate}%` }}
               className={cn(
                 "h-full rounded-full relative overflow-hidden",
@@ -289,7 +289,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
           <span className="font-mono tnum font-bold text-slate-100 w-[28px] text-right">{displayRate.toFixed(0)}%</span>
         </div>
       </div>
-      
+
       <div className="h-full flex items-center justify-center px-3 bg-white/5 hover:bg-white/10 transition-colors rounded-[6px] border border-white/10 cursor-pointer">
         <span className="text-[14px] font-bold tracking-wide">
           <span className="text-brand-blue">S:</span> <span className="text-slate-100 ml-0.5">SM</span>
@@ -315,11 +315,11 @@ const NineDots = ({ size = 24, className = "" }: { size?: number, className?: st
 
 const AppNavigationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeCat, setActiveCat] = useState<'all'|'account'|'help'>('all');
+  const [activeCat, setActiveCat] = useState<'all' | 'account' | 'help'>('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const isAssets  = location.pathname === '/assets';
+  const isAssets = location.pathname === '/assets';
   const isMonitor = location.pathname === '/monitor';
 
   useEffect(() => {
@@ -359,9 +359,9 @@ const AppNavigationDropdown = () => {
               </div>
 
               {([
-                { k: 'all' as const,     l: '所有' },
+                { k: 'all' as const, l: '所有' },
                 { k: 'account' as const, l: '账户' },
-                { k: 'help' as const,    l: '工具' },
+                { k: 'help' as const, l: '工具' },
               ]).map(({ k, l }) => {
                 const on = activeCat === k;
                 return (
@@ -458,11 +458,11 @@ const AppNavigationDropdown = () => {
 
 const LINEAR_COINS_BASE = [
   { base: 'AVAX', color: '#E84142' },
-  { base: 'BTC',  color: '#F7931A' },
-  { base: 'ETH',  color: '#627EEA' },
-  { base: 'SOL',  color: '#9945FF' },
-  { base: 'TRX',  color: '#EF0027' },
-  { base: 'XRP',  color: '#346AA9' },
+  { base: 'BTC', color: '#F7931A' },
+  { base: 'ETH', color: '#627EEA' },
+  { base: 'SOL', color: '#9945FF' },
+  { base: 'TRX', color: '#EF0027' },
+  { base: 'XRP', color: '#346AA9' },
 ];
 
 // ── OptionsDropdown animation variants ───────────────────────────────────────
@@ -536,7 +536,7 @@ const OptionsDropdown = () => {
           const sorted = [...expSet].sort((a, b) => {
             const parseDate = (s: string) => {
               const [d, m, y] = s.split(' ');
-              const months: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
+              const months: Record<string, number> = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
               return new Date(2000 + parseInt(y), months[m] ?? 0, parseInt(d)).getTime();
             };
             return parseDate(a) - parseDate(b);
@@ -806,12 +806,12 @@ const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets:
     <div className="flex items-center w-full h-full justify-end gap-1.5 min-w-0" ref={containerRef}>
       {/* Dropdown at the far left if we have any hidden tickers */}
       {hiddenTickers.length > 0 && (
-        <div 
-          className="relative flex items-center shrink-0" 
+        <div
+          className="relative flex items-center shrink-0"
           onMouseEnter={() => setIsOpen(true)}
           onMouseLeave={() => setIsOpen(false)}
         >
-          <button 
+          <button
             className={cn(
               "flex items-center justify-center w-[40px] h-[36px] rounded-[8px] bg-transparent border border-border-subtle text-slate-400 transition-all cursor-pointer relative z-10",
               isOpen ? "bg-surface-2 text-slate-200" : "hover:bg-surface-2 hover:border-border-strong hover:text-slate-200"
@@ -819,7 +819,7 @@ const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets:
           >
             <ChevronDown size={20} strokeWidth={3} className={cn("transition-transform duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-slate-100", isOpen ? "rotate-180" : "rotate-0")} />
           </button>
-          
+
           <HoverPopover
             open={isOpen}
             panelZ={60}
@@ -833,7 +833,7 @@ const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets:
           </HoverPopover>
         </div>
       )}
-      
+
       {/* Visible tickers on the right */}
       {visibleTickers.map(ticker => (
         <PriceTicker key={ticker.symbol} {...ticker} />
@@ -857,10 +857,10 @@ const TopBarSettingsDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const widgets = useWorkspaceStore(state => state.widgets);
   const toggleWidget = useWorkspaceStore(state => state.toggleWidget);
-  
+
   return (
-    <div 
-      className="relative" 
+    <div
+      className="relative"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
@@ -900,8 +900,8 @@ const TopBarSettingsDropdown = () => {
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <div 
-      className="relative" 
+    <div
+      className="relative"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
@@ -929,16 +929,16 @@ const UserDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   return (
-    <div 
-      className="relative" 
+    <div
+      className="relative"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
       <div className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]", isOpen ? "bg-brand-blue-deep shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent hover:bg-brand-blue-deep")}>
         <div className="w-7 h-7 rounded-[5px] overflow-hidden">
-          <img 
-            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" 
-            alt="Avatar" 
+          <img
+            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+            alt="Avatar"
             className="w-full h-full object-cover"
           />
         </div>
@@ -1036,7 +1036,7 @@ const FooterTab: React.FC<FooterTabProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="relative h-full flex"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => { setIsHovered(false); setIsMenuOpen(false); }}
@@ -1092,18 +1092,18 @@ const FooterTab: React.FC<FooterTabProps> = ({
         panelZ={91}
         panelClassName="absolute bottom-full mb-2 left-0 min-w-[124px] p-1 after:absolute after:-bottom-2 after:left-0 after:w-full after:h-2"
       >
-            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
-              <Edit2 size={14} strokeWidth={2} />
-              编辑标签
-            </button>
-            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onClone(); }}>
-              <Copy size={14} strokeWidth={2} />
-              复制选项卡
-            </button>
-            <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-[#F05252] hover:bg-surface-5 rounded-[4px] transition-colors text-left mt-0.5" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onDelete(); }}>
-              <Trash2 size={14} strokeWidth={2} />
-              删除选项卡
-            </button>
+        <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
+          <Edit2 size={14} strokeWidth={2} />
+          编辑标签
+        </button>
+        <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onClone(); }}>
+          <Copy size={14} strokeWidth={2} />
+          复制选项卡
+        </button>
+        <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-[#F05252] hover:bg-surface-5 rounded-[4px] transition-colors text-left mt-0.5" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onDelete(); }}>
+          <Trash2 size={14} strokeWidth={2} />
+          删除选项卡
+        </button>
       </Popover>
     </div>
   );
@@ -1232,7 +1232,7 @@ export default function App() {
     <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
       {/* Top Header — 毛玻璃效果 */}
       {/* 顶部栏需要高层级，否则会被页面内 sticky 标题栏遮挡（如下拉面板/弹出卡片） */}
-      <header className="h-[42px] flex items-center px-2 glass-bar shrink-0 relative z-[150]">
+      <header className="h-[44px] flex items-center px-2 glass-bar shrink-0 relative z-[150]">
         {/* Logo and Nav */}
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
@@ -1243,7 +1243,7 @@ export default function App() {
               NEXUS
             </span>
           </div>
-          
+
           <AppNavigationDropdown />
         </div>
 
@@ -1274,7 +1274,7 @@ export default function App() {
           {/* @ts-ignore */}
           <Routes location={location} key={location.pathname}>
             <Route path="/market" element={
-              <motion.div 
+              <motion.div
                 key="market"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1282,173 +1282,173 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 flex p-2 gap-3 overflow-y-auto"
               >
-              {/* Left Panel: Charts & Stats */}
-              <section className="flex-1 flex flex-col gap-6 min-w-0">
-                {/* Main Chart View */}
-                <div className="flex-1 glass rounded-xl p-6 flex flex-col relative group">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                        BTCUSDT PERP <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] rounded uppercase">Live</span>
-                      </h2>
-                      <div className="flex items-center gap-1 bg-white/5 rounded-md p-1">
-                        {['1M', '5M', '15M', '1H', '4H', '1D'].map(tf => (
-                          <button 
-                            key={tf} 
-                            className={cn(
-                              "px-2 py-0.5 text-[10px] font-bold rounded transition-colors",
-                              tf === '15M' ? "bg-brand-blue text-white" : "text-slate-500 hover:text-slate-300"
-                            )}
-                          >
-                            {tf}
-                          </button>
+                {/* Left Panel: Charts & Stats */}
+                <section className="flex-1 flex flex-col gap-6 min-w-0">
+                  {/* Main Chart View */}
+                  <div className="flex-1 glass rounded-xl p-6 flex flex-col relative group">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                          BTCUSDT PERP <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] rounded uppercase">Live</span>
+                        </h2>
+                        <div className="flex items-center gap-1 bg-white/5 rounded-md p-1">
+                          {['1M', '5M', '15M', '1H', '4H', '1D'].map(tf => (
+                            <button
+                              key={tf}
+                              className={cn(
+                                "px-2 py-0.5 text-[10px] font-bold rounded transition-colors",
+                                tf === '15M' ? "bg-brand-blue text-white" : "text-slate-500 hover:text-slate-300"
+                              )}
+                            >
+                              {tf}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
+                          <Settings size={16} />
+                        </button>
+                        <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
+                          <Menu size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 -ml-8 -mb-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={CHART_DATA}>
+                          <defs>
+                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#4D7CFF" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#4D7CFF" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1F1F27" vertical={false} />
+                          <XAxis
+                            dataKey="time"
+                            hide
+                          />
+                          <YAxis
+                            domain={['auto', 'auto']}
+                            orientation="right"
+                            stroke="#4B5565"
+                            fontSize={10}
+                            fontFamily="JetBrains Mono"
+                            tickFormatter={(v) => `$${v.toLocaleString()}`}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#131318', border: '1px solid #23232A', borderRadius: '8px' }}
+                            itemStyle={{ color: '#F1F5F9', fontFamily: 'JetBrains Mono', fontSize: '12px' }}
+                            labelStyle={{ color: '#64748B', marginBottom: '4px', fontSize: '10px' }}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="price"
+                            stroke="#4D7CFF"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorPrice)"
+                            animationDuration={1000}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Real-time Order Book Preview (Overlay Right) */}
+                    <div className="absolute right-8 top-28 bottom-8 w-44 glass-light rounded-xl p-3 flex flex-col gap-4 invisible xl:visible opacity-0 group-hover:opacity-100 transition-opacity">
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order Book</h3>
+                      <div className="flex-1 flex flex-col gap-1 overflow-hidden">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={`sell-${i}`} className="flex justify-between text-[11px] tnum font-mono text-rose-400">
+                            <span>64,2{(i * 1.5).toFixed(1)}</span>
+                            <span className="text-slate-400">0.245</span>
+                          </div>
+                        ))}
+                        <div className="h-px bg-border-subtle my-2" />
+                        {[...Array(8)].map((_, i) => (
+                          <div key={`buy-${i}`} className="flex justify-between text-[11px] tnum font-mono text-emerald-400">
+                            <span>64,1{(9 - i * 1.2).toFixed(1)}</span>
+                            <span className="text-slate-400">1.120</span>
+                          </div>
                         ))}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
-                        <Settings size={16} />
-                      </button>
-                      <button className="p-1.5 text-slate-400 hover:bg-slate-800 rounded">
-                        <Menu size={16} />
-                      </button>
-                    </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 -ml-8 -mb-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={CHART_DATA}>
-                        <defs>
-                          <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#4D7CFF" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#4D7CFF" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1F1F27" vertical={false} />
-                        <XAxis 
-                          dataKey="time" 
-                          hide 
-                        />
-                        <YAxis 
-                          domain={['auto', 'auto']} 
-                          orientation="right" 
-                          stroke="#4B5565" 
-                          fontSize={10} 
-                          fontFamily="JetBrains Mono"
-                          tickFormatter={(v) => `$${v.toLocaleString()}`}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#131318', border: '1px solid #23232A', borderRadius: '8px' }}
-                          itemStyle={{ color: '#F1F5F9', fontFamily: 'JetBrains Mono', fontSize: '12px' }}
-                          labelStyle={{ color: '#64748B', marginBottom: '4px', fontSize: '10px' }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="price" 
-                          stroke="#4D7CFF" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#colorPrice)" 
-                          animationDuration={1000}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  {/* Real-time Order Book Preview (Overlay Right) */}
-                  <div className="absolute right-8 top-28 bottom-8 w-44 glass-light rounded-xl p-3 flex flex-col gap-4 invisible xl:visible opacity-0 group-hover:opacity-100 transition-opacity">
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order Book</h3>
-                    <div className="flex-1 flex flex-col gap-1 overflow-hidden">
-                      {[...Array(8)].map((_, i) => (
-                        <div key={`sell-${i}`} className="flex justify-between text-[11px] tnum font-mono text-rose-400">
-                          <span>64,2{(i*1.5).toFixed(1)}</span>
-                          <span className="text-slate-400">0.245</span>
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      { label: '昨日总盈亏', value: '$2,450.80', trend: '+12.5%', icon: ArrowUpRight, color: 'text-emerald-400' },
+                      { label: '账户总权益', value: '$68,124.20', trend: '+2.1%', icon: Wallet, color: 'text-brand-blue' },
+                      { label: '最大回撤', value: '4.2%', trend: '-0.3%', icon: ArrowDownRight, color: 'text-rose-400' },
+                      { label: '高胜率因子', value: '62.5%', trend: '+4.2%', icon: TrendingUp, color: 'text-emerald-400' },
+                    ].map((stat, i) => (
+                      <div
+                        key={stat.label}
+                        className="bg-white/5 p-4 rounded-xl flex flex-col gap-2 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between text-slate-500">
+                          <span className="text-xs font-bold">{stat.label}</span>
+                          <stat.icon size={16} className={stat.color} />
                         </div>
-                      ))}
-                      <div className="h-px bg-border-subtle my-2" />
-                      {[...Array(8)].map((_, i) => (
-                        <div key={`buy-${i}`} className="flex justify-between text-[11px] tnum font-mono text-emerald-400">
-                          <span>64,1{(9-i*1.2).toFixed(1)}</span>
-                          <span className="text-slate-400">1.120</span>
+                        <div className="flex items-end justify-between">
+                          <span className="text-xl font-bold font-mono tracking-tight tnum">{stat.value}</span>
+                          <span className={cn("text-[10px] font-mono font-bold tnum", stat.color)}>{stat.trend}</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { label: '昨日总盈亏', value: '$2,450.80', trend: '+12.5%', icon: ArrowUpRight, color: 'text-emerald-400' },
-                    { label: '账户总权益', value: '$68,124.20', trend: '+2.1%', icon: Wallet, color: 'text-brand-blue' },
-                    { label: '最大回撤', value: '4.2%', trend: '-0.3%', icon: ArrowDownRight, color: 'text-rose-400' },
-                    { label: '高胜率因子', value: '62.5%', trend: '+4.2%', icon: TrendingUp, color: 'text-emerald-400' },
-                  ].map((stat, i) => (
-                    <div 
-                      key={stat.label}
-                      className="bg-white/5 p-4 rounded-xl flex flex-col gap-2 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span className="text-xs font-bold">{stat.label}</span>
-                        <stat.icon size={16} className={stat.color} />
                       </div>
-                      <div className="flex items-end justify-between">
-                        <span className="text-xl font-bold font-mono tracking-tight tnum">{stat.value}</span>
-                        <span className={cn("text-[10px] font-mono font-bold tnum", stat.color)}>{stat.trend}</span>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Right Panel: Side Data / Watchlist */}
+                <aside className="w-80 hidden lg:flex flex-col gap-6 overflow-hidden shrink-0">
+                  <div className="flex-1 glass rounded-xl flex flex-col overflow-hidden">
+                    <div className="p-4 border-b border-border-subtle/30 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                        <Activity size={16} className="text-brand-blue" />
+                        自选行情 (WATCHLIST)
+                      </h3>
+                      <Search size={14} className="text-slate-500 cursor-pointer hover:text-slate-300" />
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2">
+                      <div className="space-y-1">
+                        {MARKET_TICKERS.map((ticker) => (
+                          <div key={ticker.symbol} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800/30 group transition-all cursor-pointer">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-100">{ticker.symbol}</span>
+                              <span className="text-[10px] text-slate-500 uppercase font-mono tracking-tight">Perpetual</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-xs font-mono font-bold tnum text-slate-100">{ticker.price}</span>
+                              <span className={cn("text-[10px] font-mono font-bold tnum", ticker.up ? "text-emerald-400" : "text-rose-400")}>
+                                {ticker.change}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Right Panel: Side Data / Watchlist */}
-              <aside className="w-80 hidden lg:flex flex-col gap-6 overflow-hidden shrink-0">
-                <div className="flex-1 glass rounded-xl flex flex-col overflow-hidden">
-                  <div className="p-4 border-b border-border-subtle/30 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                      <Activity size={16} className="text-brand-blue" />
-                      自选行情 (WATCHLIST)
-                    </h3>
-                    <Search size={14} className="text-slate-500 cursor-pointer hover:text-slate-300" />
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-2">
-                    <div className="space-y-1">
-                      {MARKET_TICKERS.map((ticker) => (
-                        <div key={ticker.symbol} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800/30 group transition-all cursor-pointer">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-100">{ticker.symbol}</span>
-                            <span className="text-[10px] text-slate-500 uppercase font-mono tracking-tight">Perpetual</span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-xs font-mono font-bold tnum text-slate-100">{ticker.price}</span>
-                            <span className={cn("text-[10px] font-mono font-bold tnum", ticker.up ? "text-emerald-400" : "text-rose-400")}>
-                              {ticker.change}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    {/* Quick Trade Panel (Simplified) */}
+                    <div className="p-4 border-t border-border-subtle/30 bg-bg-deep">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button className="py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
+                          BUY / LONG
+                        </button>
+                        <button className="py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
+                          SELL / SHORT
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  {/* Quick Trade Panel (Simplified) */}
-                  <div className="p-4 border-t border-border-subtle/30 bg-bg-deep">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button className="py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
-                        BUY / LONG
-                      </button>
-                      <button className="py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-[8px] text-xs font-bold transition-all active:scale-95">
-                        SELL / SHORT
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </aside>
-            </motion.div>
+                </aside>
+              </motion.div>
             } />
 
             <Route path="/positions" element={
-              <motion.div 
+              <motion.div
                 key="positions"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1456,70 +1456,70 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
-              <div className="glass rounded-xl p-6 flex flex-col">
-                <div className="flex items-center justify-between mb-4 border-b border-border-subtle/30 pb-4">
-                  <h3 className="text-sm font-bold text-slate-100">当前持仓与委托 (POSITIONS & ORDERS)</h3>
-                  <div className="flex items-center gap-6 text-xs font-bold">
-                    <span className="text-slate-400">总持仓价值: <span className="text-slate-100 font-mono tnum">$124,500.20</span></span>
-                    <span className="text-slate-400">未实现损益: <span className="text-emerald-400 font-mono tnum">+$1,290.74</span></span>
+                <div className="glass rounded-xl p-6 flex flex-col">
+                  <div className="flex items-center justify-between mb-4 border-b border-border-subtle/30 pb-4">
+                    <h3 className="text-sm font-bold text-slate-100">当前持仓与委托 (POSITIONS & ORDERS)</h3>
+                    <div className="flex items-center gap-6 text-xs font-bold">
+                      <span className="text-slate-400">总持仓价值: <span className="text-slate-100 font-mono tnum">$124,500.20</span></span>
+                      <span className="text-slate-400">未实现损益: <span className="text-emerald-400 font-mono tnum">+$1,290.74</span></span>
+                    </div>
+                  </div>
+                  <div className="pr-2">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-white/5 z-10 before:absolute before:inset-0 before:border-b before:border-white/10 before:pointer-events-none">
+                        <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                          <th className="py-3 px-2">合约</th>
+                          <th className="py-3 px-2">仓位 / 杠杆</th>
+                          <th className="py-3 px-2">入口价格</th>
+                          <th className="py-3 px-2">标记价格</th>
+                          <th className="py-3 px-2">未实现损益 (P&L)</th>
+                          <th className="py-3 px-2 text-right">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs">
+                        {POSITION_DATA.map((pos) => (
+                          <tr key={pos.symbol} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                            <td className="py-4 px-2 font-bold text-slate-100">{pos.symbol}</td>
+                            <td className="py-4 px-2">
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold",
+                                  pos.type === 'Long' ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                                )}>
+                                  {pos.type}
+                                </span>
+                                <span className="font-mono tnum text-slate-300">{pos.qty}</span>
+                                <span className="text-[10px] text-slate-500 font-bold">{pos.leverage}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-2 font-mono tnum text-slate-400">{pos.entry}</td>
+                            <td className="py-4 px-2 font-mono tnum text-slate-100">{pos.mark}</td>
+                            <td className="py-4 px-2">
+                              <div className="flex flex-col">
+                                <span className={cn("font-mono font-bold tnum", pos.pnl.startsWith('+') ? "text-emerald-400" : "text-rose-400")}>
+                                  {pos.pnl}
+                                </span>
+                                <span className={cn("text-[10px] font-mono tnum", pos.pnl.startsWith('+') ? "text-emerald-500" : "text-rose-500")}>
+                                  ({pos.pnlPct})
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-2 text-right">
+                              <button className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[6px] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] font-bold">
+                                平仓
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <div className="pr-2">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-white/5 z-10 before:absolute before:inset-0 before:border-b before:border-white/10 before:pointer-events-none">
-                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        <th className="py-3 px-2">合约</th>
-                        <th className="py-3 px-2">仓位 / 杠杆</th>
-                        <th className="py-3 px-2">入口价格</th>
-                        <th className="py-3 px-2">标记价格</th>
-                        <th className="py-3 px-2">未实现损益 (P&L)</th>
-                        <th className="py-3 px-2 text-right">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-xs">
-                      {POSITION_DATA.map((pos) => (
-                        <tr key={pos.symbol} className="border-b border-white/10 hover:bg-white/5 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
-                          <td className="py-4 px-2 font-bold text-slate-100">{pos.symbol}</td>
-                          <td className="py-4 px-2">
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                "px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold",
-                                pos.type === 'Long' ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
-                              )}>
-                                {pos.type}
-                              </span>
-                              <span className="font-mono tnum text-slate-300">{pos.qty}</span>
-                              <span className="text-[10px] text-slate-500 font-bold">{pos.leverage}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-2 font-mono tnum text-slate-400">{pos.entry}</td>
-                          <td className="py-4 px-2 font-mono tnum text-slate-100">{pos.mark}</td>
-                          <td className="py-4 px-2">
-                            <div className="flex flex-col">
-                              <span className={cn("font-mono font-bold tnum", pos.pnl.startsWith('+') ? "text-emerald-400" : "text-rose-400")}>
-                                {pos.pnl}
-                              </span>
-                              <span className={cn("text-[10px] font-mono tnum", pos.pnl.startsWith('+') ? "text-emerald-500" : "text-rose-500")}>
-                                ({pos.pnlPct})
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-2 text-right">
-                            <button className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[6px] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] font-bold">
-                              平仓
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
+              </motion.div>
             } />
 
             <Route path="/logs" element={
-              <motion.div 
+              <motion.div
                 key="logs"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1527,41 +1527,41 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
-              <div className="glass rounded-xl p-6 flex flex-col">
-                <h3 className="text-sm font-bold text-slate-100 mb-4 border-b border-border-subtle/30 pb-4 uppercase tracking-wider">最近交易日志 (RECENT TRADE LOGS)</h3>
-                <div className="space-y-3 pr-2">
-                  {[...Array(12)].map((_, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 bg-bg-deep rounded-lg border border-border-subtle/30 hover:border-border-subtle/80 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
-                      <div className="flex items-center gap-4">
-                        <div className={cn("w-2 h-2 rounded-full", i % 2 === 0 ? "bg-emerald-500" : "bg-rose-500")} />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-200">{i % 2 === 0 ? 'Buy / Long' : 'Sell / Short'} BTCUSDT</span>
-                          <span className="text-[10px] text-slate-500">2024-05-05 14:24:{30+i}</span>
+                <div className="glass rounded-xl p-6 flex flex-col">
+                  <h3 className="text-sm font-bold text-slate-100 mb-4 border-b border-border-subtle/30 pb-4 uppercase tracking-wider">最近交易日志 (RECENT TRADE LOGS)</h3>
+                  <div className="space-y-3 pr-2">
+                    {[...Array(12)].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-bg-deep rounded-lg border border-border-subtle/30 hover:border-border-subtle/80 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+                        <div className="flex items-center gap-4">
+                          <div className={cn("w-2 h-2 rounded-full", i % 2 === 0 ? "bg-emerald-500" : "bg-rose-500")} />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-200">{i % 2 === 0 ? 'Buy / Long' : 'Sell / Short'} BTCUSDT</span>
+                            <span className="text-[10px] text-slate-500">2024-05-05 14:24:{30 + i}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-10 items-center font-mono text-xs">
+                          <div className="flex flex-col items-end">
+                            <span className="text-slate-500 text-[10px]">价格</span>
+                            <span className="text-slate-100 tnum font-bold">64,120.5</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-slate-500 text-[10px]">数量</span>
+                            <span className="text-slate-100 tnum font-bold">0.024</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-slate-500 text-[10px]">手续费</span>
+                            <span className="text-slate-500 tnum">0.0001 BTC</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-10 items-center font-mono text-xs">
-                        <div className="flex flex-col items-end">
-                          <span className="text-slate-500 text-[10px]">价格</span>
-                          <span className="text-slate-100 tnum font-bold">64,120.5</span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-slate-500 text-[10px]">数量</span>
-                          <span className="text-slate-100 tnum font-bold">0.024</span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-slate-500 text-[10px]">手续费</span>
-                          <span className="text-slate-500 tnum">0.0001 BTC</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
             } />
 
             <Route path="/stats" element={
-              <motion.div 
+              <motion.div
                 key="stats"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1569,38 +1569,38 @@ export default function App() {
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0 p-2 overflow-auto"
               >
-              <div className="glass rounded-xl p-6 h-full">
-                <div className="grid grid-cols-3 gap-8 h-full">
-                  <div className="col-span-1 space-y-6 flex flex-col items-center justify-center border-r border-border-subtle/30 pr-8">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">盈利因子 (PROFIT FACTOR)</h4>
-                    <div className="h-40 w-40 mx-auto relative flex items-center justify-center">
-                       <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="80" cy="80" r="72" stroke="#1F1F27" strokeWidth="12" fill="transparent" />
-                        <circle cx="80" cy="80" r="72" stroke="#4D7CFF" strokeWidth="12" fill="transparent" strokeDasharray="452.4" strokeDashoffset="113.1" strokeLinecap="round" />
-                      </svg>
-                      <span className="absolute font-mono font-bold text-3xl tnum text-slate-100">2.41</span>
+                <div className="glass rounded-xl p-6 h-full">
+                  <div className="grid grid-cols-3 gap-8 h-full">
+                    <div className="col-span-1 space-y-6 flex flex-col items-center justify-center border-r border-border-subtle/30 pr-8">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">盈利因子 (PROFIT FACTOR)</h4>
+                      <div className="h-40 w-40 mx-auto relative flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle cx="80" cy="80" r="72" stroke="#1F1F27" strokeWidth="12" fill="transparent" />
+                          <circle cx="80" cy="80" r="72" stroke="#4D7CFF" strokeWidth="12" fill="transparent" strokeDasharray="452.4" strokeDashoffset="113.1" strokeLinecap="round" />
+                        </svg>
+                        <span className="absolute font-mono font-bold text-3xl tnum text-slate-100">2.41</span>
+                      </div>
+                      <p className="text-xs text-center text-slate-400 max-w-[200px] leading-relaxed">近30天平均获利能力出色，盈亏比维持在健康水平。</p>
                     </div>
-                    <p className="text-xs text-center text-slate-400 max-w-[200px] leading-relaxed">近30天平均获利能力出色，盈亏比维持在健康水平。</p>
-                  </div>
-                  <div className="col-span-2 space-y-6 flex flex-col justify-center pl-4">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">单周胜率统计 (WIN RATE)</h4>
-                    <div className="h-48 flex items-end gap-3 max-w-lg">
-                      {[45, 62, 58, 42, 75, 68, 55].map((h, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
-                          <motion.div 
-                            initial={{ height: 0 }}
-                            animate={{ height: `${h}%` }}
-                            transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                            className={cn("w-full rounded-t-sm transition-colors duration-[120ms]", i === 4 ? "bg-brand-blue" : "bg-slate-700/50 group-hover:bg-slate-600")}
-                          />
-                          <span className="text-[10px] text-slate-500 font-mono font-bold">D{i+1}</span>
-                        </div>
-                      ))}
+                    <div className="col-span-2 space-y-6 flex flex-col justify-center pl-4">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">单周胜率统计 (WIN RATE)</h4>
+                      <div className="h-48 flex items-end gap-3 max-w-lg">
+                        {[45, 62, 58, 42, 75, 68, 55].map((h, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${h}%` }}
+                              transition={{ duration: 0.5, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                              className={cn("w-full rounded-t-sm transition-colors duration-[120ms]", i === 4 ? "bg-brand-blue" : "bg-slate-700/50 group-hover:bg-slate-600")}
+                            />
+                            <span className="text-[10px] text-slate-500 font-mono font-bold">D{i + 1}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
             } />
             <Route path="/trade-log" element={
               <motion.div
@@ -1684,7 +1684,7 @@ export default function App() {
       </main>
 
       {/* 底部导航栏和活动条 */}
-      <footer className="h-[38px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: '1px solid rgba(255,255,255,0.14)', borderBottom: 'none' }}>
+      <footer className="h-[32px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: '1px solid rgba(255,255,255,0.14)', borderBottom: 'none' }}>
         <div className="flex items-center gap-1.5 h-full py-1">
           {pages.map((page) => (
             <FooterTab
@@ -1717,7 +1717,7 @@ export default function App() {
           ))}
           {/* “+”按钮：用来添加新标签 */}
           <div className="relative h-full flex items-center group">
-            <motion.button 
+            <motion.button
               layoutId="addTabModalBackground"
               onClick={() => setIsAddModalOpen(true)}
               className="flex items-center justify-center w-10 h-full bg-white/[0.08] border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
@@ -1738,7 +1738,7 @@ export default function App() {
 
         <div className="flex items-center gap-2 h-full py-1">
           {/* “添加组件”按钮：点击弹出可以选方块的窗口 */}
-          <motion.button 
+          <motion.button
             layoutId="addWidgetModalBackground"
             onClick={() => openComponentLibrary()}
             className={cn(
@@ -1747,7 +1747,7 @@ export default function App() {
             )}
             style={{ pointerEvents: isComponentLibraryOpen ? "none" : "auto" }}
           >
-            <motion.div 
+            <motion.div
               initial={false}
               animate={{ opacity: isComponentLibraryOpen ? 0 : 1 }}
               transition={{ duration: 0.1 }}
@@ -1780,196 +1780,196 @@ export default function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, delay: 0.08 }}
             >
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-white text-[15px] font-bold">添加组件</h2>
-                  <button onClick={() => closeComponentLibrary()} className="text-slate-400 hover:text-white transition-colors">
-                    <Plus size={20} className="rotate-45" />
-                  </button>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-white text-[15px] font-bold">添加组件</h2>
+                <button onClick={() => closeComponentLibrary()} className="text-slate-400 hover:text-white transition-colors">
+                  <Plus size={20} className="rotate-45" />
+                </button>
+              </div>
+
+              <div className="flex-1 flex min-h-0 border-t border-surface-5 mt-1 pt-3">
+                {/* Left Column: Categories */}
+                <div className="w-[100px] flex flex-col pr-2 border-r border-surface-5 min-h-0">
+                  <div className="relative mb-1 shrink-0">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B93A5]" />
+                    <input
+                      type="text"
+                      placeholder="查找组件"
+                      className="w-full h-[32px] bg-[#31333F]/50 text-slate-200 text-[12px] pl-8 pr-2 rounded-[6px] outline-none placeholder:text-[#8B93A5]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0 mt-1 overflow-y-auto min-h-0">
+                    <div
+                      onClick={() => setActiveWidgetCategory('all')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'all' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>所有</span>
+                      {activeWidgetCategory === 'all' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                    <div
+                      onClick={() => setActiveWidgetCategory('options')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'options' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>期权</span>
+                      {activeWidgetCategory === 'options' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                    <div
+                      onClick={() => setActiveWidgetCategory('monitor')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'monitor' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>监控</span>
+                      {activeWidgetCategory === 'monitor' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                    <div
+                      onClick={() => setActiveWidgetCategory('charts')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'charts' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>图表</span>
+                      {activeWidgetCategory === 'charts' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                    <div
+                      onClick={() => setActiveWidgetCategory('account')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'account' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>账户</span>
+                      {activeWidgetCategory === 'account' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                    <div
+                      onClick={() => setActiveWidgetCategory('tools')}
+                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'tools' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
+                    >
+                      <span>工具</span>
+                      {activeWidgetCategory === 'tools' && <ChevronRight size={14} className="text-white" />}
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex-1 flex min-h-0 border-t border-surface-5 mt-1 pt-3">
-                   {/* Left Column: Categories */}
-                   <div className="w-[100px] flex flex-col pr-2 border-r border-surface-5 min-h-0">
-                      <div className="relative mb-1 shrink-0">
-                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B93A5]" />
-                        <input
-                          type="text"
-                          placeholder="查找组件"
-                          className="w-full h-[32px] bg-[#31333F]/50 text-slate-200 text-[12px] pl-8 pr-2 rounded-[6px] outline-none placeholder:text-[#8B93A5]"
-                        />
+
+                {/* Middle Column: Widget List */}
+                <div className="w-[150px] flex flex-col overflow-y-auto min-h-0 px-2 gap-0 border-r border-surface-5">
+                  {Object.values(WIDGET_REGISTRY).filter(w => activeWidgetCategory === 'all' || w.category === activeWidgetCategory).map((widget) => {
+                    const isSelected = selectedWidgetId === widget.id;
+                    return (
+                      <div
+                        key={widget.id}
+                        onClick={() => {
+                          setSelectedWidgetId(widget.id);
+                          // reset config to defaults for this widget
+                          const defaults: Record<string, string> = {};
+                          (widget.configSchema ?? []).forEach(f => { defaults[f.key] = f.default; });
+                          setWidgetConfig(defaults);
+                        }}
+                        onMouseEnter={() => setHoveredWidgetId(widget.id)}
+                        onMouseLeave={() => setHoveredWidgetId(null)}
+                        className={cn(
+                          "relative flex items-center justify-between px-3 py-1.5 rounded-[6px] cursor-pointer transition-colors border",
+                          isSelected ? "bg-[#31333F] border-transparent" : "bg-transparent border-transparent hover:bg-[#31333F]/50"
+                        )}
+                      >
+                        <div className="text-[13px] font-bold text-white truncate">{widget.label.split(' (')[0]}</div>
+                        {isSelected && <ChevronRight size={14} className="text-white" />}
                       </div>
-                      <div className="flex flex-col gap-0 mt-1 overflow-y-auto min-h-0">
-                        <div
-                          onClick={() => setActiveWidgetCategory('all')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'all' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>所有</span>
-                          {activeWidgetCategory === 'all' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                        <div
-                          onClick={() => setActiveWidgetCategory('options')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'options' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>期权</span>
-                          {activeWidgetCategory === 'options' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                        <div
-                          onClick={() => setActiveWidgetCategory('monitor')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'monitor' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>监控</span>
-                          {activeWidgetCategory === 'monitor' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                        <div
-                          onClick={() => setActiveWidgetCategory('charts')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'charts' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>图表</span>
-                          {activeWidgetCategory === 'charts' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                        <div
-                          onClick={() => setActiveWidgetCategory('account')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'account' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>账户</span>
-                          {activeWidgetCategory === 'account' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                        <div
-                          onClick={() => setActiveWidgetCategory('tools')}
-                          className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'tools' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                        >
-                          <span>工具</span>
-                          {activeWidgetCategory === 'tools' && <ChevronRight size={14} className="text-white" />}
-                        </div>
-                      </div>
-                   </div>
+                    );
+                  })}
+                </div>
 
-                   {/* Middle Column: Widget List */}
-                   <div className="w-[150px] flex flex-col overflow-y-auto min-h-0 px-2 gap-0 border-r border-surface-5">
-                     {Object.values(WIDGET_REGISTRY).filter(w => activeWidgetCategory === 'all' || w.category === activeWidgetCategory).map((widget) => {
-                       const isSelected = selectedWidgetId === widget.id;
-                       return (
-                         <div
-                           key={widget.id}
-                           onClick={() => {
-                              setSelectedWidgetId(widget.id);
-                              // reset config to defaults for this widget
-                              const defaults: Record<string, string> = {};
-                              (widget.configSchema ?? []).forEach(f => { defaults[f.key] = f.default; });
-                              setWidgetConfig(defaults);
-                           }}
-                           onMouseEnter={() => setHoveredWidgetId(widget.id)}
-                           onMouseLeave={() => setHoveredWidgetId(null)}
-                           className={cn(
-                             "relative flex items-center justify-between px-3 py-1.5 rounded-[6px] cursor-pointer transition-colors border",
-                             isSelected ? "bg-[#31333F] border-transparent" : "bg-transparent border-transparent hover:bg-[#31333F]/50"
-                           )}
-                         >
-                           <div className="text-[13px] font-bold text-white truncate">{widget.label.split(' (')[0]}</div>
-                           {isSelected && <ChevronRight size={14} className="text-white" />}
-                         </div>
-                       );
-                     })}
-                   </div>
+                {/* Right Column: Preview Detail */}
+                <div className="flex-1 flex flex-col pl-3 pr-1 relative overflow-y-auto min-h-0">
+                  {(() => {
+                    const targetId = hoveredWidgetId || selectedWidgetId;
+                    if (!targetId) {
+                      return (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                          <Activity size={24} className="mb-2 opacity-30" />
+                          <span className="text-[13px]">请在左侧选择一个组件查看预览</span>
+                        </div>
+                      );
+                    }
+                    const widget = WIDGET_REGISTRY[targetId];
+                    return (
+                      <div className="flex flex-col h-auto min-h-full w-full">
+                        <h3 className="text-white font-bold text-[15px] mb-3">{widget?.label}</h3>
 
-                   {/* Right Column: Preview Detail */}
-                   <div className="flex-1 flex flex-col pl-3 pr-1 relative overflow-y-auto min-h-0">
-                      {(() => {
-                        const targetId = hoveredWidgetId || selectedWidgetId;
-                        if (!targetId) {
-                          return (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                              <Activity size={24} className="mb-2 opacity-30" />
-                              <span className="text-[13px]">请在左侧选择一个组件查看预览</span>
-                            </div>
-                          );
-                        }
-                        const widget = WIDGET_REGISTRY[targetId];
-                        return (
-                          <div className="flex flex-col h-auto min-h-full w-full">
-                            <h3 className="text-white font-bold text-[15px] mb-3">{widget?.label}</h3>
-
-                            {/* Config fields — only shown for the selected widget (not hovered) */}
-                            {targetId === selectedWidgetId && widget?.configSchema && widget.configSchema.length > 0 && (
-                              <div className="mb-3 flex flex-col gap-2 shrink-0">
-                                {widget.configSchema.map(field => (
-                                  <div key={field.key}>
-                                    <div className="text-[11px] font-bold text-slate-400 mb-1">{field.label}</div>
-                                    <select
-                                      value={widgetConfig[field.key] ?? field.default}
-                                      onChange={e => setWidgetConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                      className="w-full bg-[#1A1A24] border border-[#2A2A38] text-slate-100 text-[12px] px-3 py-2 rounded-[6px] outline-none focus:border-[#4D7CFF] cursor-pointer appearance-none"
-                                    >
-                                      {field.options.map(o => (
-                                        <option key={o.value} value={o.value}>{o.label}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                ))}
+                        {/* Config fields — only shown for the selected widget (not hovered) */}
+                        {targetId === selectedWidgetId && widget?.configSchema && widget.configSchema.length > 0 && (
+                          <div className="mb-3 flex flex-col gap-2 shrink-0">
+                            {widget.configSchema.map(field => (
+                              <div key={field.key}>
+                                <div className="text-[11px] font-bold text-slate-400 mb-1">{field.label}</div>
+                                <select
+                                  value={widgetConfig[field.key] ?? field.default}
+                                  onChange={e => setWidgetConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="w-full bg-[#1A1A24] border border-[#2A2A38] text-slate-100 text-[12px] px-3 py-2 rounded-[6px] outline-none focus:border-[#4D7CFF] cursor-pointer appearance-none"
+                                >
+                                  {field.options.map(o => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                  ))}
+                                </select>
                               </div>
-                            )}
-                            <div className="text-slate-400 text-[11px] font-bold mb-1.5 shrink-0 uppercase tracking-wider">预览</div>
-                            <div className="relative flex-1 w-full bg-surface-2 border border-surface-5 rounded-[8px] flex items-center justify-center overflow-hidden p-4 mb-3 min-h-[160px]">
-                              <div className="absolute inset-0 bg-[#131318]" />
-                              <div className="relative w-full h-full flex flex-col justify-center">
-                                {widget?.preview}
-                              </div>
-                            </div>
-                            <div className="bg-surface-2 rounded-[8px] p-4 border border-surface-5 flex items-start gap-3 min-h-[80px] shrink-0">
-                              <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
-                                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
-                                  <div className="bg-slate-400/20 rounded-[1px]" />
-                                  <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
-                                  <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
-                                  <div className="bg-slate-400/20 rounded-[1px]" />
-                                </div>
-                              </div>
-                              <p className="text-slate-300 text-[12px] leading-relaxed m-0">{widget?.description}</p>
+                            ))}
+                          </div>
+                        )}
+                        <div className="text-slate-400 text-[11px] font-bold mb-1.5 shrink-0 uppercase tracking-wider">预览</div>
+                        <div className="relative flex-1 w-full bg-surface-2 border border-surface-5 rounded-[8px] flex items-center justify-center overflow-hidden p-4 mb-3 min-h-[160px]">
+                          <div className="absolute inset-0 bg-[#131318]" />
+                          <div className="relative w-full h-full flex flex-col justify-center">
+                            {widget?.preview}
+                          </div>
+                        </div>
+                        <div className="bg-surface-2 rounded-[8px] p-4 border border-surface-5 flex items-start gap-3 min-h-[80px] shrink-0">
+                          <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+                            <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
+                              <div className="bg-slate-400/20 rounded-[1px]" />
+                              <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
+                              <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
+                              <div className="bg-slate-400/20 rounded-[1px]" />
                             </div>
                           </div>
-                        );
-                      })()}
-                   </div>
+                          <p className="text-slate-300 text-[12px] leading-relaxed m-0">{widget?.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-                
-                <div className="flex justify-end gap-2 mt-4 shrink-0">
-                  <button 
-                    onClick={() => closeComponentLibrary()}
-                    className="px-4 py-2 rounded-[6px] border border-slate-700/50 text-slate-300 hover:bg-surface-5 hover:text-white transition-colors text-[12px] font-bold"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (selectedWidgetId) {
-                        const defn = WIDGET_REGISTRY[selectedWidgetId];
-                        const finalProps: Record<string, string> = {};
-                        (defn.configSchema ?? []).forEach(f => {
-                          finalProps[f.key] = widgetConfig[f.key] ?? f.default;
-                        });
-                        if (defn.kind === 'action' && defn.id === 'options-chain') {
-                          // 期权链：只追加到 /options-chain 页面的右侧 Tab，不切换当前页面
-                          appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
-                          closeComponentLibrary();
-                          return;
-                        }
+              </div>
 
-                        addInstance(activePageId, selectedWidgetId, {
-                          x: 0, y: Infinity,
-                          w: defn.defaultSize.w,
-                          h: defn.defaultSize.h,
-                          minW: defn.defaultSize.minW,
-                          minH: defn.defaultSize.minH,
-                        }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+              <div className="flex justify-end gap-2 mt-4 shrink-0">
+                <button
+                  onClick={() => closeComponentLibrary()}
+                  className="px-4 py-2 rounded-[6px] border border-slate-700/50 text-slate-300 hover:bg-surface-5 hover:text-white transition-colors text-[12px] font-bold"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedWidgetId) {
+                      const defn = WIDGET_REGISTRY[selectedWidgetId];
+                      const finalProps: Record<string, string> = {};
+                      (defn.configSchema ?? []).forEach(f => {
+                        finalProps[f.key] = widgetConfig[f.key] ?? f.default;
+                      });
+                      if (defn.kind === 'action' && defn.id === 'options-chain') {
+                        // 期权链：只追加到 /options-chain 页面的右侧 Tab，不切换当前页面
+                        appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
                         closeComponentLibrary();
+                        return;
                       }
-                    }}
-                    disabled={!selectedWidgetId}
-                    className="px-4 py-2 rounded-[6px] bg-[#4D7CFF] hover:bg-[#3d63cc] disabled:bg-surface-4 disabled:text-slate-500 disabled:shadow-none shadow-[0_0_12px_rgba(77,124,255,0.4)] text-white transition-all text-[12px] font-bold border disabled:border-slate-700/50 border-transparent shrink-0"
-                  >
-                    添加组件
-                  </button>
-                </div>
+
+                      addInstance(activePageId, selectedWidgetId, {
+                        x: 0, y: Infinity,
+                        w: defn.defaultSize.w,
+                        h: defn.defaultSize.h,
+                        minW: defn.defaultSize.minW,
+                        minH: defn.defaultSize.minH,
+                      }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+                      closeComponentLibrary();
+                    }
+                  }}
+                  disabled={!selectedWidgetId}
+                  className="px-4 py-2 rounded-[6px] bg-[#4D7CFF] hover:bg-[#3d63cc] disabled:bg-surface-4 disabled:text-slate-500 disabled:shadow-none shadow-[0_0_12px_rgba(77,124,255,0.4)] text-white transition-all text-[12px] font-bold border disabled:border-slate-700/50 border-transparent shrink-0"
+                >
+                  添加组件
+                </button>
+              </div>
             </motion.div>
           </Modal>
         )}

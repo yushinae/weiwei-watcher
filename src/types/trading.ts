@@ -82,18 +82,25 @@ export interface AccountBalance {
 
 export interface TickerData {
   symbol: string;
+  // 注意：markPrice / bid / ask / lastPrice 在 stream 层已统一转换为 USD（美元价）
+  // 原始 Deribit 返回为币本位（BTC/ETH），underlyingPrice 是对应到期日的远期价（USD）
   markPrice: number;
   iv: number;
   delta: number;
   gamma: number;
   theta: number;
   vega: number;
-  bid: number;
-  ask: number;
-  lastPrice: number;
+  // 当 Deribit 该 instrument 没有盘口报价时为 null（区别于"价格为 0"）
+  bid: number | null;
+  ask: number | null;
+  lastPrice: number | null;
   change24h: number;
   oi: number | null;
   volume: number | null;
+  /** 该期权对应到期日的合成期货/远期价格（USD），来自 Deribit underlying_price */
+  underlyingPrice?: number;
+  /** Deribit 从期货基差反推的隐含无风险利率（小数，如 0.05 表示 5%） */
+  interestRate?: number;
   updatedAt: number;
 }
 

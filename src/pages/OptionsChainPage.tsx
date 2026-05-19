@@ -36,30 +36,37 @@ function bsPrice(S: number, K: number, T: number, σ: number, call: boolean) {
   const d2 = d1 - σ * sq;
   return call ? S * normCDF(d1) - K * normCDF(d2) : K * normCDF(-d2) - S * normCDF(-d1);
 }
-function bsDelta(S: number, K: number, T: number, σ: number, call: boolean) {
+// 以下采用 Black-76 风格：S 应该传"对应到期日的远期/合成期货价"，不是现货指数。
+// r 是 Deribit 的隐含无风险利率（小数），由期货基差反推。可选，默认 0。
+function bsDelta(S: number, K: number, T: number, σ: number, call: boolean, r: number = 0) {
   if (T < 1e-9) return call ? (S > K ? 1 : 0) : (S < K ? -1 : 0);
   const d1 = (Math.log(S / K) + 0.5 * σ * σ * T) / (σ * Math.sqrt(T));
-  return call ? normCDF(d1) : normCDF(d1) - 1;
+  const disc = Math.exp(-r * T);
+  return call ? disc * normCDF(d1) : disc * (normCDF(d1) - 1);
 }
-function bsGamma(S: number, K: number, T: number, σ: number) {
+function bsGamma(S: number, K: number, T: number, σ: number, r: number = 0) {
+  if (T < 1e-9 || S <= 0 || σ <= 0) return 0;
+  const d1 = (Math.log(S / K) + 0.5 * σ * σ * T) / (σ * Math.sqrt(T));
+  // 修复：1/√(2π) ≈ 0.3989422804 应在分子，原代码错放分母
+  const disc = Math.exp(-r * T);
+  return disc * Math.exp(-0.5 * d1 * d1) * 0.3989422804 / (S * σ * Math.sqrt(T));
+}
+function bsVega(S: number, K: number, T: number, σ: number, r: number = 0) {
   if (T < 1e-9) return 0;
   const d1 = (Math.log(S / K) + 0.5 * σ * σ * T) / (σ * Math.sqrt(T));
-  return Math.exp(-0.5 * d1 * d1) / (0.3989422804 * S * σ * Math.sqrt(T));
+  const disc = Math.exp(-r * T);
+  return disc * S * Math.sqrt(T) * Math.exp(-0.5 * d1 * d1) * 0.3989422804 * 0.01;
 }
-function bsVega(S: number, K: number, T: number, σ: number) {
-  if (T < 1e-9) return 0;
-  const d1 = (Math.log(S / K) + 0.5 * σ * σ * T) / (σ * Math.sqrt(T));
-  return S * Math.sqrt(T) * Math.exp(-0.5 * d1 * d1) * 0.3989422804 * 0.01;
-}
-function bsTheta(S: number, K: number, T: number, σ: number, call: boolean) {
+function bsTheta(S: number, K: number, T: number, σ: number, call: boolean, r: number = 0) {
   if (T < 1e-9) return 0;
   const sq = Math.sqrt(T);
   const d1 = (Math.log(S / K) + 0.5 * σ * σ * T) / (σ * sq);
   const d2 = d1 - σ * sq;
-  const term1 = -S * Math.exp(-0.5 * d1 * d1) * 0.3989422804 * σ / (2 * sq);
+  const disc = Math.exp(-r * T);
+  const term1 = -disc * S * Math.exp(-0.5 * d1 * d1) * 0.3989422804 * σ / (2 * sq);
   return call
-    ? (term1 - 0.02 * K * Math.exp(-0.02 * T) * normCDF(d2)) / 365
-    : (term1 + 0.02 * K * Math.exp(-0.02 * T) * normCDF(-d2)) / 365;
+    ? (term1 - r * K * disc * normCDF(d2)) / 365
+    : (term1 + r * K * disc * normCDF(-d2)) / 365;
 }
 function xorRng(seed: number) {
   let s = (seed | 1) >>> 0;
@@ -1862,7 +1869,18 @@ export default function OptionsChainPage({
     // Collect live strikes from store tickers for current expiry
     const liveStrikes = new Map<number, { call?: any; put?: any }>();
     const T = expiryT(expiryStr);
-    const spot = effectiveSpot;
+
+    // ★ Issue 4 修复：page-level spot 用"该到期日的远期价"而不是 BTC 现货指数。
+    // 任取一个当前到期日 instrument 的 underlying_price（每个 expiry 共用一个 forward）。
+    let expiryForward: number | null = null;
+    for (const [symbol, ticker] of Object.entries(storeTickers)) {
+      const m = symbol.match(/^([A-Z]+)(?:_USDC)?-([A-Z0-9]+)-(\d+(?:\.\d+)?)-([CP])$/);
+      if (!m) continue;
+      if (m[1] !== baseCoin || m[2] !== expiryPrefix) continue;
+      const u = (ticker as any).underlyingPrice;
+      if (Number.isFinite(u) && u > 0) { expiryForward = u; break; }
+    }
+    const spot = expiryForward ?? effectiveSpot;
     
     for (const [symbol, ticker] of Object.entries(storeTickers)) {
       const match = symbol.match(/^([A-Z]+)(?:_USDC)?-([A-Z0-9]+)-(\d+(?:\.\d+)?)-([CP])$/);
@@ -1877,14 +1895,24 @@ export default function OptionsChainPage({
       if (Number.isFinite(strike) && ticker?.markPrice > 0) {
         if (!liveStrikes.has(strike)) liveStrikes.set(strike, {});
         const entry = liveStrikes.get(strike)!;
-        
-        // Deribit REST 不返回希腊字母，用 Black-Scholes 计算
+
         const iv = ticker.iv ?? 0; // 已经是小数形式 (e.g. 0.3887)
-        const delta = iv > 0 ? bsDelta(spot, strike, T, iv, type === 'C') : 0;
-        const gamma = iv > 0 ? bsGamma(spot, strike, T, iv) : 0;
-        const vega = iv > 0 ? bsVega(spot, strike, T, iv) : 0;
-        const theta = iv > 0 ? bsTheta(spot, strike, T, iv, type === 'C') : 0;
-        
+        // ✅ S 用该期权对应到期日的远期价（来自 Deribit underlying_price）
+        const S = (ticker as any).underlyingPrice ?? spot;
+        const r = (ticker as any).interestRate ?? 0;
+
+        // 优先用 Deribit WS ticker 频道返回的真实希腊字母。
+        // 用 gamma>0 判断：真实期权 gamma 永远 > 0，REST 阶段没数据时 gamma 为 0，回退到 Black-76。
+        const hasApi = Number.isFinite(ticker.gamma) && (ticker.gamma as number) > 0;
+        const delta = hasApi ? (ticker.delta as number)
+          : (iv > 0 ? bsDelta(S, strike, T, iv, type === 'C', r) : 0);
+        const gamma = hasApi ? (ticker.gamma as number)
+          : (iv > 0 ? bsGamma(S, strike, T, iv, r) : 0);
+        const vega = hasApi ? (ticker.vega as number)
+          : (iv > 0 ? bsVega(S, strike, T, iv, r) : 0);
+        const theta = hasApi ? (ticker.theta as number)
+          : (iv > 0 ? bsTheta(S, strike, T, iv, type === 'C', r) : 0);
+
         const data = {
           bid: ticker.bid != null ? ticker.bid : null,
           ask: ticker.ask != null ? ticker.ask : null,

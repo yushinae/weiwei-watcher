@@ -1684,7 +1684,7 @@ export default function App() {
       </main>
 
       {/* 底部导航栏和活动条 */}
-      <footer className="h-[36px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: '1px solid rgba(255,255,255,0.14)', borderBottom: 'none' }}>
+      <footer className="h-[36px] glass-bar flex items-center justify-between px-2 shrink-0 z-10 w-full relative" style={{ borderRadius: 0, borderTop: '1px solid rgba(255,255,255,0.14)', borderBottom: 'none', boxShadow: 'none' }}>
         <div className="flex items-center gap-1.5 h-full py-1">
           {pages.map((page) => (
             <FooterTab

@@ -66,7 +66,7 @@ body::after {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid transparent;
   border-radius: 16px;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.40),
@@ -78,7 +78,7 @@ body::after {
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid transparent;
   border-radius: 16px;
   box-shadow:
     0 12px 36px rgba(0, 0, 0, 0.40),
@@ -103,7 +103,7 @@ body::after {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid transparent;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
@@ -731,7 +731,7 @@ html.is-scrolling * {
     linear-gradient(145deg, rgba(77, 124, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.01) 100%) border-box;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid transparent;
   border-radius: 16px;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.40),

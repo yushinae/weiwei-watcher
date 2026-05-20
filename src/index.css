@@ -48,6 +48,10 @@
 
 /* ===== 毛玻璃主题 ===== */
 
+html {
+  background: #000;
+}
+
 body {
   background: var(--color-bg-base);
 }

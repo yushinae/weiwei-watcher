@@ -829,7 +829,7 @@ const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets:
 };
 
 const WidgetToggle: React.FC<{ label: string, checked: boolean, onChange: () => void }> = ({ label, checked, onChange }) => (
-  <label className="flex items-center justify-between px-2 py-2 hover:bg-surface-3 rounded-[4px] cursor-pointer group transition-colors">
+  <label className="flex items-center justify-between px-2 h-9 hover:bg-[var(--glass-tint-2)] rounded-[12px] cursor-pointer group transition-colors">
 
     <span className="text-xs text-[#848E9C] group-hover:text-slate-200 transition-colors">{label}</span>
     <input type="checkbox" checked={checked} onChange={onChange} className="hidden" />
@@ -970,12 +970,12 @@ const UserDropdown = () => {
         <div className="flex flex-col p-1.5 gap-0.5">
           <button
             onClick={() => { navigate('/assets'); setIsOpen(false); }}
-            className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.06] rounded-[8px] cursor-pointer group transition-colors w-full text-left"
+            className="flex items-center gap-2.5 px-2.5 h-9 hover:bg-[var(--glass-tint-2)] rounded-[12px] cursor-pointer group transition-colors w-full text-left"
           >
             <Wallet size={15} className="text-white/55 group-hover:text-white transition-colors shrink-0" />
             <span className="text-sm text-white/75 group-hover:text-white transition-colors">账户</span>
           </button>
-          <button className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-white/[0.06] rounded-[8px] cursor-pointer group transition-colors w-full text-left">
+          <button className="flex items-center gap-2.5 px-2.5 h-9 hover:bg-[var(--glass-tint-2)] rounded-[12px] cursor-pointer group transition-colors w-full text-left">
             <Settings size={15} className="text-white/55 group-hover:text-white transition-colors shrink-0" />
             <span className="text-sm text-white/75 group-hover:text-white transition-colors">设置</span>
           </button>

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { DUR_POP, EASE_EMPHASIS } from '../../motion/tokens';
@@ -217,7 +218,7 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
@@ -234,7 +235,8 @@ export function Modal({
           </PopupCard>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 

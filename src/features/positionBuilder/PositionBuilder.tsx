@@ -318,7 +318,7 @@ export function PositionBuilder() {
 
   return (
     <div className="absolute inset-0">
-      <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10">
+      <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10" style={{ background: 'var(--base-dim)' }}>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[15px] font-bold text-white/90">头寸压力测试</span>
           <span className="text-[11px] text-white/25 uppercase tracking-[0.08em]">U 本位 · 策略训练沙盒</span>

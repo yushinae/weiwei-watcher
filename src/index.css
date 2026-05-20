@@ -269,6 +269,9 @@ html.is-scrolling * {
   padding: 8px;
   color: rgba(255, 255, 255, 0.86);
   transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
+  /* flex 列布局：header → body(撑满) → footer */
+  display: flex;
+  flex-direction: column;
 }
 
 .widget-card:not(.is-fullscreen):hover {
@@ -390,6 +393,53 @@ html.is-scrolling * {
 .widget-actions .btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── 卡片 Body（滚动钳制） ── */
+.widget-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* 极细暗色滚动条 */
+.widget-body::-webkit-scrollbar {
+  width: 3px;
+}
+.widget-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.widget-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+.widget-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ── 卡片 Footer ── */
+.widget-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  min-height: 20px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.widget-foot-time {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.18);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.widget-foot-source {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.14);
+  font-weight: 400;
 }
 
 /* 数据展示 */

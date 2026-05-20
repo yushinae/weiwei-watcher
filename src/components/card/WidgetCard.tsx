@@ -87,6 +87,10 @@ export function WidgetCard({
   headerDensity = 'default',
   padding = 'default',
   tone = 'blue',
+  updatedAt,
+  dataSource,
+  footer: footerProp,
+  noScroll,
   children,
 }: {
   title: string;
@@ -98,13 +102,16 @@ export function WidgetCard({
   headerDensity?: 'default' | 'compact';
   padding?: 'none' | 'default';
   tone?: CardTone;
+  updatedAt?: string;
+  dataSource?: string;
+  footer?: React.ReactNode;
+  noScroll?: boolean;
   children: React.ReactNode;
 }) {
   const { actionsBaseOpacityClass } = useWidgetCardActions();
   const [headerRight, setHeaderRight] = useState<React.ReactNode>(null);
   const setHeaderRightCb = useCallback(setHeaderRight, []);
 
-  const contentPad = padding === 'none' ? '' : '';
   const showStatusPane = status.type !== 'ready' && status.type !== 'stale';
 
   return (
@@ -168,14 +175,26 @@ export function WidgetCard({
           </div>
         </div>
 
-        {/* Content */}
-        <div className={cn('w-full', contentPad)}>
+        {/* Content — 滚动钳制容器 */}
+        <div className={cn('widget-body', noScroll && 'overflow-hidden')}>
           {showStatusPane ? (
             <StatusPane status={status as any} />
           ) : (
             children
           )}
         </div>
+
+        {/* Footer */}
+        {(footerProp || updatedAt || dataSource) && (
+          <div className="widget-foot">
+            {footerProp ?? (
+              <>
+                {updatedAt && <span className="widget-foot-time">更新 {updatedAt}</span>}
+                {dataSource && <span className="widget-foot-source">{dataSource}</span>}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </CardContext.Provider>
   );

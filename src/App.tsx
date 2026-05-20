@@ -151,6 +151,7 @@ const AppNavigationDropdown = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMonitor = location.pathname === '/monitor';
+  const isPositionBuilder = location.pathname === '/position-builder';
 
   const cancelClose = () => {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
@@ -210,6 +211,14 @@ const AppNavigationDropdown = () => {
           isMonitor ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}>
         监控
+      </button>
+      <button
+        onClick={() => navigate('/position-builder')}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none",
+          isPositionBuilder ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
+        )}>
+        头寸
       </button>
     </div>
   );

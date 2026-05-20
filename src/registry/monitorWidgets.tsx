@@ -467,7 +467,7 @@ export const IVSurfaceWidget = ({
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
   return (
-    <div className="overflow-hidden rounded-[18px]">
+    <div className="overflow-hidden rounded-[18px]" style={{ backgroundColor: 'rgba(77,124,255,0.04)' }}>
       <div className="w-full overflow-auto">
         <table className="w-full text-[11px]">
         <thead>

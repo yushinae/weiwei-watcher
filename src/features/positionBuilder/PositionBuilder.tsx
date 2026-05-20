@@ -319,7 +319,7 @@ export function PositionBuilder() {
   const selectCls = 'bg-white/[0.05] border border-white/[0.08] rounded-[8px] px-2 py-1 text-[13px] text-white/80 outline-none focus:border-white/20 cursor-pointer w-full';
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 flex flex-col">
       <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10" style={{ background: 'var(--base-dim)' }}>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[16px] text-white/90">头寸压力测试</span>
@@ -358,7 +358,7 @@ export function PositionBuilder() {
 
       </header>
 
-      <div className="overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <div className="px-2 pb-2">
           <div className="grid grid-cols-12 gap-2">
             <div className="col-span-4">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
 import { MONITOR_RANGES, MONITOR_TENORS, type Coin, type MonitorRange, type MonitorTenor } from '../types';
 
@@ -66,7 +66,6 @@ export function MonitorHeader({
   onRangeChange: (r: MonitorRange) => void;
   onTenorChange: (t: MonitorTenor) => void;
 }) {
-  const navigate = useNavigate();
   return (
     <div className="sticky top-0 z-[120] glass-bar h-[44px]">
       <div className="flex items-center gap-4 px-5 h-full">
@@ -105,12 +104,12 @@ export function MonitorHeader({
           />
         </div>
 
-<button
-  onClick={() => navigate('/position-builder')}
-  className="ml-auto flex items-center gap-1.5 rounded-[10px] bg-surface-4/40 px-4 py-1.5 ring-1 ring-inset ring-border-subtle/70 text-[12px] font-bold text-slate-300 hover:bg-brand-blue/15 hover:text-brand-blue hover:ring-brand-blue/30 transition-colors"
+<Link
+  to="/position-builder"
+  className="ml-auto flex items-center gap-1.5 rounded-[10px] bg-surface-4/40 px-4 py-1.5 ring-1 ring-inset ring-border-subtle/70 text-[12px] font-bold text-slate-300 hover:bg-brand-blue/15 hover:text-brand-blue hover:ring-brand-blue/30 transition-colors no-underline"
 >
   头寸
-</button>
+</Link>
       </div>
     </div>
   );

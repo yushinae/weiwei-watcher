@@ -4,7 +4,7 @@ import {
   Calculator,
 } from 'lucide-react';
 import { HoverPopover } from './components/popup/Popup';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 
 import { cn } from './lib/utils';
 
@@ -212,14 +212,14 @@ const AppNavigationDropdown = () => {
         )}>
         监控
       </button>
-      <button
-        onClick={() => navigate('/position-builder')}
+      <Link
+        to="/position-builder"
         className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none",
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none no-underline",
           isPositionBuilder ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}>
         头寸
-      </button>
+      </Link>
     </div>
   );
 };

@@ -1113,15 +1113,15 @@ const FooterTab: React.FC<FooterTabProps> = React.memo(({
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
       >
-        <button className="flex items-center gap-2.5 px-2.5 h-8 text-[13px] font-bold text-slate-200 hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
+        <button className="flex items-center gap-2.5 px-2.5 h-7 text-[13px] font-bold text-slate-200 hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
           <Edit2 size={14} strokeWidth={2} />
           编辑标签
         </button>
-        <button className="flex items-center gap-2.5 px-2.5 h-8 text-[13px] font-bold text-slate-200 hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onClone(); }}>
+        <button className="flex items-center gap-2.5 px-2.5 h-7 text-[13px] font-bold text-slate-200 hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onClone(); }}>
           <Copy size={14} strokeWidth={2} />
           复制选项卡
         </button>
-        <button className="flex items-center gap-2.5 px-2.5 h-8 text-[13px] font-bold text-[#F05252] hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left mt-0.5" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onDelete(); }}>
+        <button className="flex items-center gap-2.5 px-2.5 h-7 text-[13px] font-bold text-[#F05252] hover:bg-[var(--glass-tint-2)] rounded-[12px] transition-colors text-left mt-0.5" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); onDelete(); }}>
           <Trash2 size={14} strokeWidth={2} />
           删除选项卡
         </button>

@@ -36,7 +36,7 @@ export default function MonitorPage() {
   };
 
   return (
-    <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200">
+    <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200" style={{ background: 'rgba(0,0,0,0.35)' }}>
       <MonitorHeader
         coin={coin}
         range={range}

@@ -1792,13 +1792,8 @@ export default function App() {
             maxHeight: '960px',
           }}
         >
-          <motion.div
-            layoutId="addWidgetModalBackground"
+          <div
             className="flex w-full h-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, delay: 0.08 }}
           >
               {/* Left Sidebar */}
               <div className="w-[180px] flex flex-col shrink-0" style={{ background: '#1e1e20', borderRight: '1px solid #2a2a2c' }}>

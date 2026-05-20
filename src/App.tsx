@@ -1776,31 +1776,30 @@ export default function App() {
         </div>
       </footer>
 
-      <AnimatePresence>
-        {isComponentLibraryOpen && (
-          <Modal
-            open={isComponentLibraryOpen}
-            onClose={() => closeComponentLibrary()}
-            zIndex={220}
-            className="relative flex overflow-hidden rounded-[16px]"
-            style={{
-              background: '#1e1e20',
-              border: '1px solid #333335',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
-              width: 'calc(100vw - 64px)',
-              height: 'calc(100vh - 64px)',
-              maxWidth: '1600px',
-              maxHeight: '960px',
-            }}
+      {isComponentLibraryOpen && (
+        <Modal
+          open={isComponentLibraryOpen}
+          onClose={() => closeComponentLibrary()}
+          zIndex={220}
+          className="relative flex overflow-hidden rounded-[16px]"
+          style={{
+            background: '#1e1e20',
+            border: '1px solid #333335',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+            width: 'calc(100vw - 64px)',
+            height: 'calc(100vh - 64px)',
+            maxWidth: '1600px',
+            maxHeight: '960px',
+          }}
+        >
+          <motion.div
+            layoutId="addWidgetModalBackground"
+            className="flex w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, delay: 0.08 }}
           >
-            <motion.div
-              layoutId="addWidgetModalBackground"
-              className="flex w-full h-full"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, delay: 0.08 }}
-            >
               {/* Left Sidebar */}
               <div className="w-[180px] flex flex-col shrink-0" style={{ background: '#1e1e20', borderRight: '1px solid #2a2a2c' }}>
                 <div className="flex items-center justify-between px-4 pt-5 pb-4">
@@ -1899,7 +1898,6 @@ export default function App() {
             </motion.div>
           </Modal>
         )}
-      </AnimatePresence>
 
     </div>
   );

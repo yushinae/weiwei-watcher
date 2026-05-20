@@ -1313,7 +1313,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative overflow-hidden z-[1]">
+      <main className="flex-1 relative overflow-hidden z-[1]" style={{ background: 'rgba(26,26,30,0.80)', backdropFilter: 'blur(22px) saturate(1.5)', WebkitBackdropFilter: 'blur(22px) saturate(1.5)' }}>
         <AnimatePresence mode="wait">
           {/* @ts-ignore */}
           <Routes location={location} key={location.pathname}>

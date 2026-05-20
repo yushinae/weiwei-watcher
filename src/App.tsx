@@ -395,7 +395,7 @@ const AppNavigationDropdown = () => {
                     }}
                     className={cn(
                       "flex items-center gap-3 px-3 h-11 rounded-[12px] text-left transition-colors",
-                      disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.06]"
+                      disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-[var(--glass-tint-2)]"
                     )}
                   >
                     <Icon size={16} className="text-white/55 shrink-0" />

@@ -4,6 +4,7 @@
 
 :root {
   --glass: rgba(26, 26, 30, 0.80);
+  --glass-tint-2: rgba(255, 255, 255, 0.08);
   --popup-card-bg: rgba(255, 255, 255, 0.06);
   --popup-card-border: rgba(255, 255, 255, 0.14);
   --popup-card-radius: 16px;

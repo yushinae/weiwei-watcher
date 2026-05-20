@@ -36,7 +36,7 @@ export default function MonitorPage() {
   };
 
   return (
-    <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200" style={{ background: 'rgba(26,26,30,0.80)', backdropFilter: 'blur(30px) saturate(1.6)', WebkitBackdropFilter: 'blur(30px) saturate(1.6)' }}>
+    <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200" style={{ backdropFilter: 'blur(30px) saturate(1.6)', WebkitBackdropFilter: 'blur(30px) saturate(1.6)' }}>
       <MonitorHeader
         coin={coin}
         range={range}

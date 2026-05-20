@@ -65,7 +65,7 @@ export default function MonitorPage() {
                 <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-span-6">
                   <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="IV 曲面偏斜表（点击单元可钻取）" headerDensity="compact" className="col-span-6 self-start h-min">
+                <WidgetCard title="IV 曲面偏斜表（热力图）" headerDensity="compact" className="col-span-6 self-start h-min">
                   <IVSurfaceWidget
                     coin={coin}
                     onCoinChange={setCoin}

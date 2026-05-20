@@ -1109,7 +1109,7 @@ const FooterTab: React.FC<FooterTabProps> = React.memo(({
         onClose={() => setIsMenuOpen(false)}
         backdropZ={90}
         panelZ={91}
-        panelClassName="absolute bottom-full mb-2 left-0 min-w-[124px] p-1 after:absolute after:-bottom-2 after:left-0 after:w-full after:h-2"
+        panelClassName="footer-tab-popup absolute bottom-full mb-2 left-0 min-w-[124px] p-1 after:absolute after:-bottom-2 after:left-0 after:w-full after:h-2"
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
       >

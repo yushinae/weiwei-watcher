@@ -361,7 +361,7 @@ export function PositionBuilder() {
       <div className="flex-1 overflow-y-auto">
         <div className="px-2 pb-2">
           <div className="grid grid-cols-12 gap-2">
-            <div className="col-span-4">
+            <div className="col-span-4 h-[750px]">
               <Panel title="策略组合" subtitle="期权腿组合">
                 <div className="flex flex-col gap-3 pt-1">
                   <div className="flex items-center gap-2">

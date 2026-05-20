@@ -227,20 +227,20 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex, perspective: '800px' }}>
+        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex }}>
           <Backdrop
             open={open} onClose={onClose} zIndex={zIndex} tone="dim" blur
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           />
           <PopupCard
             zIndex={zIndex + 1}
             className={cn('relative', className)}
             style={style}
-            initial={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}
-            animate={{ opacity: 1, rotateX: 0, y: 0, scale: 1 }}
-            exit={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
           >
             {children}
           </PopupCard>

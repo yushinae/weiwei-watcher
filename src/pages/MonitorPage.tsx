@@ -1,6 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { WidgetCard } from '../components/card/WidgetCard';
 import { MonitorHeader } from '../features/monitor/components/MonitorHeader';
@@ -23,7 +21,6 @@ import {
 } from '../registry/monitorWidgets';
 
 export default function MonitorPage() {
-  const navigate = useNavigate();
   const { tab, setTab, coin, setCoin, range, setRange, tenor, setTenor } = useMonitorQueryState();
   const { selection, setSelection, clearSelection, open } = useMonitorSelection();
 
@@ -115,28 +112,6 @@ export default function MonitorPage() {
                 >
                   <div className="flex h-full items-center justify-center text-[12px] text-text-muted">
                     预留区域：后续可将现有 heatmap 迁入 feature/widgets 并接入虚拟化/选择态。
-                  </div>
-                </WidgetCard>
-              </div>
-            )}
-
-            {tab === 'chain' && (
-              <div className="grid grid-cols-12 gap-2">
-                <WidgetCard
-                  title="期权链（跳转到独立页面）"
-                  headerDensity="compact"
-                  className="col-span-12 h-[420px]"
-                  actions={[
-                    {
-                      id: 'open-chain',
-                      icon: ArrowUpRight,
-                      label: '打开期权链',
-                      onClick: () => navigate(`/options-chain?coin=${encodeURIComponent(coin === 'BTC' ? 'BTC-USD' : 'ETH-USD')}`),
-                    },
-                  ]}
-                >
-                  <div className="flex h-full items-center justify-center text-[12px] text-text-muted">
-                    请使用 WebSocket 实时数据源，查看完整期权链 →
                   </div>
                 </WidgetCard>
               </div>

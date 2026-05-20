@@ -103,9 +103,10 @@ const TEMPLATES: Record<string, (spot: number, step: number, nextId: () => numbe
   ],
 };
 
-function Panel({ title, subtitle, noPadding, noScroll, children }: {
+function Panel({ title, subtitle, actions, noPadding, noScroll, children }: {
   title: string;
   subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
   noPadding?: boolean;
   noScroll?: boolean;
   children: React.ReactNode;
@@ -115,6 +116,7 @@ function Panel({ title, subtitle, noPadding, noScroll, children }: {
       <div className="flex items-center px-3 py-2 border-b border-white/[0.06] shrink-0">
         <span className="text-[12px] text-white/65 shrink-0">{title}</span>
         {subtitle && <div className="ml-3 min-w-0 flex-1 text-[10px] text-white/30">{subtitle}</div>}
+        {actions && <div className="ml-auto">{actions}</div>}
       </div>
       <div className={cn(
         'min-h-0',
@@ -484,7 +486,13 @@ export function PositionBuilder() {
                   <div ref={chartRef} className="w-full h-full" style={{ minHeight: 200 }} />
                 </Panel>
 
-              <Panel title="情景参数">
+              <Panel title="情景参数"
+                actions={
+                  <button onClick={resetScenario}
+                    className="flex items-center gap-1 px-3 py-1 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[11px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors">
+                    <span>↺</span> 重置情景
+                  </button>
+                }>
                   <div className="grid grid-cols-3 gap-4 pt-1">
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -513,12 +521,6 @@ export function PositionBuilder() {
                         onChange={e => setSpotPctOffset(parseInt(e.target.value))} className="w-full range-slider" />
                       <p className="text-[10px] text-white/20 mt-1.5 leading-snug">假设标的从入场基准价涨跌 X%</p>
                     </div>
-                  </div>
-                  <div className="flex justify-center mt-3 pt-2 border-t border-white/[0.04]">
-                    <button onClick={resetScenario}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] font-semibold text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors">
-                      <span>↺</span> 重置情景
-                    </button>
                   </div>
                 </Panel>
 

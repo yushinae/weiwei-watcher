@@ -482,7 +482,7 @@ export const IVSurfaceWidget = ({
               const allV = data.flat();
               const lo = Math.min(...allV); const hi = Math.max(...allV);
               return (
-                <tr key={row} className={ri === 2 ? 'border-t border-b border-[#1E1E26]' : ''}>
+                <tr key={row} className={ri === 2 ? 'border-t border-b border-bg-dim' : ''}>
                   <td className={cn('px-2 py-1.5 font-mono font-bold', ri === 2 ? 'text-slate-300' : 'text-slate-500')}>{row}</td>
                   {data[ri].map((v, ci) => (
                     <td
@@ -531,7 +531,7 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-[11px]">
           <thead>
-            <tr className="border-b border-[#1E1E26]">
+            <tr className="border-b border-bg-dim">
               {['到期', 'ATM', '25d RR', '25d BF', '10d RR', '10d BF'].map(h => (
                 <th key={h} className="px-2 py-1.5 text-slate-600 font-bold text-right first:text-left">{h}</th>
               ))}
@@ -539,7 +539,7 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-b border-[#111116] last:border-0 hover:bg-[#0D0D14] transition-colors">
+              <tr key={i} className="border-b border-bg-deep last:border-0 hover:bg-bg-deep transition-colors">
                 <td className="px-2 py-1.5 font-mono font-bold text-slate-400">{r.exp}</td>
                 <td className="px-2 py-1.5 text-right font-mono tnum text-slate-200 font-bold">{r.atm.toFixed(1)}</td>
                 <td className={cn('px-2 py-1.5 text-right font-mono tnum font-bold', r.rr25 < 0 ? 'text-rose-400' : 'text-emerald-400')}>{r.rr25.toFixed(1)}</td>

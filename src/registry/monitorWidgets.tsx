@@ -144,6 +144,13 @@ const SmileChart = ({
   );
 };
 
+const GRID = 'var(--color-border-subtle)';
+const TXT = 'var(--color-text-muted)';
+const BLUE = 'var(--color-brand-blue)';
+const GREEN = 'var(--color-trade-up)';
+const RED = 'var(--color-trade-down)';
+const YELLOW = 'var(--nexus-yellow)';
+
 const VRPChart = ({ coin }: { coin: Coin }) => {
   const data = VRP_HIST[coin];
   const W = 320, H = 130, px = 28, py = 12;
@@ -159,19 +166,19 @@ const VRPChart = ({ coin }: { coin: Coin }) => {
       {yTicks.map((v, i) => {
         const y = (H-py) - ((v-lo)/(hi-lo)) * (H-2*py);
         return <React.Fragment key={i}>
-          <line x1={px} y1={y} x2={W-4} y2={y} stroke="#1A1A22" strokeWidth={0.5} />
-          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill="#374151">{v.toFixed(0)}</text>
+          <line x1={px} y1={y} x2={W-4} y2={y} stroke={GRID} strokeWidth={0.5} />
+          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v.toFixed(0)}</text>
         </React.Fragment>;
       })}
       <path d={vrpFill} fill="rgba(77,124,255,0.08)" />
       <path d={area(rvPts, H, py)} fill="rgba(30,201,140,0.06)" />
-      <polyline points={poly(rvPts)} fill="none" stroke="#1EC98C" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points={poly(ivPts)} fill="none" stroke="#4D7CFF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <line x1={px} y1={8} x2={px+10} y2={8} stroke="#4D7CFF" strokeWidth={1.5} />
-      <text x={px+13} y={11} fontSize={7} fill="#6B7280">IV</text>
-      <line x1={px+36} y1={8} x2={px+46} y2={8} stroke="#1EC98C" strokeWidth={1.2} />
-      <text x={px+49} y={11} fontSize={7} fill="#6B7280">RV</text>
-      <text x={px+72} y={11} fontSize={7} fill="#4D7CFF80">■ VRP</text>
+      <polyline points={poly(rvPts)} fill="none" stroke={GREEN} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={poly(ivPts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <line x1={px} y1={8} x2={px+10} y2={8} stroke={BLUE} strokeWidth={1.5} />
+      <text x={px+13} y={11} fontSize={7} fill={TXT}>IV</text>
+      <line x1={px+36} y1={8} x2={px+46} y2={8} stroke={GREEN} strokeWidth={1.2} />
+      <text x={px+49} y={11} fontSize={7} fill={TXT}>RV</text>
+      <text x={px+72} y={11} fontSize={7} fill={BLUE} opacity={0.5}>■ VRP</text>
     </svg>
   );
 };
@@ -190,18 +197,18 @@ const IVRankChart = ({ coin }: { coin: Coin }) => {
       {[0,25,50,75,100].map(v => {
         const y = (H-py) - (v/100) * (H-2*py);
         return <React.Fragment key={v}>
-          <line x1={px} y1={y} x2={W-4} y2={y} stroke="#1A1A22" strokeWidth={0.5} />
-          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill="#374151">{v}</text>
+          <line x1={px} y1={y} x2={W-4} y2={y} stroke={GRID} strokeWidth={0.5} />
+          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
         </React.Fragment>;
       })}
-      <line x1={px} y1={y30} x2={W-4} y2={y30} stroke="#1EC98C" strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
-      <line x1={px} y1={y70} x2={W-4} y2={y70} stroke="#FF4D6A" strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
+      <line x1={px} y1={y30} x2={W-4} y2={y30} stroke={GREEN} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
+      <line x1={px} y1={y70} x2={W-4} y2={y70} stroke={RED} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
       <path d={area(linePts, H, py)} fill="rgba(77,124,255,0.07)" />
-      <polyline points={poly(linePts)} fill="none" stroke="#4D7CFF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={poly(linePts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       {(() => { const [x,y] = linePts[linePts.length-1]; const c = ivrColor(data[data.length-1]);
-        return <circle cx={x} cy={y} r={3} fill={c} stroke="#0A0A0D" strokeWidth={1} />; })()}
-      <text x={px+4} y={y30-3} fontSize={7} fill="#1EC98C80">30</text>
-      <text x={px+4} y={y70-3} fontSize={7} fill="#FF4D6A80">70</text>
+        return <circle cx={x} cy={y} r={3} fill={c} stroke="var(--color-bg-deep)" strokeWidth={1} />; })()}
+      <text x={px+4} y={y30-3} fontSize={7} fill={GREEN}>30</text>
+      <text x={px+4} y={y70-3} fontSize={7} fill={RED}>70</text>
     </svg>
   );
 };
@@ -219,8 +226,8 @@ const VolConeChart = ({ coin }: { coin: Coin }) => {
       {[0,25,50,75,100].filter(v=>v<=hi).map(v => {
         const y = fy(v);
         return <React.Fragment key={v}>
-          <line x1={px} y1={y} x2={W-px} y2={y} stroke="#1A1A22" strokeWidth={0.5} />
-          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill="#374151">{v}</text>
+          <line x1={px} y1={y} x2={W-px} y2={y} stroke={GRID} strokeWidth={0.5} />
+          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
         </React.Fragment>;
       })}
       {d.tenors.map((t,i) => {
@@ -230,15 +237,15 @@ const VolConeChart = ({ coin }: { coin: Coin }) => {
           <rect x={x-7} y={y90} width={14} height={y10-y90} rx={2} fill="rgba(77,124,255,0.07)" />
           <rect x={x-7} y={y75} width={14} height={y25-y75} rx={2} fill="rgba(77,124,255,0.18)" />
           <line x1={x-7} y1={y50} x2={x+7} y2={y50} stroke="rgba(77,124,255,0.6)" strokeWidth={1.5} />
-          <text x={x} y={H-3} textAnchor="middle" fontSize={7} fill="#374151">{t}</text>
+          <text x={x} y={H-3} textAnchor="middle" fontSize={7} fill={TXT}>{t}</text>
         </React.Fragment>;
       })}
-      <polyline points={poly(currPts)} fill="none" stroke="#F59E0B" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      {currPts.map(([x,y],i) => <circle key={i} cx={x} cy={y} r={2.5} fill="#F59E0B" />)}
+      <polyline points={poly(currPts)} fill="none" stroke={YELLOW} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      {currPts.map(([x,y],i) => <circle key={i} cx={x} cy={y} r={2.5} fill={YELLOW} />)}
       <rect x={px} y={6} width={8} height={6} rx={1} fill="rgba(77,124,255,0.18)" />
-      <text x={px+11} y={11} fontSize={7} fill="#6B7280">历史RV区间</text>
-      <line x1={px+70} y1={9} x2={px+80} y2={9} stroke="#F59E0B" strokeWidth={1.5} />
-      <text x={px+83} y={11} fontSize={7} fill="#6B7280">当前IV</text>
+      <text x={px+11} y={11} fontSize={7} fill={TXT}>历史RV区间</text>
+      <line x1={px+70} y1={9} x2={px+80} y2={9} stroke={YELLOW} strokeWidth={1.5} />
+      <text x={px+83} y={11} fontSize={7} fill={TXT}>当前IV</text>
     </svg>
   );
 };

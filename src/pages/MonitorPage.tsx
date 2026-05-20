@@ -76,7 +76,7 @@ export default function MonitorPage() {
                     onPickCell={(p) => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-start-3 col-span-8 h-[260px]">
+                <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-start-4 col-span-6 h-[260px]">
                   <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>

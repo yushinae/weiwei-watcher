@@ -48,7 +48,7 @@ export default function MonitorPage() {
 
       <MonitorLayout tab={tab} onTabChange={setTab}>
         <ElasticLayout className="h-full">
-          <div className="px-4 pt-0.5 pb-4">
+          <div className="px-3 pt-0.5 pb-3">
             {tab === 'overview' && (
               <div className="grid grid-cols-12 gap-3">
                 <WidgetCard title="波动率概览" headerDensity="compact" className="col-span-7 h-[360px]">

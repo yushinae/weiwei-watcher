@@ -316,9 +316,18 @@ type CoinControlProps = {
 };
 
 function useCoinControl({ coin: coinProp, onCoinChange }: CoinControlProps) {
-  const [internalCoin, setInternalCoin] = useState<Coin>('BTC');
-  const coin = coinProp ?? internalCoin;
-  const setCoin = onCoinChange ?? setInternalCoin;
+  const [localCoin, setLocalCoin] = useState<Coin>(coinProp ?? 'BTC');
+
+  // header 切换时同步卡片
+  useEffect(() => {
+    if (coinProp !== undefined) setLocalCoin(coinProp);
+  }, [coinProp]);
+
+  const coin = localCoin;
+  const setCoin = (c: Coin) => {
+    setLocalCoin(c);
+    onCoinChange?.(c);
+  };
   return { coin, setCoin };
 }
 

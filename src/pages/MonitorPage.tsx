@@ -52,10 +52,10 @@ export default function MonitorPage() {
             {tab === 'overview' && (
               <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="波动率概览" headerDensity="compact" className="col-span-7 h-[360px]">
-                  <VolOverviewWidget coin={coin} onCoinChange={setCoin} />
+                  <VolOverviewWidget coin={coin} />
                 </WidgetCard>
                 <WidgetCard title="市场预测（Polymarket）" headerDensity="compact" className="col-span-5 h-[360px]">
-                  <PolymarketWidget coin={coin} onCoinChange={setCoin} />
+                  <PolymarketWidget coin={coin} />
                 </WidgetCard>
               </div>
             )}
@@ -63,19 +63,17 @@ export default function MonitorPage() {
             {tab === 'surface' && (
               <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-span-6">
-                  <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
+                  <OptionsSkewWidget coin={coin} />
                 </WidgetCard>
                 <WidgetCard title="IV 曲面偏斜表（热力图）" headerDensity="compact" className="col-span-6 self-start h-min">
                   <IVSurfaceWidget
                     coin={coin}
-                    onCoinChange={setCoin}
                     onPickCell={(p) => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
                 <WidgetCard title="波动率微笑（期限结构）" headerDensity="compact" className="col-start-4 col-span-6 h-[340px]">
                   <VolSmileWidget
                     coin={coin}
-                    onCoinChange={setCoin}
                     onPickSmilePoint={(p) => onPickSmilePoint({ type: 'smilePoint', ...p })}
                   />
                 </WidgetCard>
@@ -85,13 +83,13 @@ export default function MonitorPage() {
             {tab === 'history' && (
               <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="VRP 历史（30D）" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <VRPHistoryWidget coin={coin} onCoinChange={setCoin} />
+                  <VRPHistoryWidget coin={coin} />
                 </WidgetCard>
                 <WidgetCard title="IV 百分位历史（90D）" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <IVRankHistoryWidget coin={coin} onCoinChange={setCoin} />
+                  <IVRankHistoryWidget coin={coin} />
                 </WidgetCard>
                 <WidgetCard title="波动率锥" headerDensity="compact" className="col-span-12 h-[280px]">
-                  <VolConeWidget coin={coin} onCoinChange={setCoin} />
+                  <VolConeWidget coin={coin} />
                 </WidgetCard>
               </div>
             )}
@@ -99,10 +97,10 @@ export default function MonitorPage() {
             {tab === 'distribution' && (
               <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="固定期限方差分布" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <FixedTenorWidget coin={coin} onCoinChange={setCoin} />
+                  <FixedTenorWidget coin={coin} />
                 </WidgetCard>
                 <WidgetCard title="隐含分布图（30D）" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <ImpliedDistWidget coin={coin} onCoinChange={setCoin} />
+                  <ImpliedDistWidget coin={coin} />
                 </WidgetCard>
               </div>
             )}
@@ -147,7 +145,7 @@ export default function MonitorPage() {
             {tab === 'polymarket' && (
               <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="市场预测（Polymarket）" headerDensity="compact" className="col-span-12 h-[420px]">
-                  <PolymarketWidget coin={coin} onCoinChange={setCoin} />
+                  <PolymarketWidget coin={coin} />
                 </WidgetCard>
               </div>
             )}

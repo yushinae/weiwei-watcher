@@ -6,7 +6,7 @@
 // --- 下面这些 import 就像是去商场里买现成的零件 ---
 
 // React 是我们造网页的大框架。useState 帮我们记住东西（比如现在几点），useEffect 帮我们做一些杂事（比如去网上拿数据）。
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 // Lucide 是一个图标店，我们从这里拿"趋势向上"、"时钟"、"设置"等小图标。
 import {
   TrendingUp,
@@ -1039,16 +1039,16 @@ const UserDropdown = () => {
 
 type FooterTabProps = {
   tab: { id: string, label: string },
-  activeTab: string,
+  isActive: boolean,
   onClick: () => void,
   onEdit: (newLabel: string) => void,
   onClone: () => void,
   onDelete: () => void
 };
 
-const FooterTab: React.FC<FooterTabProps> = ({
+const FooterTab: React.FC<FooterTabProps> = React.memo(({
   tab,
-  activeTab,
+  isActive,
   onClick,
   onEdit,
   onClone,
@@ -1066,8 +1066,6 @@ const FooterTab: React.FC<FooterTabProps> = ({
   const scheduleClose = () => {
     closeTimer.current = setTimeout(() => setIsMenuOpen(false), 120);
   };
-
-  const isActive = activeTab === tab.id;
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1180,7 +1178,9 @@ const FooterTab: React.FC<FooterTabProps> = ({
       </Popover>
     </div>
   );
-};
+});
+
+FooterTab.displayName = 'FooterTab';
 
 const AddTabModal = ({
   isOpen,
@@ -1246,7 +1246,6 @@ const AddTabModal = ({
  * 独立持有 pages/activePageId 订阅，避免 setActivePage 触发 App 整树重渲染。
  */
 const WorkspaceFooterTabs = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -1258,42 +1257,69 @@ const WorkspaceFooterTabs = () => {
   const renamePage   = useWorkspaceStore(state => state.renamePage);
   const clonePage    = useWorkspaceStore(state => state.clonePage);
 
-  const activeTab = location.pathname !== '/'
-    ? (pages.find(p => p.routePath === location.pathname)?.id ?? '')
+  // stateRef: 让 memoized 回调在调用时读到最新值，避免 stale closure
+  // 注意：只在调用时读取（call-site），不在创建时捕获
+  const stateRef = useRef({ pages, activePageId, removePage, setActivePage, renamePage, clonePage, navigate });
+  stateRef.current = { pages, activePageId, removePage, setActivePage, renamePage, clonePage, navigate };
+
+  // 按 pageId 缓存回调 — 只在 pages 引用变化时重新生成
+  // setActivePage 是 Zustand 稳定引用，pages 在 setActivePage 时不变引用 → 每次切 tab 时这批回调 identity 不变
+  const pageCallbacks = useMemo(() => {
+    const map = new Map<string, {
+      onClick: () => void;
+      onEdit: (label: string) => void;
+      onClone: () => void;
+      onDelete: () => void;
+    }>();
+    for (const page of pages) {
+      const pid = page.id;
+      const routePath = page.routePath;
+      map.set(pid, {
+        onClick: () => {
+          const { setActivePage, navigate } = stateRef.current;
+          if (routePath) { navigate(routePath); setActivePage(pid); }
+          else { setActivePage(pid); if (window.location.pathname !== '/') navigate('/'); }
+        },
+        onEdit: (newLabel: string) => stateRef.current.renamePage(pid, newLabel),
+        onClone: () => stateRef.current.clonePage(pid),
+        onDelete: () => {
+          const { pages, activePageId, removePage, setActivePage, navigate } = stateRef.current;
+          const remaining = pages.filter(p => p.id !== pid);
+          removePage(pid);
+          if (activePageId === pid) {
+            const next = remaining[0];
+            if (next) {
+              if (next.routePath) navigate(next.routePath);
+              else { setActivePage(next.id); navigate('/'); }
+            }
+          }
+        },
+      });
+    }
+    return map;
+  }, [pages]); // pages 在 setActivePage 时不会变引用 → 切 tab 时此 memo 命中缓存
+
+  const activeTab = window.location.pathname !== '/'
+    ? (pages.find(p => p.routePath === window.location.pathname)?.id ?? '')
     : activePageId;
 
   return (
     <>
       <div className="flex items-center gap-1 h-full py-0.5">
-        {pages.map((page) => (
+        {pages.map((page) => {
+          const cbs = pageCallbacks.get(page.id)!;
+          return (
           <FooterTab
             key={page.id}
             tab={{ id: page.id, label: page.label }}
-            activeTab={activeTab}
-            onClick={() => {
-              if (page.routePath) {
-                navigate(page.routePath);
-                setActivePage(page.id);
-              } else {
-                setActivePage(page.id);
-                if (location.pathname !== '/') navigate('/');
-              }
-            }}
-            onEdit={(newLabel) => renamePage(page.id, newLabel)}
-            onClone={() => clonePage(page.id)}
-            onDelete={() => {
-              const remaining = pages.filter(p => p.id !== page.id);
-              removePage(page.id);
-              if (activeTab === page.id) {
-                const next = remaining[0];
-                if (next) {
-                  if (next.routePath) navigate(next.routePath);
-                  else { setActivePage(next.id); navigate('/'); }
-                }
-              }
-            }}
+            isActive={activeTab === page.id}
+            onClick={cbs.onClick}
+            onEdit={cbs.onEdit}
+            onClone={cbs.onClone}
+            onDelete={cbs.onDelete}
           />
-        ))}
+          );
+        })}
         {/* "+"按钮：用来添加新标签 */}
         <div className="relative h-full flex items-center group">
           <motion.button

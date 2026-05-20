@@ -1,6 +1,40 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { WorkspacePage, WidgetInstance } from '../types/workspace';
+
+/**
+ * 防抖写入 localStorage，避免快速点击时每次都同步 JSON.stringify+setItem 阻塞主线程。
+ * 读取（getItem）仍然同步，只有写操作被 debounce。
+ * 用 createJSONStorage 包装成 zustand PersistStorage 格式。
+ */
+function buildDebouncedLocalStorage(delay: number) {
+  const pending = new Map<string, string>();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const flush = () => {
+    pending.forEach((value, key) => {
+      try { localStorage.setItem(key, value); } catch { /* quota exceeded */ }
+    });
+    pending.clear();
+    timer = null;
+  };
+  // createJSONStorage 的工厂接收 () => Storage-like 对象（getItem/setItem/removeItem 均操作字符串）
+  return createJSONStorage(() => ({
+    getItem: (key: string): string | null => {
+      try { return localStorage.getItem(key); } catch { return null; }
+    },
+    setItem: (key: string, value: string): void => {
+      pending.set(key, value);
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(flush, delay);
+    },
+    removeItem: (key: string): void => {
+      pending.delete(key);
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
+    },
+  }));
+}
+
+const debouncedStorage = buildDebouncedLocalStorage(400);
 
 export interface TickerData {
   symbol: string;
@@ -266,6 +300,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     }),
     {
       name: 'nexus-workspace',
+      storage: debouncedStorage,
       partialize: (state) => ({
         widgets: state.widgets,
         pages: state.pages,

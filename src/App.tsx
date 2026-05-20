@@ -249,7 +249,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
-      <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]">
+      <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]" style={{ background: 'var(--base-strong)' }}>
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
             <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(37,232,137,0.4)]" />

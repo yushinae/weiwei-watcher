@@ -355,8 +355,8 @@ const AppNavigationDropdown = () => {
       >
         <button
           className={cn(
-            "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] transition-all duration-200 border hover:scale-[1.08] active:scale-[0.94]",
-            isOpen ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-300 border-transparent hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:border-[#4D7CFF]"
+            "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+            isOpen ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
           )}
         >
           <NineDots size={24} />
@@ -448,11 +448,11 @@ const AppNavigationDropdown = () => {
 
       <div
         className={cn(
-          "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] text-slate-100 border border-transparent",
-          isAssets && "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]"
+          "flex items-center justify-center w-[30px] h-[30px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          isAssets ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] opacity-90 mb-px">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[24px] h-[24px] mb-px">
           <path d="M11.47 3.84a.75.75 0 011.06 0l8.99 8.99a.75.75 0 11-1.06 1.06L20 13.43V20.25A1.75 1.75 0 0118.25 22H15.5a.75.75 0 01-.75-.75v-3.5a.75.75 0 00-.75-.75h-4a.75.75 0 00-.75.75v3.5a.75.75 0 01-.75.75H5.75A1.75 1.75 0 014 20.25v-6.82l-.46.46a.75.75 0 11-1.06-1.06l8.99-8.99z" />
         </svg>
       </div>
@@ -460,8 +460,8 @@ const AppNavigationDropdown = () => {
       <button
         onClick={() => navigate('/monitor')}
         className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] border transition-all duration-200 hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:shadow-[0_0_12px_rgba(25,25,112,0.4)] hover:scale-[1.05] active:scale-[0.95] text-[13px] font-bold",
-          isMonitor ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]" : "bg-transparent text-slate-300 border-transparent"
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none",
+          isMonitor ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}>
         监控
       </button>
@@ -589,10 +589,10 @@ const OptionsDropdown = () => {
         onMouseEnter={openPanel}
         onMouseLeave={scheduleClose}
         className={cn(
-          "flex items-center justify-center gap-1 px-3 h-[32px] rounded-[8px] border transition-all duration-200 hover:bg-brand-blue-deep hover:text-[#4D7CFF] hover:shadow-[0_0_12px_rgba(25,25,112,0.4)] hover:scale-[1.05] active:scale-[0.95] text-[13px] font-bold",
+          "flex items-center justify-center gap-1 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none",
           isOptions || isOpen
-            ? "bg-brand-blue-deep text-[#4D7CFF] border-[#4D7CFF]/50 shadow-[0_0_10px_rgba(77,124,255,0.2)]"
-            : "bg-transparent text-slate-300 border-transparent"
+            ? "bg-white/15 text-slate-100"
+            : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}>
         期权
         <motion.span

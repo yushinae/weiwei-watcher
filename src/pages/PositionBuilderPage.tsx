@@ -296,7 +296,7 @@ export const PositionBuilderPage = () => {
     <div className="absolute inset-0 overflow-y-auto" style={{ background: '#0b0f17', color: '#e5e9f0' }}>
       <header className="px-6 py-4 border-b flex items-center justify-between flex-wrap gap-3" style={{ borderColor: '#2a3447' }}>
         <div className="flex items-center gap-3">
-          <div className="text-xl font-bold">仓位构建器</div>
+          <div className="text-xl font-bold">头寸压力测试</div>
           <div className="text-xs" style={{ color: '#8a93a6' }}>U 本位 · 策略训练沙盒</div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

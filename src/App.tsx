@@ -389,13 +389,13 @@ const AppNavigationDropdown = () => {
                     { label: '监控', icon: Activity, to: '/monitor' },
                     { label: '交易日志', icon: History, to: '/trade-log' },
                     { label: '账户概览', icon: Wallet, to: '/assets' },
-                    { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
+                    { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
                   ],
                   account: [
                     { label: '账户概览', icon: Wallet, to: '/assets' },
                   ],
                   help: [
-                    { label: '仓位构建器', icon: Calculator, to: '/position-builder' },
+                    { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
                   ],
                 };
                 const items = map[activeCat] ?? map.all;

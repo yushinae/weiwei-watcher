@@ -1258,6 +1258,7 @@ export default function App() {
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [widgetConfig, setWidgetConfig] = useState<Record<string, string>>({});
+  const [widgetSearchQuery, setWidgetSearchQuery] = useState<string>('');
 
   // 允许从不同页面打开组件库，并预选组件与配置（例如：期权链页点 +）
   useEffect(() => {
@@ -1816,206 +1817,111 @@ export default function App() {
             open={isComponentLibraryOpen}
             onClose={() => closeComponentLibrary()}
             zIndex={220}
-            className="relative bg-surface-4 w-[660px] h-[520px] rounded-[16px] flex flex-col overflow-hidden border border-surface-5"
-            style={{ boxShadow: '0 16px 40px rgba(0,0,0,0.6)' }}
+            className="relative flex overflow-hidden rounded-[16px]"
+            style={{
+              background: '#1e1e20',
+              border: '1px solid #333335',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+              width: 'calc(100vw - 64px)',
+              height: 'calc(100vh - 64px)',
+              maxWidth: '1600px',
+              maxHeight: '960px',
+            }}
           >
             <motion.div
               layoutId="addWidgetModalBackground"
-              className="flex-1 flex flex-col p-4 pb-3 min-h-0 overflow-hidden"
+              className="flex w-full h-full"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, delay: 0.08 }}
             >
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-white text-[15px] font-bold">添加组件</h2>
-                <button onClick={() => closeComponentLibrary()} className="text-slate-400 hover:text-white transition-colors">
-                  <Plus size={20} className="rotate-45" />
-                </button>
-              </div>
-
-              <div className="flex-1 flex min-h-0 border-t border-surface-5 mt-1 pt-3">
-                {/* Left Column: Categories */}
-                <div className="w-[100px] flex flex-col pr-2 border-r border-surface-5 min-h-0">
-                  <div className="relative mb-1 shrink-0">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B93A5]" />
-                    <input
-                      type="text"
-                      placeholder="查找组件"
-                      className="w-full h-[32px] bg-[#31333F]/50 text-slate-200 text-[12px] pl-8 pr-2 rounded-[6px] outline-none placeholder:text-[#8B93A5]"
+              {/* Left Sidebar */}
+              <div className="w-[180px] flex flex-col shrink-0" style={{ background: '#1e1e20', borderRight: '1px solid #2a2a2c' }}>
+                <div className="flex items-center justify-between px-4 pt-5 pb-4">
+                  <span className="text-[13px] font-semibold" style={{ color: '#b7b7b9' }}>组件库</span>
+                  <button onClick={() => closeComponentLibrary()} className="transition-colors hover:opacity-70" style={{ color: '#727274' }}>
+                    <Plus size={16} className="rotate-45" />
+                  </button>
+                </div>
+                <div className="px-3 mb-3">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#4a4a4c' }} />
+                    <input type="text" placeholder="搜索组件..." value={widgetSearchQuery}
+                      onChange={e => setWidgetSearchQuery(e.target.value)}
+                      className="w-full h-[32px] text-[12px] pl-8 pr-2 rounded-[8px] outline-none"
+                      style={{ background: '#17161b', border: '1px solid #2b2b2d', color: '#dfdee0' }}
                     />
                   </div>
-                  <div className="flex flex-col gap-0 mt-1 overflow-y-auto min-h-0">
-                    <div
-                      onClick={() => setActiveWidgetCategory('all')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'all' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>所有</span>
-                      {activeWidgetCategory === 'all' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                    <div
-                      onClick={() => setActiveWidgetCategory('options')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'options' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>期权</span>
-                      {activeWidgetCategory === 'options' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                    <div
-                      onClick={() => setActiveWidgetCategory('monitor')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'monitor' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>监控</span>
-                      {activeWidgetCategory === 'monitor' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                    <div
-                      onClick={() => setActiveWidgetCategory('charts')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'charts' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>图表</span>
-                      {activeWidgetCategory === 'charts' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                    <div
-                      onClick={() => setActiveWidgetCategory('account')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'account' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>账户</span>
-                      {activeWidgetCategory === 'account' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                    <div
-                      onClick={() => setActiveWidgetCategory('tools')}
-                      className={cn("flex items-center justify-between px-2 py-1.5 cursor-pointer rounded-[6px] transition-colors text-[13px] font-bold", activeWidgetCategory === 'tools' ? "bg-[#31333F] text-white" : "text-[#8B93A5] hover:bg-[#31333F]/50 hover:text-slate-300")}
-                    >
-                      <span>工具</span>
-                      {activeWidgetCategory === 'tools' && <ChevronRight size={14} className="text-white" />}
-                    </div>
-                  </div>
                 </div>
-
-                {/* Middle Column: Widget List */}
-                <div className="w-[150px] flex flex-col overflow-y-auto min-h-0 px-2 gap-0 border-r border-surface-5">
-                  {Object.values(WIDGET_REGISTRY).filter(w => activeWidgetCategory === 'all' || w.category === activeWidgetCategory).map((widget) => {
-                    const isSelected = selectedWidgetId === widget.id;
+                <div className="flex flex-col px-2 gap-0.5 overflow-y-auto">
+                  {([['all','全部'],['options','期权卡面'],['account','账户'],['charts','图表'],['monitor','监控'],['tools','工具']] as [string,string][]).map(([cat, label]) => {
+                    const count = Object.values(WIDGET_REGISTRY).filter(w => cat === 'all' || w.category === cat).length;
+                    const isActive = activeWidgetCategory === cat;
                     return (
-                      <div
-                        key={widget.id}
-                        onClick={() => {
-                          setSelectedWidgetId(widget.id);
-                          // reset config to defaults for this widget
-                          const defaults: Record<string, string> = {};
-                          (widget.configSchema ?? []).forEach(f => { defaults[f.key] = f.default; });
-                          setWidgetConfig(defaults);
-                        }}
-                        onMouseEnter={() => setHoveredWidgetId(widget.id)}
-                        onMouseLeave={() => setHoveredWidgetId(null)}
-                        className={cn(
-                          "relative flex items-center justify-between px-3 py-1.5 rounded-[6px] cursor-pointer transition-colors border",
-                          isSelected ? "bg-[#31333F] border-transparent" : "bg-transparent border-transparent hover:bg-[#31333F]/50"
-                        )}
+                      <button key={cat} onClick={() => setActiveWidgetCategory(cat as any)}
+                        className="flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] text-left w-full transition-colors"
+                        style={{ background: isActive ? '#2f2e33' : 'transparent', color: isActive ? '#dfdee0' : '#727274' }}
                       >
-                        <div className="text-[13px] font-bold text-white truncate">{widget.label.split(' (')[0]}</div>
-                        {isSelected && <ChevronRight size={14} className="text-white" />}
-                      </div>
+                        <span>{label}</span>
+                        {isActive && <span style={{ color: '#6c6b70', fontSize: '12px' }}>{count}</span>}
+                      </button>
                     );
                   })}
                 </div>
-
-                {/* Right Column: Preview Detail */}
-                <div className="flex-1 flex flex-col pl-3 pr-1 relative overflow-y-auto min-h-0">
-                  {(() => {
-                    const targetId = hoveredWidgetId || selectedWidgetId;
-                    if (!targetId) {
-                      return (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                          <Activity size={24} className="mb-2 opacity-30" />
-                          <span className="text-[13px]">请在左侧选择一个组件查看预览</span>
-                        </div>
-                      );
-                    }
-                    const widget = WIDGET_REGISTRY[targetId];
-                    return (
-                      <div className="flex flex-col h-auto min-h-full w-full">
-                        <h3 className="text-white font-bold text-[15px] mb-3">{widget?.label}</h3>
-
-                        {/* Config fields — only shown for the selected widget (not hovered) */}
-                        {targetId === selectedWidgetId && widget?.configSchema && widget.configSchema.length > 0 && (
-                          <div className="mb-3 flex flex-col gap-2 shrink-0">
-                            {widget.configSchema.map(field => (
-                              <div key={field.key}>
-                                <div className="text-[11px] font-bold text-slate-400 mb-1">{field.label}</div>
-                                <select
-                                  value={widgetConfig[field.key] ?? field.default}
-                                  onChange={e => setWidgetConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                  className="w-full bg-[#1A1A24] border border-[#2A2A38] text-slate-100 text-[12px] px-3 py-2 rounded-[6px] outline-none focus:border-[#4D7CFF] cursor-pointer appearance-none"
-                                >
-                                  {field.options.map(o => (
-                                    <option key={o.value} value={o.value}>{o.label}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div className="text-slate-400 text-[11px] font-bold mb-1.5 shrink-0 uppercase tracking-wider">预览</div>
-                        <div className="relative flex-1 w-full bg-surface-2 border border-surface-5 rounded-[8px] flex items-center justify-center overflow-hidden p-4 mb-3 min-h-[160px]">
-                          <div className="absolute inset-0 bg-[#131318]" />
-                          <div className="relative w-full h-full flex flex-col justify-center">
-                            {widget?.preview}
-                          </div>
-                        </div>
-                        <div className="bg-surface-2 rounded-[8px] p-4 border border-surface-5 flex items-start gap-3 min-h-[80px] shrink-0">
-                          <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
-                            <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
-                              <div className="bg-slate-400/20 rounded-[1px]" />
-                              <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
-                              <div className="bg-[#4D7CFF]/50 border border-[#4D7CFF] rounded-[1px]" />
-                              <div className="bg-slate-400/20 rounded-[1px]" />
+              </div>
+              {/* Right Content */}
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: '#171719' }}>
+                <div className="px-8 pt-7 pb-5 shrink-0">
+                  <h2 className="text-[22px] font-bold mb-1.5" style={{ color: '#eaeaec' }}>选择一个组件放入主页面</h2>
+                  <p className="text-[13px]" style={{ color: '#737375' }}>点击卡片即可添加（位置会自动放在页面底部，可拖拽调整）。</p>
+                </div>
+                {/* CARD_GRID_PLACEHOLDER */}
+                <div className="flex-1 overflow-y-auto px-8 pb-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    {Object.values(WIDGET_REGISTRY)
+                      .filter(w => {
+                        const matchCat = activeWidgetCategory === 'all' || w.category === activeWidgetCategory;
+                        const q = widgetSearchQuery.trim().toLowerCase();
+                        return matchCat && (!q || w.label.toLowerCase().includes(q) || w.description.toLowerCase().includes(q));
+                      })
+                      .map((widget) => (
+                        <div
+                          key={widget.id}
+                          onClick={() => {
+                            const defn = WIDGET_REGISTRY[widget.id];
+                            const finalProps: Record<string, string> = {};
+                            (defn.configSchema ?? []).forEach(f => { finalProps[f.key] = f.default; });
+                            if (defn.kind === 'action' && defn.id === 'options-chain') {
+                              appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
+                            } else {
+                              addInstance(activePageId, widget.id, {
+                                x: 0, y: Infinity,
+                                w: defn.defaultSize.w, h: defn.defaultSize.h,
+                                minW: defn.defaultSize.minW, minH: defn.defaultSize.minH,
+                              }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+                            }
+                            closeComponentLibrary();
+                          }}
+                          className="group overflow-hidden cursor-pointer transition-all rounded-[12px]"
+                          style={{ background: '#272729', border: '1px solid #333335' }}
+                        >
+                          <div className="relative h-[200px] flex items-center justify-center p-4 overflow-hidden" style={{ background: '#272729' }}>
+                            <div className="w-full h-full flex items-center justify-center pointer-events-none">
+                              {widget.preview}
+                            </div>
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                              <span className="px-4 py-2 rounded-[8px] text-[13px] font-semibold" style={{ background: '#e8e8ea', color: '#1e1e20' }}>+ 添加 →</span>
                             </div>
                           </div>
-                          <p className="text-slate-300 text-[12px] leading-relaxed m-0">{widget?.description}</p>
+                          <div className="px-4 py-3" style={{ background: '#1e1d23', borderTop: '1px solid #333335' }}>
+                            <h3 className="text-[13px] font-semibold mb-1 truncate" style={{ color: '#dcdcdd' }}>{widget.label}</h3>
+                            <p className="text-[12px] leading-relaxed line-clamp-2" style={{ color: '#6b6a6f' }}>{widget.description}</p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
+                      ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-4 shrink-0">
-                <button
-                  onClick={() => closeComponentLibrary()}
-                  className="px-4 py-2 rounded-[6px] border border-slate-700/50 text-slate-300 hover:bg-surface-5 hover:text-white transition-colors text-[12px] font-bold"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={() => {
-                    if (selectedWidgetId) {
-                      const defn = WIDGET_REGISTRY[selectedWidgetId];
-                      const finalProps: Record<string, string> = {};
-                      (defn.configSchema ?? []).forEach(f => {
-                        finalProps[f.key] = widgetConfig[f.key] ?? f.default;
-                      });
-                      if (defn.kind === 'action' && defn.id === 'options-chain') {
-                        // 期权链：只追加到 /options-chain 页面的右侧 Tab，不切换当前页面
-                        appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
-                        closeComponentLibrary();
-                        return;
-                      }
-
-                      addInstance(activePageId, selectedWidgetId, {
-                        x: 0, y: Infinity,
-                        w: defn.defaultSize.w,
-                        h: defn.defaultSize.h,
-                        minW: defn.defaultSize.minW,
-                        minH: defn.defaultSize.minH,
-                      }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
-                      closeComponentLibrary();
-                    }
-                  }}
-                  disabled={!selectedWidgetId}
-                  className="px-4 py-2 rounded-[6px] bg-[#4D7CFF] hover:bg-[#3d63cc] disabled:bg-surface-4 disabled:text-slate-500 disabled:shadow-none shadow-[0_0_12px_rgba(77,124,255,0.4)] text-white transition-all text-[12px] font-bold border disabled:border-slate-700/50 border-transparent shrink-0"
-                >
-                  添加组件
-                </button>
               </div>
             </motion.div>
           </Modal>

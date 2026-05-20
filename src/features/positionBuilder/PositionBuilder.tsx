@@ -113,7 +113,7 @@ function Panel({ title, subtitle, noPadding, noScroll, children }: {
   return (
     <div className="w-full flex flex-col rounded-[14px] overflow-hidden bg-white/[0.025] border border-white/[0.07]">
       <div className="flex items-center px-3 py-2 border-b border-white/[0.06] shrink-0">
-        <span className="text-[12px] font-semibold text-white/65 shrink-0">{title}</span>
+        <span className="text-[12px] text-white/65 shrink-0">{title}</span>
         {subtitle && <div className="ml-3 min-w-0 flex-1 text-[10px] text-white/30">{subtitle}</div>}
       </div>
       <div className={cn(
@@ -320,7 +320,7 @@ export function PositionBuilder() {
     <div className="absolute inset-0">
       <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10" style={{ background: 'var(--base-dim)' }}>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[15px] font-bold text-white/90">头寸压力测试</span>
+          <span className="text-[16px] text-white/90">头寸压力测试</span>
           <span className="text-[11px] text-white/25 uppercase tracking-[0.08em]">U 本位 · 策略训练沙盒</span>
         </div>
 
@@ -377,7 +377,7 @@ export function PositionBuilder() {
                       <option value="calendar">日历价差</option>
                     </select>
                     <button onClick={clearAll}
-                      className="px-3 py-1.5 rounded-[8px] bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[12px] font-semibold transition-colors shrink-0">
+                      className="px-3 py-1.5 rounded-[8px] bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[12px] transition-colors shrink-0">
                       清空
                     </button>
                   </div>
@@ -399,12 +399,12 @@ export function PositionBuilder() {
                         <div key={leg.id} className="bg-white/[0.03] border border-white/[0.06] rounded-[12px] p-3">
                           <div className="flex items-center justify-between mb-2.5">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] text-white/25 font-medium">#{idx + 1}</span>
-                              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                              <span className="text-[11px] text-white/25">#{idx + 1}</span>
+                              <span className={cn('text-[11px] px-2 py-0.5 rounded-full',
                                 leg.side === 1 ? 'bg-[var(--nexus-green)]/15 text-[var(--nexus-green)]' : 'bg-[var(--nexus-red)]/15 text-[var(--nexus-red)]')}>
                                 {leg.side === 1 ? '买入' : '卖出'}
                               </span>
-                              <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                              <span className={cn('text-[11px] px-2 py-0.5 rounded-full',
                                 leg.type === 'call' ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]' : 'bg-[var(--nexus-yellow)]/15 text-[var(--nexus-yellow)]')}>
                                 {leg.type === 'call' ? 'Call' : 'Put'}
                               </span>
@@ -416,34 +416,34 @@ export function PositionBuilder() {
                           </div>
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">方向</label>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">方向</label>
                               <select value={leg.side} onChange={e => updateLeg(leg.id, { side: parseInt(e.target.value) as 1 | -1 })} className={selectCls}>
                                 <option value="1">买入 (Long)</option>
                                 <option value="-1">卖出 (Short)</option>
                               </select>
                             </div>
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">类型</label>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">类型</label>
                               <select value={leg.type} onChange={e => updateLeg(leg.id, { type: e.target.value as 'call' | 'put' })} className={selectCls}>
                                 <option value="call">看涨 Call</option>
                                 <option value="put">看跌 Put</option>
                               </select>
                             </div>
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">行权价</label>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">行权价</label>
                               <input type="number" step="any" value={leg.K} onChange={e => updateLeg(leg.id, { K: parseFloat(e.target.value) })} className={inputCls} />
                             </div>
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">数量</label>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">数量</label>
                               <input type="number" step="0.1" min="0.1" value={leg.qty} onChange={e => updateLeg(leg.id, { qty: parseFloat(e.target.value) })} className={inputCls} />
                             </div>
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">到期 (小时)</label>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">到期 (小时)</label>
                               <input type="number" step="1" min="1" value={leg.hoursToExpiry} onChange={e => updateLeg(leg.id, { hoursToExpiry: Math.max(1, Math.round(parseFloat(e.target.value))) })} className={inputCls} />
                             </div>
                             <div>
-                              <label className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 block mb-1">入场权利金 (自动)</label>
-                              <div className="text-[14px] font-semibold tnum text-white/80 pt-1">{leg.entryPremium.toFixed(2)}</div>
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">入场权利金 (自动)</label>
+                              <div className="text-[14px] tnum text-white/80 pt-1">{leg.entryPremium.toFixed(2)}</div>
                             </div>
                           </div>
                           <div className="text-[11px] text-white/25 mb-2">
@@ -461,7 +461,7 @@ export function PositionBuilder() {
                   </div>
 
                   <button onClick={() => addLeg()}
-                    className="w-full py-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08] text-[13px] text-white/60 hover:bg-white/[0.07] hover:text-white/80 hover:border-white/[0.12] transition-colors font-semibold">
+                    className="w-full py-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08] text-[13px] text-white/60 hover:bg-white/[0.07] hover:text-white/80 hover:border-white/[0.12] transition-colors">
                     + 添加一腿
                   </button>
 
@@ -488,7 +488,7 @@ export function PositionBuilder() {
                   <div className="grid grid-cols-3 gap-4 pt-1">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] text-white/50 font-medium">时间快进</span>
+                         <span className="text-[11px] text-white/50">时间快进</span>
                         <span className="tnum text-[11px] text-white/50">{formatHours(hoursForward)}</span>
                       </div>
                       <input type="range" min="0" max={Math.max(1, maxHours)} value={hoursForward}
@@ -497,7 +497,7 @@ export function PositionBuilder() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] text-white/50 font-medium">IV 偏移</span>
+                         <span className="text-[11px] text-white/50">IV 偏移</span>
                         <span className="tnum text-[11px] text-white/50">{(ivAdjust * 100).toFixed(0) >= '0' ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%</span>
                       </div>
                       <input type="range" min="-30" max="50" value={ivAdjust * 100}
@@ -506,7 +506,7 @@ export function PositionBuilder() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] text-white/50 font-medium">标的价偏移</span>
+                         <span className="text-[11px] text-white/50">标的价偏移</span>
                         <span className="tnum text-[11px] text-white/50">{spotPctOffset >= 0 ? '+' : ''}{spotPctOffset}%</span>
                       </div>
                       <input type="range" min="-40" max="40" value={spotPctOffset}
@@ -516,7 +516,7 @@ export function PositionBuilder() {
                   </div>
                   <div className="flex justify-center mt-3 pt-2 border-t border-white/[0.04]">
                     <button onClick={resetScenario}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors font-semibold">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors">
                       <span>↺</span> 重置情景
                     </button>
                   </div>
@@ -525,7 +525,7 @@ export function PositionBuilder() {
               <Panel title="希腊字母"
                   subtitle={legs.length > 0 ? (
                     <span className="text-[11px] text-white/40">
-                      情景 P/L <span className={cn('font-bold tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
+                      情景 P/L <span className={cn('tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
                         {pl >= 0 ? '+' : ''}{pl.toFixed(2)} USDT
                       </span>
                     </span>
@@ -539,8 +539,8 @@ export function PositionBuilder() {
                       { label: 'Vega (ν) /1%', val: grk.vega, decimals: 2, desc: 'IV 涨 1 个百分点' },
                     ].map(({ label, val, decimals, desc }) => (
                       <div key={label} className="bg-white/[0.03] border border-white/[0.05] rounded-[10px] p-3">
-                        <div className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
-                        <div className={cn('text-[18px] font-bold tnum mb-1', legs.length === 0 ? 'text-white/20' : gClass(val))}>
+                        <div className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
+                        <div className={cn('text-[18px] tnum mb-1', legs.length === 0 ? 'text-white/20' : gClass(val))}>
                           {legs.length === 0 ? '—' : `${val >= 0 ? '+' : ''}${val.toFixed(decimals)}`}
                         </div>
                         <div className="text-[10px] text-white/20 leading-snug">{desc}</div>

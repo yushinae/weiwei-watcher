@@ -600,7 +600,7 @@ const OptionsDropdown = () => {
             exit="exit"
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
-            className="popup-card flex overflow-hidden"
+            className="popup-card options-popup flex overflow-hidden"
             style={{ position: 'fixed', top: panelPos.top, left: panelPos.left, zIndex: 9999, transformOrigin: 'top left' }}
           >
 

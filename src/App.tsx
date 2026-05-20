@@ -7,7 +7,7 @@
 
 // React 是我们造网页的大框架。useState 帮我们记住东西（比如现在几点），useEffect 帮我们做一些杂事（比如去网上拿数据）。
 import React, { useState, useEffect, useRef } from 'react';
-// Lucide 是一个图标店，我们从这里拿“趋势向上”、“时钟”、“设置”等小图标。
+// Lucide 是一个图标店，我们从这里拿"趋势向上"、"时钟"、"设置"等小图标。
 import {
   TrendingUp,
   TrendingDown,
@@ -35,10 +35,13 @@ import {
   Copy,
   Trash2,
   Edit2,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { Modal } from './components/popup/Popup';
 import { HoverPopover, Popover } from './components/popup/Popup';
-// react-router-dom 是网页的“导航员”，负责在“首页”、“账户页”之间切换。
+// react-router-dom 是网页的"导航员"，负责在"首页"、"账户页"之间切换。
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import TradeLogPage from './pages/TradeLogPage';
 import AssetsPage from './pages/AssetsPage';
@@ -66,7 +69,7 @@ import {
 } from 'recharts';
 // motion 是动画大师，专门负责让网页里的东西飞入飞出、变大变小，显得很高级。
 import { motion, AnimatePresence } from 'motion/react';
-// cn 是一个小助手，帮我们方便地组合不同的样式（比如“背景变红”+“字体变粗”）。
+// cn 是一个小助手，帮我们方便地组合不同的样式（比如"背景变红"+"字体变粗"）。
 import { cn } from './lib/utils';
 
 // --- Mock Data ---
@@ -89,8 +92,9 @@ const MARKET_TICKERS = [
 
 // --- 组件和状态工具 ---
 
-// 从我们之前写的“管家”那里拿取数据。
+// 从我们之前写的"管家"那里拿取数据。
 import { useWorkspaceStore } from './store/useWorkspaceStore';
+import { useLayoutStore } from './store/useLayoutStore';
 
 import { DashboardPage } from './pages/DashboardPage';
 import { WIDGET_REGISTRY } from './registry';
@@ -248,7 +252,7 @@ const MarginMonitor = ({ rate }: { rate: number }) => {
   const [displayRate, setDisplayRate] = useState(rate);
 
   useEffect(() => {
-    // 让数字变动的时候有种“跳动”的感觉，而不是直接变。
+    // 让数字变动的时候有种"跳动"的感觉，而不是直接变。
     const diff = rate - displayRate;
     if (Math.abs(diff) < 0.01) {
       if (displayRate !== rate) setDisplayRate(rate);
@@ -1252,6 +1256,9 @@ export default function App() {
   const closeComponentLibrary = useWorkspaceStore(state => state.closeComponentLibrary);
   const appendOptionsChainTab = useWorkspaceStore(state => state.appendOptionsChainTab);
 
+  const isEditMode = useLayoutStore(state => state.isEditMode);
+  const addDraftWidget = useLayoutStore(state => state.addDraftWidget);
+
   // Active tab: route pages matched by pathname, workspace pages matched by activePageId
   const activeTab = location.pathname !== '/'
     ? (pages.find(p => p.routePath === location.pathname)?.id ?? '')
@@ -1319,16 +1326,16 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden z-[1]">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {/* @ts-ignore */}
           <Routes location={location} key={location.pathname}>
             <Route path="/market" element={
               <motion.div
                 key="market"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 flex p-2 gap-3 overflow-y-auto"
               >
                 {/* Left Panel: Charts & Stats */}
@@ -1499,10 +1506,10 @@ export default function App() {
             <Route path="/positions" element={
               <motion.div
                 key="positions"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
                 <div className="glass rounded-xl p-6 flex flex-col">
@@ -1570,10 +1577,10 @@ export default function App() {
             <Route path="/logs" element={
               <motion.div
                 key="logs"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
                 <div className="glass rounded-xl p-6 flex flex-col">
@@ -1612,10 +1619,10 @@ export default function App() {
             <Route path="/stats" element={
               <motion.div
                 key="stats"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 p-2 overflow-auto"
               >
                 <div className="glass rounded-xl p-6 h-full">
@@ -1654,10 +1661,10 @@ export default function App() {
             <Route path="/trade-log" element={
               <motion.div
                 key="trade-log"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 overflow-hidden"
               >
                 <TradeLogPage />
@@ -1666,10 +1673,10 @@ export default function App() {
             <Route path="/assets" element={
               <motion.div
                 key="assets"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 overflow-hidden"
               >
                 <AssetsPage />
@@ -1678,10 +1685,10 @@ export default function App() {
             <Route path="/monitor" element={
               <motion.div
                 key="monitor"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0"
               >
                 <MonitorPage />
@@ -1690,10 +1697,10 @@ export default function App() {
             <Route path="/options-chain" element={
               <motion.div
                 key="options-chain"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0 p-1"
                 style={{ backgroundColor: '#0A0A0D' }}
               >
@@ -1705,10 +1712,10 @@ export default function App() {
             <Route path="/position-builder" element={
               <motion.div
                 key="position-builder"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
                 className="absolute inset-0"
               >
                 <PositionBuilderPage />
@@ -1752,7 +1759,7 @@ export default function App() {
               }}
             />
           ))}
-          {/* “+”按钮：用来添加新标签 */}
+          {/* "+"按钮：用来添加新标签 */}
           <div className="relative h-full flex items-center group">
             <motion.button
               layoutId="addTabModalBackground"
@@ -1778,7 +1785,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-1.5 h-full py-0.5">
-          {/* “添加组件”按钮：点击弹出可以选方块的窗口 */}
           <motion.button
             layoutId="addWidgetModalBackground"
             onClick={() => openComponentLibrary()}
@@ -1888,11 +1894,19 @@ export default function App() {
                             if (defn.kind === 'action' && defn.id === 'options-chain') {
                               appendOptionsChainTab(finalProps.coinId ?? 'BTC-USD', DERIBIT_EXPIRIES[0] ?? '15 MAY 26');
                             } else {
-                              addInstance(activePageId, widget.id, {
+                              const instanceId = `${widget.id}-${Date.now()}`;
+                              const layout = {
                                 x: 0, y: Infinity,
                                 w: defn.defaultSize.w, h: defn.defaultSize.h,
                                 minW: defn.defaultSize.minW, minH: defn.defaultSize.minH,
-                              }, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+                              };
+                              addInstance(activePageId, widget.id, layout, Object.keys(finalProps).length > 0 ? finalProps : undefined);
+                              if (isEditMode) {
+                                addDraftWidget(activePageId,
+                                  { i: instanceId, ...layout },
+                                  { id: instanceId, type: widget.id, visible: true, title: defn.label, config: Object.keys(finalProps).length > 0 ? finalProps : undefined }
+                                );
+                              }
                             }
                             closeComponentLibrary();
                           }}

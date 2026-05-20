@@ -107,8 +107,8 @@ export function MonitorHeader({
 
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-[12px] bg-surface-2/60 px-3 py-2 ring-1 ring-inset ring-border-subtle/70">
-            <span className="relative flex h-5 w-5 items-center justify-center">
-              <span className="absolute h-5 w-5 animate-ping rounded-full bg-trade-up/60" />
+            <span className="relative flex h-4 w-4 items-center justify-center">
+              <span className="absolute h-4 w-4 animate-ping rounded-full bg-trade-up/60" />
               <span className="relative h-2 w-2 rounded-full bg-trade-up" />
             </span>
             <span className="text-[11px] text-slate-400">实时</span>

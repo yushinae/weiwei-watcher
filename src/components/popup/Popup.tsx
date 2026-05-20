@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { DUR_POP, EASE_EMPHASIS } from '../../motion/tokens';
@@ -80,87 +79,6 @@ function PopupCard({
   );
 }
 
-// FloatingCard — exported building block for advanced layouts (e.g., flyout menus)
-export function FloatingCard({
-  children,
-  className,
-  style,
-  zIndex,
-  initial,
-  animate,
-  exit,
-  ...rest
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-  zIndex: number;
-  initial?: any;
-  animate?: any;
-  exit?: any;
-} & Record<string, any>) {
-  return (
-    <PopupCard
-      zIndex={zIndex}
-      className={className}
-      style={style}
-      initial={initial}
-      animate={animate}
-      exit={exit}
-      {...rest}
-    >
-      {children}
-    </PopupCard>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Popover (dropdown) — anchored panel + transparent click-away backdrop
-// ─────────────────────────────────────────────────────────────
-export function Popover({
-  open,
-  onClose,
-  backdropZ = 120,
-  panelZ = 121,
-  panelClassName,
-  panelStyle,
-  children,
-  onMouseEnter,
-  onMouseLeave,
-}: {
-  open: boolean;
-  onClose: () => void;
-  backdropZ?: number;
-  panelZ?: number;
-  panelClassName?: string;
-  panelStyle?: React.CSSProperties;
-  children: React.ReactNode;
-  onMouseEnter?: React.MouseEventHandler;
-  onMouseLeave?: React.MouseEventHandler;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
-
-  return (
-    <>
-      <Backdrop open={open} onClose={onClose} zIndex={backdropZ} tone="transparent" />
-      <AnimatePresence>
-        {open && (
-          <PopupCard zIndex={panelZ} className={panelClassName} style={panelStyle} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-            {children}
-          </PopupCard>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────
 // HoverPopover — anchored panel + NO backdrop (for hover tooltips/menus)
 // ─────────────────────────────────────────────────────────────
@@ -189,66 +107,6 @@ export function HoverPopover({
         </PopupCard>
       )}
     </AnimatePresence>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Modal — centered + dim backdrop
-// ─────────────────────────────────────────────────────────────
-export function Modal({
-  open,
-  onClose,
-  zIndex = 100,
-  children,
-  className,
-  style,
-}: {
-  open: boolean;
-  onClose: () => void;
-  zIndex?: number;
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open, onClose]);
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex, perspective: '800px' }}>
-          <Backdrop
-            open={open} onClose={onClose} zIndex={zIndex} tone="dim" blur
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-          />
-          <PopupCard
-            zIndex={zIndex + 1}
-            className={cn('relative', className)}
-            style={style}
-            transition={{ duration: 0.3, ease: EASE_EMPHASIS }}
-            initial={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}
-            animate={{ opacity: 1, rotateX: 0, y: 0, scale: 1 }}
-            exit={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}
-          >
-            {children}
-          </PopupCard>
-        </div>
-      )}
-    </AnimatePresence>,
-    document.body,
   );
 }
 

@@ -120,7 +120,7 @@ function Panel({ title, subtitle, actions, noPadding, noScroll, children }: {
       </div>
       <div className={cn(
         'min-h-0',
-        noScroll ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden',
+        noScroll ? 'overflow-hidden' : 'overflow-visible',
         !noPadding && 'p-3',
       )}>
         {children}

@@ -313,6 +313,11 @@ html.is-scrolling * {
   margin-bottom: 2px;
 }
 
+.widget-drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
 .widget-head-left {
   display: flex;
   align-items: center;

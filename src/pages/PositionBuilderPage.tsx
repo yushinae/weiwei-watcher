@@ -1,8 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import Plotly from 'plotly.js-dist';
+import GridLayout, { LayoutItem as RGLLayoutItem } from 'react-grid-layout';
+import { useContainerWidth } from 'react-grid-layout';
 import { cn } from '../lib/utils';
 import { WidgetCard } from '../components/card/WidgetCard';
 import { MGrid } from '../components/card/CardPatterns';
+
+const LAYOUT_KEY = 'position-builder-layout';
+const DEFAULT_LAYOUT: RGLLayoutItem[] = [
+  { i: 'strategy', x: 0,  y: 0,  w: 4, h: 22, minW: 3, minH: 8 },
+  { i: 'chart',    x: 4,  y: 0,  w: 8, h: 10, minW: 4, minH: 5 },
+  { i: 'scenario', x: 4,  y: 10, w: 8, h: 5,  minW: 4, minH: 3 },
+  { i: 'greeks',   x: 4,  y: 15, w: 8, h: 7,  minW: 4, minH: 3 },
+];
 
 const PRESETS: Record<string, { spot: number; iv: number; strikeStep: number }> = {
   BTC: { spot: 65000, iv: 0.55, strikeStep: 1000 },
@@ -112,6 +122,12 @@ export const PositionBuilderPage = () => {
   const [baseIv, setBaseIv] = useState(PRESETS.BTC.iv);
   const [legs, setLegs] = useState<Leg[]>([]);
   const [nextId, setNextId] = useState(1);
+  const [isEditing, setIsEditing] = useState(false);
+  const [layout, setLayout] = useState<RGLLayoutItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '') || DEFAULT_LAYOUT; }
+    catch { return DEFAULT_LAYOUT; }
+  });
+  const { width, containerRef } = useContainerWidth();
   const [hoursForward, setHoursForward] = useState(0);
   const [ivAdjust, setIvAdjust] = useState(0);
   const [spotPctOffset, setSpotPctOffset] = useState(0);
@@ -299,11 +315,14 @@ export const PositionBuilderPage = () => {
   return (
     <div className="absolute inset-0 overflow-y-auto" style={{ background: 'transparent' }}>
       {/* Header */}
-      <header className="glass-nav px-4 py-3 flex items-center justify-between flex-wrap gap-3 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
+      <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10">
+        {/* Title */}
+        <div className="flex items-center gap-3 shrink-0">
           <span className="text-[15px] font-bold text-white/90">头寸压力测试</span>
           <span className="text-[11px] text-white/25 uppercase tracking-[0.08em]">U 本位 · 策略训练沙盒</span>
         </div>
+
+        {/* Controls — pushed left by the spacer */}
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-white/30 uppercase tracking-[0.06em]">标的</span>
@@ -327,11 +346,59 @@ export const PositionBuilderPage = () => {
             <span className="text-[11px] text-white/30">%</span>
           </div>
         </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Edit / Save layout button */}
+        {isEditing && (
+          <span className="text-[11px] text-[var(--nexus-accent)]/70 shrink-0">拖动或缩放卡片，完成后点保存</span>
+        )}
+        <button
+          onClick={() => {
+            if (isEditing) localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+            setIsEditing(e => !e);
+          }}
+          className={cn(
+            'flex items-center gap-1.5 px-3 h-[30px] rounded-[8px] border text-[12px] font-semibold transition-all shrink-0',
+            isEditing
+              ? 'border-[var(--nexus-accent)]/60 text-[var(--nexus-accent)] bg-[var(--nexus-accent)]/10 hover:bg-[var(--nexus-accent)]/18'
+              : 'border-white/[0.10] text-white/50 hover:border-[var(--nexus-accent)]/50 hover:text-[var(--nexus-accent)] hover:bg-[var(--nexus-accent)]/8',
+          )}
+        >
+          {isEditing ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2 8 6 12 14 4" />
+              </svg>
+              保存布局
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L5 13H3v-2L11.5 2.5Z" />
+              </svg>
+              编辑布局
+            </>
+          )}
+        </button>
       </header>
 
-      <main className="p-3 grid gap-3" style={{ gridTemplateColumns: '380px 1fr' }}>
-        {/* Left: Strategy Panel */}
-        <WidgetCard title="策略组合" subtitle="期权腿组合" headerDensity="compact">
+      {/* Grid layout area */}
+      <div ref={containerRef} className={cn('px-2 pb-2', isEditing && 'select-none')}>
+        <GridLayout
+          width={width || 1200}
+          layout={layout}
+          gridConfig={{ cols: 12, rowHeight: 40, margin: [8, 8] as [number, number] }}
+          dragConfig={{ enabled: isEditing, handle: '.widget-drag-handle', bounded: false, threshold: 3 }}
+          resizeConfig={{ enabled: isEditing, handles: ['se'] }}
+          onLayoutChange={newLayout => setLayout([...newLayout])}
+        >
+          {/* strategy */}
+          <div key="strategy">
+            <WidgetCard title="策略组合" subtitle="期权腿组合" headerDensity="compact"
+              dragHandle={isEditing}
+              className={isEditing ? 'ring-1 ring-[var(--nexus-accent)]/25' : ''}>
           <div className="flex flex-col gap-3 pt-1">
             <div className="flex items-center gap-2">
               <select onChange={e => { if (e.target.value) { applyTemplate(e.target.value); e.target.value = ''; } }}
@@ -441,85 +508,103 @@ export const PositionBuilderPage = () => {
               入场价按当前 标的/IV 用 Black-Scholes 估算。修改腿参数后会重算入场价；之后调"入场基准价/IV/时间"滑块只改变浮盈浮亏，不动入场价。
             </p>
           </div>
-        </WidgetCard>
-
-        {/* Right column */}
-        <div className="flex flex-col gap-3">
-          <WidgetCard title="损益曲线" headerDensity="compact" padding="none"
-            subtitle={
-              <span className="flex items-center gap-3 text-[11px] text-white/30">
-                <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff] align-middle" />当前</span>
-                <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t border-dashed border-white/30 align-middle" />到期</span>
-              </span>
-            }
-          >
-            <div ref={chartRef} style={{ width: '100%', height: 380 }} />
-          </WidgetCard>
-
-          <div className="grid grid-cols-3 gap-3">
-            <WidgetCard title="时间快进" headerDensity="compact"
-              subtitle={<span className="tnum text-[11px] text-white/50">{formatHours(hoursForward)}</span>}>
-              <div className="pt-1">
-                <input type="range" min="0" max={Math.max(1, maxHours)} value={hoursForward}
-                  onChange={e => setHoursForward(parseInt(e.target.value))} className="w-full range-slider" />
-                <p className="text-[11px] text-white/20 mt-2 leading-snug">把"当前"时间点向前推，看 theta 怎么吃仓位</p>
-              </div>
-            </WidgetCard>
-
-            <WidgetCard title="IV 偏移" headerDensity="compact"
-              subtitle={<span className="tnum text-[11px] text-white/50">{(ivAdjust * 100).toFixed(0) >= '0' ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%</span>}>
-              <div className="pt-1">
-                <input type="range" min="-30" max="50" value={ivAdjust * 100}
-                  onChange={e => setIvAdjust(parseInt(e.target.value) / 100)} className="w-full range-slider" />
-                <p className="text-[11px] text-white/20 mt-2 leading-snug">基础 IV 上的加减，测 vega 敏感度</p>
-              </div>
-            </WidgetCard>
-
-            <WidgetCard title="情景标的价偏移" headerDensity="compact"
-              subtitle={<span className="tnum text-[11px] text-white/50">{spotPctOffset >= 0 ? '+' : ''}{spotPctOffset}%</span>}>
-              <div className="pt-1">
-                <input type="range" min="-40" max="40" value={spotPctOffset}
-                  onChange={e => setSpotPctOffset(parseInt(e.target.value))} className="w-full range-slider" />
-                <p className="text-[11px] text-white/20 mt-2 leading-snug">假设标的从入场基准价涨跌 X%，落在图上的"当前"标记位</p>
-              </div>
             </WidgetCard>
           </div>
 
-          <div className="flex justify-center">
-            <button onClick={resetScenario}
-              className="flex items-center gap-2 px-4 py-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08] text-[13px] text-white/60 hover:bg-white/[0.07] hover:text-white/80 transition-colors font-semibold">
-              <span>↺</span> 重置情景
-            </button>
-          </div>
-
-          <WidgetCard title="希腊字母" headerDensity="compact"
-            subtitle={legs.length > 0 ? (
-              <span className="text-[11px] text-white/40">
-                情景 P/L <span className={cn('font-bold tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
-                  {pl >= 0 ? '+' : ''}{pl.toFixed(2)} USDT
+          {/* chart */}
+          <div key="chart">
+            <WidgetCard title="损益曲线" headerDensity="compact" padding="none"
+              dragHandle={isEditing}
+              className={isEditing ? 'ring-1 ring-[var(--nexus-accent)]/25' : ''}
+              subtitle={
+                <span className="flex items-center gap-3 text-[11px] text-white/30">
+                  <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />当前</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t border-dashed border-white/30" />到期</span>
                 </span>
-              </span>
-            ) : undefined}
-          >
-            <MGrid columns={4} className="pt-1">
-              {[
-                { label: 'Delta (Δ)', val: grk.delta, decimals: 3, desc: '标的涨 1 单位仓位变化' },
-                { label: 'Gamma (Γ)', val: grk.gamma, decimals: 5, desc: 'Delta 的变化率' },
-                { label: 'Theta (Θ) /天', val: grk.theta, decimals: 2, desc: '每天时间衰减' },
-                { label: 'Vega (ν) /1%', val: grk.vega, decimals: 2, desc: 'IV 涨 1 个百分点' },
-              ].map(({ label, val, decimals, desc }) => (
-                <div key={label} className="bg-white/[0.03] border border-white/[0.05] rounded-[10px] p-3">
-                  <div className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
-                  <div className={cn('text-[18px] font-bold tnum mb-1', legs.length === 0 ? 'text-white/20' : gClass(val))}>
-                    {legs.length === 0 ? '—' : `${val >= 0 ? '+' : ''}${val.toFixed(decimals)}`}
+              }
+            >
+              <div ref={chartRef} className="w-full h-full" style={{ minHeight: 200 }} />
+            </WidgetCard>
+          </div>
+
+          {/* scenario */}
+          <div key="scenario">
+            <WidgetCard title="情景参数" headerDensity="compact"
+              dragHandle={isEditing}
+              className={isEditing ? 'ring-1 ring-[var(--nexus-accent)]/25' : ''}
+            >
+              <div className="grid grid-cols-3 gap-4 pt-1">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] text-white/50 font-medium">时间快进</span>
+                    <span className="tnum text-[11px] text-white/50">{formatHours(hoursForward)}</span>
                   </div>
-                  <div className="text-[10px] text-white/20 leading-snug">{desc}</div>
+                  <input type="range" min="0" max={Math.max(1, maxHours)} value={hoursForward}
+                    onChange={e => setHoursForward(parseInt(e.target.value))} className="w-full range-slider" />
+                  <p className="text-[10px] text-white/20 mt-1.5 leading-snug">把"当前"时间点向前推，看 theta 怎么吃仓位</p>
                 </div>
-              ))}
-            </MGrid>
-          </WidgetCard>
-        </div>
-      </main>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] text-white/50 font-medium">IV 偏移</span>
+                    <span className="tnum text-[11px] text-white/50">{(ivAdjust * 100).toFixed(0) >= '0' ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%</span>
+                  </div>
+                  <input type="range" min="-30" max="50" value={ivAdjust * 100}
+                    onChange={e => setIvAdjust(parseInt(e.target.value) / 100)} className="w-full range-slider" />
+                  <p className="text-[10px] text-white/20 mt-1.5 leading-snug">基础 IV 上的加减，测 vega 敏感度</p>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] text-white/50 font-medium">标的价偏移</span>
+                    <span className="tnum text-[11px] text-white/50">{spotPctOffset >= 0 ? '+' : ''}{spotPctOffset}%</span>
+                  </div>
+                  <input type="range" min="-40" max="40" value={spotPctOffset}
+                    onChange={e => setSpotPctOffset(parseInt(e.target.value))} className="w-full range-slider" />
+                  <p className="text-[10px] text-white/20 mt-1.5 leading-snug">假设标的从入场基准价涨跌 X%</p>
+                </div>
+              </div>
+              <div className="flex justify-center mt-3 pt-2 border-t border-white/[0.04]">
+                <button onClick={resetScenario}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors font-semibold">
+                  <span>↺</span> 重置情景
+                </button>
+              </div>
+            </WidgetCard>
+          </div>
+
+          {/* greeks */}
+          <div key="greeks">
+            <WidgetCard title="希腊字母" headerDensity="compact"
+              dragHandle={isEditing}
+              className={isEditing ? 'ring-1 ring-[var(--nexus-accent)]/25' : ''}
+              subtitle={legs.length > 0 ? (
+                <span className="text-[11px] text-white/40">
+                  情景 P/L <span className={cn('font-bold tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
+                    {pl >= 0 ? '+' : ''}{pl.toFixed(2)} USDT
+                  </span>
+                </span>
+              ) : undefined}
+            >
+              <MGrid columns={4} className="pt-1">
+                {[
+                  { label: 'Delta (Δ)', val: grk.delta, decimals: 3, desc: '标的涨 1 单位仓位变化' },
+                  { label: 'Gamma (Γ)', val: grk.gamma, decimals: 5, desc: 'Delta 的变化率' },
+                  { label: 'Theta (Θ) /天', val: grk.theta, decimals: 2, desc: '每天时间衰减' },
+                  { label: 'Vega (ν) /1%', val: grk.vega, decimals: 2, desc: 'IV 涨 1 个百分点' },
+                ].map(({ label, val, decimals, desc }) => (
+                  <div key={label} className="bg-white/[0.03] border border-white/[0.05] rounded-[10px] p-3">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
+                    <div className={cn('text-[18px] font-bold tnum mb-1', legs.length === 0 ? 'text-white/20' : gClass(val))}>
+                      {legs.length === 0 ? '—' : `${val >= 0 ? '+' : ''}${val.toFixed(decimals)}`}
+                    </div>
+                    <div className="text-[10px] text-white/20 leading-snug">{desc}</div>
+                  </div>
+                ))}
+              </MGrid>
+            </WidgetCard>
+          </div>
+
+        </GridLayout>
+      </div>
 
       <footer className="px-4 py-3 text-[11px] text-white/20 text-center border-t border-white/[0.04] mt-2">
         训练用工具 · 仅供学习 · 不构成任何投资建议

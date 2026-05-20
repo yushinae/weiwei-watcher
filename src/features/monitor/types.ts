@@ -6,7 +6,6 @@ export const MONITOR_TABS = [
   { id: 'history', label: '历史数据' },
   { id: 'distribution', label: '分布分析' },
   { id: 'greeks', label: 'Greeks' },
-  { id: 'chain', label: '期权链' },
   { id: 'polymarket', label: '市场预测' },
 ] as const;
 

@@ -571,9 +571,9 @@ export const PolymarketWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       {markets.map((m, i) => {
         const yc = m.yes >= 50 ? '#1EC98C' : '#F59E0B';
         return (
-          <div key={i} className="px-3 py-2.5 border-t border-[#111116] hover:bg-[#0D0D14] transition-colors cursor-pointer">
+          <div key={i} className="px-3 py-2.5 border-t border-bg-deep hover:bg-bg-deep transition-colors cursor-pointer">
             <p className="text-[11px] text-slate-300 leading-snug mb-2">{m.q}</p>
-            <div className="flex h-1 rounded-full overflow-hidden bg-[#1E1E26] mb-1.5">
+            <div className="flex h-1 rounded-full overflow-hidden bg-bg-dim mb-1.5">
               <div className="h-full" style={{ width: `${m.yes}%`, backgroundColor: yc }} />
               <div className="h-full flex-1 bg-rose-500/20" />
             </div>

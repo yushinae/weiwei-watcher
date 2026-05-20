@@ -21,7 +21,7 @@ export function MonitorLayout({
               type="button"
               onClick={() => onTabChange(t.id)}
               className={cn(
-                'relative h-10 select-none px-3.5 text-[13px] font-extrabold tracking-[-0.01em] transition-colors',
+                'relative h-8 select-none px-3.5 text-[13px] font-extrabold tracking-[-0.01em] transition-colors',
                 tab === t.id ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300',
               )}
             >
@@ -37,7 +37,7 @@ export function MonitorLayout({
               )}
             </button>
           ))}
-          <div className="ml-auto h-10" />
+          <div className="ml-auto h-8" />
         </div>
       </div>
 

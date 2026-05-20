@@ -49,18 +49,8 @@
 
 /* ===== 毛玻璃主题 ===== */
 
-/* 背景层：直接应用到 body，避免被父容器裁剪 */
 body {
-  background: url('/bg-canvas.png') center/cover no-repeat fixed;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-  z-index: 0;
+  background: var(--color-bg-base);
 }
 
 /* EFFECT 1: 毛玻璃卡片 — 22px 模糊 macOS Widget 风格 */

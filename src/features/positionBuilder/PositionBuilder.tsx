@@ -483,7 +483,7 @@ export function PositionBuilder() {
                     </span>
                   }
                 >
-                  <div ref={chartRef} className="w-full h-full" style={{ minHeight: 200 }} />
+                  <div ref={chartRef} className="w-full h-full" style={{ minHeight: 400 }} />
                 </Panel>
 
               <Panel title="情景参数"

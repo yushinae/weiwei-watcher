@@ -1326,16 +1326,10 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden z-[1]">
-        <AnimatePresence>
-          {/* @ts-ignore */}
-          <Routes location={location} key={location.pathname}>
+        {/* @ts-ignore */}
+        <Routes location={location} key={location.pathname}>
             <Route path="/market" element={
-              <motion.div
-                key="market"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 flex p-2 gap-3 overflow-y-auto"
               >
                 {/* Left Panel: Charts & Stats */}
@@ -1500,16 +1494,11 @@ export default function App() {
                     </div>
                   </div>
                 </aside>
-              </motion.div>
+              </div>
             } />
 
             <Route path="/positions" element={
-              <motion.div
-                key="positions"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
                 <div className="glass rounded-xl p-6 flex flex-col">
@@ -1571,16 +1560,11 @@ export default function App() {
                     </table>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             } />
 
             <Route path="/logs" element={
-              <motion.div
-                key="logs"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 p-2 overflow-y-auto"
               >
                 <div className="glass rounded-xl p-6 flex flex-col">
@@ -1613,16 +1597,11 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             } />
 
             <Route path="/stats" element={
-              <motion.div
-                key="stats"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 p-2 overflow-auto"
               >
                 <div className="glass rounded-xl p-6 h-full">
@@ -1656,75 +1635,49 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             } />
             <Route path="/trade-log" element={
-              <motion.div
-                key="trade-log"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 overflow-hidden"
               >
                 <TradeLogPage />
-              </motion.div>
+              </div>
             } />
             <Route path="/assets" element={
-              <motion.div
-                key="assets"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 overflow-hidden"
               >
                 <AssetsPage />
-              </motion.div>
+              </div>
             } />
             <Route path="/monitor" element={
-              <motion.div
-                key="monitor"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0"
               >
                 <MonitorPage />
-              </motion.div>
+              </div>
             } />
             <Route path="/options-chain" element={
-              <motion.div
-                key="options-chain"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0 p-1"
                 style={{ backgroundColor: '#0A0A0D' }}
               >
                 <div className="w-full h-full rounded-[8px] overflow-hidden border border-[rgba(255,255,255,0.06)]">
                   <OptionsChainPage mode="deribit" />
                 </div>
-              </motion.div>
+              </div>
             } />
             <Route path="/position-builder" element={
-              <motion.div
-                key="position-builder"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+              <div
                 className="absolute inset-0"
               >
                 <PositionBuilderPage />
-              </motion.div>
+              </div>
             } />
             <Route path="/" element={<DashboardPage />} />
             <Route path="*" element={<DashboardPage />} />
-          </Routes>
-        </AnimatePresence>
+        </Routes>
       </main>
 
       {/* 底部导航栏和活动条 */}

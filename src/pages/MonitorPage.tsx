@@ -62,12 +62,8 @@ export default function MonitorPage() {
 
             {tab === 'surface' && (
               <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="波动率微笑（点击点可钻取）" headerDensity="compact" className="col-span-6 h-[340px]">
-                  <VolSmileWidget
-                    coin={coin}
-                    onCoinChange={setCoin}
-                    onPickSmilePoint={(p) => onPickSmilePoint({ type: 'smilePoint', ...p })}
-                  />
+                <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-span-6">
+                  <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="IV 曲面偏斜表（点击单元可钻取）" headerDensity="compact" className="col-span-6 self-start h-min">
                   <IVSurfaceWidget
@@ -76,8 +72,12 @@ export default function MonitorPage() {
                     onPickCell={(p) => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-start-4 col-span-6">
-                  <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
+                <WidgetCard title="波动率微笑（点击点可钻取）" headerDensity="compact" className="col-start-4 col-span-6 h-[340px]">
+                  <VolSmileWidget
+                    coin={coin}
+                    onCoinChange={setCoin}
+                    onPickSmilePoint={(p) => onPickSmilePoint({ type: 'smilePoint', ...p })}
+                  />
                 </WidgetCard>
               </div>
             )}

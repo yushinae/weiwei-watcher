@@ -264,8 +264,8 @@ const FixedTenorChart = ({ coin }: { coin: Coin }) => {
       {[0,15,30,45,60].filter(v=>v<=hi).map(v => {
         const y = fy(v);
         return <React.Fragment key={v}>
-          <line x1={px} y1={y} x2={W-px} y2={y} stroke="#1A1A22" strokeWidth={0.5} />
-          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill="#374151">{v}</text>
+          <line x1={px} y1={y} x2={W-px} y2={y} stroke={GRID} strokeWidth={0.5} />
+          <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
         </React.Fragment>;
       })}
       {d.tenors.map((t,i) => {
@@ -274,13 +274,13 @@ const FixedTenorChart = ({ coin }: { coin: Coin }) => {
         return <React.Fragment key={t}>
           <rect x={cx-bw-1} y={vsY} width={bw} height={baseY-vsY} rx={1.5} fill="rgba(77,124,255,0.5)" />
           <rect x={cx+1}    y={rvY} width={bw} height={baseY-rvY}  rx={1.5} fill="rgba(30,201,140,0.4)" />
-          <text x={cx} y={H-3} textAnchor="middle" fontSize={7} fill="#374151">{t}</text>
+          <text x={cx} y={H-3} textAnchor="middle" fontSize={7} fill={TXT}>{t}</text>
         </React.Fragment>;
       })}
       <rect x={px} y={5} width={8} height={6} rx={1} fill="rgba(77,124,255,0.5)" />
-      <text x={px+11} y={10} fontSize={7} fill="#6B7280">方差互换 IV²</text>
+      <text x={px+11} y={10} fontSize={7} fill={TXT}>方差互换 IV²</text>
       <rect x={px+75} y={5} width={8} height={6} rx={1} fill="rgba(30,201,140,0.4)" />
-      <text x={px+86} y={10} fontSize={7} fill="#6B7280">已实现方差 RV²</text>
+      <text x={px+86} y={10} fontSize={7} fill={TXT}>已实现方差 RV²</text>
     </svg>
   );
 };
@@ -301,15 +301,15 @@ const ImpliedDistChart = ({ coin }: { coin: Coin }) => {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
       <path d={`M ${x1lo} ${py} L ${x1lo} ${H-py} L ${x1hi} ${H-py} L ${x1hi} ${py} Z`} fill="rgba(77,124,255,0.06)" />
-      <line x1={px} y1={H-py} x2={W-px} y2={H-py} stroke="#1E1E26" strokeWidth={0.5} />
+      <line x1={px} y1={H-py} x2={W-px} y2={H-py} stroke={GRID} strokeWidth={0.5} />
       <path d={aFill} fill="rgba(77,124,255,0.10)" />
-      <path d={smooth(curvePts)} fill="none" stroke="#4D7CFF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={smooth(curvePts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       <line x1={x1lo} y1={py} x2={x1lo} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
       <line x1={x1hi} y1={py} x2={x1hi} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
-      <line x1={xS} y1={py} x2={xS} y2={H-py} stroke="#F59E0B" strokeWidth={1} strokeDasharray="2,2" />
+      <line x1={xS} y1={py} x2={xS} y2={H-py} stroke={YELLOW} strokeWidth={1} strokeDasharray="2,2" />
       {[-2,-1,0,1,2].map(k => {
         const x = fx(S + k*sigma); const lbl = k === 0 ? 'S' : `${k > 0 ? '+' : ''}${k}σ`;
-        return <text key={k} x={x} y={H-3} textAnchor="middle" fontSize={7} fill={k===0 ? '#F59E0B' : '#374151'}>{lbl}</text>;
+        return <text key={k} x={x} y={H-3} textAnchor="middle" fontSize={7} fill={k===0 ? YELLOW : TXT}>{lbl}</text>;
       })}
     </svg>
   );

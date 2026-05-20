@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { HoverPopover } from './components/popup/Popup';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+
 import { cn } from './lib/utils';
 
 const MonitorPage = lazy(() => import('./pages/MonitorPage'));
@@ -131,70 +131,6 @@ const DigitalClock = () => {
   );
 };
 
-const MarginMonitor = ({ rate }: { rate: number }) => {
-  const [displayRate, setDisplayRate] = useState(rate);
-  const rafRef = useRef<number | null>(null);
-  const displayRateRef = useRef(displayRate);
-  displayRateRef.current = displayRate;
-
-  useEffect(() => {
-    const animate = () => {
-      const current = displayRateRef.current;
-      const diff = rate - current;
-      if (Math.abs(diff) < 0.01) {
-        if (current !== rate) setDisplayRate(rate);
-        return;
-      }
-      setDisplayRate(prev => Math.abs(diff) < 0.05 ? rate : prev + diff * 0.15);
-      rafRef.current = requestAnimationFrame(animate);
-    };
-    rafRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [rate]);
-
-  const imRate = Math.min(displayRate * 2.5, 100);
-
-  return (
-    <div className="hidden md:flex items-center h-[40px] bg-white/5 border border-white/10 rounded-[8px] pl-2.5 pr-0.5 py-0.5 gap-3">
-      <div className="flex flex-col justify-center gap-1 mt-px">
-        <div className="flex items-center gap-1.5 text-[13px] leading-none">
-          <span className="font-bold text-slate-100 w-[18px] text-right">IM</span>
-          <div className="w-14 h-[8px] bg-white/10 rounded-full overflow-hidden relative">
-            <motion.div
-              style={{ width: `${imRate}%` }}
-              className="h-full bg-[#4D7CFF] rounded-full"
-            />
-          </div>
-          <span className="font-mono tnum font-bold text-slate-100 w-[28px] text-right">{imRate.toFixed(0)}%</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[13px] leading-none">
-          <span className="font-bold text-slate-100 w-[18px] text-right">MM</span>
-          <div className="w-14 h-[8px] bg-white/10 rounded-full overflow-hidden relative">
-            <motion.div
-              style={{ width: `${displayRate}%` }}
-              className={cn(
-                "h-full rounded-full relative overflow-hidden",
-                displayRate > 80 ? "bg-trade-down" : displayRate > 50 ? "bg-[#F59E0B]" : "bg-trade-up"
-              )}
-            >
-              <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            </motion.div>
-          </div>
-          <span className="font-mono tnum font-bold text-slate-100 w-[28px] text-right">{displayRate.toFixed(0)}%</span>
-        </div>
-      </div>
-
-      <div className="h-full flex items-center justify-center px-3 bg-white/5 hover:bg-white/10 transition-colors rounded-[6px] border border-white/10 cursor-pointer">
-        <span className="text-[14px] font-bold tracking-wide">
-          <span className="text-brand-blue">S:</span> <span className="text-slate-100 ml-0.5">SM</span>
-        </span>
-      </div>
-    </div>
-  );
-};
-
 const NineDots = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
     <circle cx="5" cy="5" r="2.2" />
@@ -303,8 +239,6 @@ export default function App() {
     return () => { window.removeEventListener('scroll', onScroll, true); clearTimeout(timer); };
   }, []);
 
-  const [marginRate] = useState(12.5);
-
   return (
     <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
       <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]">
@@ -324,8 +258,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <MarginMonitor rate={marginRate} />
-
           <div className="flex items-center gap-6">
             <DigitalClock />
             <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-surface-2/60 px-3 py-2 ring-1 ring-inset ring-border-subtle/70">

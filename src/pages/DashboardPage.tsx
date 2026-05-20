@@ -21,7 +21,7 @@ function instToWidgetConfig(inst: WidgetInstance, label: string): WidgetConfig {
   return { id: inst.instanceId, type: inst.widgetId, visible: true, title: label, config: inst.props };
 }
 
-export const DashboardPage = () => {
+export const DashboardPage = React.memo(() => {
   const { width, containerRef } = useContainerWidth();
 
   const pages = useWorkspaceStore(state => state.pages);
@@ -37,7 +37,7 @@ export const DashboardPage = () => {
   const updateDraftItems = useLayoutStore(state => state.updateDraftItems);
   const removeDraftWidget = useLayoutStore(state => state.removeDraftWidget);
 
-  const activePage = pages.find(p => p.id === activePageId);
+  const activePage = useMemo(() => pages.find(p => p.id === activePageId), [pages, activePageId]);
   const [fullscreenId, setFullscreenId] = useState<string | null>(null);
 
   // When entering edit mode, seed the draft from current instances
@@ -283,4 +283,6 @@ export const DashboardPage = () => {
       </ElasticLayout>
     </motion.div>
   );
-};
+});
+
+DashboardPage.displayName = 'DashboardPage';

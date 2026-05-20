@@ -15,6 +15,20 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // 重型第三方库单独成包，不阻塞主包解析
+            'vendor-plotly':   ['plotly.js-dist'],
+            'vendor-recharts': ['recharts'],
+            'vendor-motion':   ['motion'],
+            'vendor-grid':     ['react-grid-layout'],
+            'vendor-react':    ['react', 'react-dom', 'react-router-dom'],
+          },
+        },
+      },
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

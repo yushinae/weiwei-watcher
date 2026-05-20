@@ -16,6 +16,7 @@ import { useSimTradingStore } from '../store/useSimTradingStore';
 import { useDeribitOptionsStream } from '../hooks/useDeribitOptionsStream';
 import { ElasticLayout } from '../components/ElasticLayout';
 import { Popover, HoverPopover } from '../components/popup/Popup';
+import { DERIBIT_EXPIRIES } from '../constants/options';
 import './deribit-options-chain.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -315,7 +316,6 @@ function getCellValue(side: Side, col: ViewCol, dec: number): { text: string; co
     // 价格类：强制最多 2 位小数
     case 'bid':   return { text: fmt2(side.bid),  colorKey: side.bid !== null ? 'green' : 'dim' };
     case 'mark':  {
-      console.log('[getCellValue] side.mark:', side.mark, 'type:', typeof side.mark);
       return { text: fmt2(side.mark), colorKey: 'bright' };
     }
     case 'ask':   return { text: fmt2(side.ask),  colorKey: side.ask !== null ? 'red' : 'dim' };
@@ -410,7 +410,6 @@ const ChainRowComp = memo(({
   variant?: 'nexus' | 'deribit';
 }) => {
   const { call: c, put: p, strike, isATM, isITM } = row;
-  console.log('[ChainRowComp] strike:', strike, 'cols.length:', cols.length, 'c.mark:', c.mark);
   const callITM = isITM;
   const putITM  = !isITM && !isATM;
 
@@ -428,10 +427,6 @@ const ChainRowComp = memo(({
   const putCols   = cols;               // 持仓 closest to strike, Speed outermost
   const colWidths = cols.map(c => `${c.w}px`).join(' ');
   const gridTpl   = `${colWidths} ${STRIKE_W}px ${colWidths}`;
-  
-  if (strike === 77000) {
-    console.log('[ChainRow ATM] colWidths:', colWidths, 'gridTpl:', gridTpl);
-  }
 
   // Distance % from spot price
   const distPct = spot > 0 ? ((strike - spot) / spot) * 100 : 0;
@@ -1574,11 +1569,6 @@ const ToolBtn = ({ icon, label, active, onClick }: { icon?: React.ReactNode; lab
 
 export type OptionsChainMode = 'nexus' | 'deribit';
 
-export const DERIBIT_EXPIRIES = [
-  '19 MAY 26','20 MAY 26','21 MAY 26','22 MAY 26','29 MAY 26',
-  '5 JUN 26','26 JUN 26','31 JUL 26','25 SEP 26','25 DEC 26','26 MAR 27',
-] as const;
-
 export default function OptionsChainPage({
   mode = 'nexus',
   hideHeader = false,
@@ -1586,8 +1576,6 @@ export default function OptionsChainPage({
   mode?: OptionsChainMode;
   hideHeader?: boolean;
 } = {}) {
-  console.log('[OptionsChainPage] Rendered, mode:', mode);
-  
   const [params]   = useSearchParams();
   const navigate   = useNavigate();
   const isDeribit = mode === 'deribit';
@@ -1965,12 +1953,10 @@ export default function OptionsChainPage({
         };
       });
       
-      console.log('[Chain Data] Using LIVE data, rows:', rows.length);
       return rows;
   }
 
   // No live data, return empty array
-  console.log('[Chain Data] No live data for', expiryPrefix);
   return [];
 }, [coinCfg, T, seed, storeTickers, expiryStr, effectiveSpot]);
   const rows = useMemo(() => {
@@ -2117,15 +2103,9 @@ export default function OptionsChainPage({
     overscan: 14,
   });
 
-  console.log('[Virtualizer] rows.length:', rows.length, 'virtual items:', virtualizer.getVirtualItems().length, 'total size:', virtualizer.getTotalSize());
-  if (virtualizer.getVirtualItems().length > 0) {
-    console.log('[Virtualizer] First virtual item index:', virtualizer.getVirtualItems()[0].index, 'start:', virtualizer.getVirtualItems()[0].start);
-  }
-
   useEffect(() => {
     if (parentRef.current) {
-      const rect = parentRef.current.getBoundingClientRect();
-      console.log('[Container] clientHeight:', parentRef.current.clientHeight, 'rect.height:', rect.height, 'offsetHeight:', parentRef.current.offsetHeight);
+      // container dimensions are available here if needed for debugging
     }
     const ai = rows.findIndex(r => r.isATM);
     if (ai >= 0) virtualizer.scrollToIndex(ai, { align: 'center', behavior: 'smooth' });

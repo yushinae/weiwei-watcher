@@ -6,7 +6,7 @@
 // --- 下面这些 import 就像是去商场里买现成的零件 ---
 
 // React 是我们造网页的大框架。useState 帮我们记住东西（比如现在几点），useEffect 帮我们做一些杂事（比如去网上拿数据）。
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 // Lucide 是一个图标店，我们从这里拿"趋势向上"、"时钟"、"设置"等小图标。
 import {
   TrendingUp,
@@ -43,12 +43,11 @@ import { Modal } from './components/popup/Popup';
 import { HoverPopover, Popover } from './components/popup/Popup';
 // react-router-dom 是网页的"导航员"，负责在"首页"、"账户页"之间切换。
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import TradeLogPage from './pages/TradeLogPage';
-import AssetsPage from './pages/AssetsPage';
-import MonitorPage from './pages/MonitorPage';
-
-import OptionsChainPage from './pages/OptionsChainPage';
-import PositionBuilderPage from './pages/PositionBuilderPage';
+const TradeLogPage      = lazy(() => import('./pages/TradeLogPage'));
+const AssetsPage        = lazy(() => import('./pages/AssetsPage'));
+const MonitorPage       = lazy(() => import('./pages/MonitorPage'));
+const OptionsChainPage  = lazy(() => import('./pages/OptionsChainPage'));
+const PositionBuilderPage = lazy(() => import('./pages/PositionBuilderPage'));
 
 // 引入一些现成的样式表，让网页的排版和方块挪动效果更好看。
 import 'react-grid-layout/css/styles.css';
@@ -98,7 +97,7 @@ import { useLayoutStore } from './store/useLayoutStore';
 
 import { DashboardPage } from './pages/DashboardPage';
 import { WIDGET_REGISTRY } from './registry';
-import { DERIBIT_EXPIRIES } from './pages/OptionsChainPage';
+import { DERIBIT_EXPIRIES } from './constants/options';
 import { useDeribitSpotStream } from './hooks/useDeribitSpotStream';
 
 /**
@@ -250,20 +249,30 @@ const DigitalClock = () => {
  */
 const MarginMonitor = ({ rate }: { rate: number }) => {
   const [displayRate, setDisplayRate] = useState(rate);
+  const rafRef = useRef<number | null>(null);
+  // 用 ref 读取最新的 displayRate，避免把它加入 effect 依赖导致每帧重建 effect
+  const displayRateRef = useRef(displayRate);
+  displayRateRef.current = displayRate;
 
   useEffect(() => {
-    // 让数字变动的时候有种"跳动"的感觉，而不是直接变。
-    const diff = rate - displayRate;
-    if (Math.abs(diff) < 0.01) {
-      if (displayRate !== rate) setDisplayRate(rate);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
+    // 用 requestAnimationFrame 驱动动画，帧间执行不阻塞渲染管线
+    const animate = () => {
+      const current = displayRateRef.current;
+      const diff = rate - current;
+      if (Math.abs(diff) < 0.01) {
+        // 差值极小时直接 snap 到目标值并停止
+        if (current !== rate) setDisplayRate(rate);
+        return;
+      }
       setDisplayRate(prev => Math.abs(diff) < 0.05 ? rate : prev + diff * 0.15);
-    }, 16);
-    return () => clearTimeout(timeout);
-  }, [rate, displayRate]);
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [rate]); // 只依赖外部 rate；displayRate 通过 ref 读取，不触发 effect 重建
 
   const imRate = Math.min(displayRate * 2.5, 100);
 
@@ -781,6 +790,16 @@ const OptionsDropdown = () => {
   );
 };
 
+/**
+ * TickerBar：自包含的行情条，内部持有 WS hook。
+ * 放在 App 外部，避免每次 ticker 推送导致整个 App 重渲染。
+ */
+const TickerBar = () => {
+  const liveTickers = useBinanceTickers();
+  const widgets = useWorkspaceStore(state => state.widgets);
+  return <DynamicTickerContainer tickers={liveTickers} widgets={widgets} />;
+};
+
 const DynamicTickerContainer = ({ tickers, widgets }: { tickers: any[], widgets: Record<string, boolean | undefined> }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const enabledTickers = tickers.filter(t => widgets[t.symbol] !== false);
@@ -1223,13 +1242,99 @@ const AddTabModal = ({
 
 
 /**
+ * WorkspaceFooterTabs：底部标签栏（左侧区域）
+ * 独立持有 pages/activePageId 订阅，避免 setActivePage 触发 App 整树重渲染。
+ */
+const WorkspaceFooterTabs = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const pages        = useWorkspaceStore(state => state.pages);
+  const activePageId = useWorkspaceStore(state => state.activePageId);
+  const addPage      = useWorkspaceStore(state => state.addPage);
+  const removePage   = useWorkspaceStore(state => state.removePage);
+  const setActivePage = useWorkspaceStore(state => state.setActivePage);
+  const renamePage   = useWorkspaceStore(state => state.renamePage);
+  const clonePage    = useWorkspaceStore(state => state.clonePage);
+
+  const activeTab = location.pathname !== '/'
+    ? (pages.find(p => p.routePath === location.pathname)?.id ?? '')
+    : activePageId;
+
+  return (
+    <>
+      <div className="flex items-center gap-1 h-full py-0.5">
+        {pages.map((page) => (
+          <FooterTab
+            key={page.id}
+            tab={{ id: page.id, label: page.label }}
+            activeTab={activeTab}
+            onClick={() => {
+              if (page.routePath) {
+                navigate(page.routePath);
+                setActivePage(page.id);
+              } else {
+                setActivePage(page.id);
+                if (location.pathname !== '/') navigate('/');
+              }
+            }}
+            onEdit={(newLabel) => renamePage(page.id, newLabel)}
+            onClone={() => clonePage(page.id)}
+            onDelete={() => {
+              const remaining = pages.filter(p => p.id !== page.id);
+              removePage(page.id);
+              if (activeTab === page.id) {
+                const next = remaining[0];
+                if (next) {
+                  if (next.routePath) navigate(next.routePath);
+                  else { setActivePage(next.id); navigate('/'); }
+                }
+              }
+            }}
+          />
+        ))}
+        {/* "+"按钮：用来添加新标签 */}
+        <div className="relative h-full flex items-center group">
+          <motion.button
+            layoutId="addTabModalBackground"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center justify-center w-10 h-full bg-white/[0.08] border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
+            style={{ pointerEvents: isAddModalOpen ? "none" : "auto" }}
+          >
+            <motion.div animate={{ opacity: isAddModalOpen ? 0 : 1 }} transition={{ duration: 0.1 }}>
+              <Plus size={16} strokeWidth={2} />
+            </motion.div>
+          </motion.button>
+          {!isAddModalOpen && (
+            <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 px-3 py-1.5 text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+              style={{ background: 'rgba(30, 30, 30, 0.85)', backdropFilter: 'blur(24px) saturate(1.6)', WebkitBackdropFilter: 'blur(24px) saturate(1.6)', boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15)', borderRadius: '10px' }}
+            >
+              添加选项卡
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
+                style={{ background: 'rgba(30, 30, 30, 0.85)' }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      <AddTabModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={(name) => {
+          addPage(name);
+          setIsAddModalOpen(false);
+          navigate('/');
+        }}
+      />
+    </>
+  );
+};
+
+/**
  * App：这是整个网页的主管。
  */
 export default function App() {
-  const liveTickers = useBinanceTickers();
-  const location = useLocation();
-  const navigate = useNavigate();
-
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const onScroll = () => {
@@ -1241,13 +1346,7 @@ export default function App() {
     return () => { window.removeEventListener('scroll', onScroll, true); clearTimeout(timer); };
   }, []);
 
-  const pages = useWorkspaceStore(state => state.pages);
   const activePageId = useWorkspaceStore(state => state.activePageId);
-  const addPage = useWorkspaceStore(state => state.addPage);
-  const removePage = useWorkspaceStore(state => state.removePage);
-  const setActivePage = useWorkspaceStore(state => state.setActivePage);
-  const renamePage = useWorkspaceStore(state => state.renamePage);
-  const clonePage = useWorkspaceStore(state => state.clonePage);
   const addInstance = useWorkspaceStore(state => state.addInstance);
   const widgets = useWorkspaceStore(state => state.widgets);
   const isComponentLibraryOpen = useWorkspaceStore(state => state.isComponentLibraryOpen);
@@ -1259,13 +1358,7 @@ export default function App() {
   const isEditMode = useLayoutStore(state => state.isEditMode);
   const addDraftWidget = useLayoutStore(state => state.addDraftWidget);
 
-  // Active tab: route pages matched by pathname, workspace pages matched by activePageId
-  const activeTab = location.pathname !== '/'
-    ? (pages.find(p => p.routePath === location.pathname)?.id ?? '')
-    : activePageId;
-
   const [marginRate] = useState(12.5);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeWidgetCategory, setActiveWidgetCategory] = useState('all');
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
@@ -1280,11 +1373,6 @@ export default function App() {
     if (componentLibraryPreset.widgetId) setSelectedWidgetId(componentLibraryPreset.widgetId);
     if (componentLibraryPreset.initialConfig) setWidgetConfig(componentLibraryPreset.initialConfig);
   }, [isComponentLibraryOpen, componentLibraryPreset]);
-
-  const activeTickers = liveTickers.filter(t => widgets[t.symbol] !== false);
-
-  const displayTickers = activeTickers.slice(0, 4);
-  const overflowTickers = activeTickers.slice(4);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden selection:bg-brand-blue/30 relative z-[1]">
@@ -1305,7 +1393,7 @@ export default function App() {
 
         {/* Market Tickers */}
         <div className="hidden lg:flex items-center flex-1 min-w-0 pl-4 pr-2 h-full">
-          <DynamicTickerContainer tickers={liveTickers} widgets={widgets} />
+          <TickerBar />
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -1326,8 +1414,8 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden z-[1]">
-        {/* @ts-ignore */}
-        <Routes location={location} key={location.pathname}>
+        <Suspense fallback={<div className="absolute inset-0 bg-[#0A0A0F]" />}>
+        <Routes>
             <Route path="/market" element={
               <div
                 className="absolute inset-0 flex p-2 gap-3 overflow-y-auto"
@@ -1678,64 +1766,12 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="*" element={<DashboardPage />} />
         </Routes>
+        </Suspense>
       </main>
 
       {/* 底部导航栏和活动条 */}
       <footer className="h-[34px] glass-bar flex items-center justify-between px-1.5 shrink-0 z-10 w-full relative">
-        <div className="flex items-center gap-1 h-full py-0.5">
-          {pages.map((page) => (
-            <FooterTab
-              key={page.id}
-              tab={{ id: page.id, label: page.label }}
-              activeTab={activeTab}
-              onClick={() => {
-                if (page.routePath) {
-                  navigate(page.routePath);
-                  setActivePage(page.id);
-                } else {
-                  setActivePage(page.id);
-                  if (location.pathname !== '/') navigate('/');
-                }
-              }}
-              onEdit={(newLabel) => renamePage(page.id, newLabel)}
-              onClone={() => clonePage(page.id)}
-              onDelete={() => {
-                const remaining = pages.filter(p => p.id !== page.id);
-                removePage(page.id);
-                if (activeTab === page.id) {
-                  const next = remaining[0];
-                  if (next) {
-                    if (next.routePath) navigate(next.routePath);
-                    else { setActivePage(next.id); navigate('/'); }
-                  }
-                }
-              }}
-            />
-          ))}
-          {/* "+"按钮：用来添加新标签 */}
-          <div className="relative h-full flex items-center group">
-            <motion.button
-              layoutId="addTabModalBackground"
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center justify-center w-10 h-full bg-white/[0.08] border border-slate-700/50 text-slate-400 hover:border-white hover:text-white hover:bg-[#2c323f] active:scale-[0.97] transition-colors rounded-[8px] outline-none"
-              style={{ pointerEvents: isAddModalOpen ? "none" : "auto" }}
-            >
-              <motion.div animate={{ opacity: isAddModalOpen ? 0 : 1 }} transition={{ duration: 0.1 }}>
-                <Plus size={16} strokeWidth={2} />
-              </motion.div>
-            </motion.button>
-            {!isAddModalOpen && (
-              <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 px-3 py-1.5 text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
-                style={{ background: 'rgba(30, 30, 30, 0.85)', backdropFilter: 'blur(24px) saturate(1.6)', WebkitBackdropFilter: 'blur(24px) saturate(1.6)', boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.15)', borderRadius: '10px' }}
-              >
-                添加选项卡
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45"
-                  style={{ background: 'rgba(30, 30, 30, 0.85)' }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+        <WorkspaceFooterTabs />
 
         <div className="flex items-center gap-1.5 h-full py-0.5">
           <motion.button
@@ -1888,15 +1924,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <AddTabModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSave={(name) => {
-          addPage(name);
-          setIsAddModalOpen(false);
-          navigate('/');
-        }}
-      />
     </div>
   );
 }

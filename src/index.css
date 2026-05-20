@@ -833,24 +833,24 @@ html.is-scrolling * {
 
 /* ── Ant Design Table 暗色主题覆写 ── */
 .trade-log-table .ant-table {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: transparent !important;
   color: #CBD5E1;
 }
 
 .trade-log-table .ant-table-thead>tr>th {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
   color: rgba(255, 255, 255, 0.45) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
   text-transform: none;
   letter-spacing: 0.02em;
-  border-bottom: 1px solid #1E1E26 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
   padding-top: 6px !important;
   padding-bottom: 6px !important;
 }
 
 .trade-log-table .ant-table-tbody>tr>td {
-  border-bottom: 1px solid #1a1a22 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
   background: transparent !important;
   padding-top: 11px !important;
   padding-bottom: 11px !important;

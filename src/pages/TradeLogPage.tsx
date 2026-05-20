@@ -233,13 +233,13 @@ const RangeCalendar: React.FC<{
                   // hover 预览：半透蓝
                   isHov && !isS && !isE && 'bg-[#4D7CFF]/60 text-white',
                   // 范围内的日期：深蓝底色
-                  inRange && !isS && !isE && !isHov && 'bg-[#1a2540] text-[#4D7CFF]',
+                  inRange && !isS && !isE && !isHov && 'bg-[#4D7CFF]/15 text-[#4D7CFF]',
                   // 今天的日期：加个蓝色光环
                   isTodayC && !isS && !isE && 'ring-1 ring-[#4D7CFF]/60',
                   // 当月非选中日期
-                  cell.inMonth  && !isS && !isE && !inRange && !isHov && 'text-slate-200 hover:bg-[#1E1E26]',
+                  cell.inMonth  && !isS && !isE && !inRange && !isHov && 'text-slate-200 hover:bg-white/[0.06]',
                   // 溢出月份（上/下月）的日期：淡化
-                  !cell.inMonth && !isS && !isE && !inRange && !isHov && 'text-[#4D7CFF]/40 hover:bg-[#1E1E26] hover:text-[#4D7CFF]/70',
+                  !cell.inMonth && !isS && !isE && !inRange && !isHov && 'text-[#4D7CFF]/40 hover:bg-white/[0.06] hover:text-[#4D7CFF]/70',
                 )}
               >
                 {cell.date.getDate()}
@@ -253,14 +253,14 @@ const RangeCalendar: React.FC<{
 
   /** 翻页按钮（复用） */
   const navBtn = (onClick: () => void, children: React.ReactNode) => (
-    <button onClick={onClick} className="p-1.5 rounded-[5px] hover:bg-[#1E1E26] text-slate-400 hover:text-white transition-colors">
+    <button onClick={onClick} className="p-1.5 rounded-[5px] hover:bg-white/[0.06] text-slate-400 hover:text-white transition-colors">
       {children}
     </button>
   );
 
   return (
     <div
-      className="bg-[#131318] border border-[#2F2F38] rounded-[10px] shadow-[0_16px_40px_rgba(0,0,0,0.75)] p-4 select-none"
+      className="bg-white/[0.04] border border-white/10 rounded-[10px] shadow-[0_16px_40px_rgba(0,0,0,0.4)] p-4 select-none"
       style={{ width: 580 }}
       onClick={e => e.stopPropagation()}
     >
@@ -281,7 +281,7 @@ const RangeCalendar: React.FC<{
       </div>
 
       {/* 双月日历——左右各一个月，独立导航 */}
-      <div className="grid grid-cols-2 gap-5 border-t border-[#1E1E26] pt-3">
+      <div className="grid grid-cols-2 gap-5 border-t border-white/[0.06] pt-3">
         {/* 左面板 */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -293,7 +293,7 @@ const RangeCalendar: React.FC<{
         </div>
 
         {/* 右面板 */}
-        <div className="border-l border-[#1E1E26] pl-5">
+        <div className="border-l border-white/[0.06] pl-5">
           <div className="flex items-center justify-between mb-2">
             {navBtn(prevRight, <ChevronLeft size={14} />)}
             <span className="text-[13px] font-bold text-slate-200">{MONTH_NAMES[rightMonth]} {rightYear}</span>
@@ -304,8 +304,8 @@ const RangeCalendar: React.FC<{
       </div>
 
       {/* 底部操作按钮 */}
-      <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-[#1E1E26]">
-        <button onClick={onClose} className="px-3 h-7 rounded-[6px] text-[12px] text-slate-400 hover:text-white hover:bg-[#1E1E26] border border-[#2F2F38] transition-colors">
+      <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-white/[0.06]">
+        <button onClick={onClose} className="px-3 h-7 rounded-[6px] text-[12px] text-slate-400 hover:text-white hover:bg-white/[0.06] border border-white/10 transition-colors">
           取消
         </button>
         <button
@@ -346,8 +346,8 @@ const DateFilter: React.FC<{
           className={cn(
             'px-2 h-6 rounded-[5px] border text-[13px] font-bold transition-all duration-150',
             value === p.key
-              ? 'bg-[#1a2540] border-[#4D7CFF] text-[#4D7CFF]'  // 选中态
-              : 'bg-[#131318] border-[#2F2F38] text-slate-300 hover:border-[#4D7CFF] hover:text-white'
+              ? 'bg-[#4D7CFF]/15 border-[#4D7CFF] text-[#4D7CFF]'  // 选中态
+              : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-[#4D7CFF] hover:text-white'
           )}
         >
           {p.label}
@@ -361,8 +361,8 @@ const DateFilter: React.FC<{
           className={cn(
             'flex items-center gap-1.5 px-2 h-6 rounded-[5px] border text-[13px] font-bold transition-all duration-150',
             value === 'custom'
-              ? 'bg-[#1a2540] border-[#4D7CFF] text-[#4D7CFF]'
-              : 'bg-[#131318] border-[#2F2F38] text-slate-300 hover:border-[#4D7CFF] hover:text-white'
+              ? 'bg-[#4D7CFF]/15 border-[#4D7CFF] text-[#4D7CFF]'
+              : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-[#4D7CFF] hover:text-white'
           )}
         >
           <Calendar size={13} />
@@ -408,8 +408,8 @@ const MultiSelectFilter: React.FC<{
         className={cn(
           'flex items-center gap-1.5 px-2 h-6 rounded-[5px] border text-[13px] font-bold transition-all duration-150',
           selected.length > 0
-            ? 'bg-[#1a2540] border-[#4D7CFF] text-[#4D7CFF]'  // 有选中项时蓝色
-            : 'bg-[#131318] border-[#2F2F38] text-slate-300 hover:border-[#4D7CFF] hover:text-white'
+            ? 'bg-[#4D7CFF]/15 border-[#4D7CFF] text-[#4D7CFF]'  // 有选中项时蓝色
+            : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-[#4D7CFF] hover:text-white'
         )}
       >
         {label}
@@ -510,7 +510,7 @@ const ColumnManager: React.FC<{
           'flex items-center gap-1.5 px-2 h-8 rounded-[8px] border text-[13px] font-bold transition-all duration-150',
           open
             ? 'bg-white/[0.06] border-white/20 text-white'
-            : 'bg-[#131318] border-[#2F2F38] text-slate-300 hover:border-white/20 hover:text-white'
+            : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/20 hover:text-white'
         )}
       >
         <Columns3 size={14} /> 列管理
@@ -601,10 +601,10 @@ const ImageCell: React.FC<{
         onBlur={() => setFocused(false)}
         onClick={() => imgs.length > 0 ? setPreviewIndex(0) : fileRef.current?.click()}
         className={cn(
-          'w-12 h-10 rounded-[6px] overflow-hidden bg-[#17181C] border transition-all cursor-pointer group relative outline-none',
+          'w-12 h-10 rounded-[6px] overflow-hidden bg-white/[0.03] border transition-all cursor-pointer group relative outline-none',
           focused
             ? 'border-[#4D7CFF] shadow-[0_0_0_2px_rgba(77,124,255,0.25)]'  // 聚焦时蓝色光晕
-            : 'border-[#2F2F38] hover:border-[#4D7CFF]/60'
+            : 'border-white/10 hover:border-[#4D7CFF]/60'
         )}
         title={imgs.length > 0 ? '点击预览 / 聚焦后 Ctrl+V 添加截图' : '点击上传 / 聚焦后 Ctrl+V 粘贴截图'}
       >
@@ -693,7 +693,7 @@ const ImageCell: React.FC<{
               <img
                 src={imgs[previewIndex]}
                 alt="preview"
-                className="max-w-[82vw] max-h-[82vh] rounded-[10px] shadow-[0_18px_60px_rgba(0,0,0,0.85)]"
+                className="max-w-[82vw] max-h-[82vh] rounded-[10px] shadow-[0_18px_60px_rgba(0,0,0,0.5)]"
               />
               {/* 底部小圆点指示当前第几张 */}
               {imgs.length > 1 && (
@@ -785,7 +785,7 @@ const EditTradeModal: React.FC<{
     return () => document.removeEventListener('paste', onPaste);
   }, [form.images]);
 
-  const ic = "w-full h-9 px-3 bg-[#17181C] border border-[#2F2F38] rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors";
+  const ic = "w-full h-9 px-3 bg-white/[0.03] border border-white/10 rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors";
   const lc = "block text-[12px] font-bold text-slate-400 mb-1";
 
   return (
@@ -794,12 +794,12 @@ const EditTradeModal: React.FC<{
       onClose={onClose}
       zIndex={200}
       className="relative w-[480px] max-h-[75vh] flex flex-col"
-      style={{ background: '#131318', border: '1px solid #2A2A35' }}
+      style={{ background: 'rgba(15,15,20,0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)' }}
     >
         {/* ===== 弹窗 Header ===== */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#2A2A35] shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-[7px] bg-[#1a2540] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-[7px] bg-[#4D7CFF]/15 flex items-center justify-center">
               <Pencil size={13} className="text-[#4D7CFF]" />
             </div>
             <div>
@@ -807,7 +807,7 @@ const EditTradeModal: React.FC<{
               <p className="text-[11px] text-slate-500 font-mono leading-tight">{record.symbol} · {record.account}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-[6px] text-slate-500 hover:text-white hover:bg-[#1E1E26] transition-colors">
+          <button onClick={onClose} className="p-1 rounded-[6px] text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X size={15} />
           </button>
         </div>
@@ -835,7 +835,7 @@ const EditTradeModal: React.FC<{
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith('image/')).forEach(handleImg); }}
-                className="w-16 h-14 bg-[#17181C] border border-dashed border-[#2F2F38] rounded-[6px] flex flex-col items-center justify-center cursor-pointer hover:border-[#4D7CFF]/50 transition-colors group shrink-0"
+                className="w-16 h-14 bg-white/[0.03] border border-dashed border-white/10 rounded-[6px] flex flex-col items-center justify-center cursor-pointer hover:border-[#4D7CFF]/50 transition-colors group shrink-0"
               >
                 <Plus size={14} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
                 <span className="text-[9px] text-slate-600 group-hover:text-slate-400 transition-colors mt-0.5">添加</span>
@@ -925,7 +925,7 @@ const EditTradeModal: React.FC<{
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {form.tags.map(t => (
-                  <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-[#1a2540] border border-[#2a3a5a] text-[#4D7CFF] text-[11px] rounded-[4px]">
+                  <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-[#4D7CFF]/15 border border-[#4D7CFF]/25 text-[#4D7CFF] text-[11px] rounded-[4px]">
                     {t}
                     <button onClick={() => upd('tags', form.tags.filter(x => x !== t))} className="hover:text-white transition-colors">
                       <X size={10} />
@@ -943,7 +943,7 @@ const EditTradeModal: React.FC<{
                 placeholder="输入标签回车添加"
                 className={cn(ic, 'flex-1')}
               />
-              <button onClick={addTag} className="px-3 h-9 bg-[#1a2540] border border-[#2a3a5a] rounded-[7px] text-[#4D7CFF] hover:bg-[#1E2D50] transition-colors text-[12px] shrink-0">
+              <button onClick={addTag} className="px-3 h-9 bg-[#4D7CFF]/15 border border-[#4D7CFF]/25 rounded-[7px] text-[#4D7CFF] hover:bg-[#4D7CFF]/20 transition-colors text-[12px] shrink-0">
                 添加
               </button>
             </div>
@@ -963,15 +963,15 @@ const EditTradeModal: React.FC<{
         </div>
 
         {/* ===== Footer：删除 + 取消 + 保存 ===== */}
-        <div className="px-5 py-3.5 border-t border-[#2A2A35] flex items-center gap-2 shrink-0">
+        <div className="px-5 py-3.5 border-t border-white/10 flex items-center gap-2 shrink-0">
           <button
             onClick={() => { onDelete(record.key); onClose(); }}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-[7px] border border-[#2A2A35] text-[12px] text-rose-500/70 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/5 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-[7px] border border-white/10 text-[12px] text-rose-500/70 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/5 transition-colors shrink-0"
           >
             <Trash2 size={13} /> 删除
           </button>
           <div className="flex-1" />
-          <button onClick={onClose} className="px-4 h-8 rounded-[7px] border border-[#2A2A35] text-[13px] text-slate-400 hover:text-white hover:border-slate-500 transition-colors">
+          <button onClick={onClose} className="px-4 h-8 rounded-[7px] border border-white/10 text-[13px] text-slate-400 hover:text-white hover:border-slate-500 transition-colors">
             取消
           </button>
           <button
@@ -1024,7 +1024,7 @@ const AddTagModal: React.FC<{
       onClose={onClose}
       zIndex={200}
       className="w-[340px] p-5"
-      style={{ background: '#131318', border: '1px solid #2F2F38', boxShadow: '0 16px 40px rgba(0,0,0,0.7)' }}
+      style={{ background: 'rgba(15,15,20,0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 16px 40px rgba(0,0,0,0.4)' }}
     >
         <h3 className="text-[15px] font-bold text-slate-100 mb-0.5">批量添加标签</h3>
         <p className="text-[12px] text-slate-500 mb-4">将为选中的 {count} 条记录添加此标签</p>
@@ -1037,7 +1037,7 @@ const AddTagModal: React.FC<{
           onChange={e => setValue(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && value.trim() && onConfirm(value.trim())}
           placeholder="输入标签名称..."
-          className="w-full h-9 px-3 bg-[#1E1E26] border border-[#2F2F38] rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors mb-3"
+          className="w-full h-9 px-3 bg-white/[0.06] border border-white/10 rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors mb-3"
         />
 
         {/* 快速选择建议标签按钮列表 */}
@@ -1049,8 +1049,8 @@ const AddTagModal: React.FC<{
               className={cn(
                 'px-2 py-0.5 rounded-[4px] text-[11px] border transition-colors',
                 value === s
-                  ? 'bg-[#1a2540] border-[#4D7CFF] text-[#4D7CFF]'  // 选中态
-                  : 'bg-[#1E1E26] border-[#2F2F38] text-slate-400 hover:border-[#4D7CFF]/50 hover:text-slate-200'
+                  ? 'bg-[#4D7CFF]/15 border-[#4D7CFF] text-[#4D7CFF]'  // 选中态
+                  : 'bg-white/[0.06] border-white/10 text-slate-400 hover:border-[#4D7CFF]/50 hover:text-slate-200'
               )}
             >
               {s}
@@ -1060,7 +1060,7 @@ const AddTagModal: React.FC<{
 
         {/* 底部操作按钮 */}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 h-8 rounded-[7px] text-[13px] text-slate-400 hover:text-white hover:bg-[#1E1E26] border border-[#2F2F38] transition-colors">
+          <button onClick={onClose} className="px-4 h-8 rounded-[7px] text-[13px] text-slate-400 hover:text-white hover:bg-white/[0.06] border border-white/10 transition-colors">
             取消
           </button>
           <button
@@ -1134,7 +1134,7 @@ const AddTradeDrawer: React.FC<{
     return () => document.removeEventListener('paste', onPaste);
   }, [form.images]);
 
-  const ic = "w-full h-9 px-3 bg-[#1E1E26] border border-[#2F2F38] rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors";
+  const ic = "w-full h-9 px-3 bg-white/[0.06] border border-white/10 rounded-[7px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-[#4D7CFF] transition-colors";
   const lc = "block text-[12px] font-bold text-slate-400 mb-1";
 
   return (
@@ -1152,11 +1152,11 @@ const AddTradeDrawer: React.FC<{
       }}
     >
         {/* ===== 抽屉 Header ===== */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2F2F38] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
           <h2 className="text-[15px] font-bold text-slate-100">
             {isEdit ? '编辑交易记录' : '添加交易记录'}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-[6px] text-slate-400 hover:text-white hover:bg-[#1E1E26] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-[6px] text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -1182,7 +1182,7 @@ const AddTradeDrawer: React.FC<{
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); (Array.from(e.dataTransfer.files) as File[]).filter(f => f.type.startsWith('image/')).forEach(handleImg); }}
-                className="w-20 h-16 bg-[#1E1E26] border-2 border-dashed border-[#2F2F38] rounded-[6px] flex flex-col items-center justify-center cursor-pointer hover:border-[#4D7CFF]/50 transition-colors group shrink-0"
+                className="w-20 h-16 bg-white/[0.06] border-2 border-dashed border-white/10 rounded-[6px] flex flex-col items-center justify-center cursor-pointer hover:border-[#4D7CFF]/50 transition-colors group shrink-0"
               >
                 <Plus size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
                 <span className="text-[10px] text-slate-600 group-hover:text-slate-400 transition-colors mt-1">添加截图</span>
@@ -1267,7 +1267,7 @@ const AddTradeDrawer: React.FC<{
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {form.tags.map(t => (
-                  <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-[#1a2540] border border-[#2a3a5a] text-[#4D7CFF] text-[11px] rounded-[4px]">
+                  <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-[#4D7CFF]/15 border border-[#4D7CFF]/25 text-[#4D7CFF] text-[11px] rounded-[4px]">
                     {t}
                     <button onClick={() => upd('tags', form.tags.filter(x => x !== t))} className="hover:text-white transition-colors">
                       <X size={10} />
@@ -1284,7 +1284,7 @@ const AddTradeDrawer: React.FC<{
                 placeholder="输入标签回车添加"
                 className={cn(ic, 'flex-1')}
               />
-              <button onClick={addTag} className="px-3 h-9 bg-[#1a2540] border border-[#2a3a5a] rounded-[7px] text-[#4D7CFF] hover:bg-[#1E2D50] transition-colors text-[12px] shrink-0">
+              <button onClick={addTag} className="px-3 h-9 bg-[#4D7CFF]/15 border border-[#4D7CFF]/25 rounded-[7px] text-[#4D7CFF] hover:bg-[#4D7CFF]/20 transition-colors text-[12px] shrink-0">
                 添加
               </button>
             </div>
@@ -1304,8 +1304,8 @@ const AddTradeDrawer: React.FC<{
         </div>
 
         {/* ===== Footer ===== */}
-        <div className="px-5 py-4 border-t border-[#2F2F38] flex gap-3 shrink-0">
-          <button onClick={onClose} className="flex-1 h-9 rounded-[7px] border border-[#2F2F38] text-[13px] text-slate-400 hover:text-white hover:border-slate-500 transition-colors">
+        <div className="px-5 py-4 border-t border-white/10 flex gap-3 shrink-0">
+          <button onClick={onClose} className="flex-1 h-9 rounded-[7px] border border-white/10 text-[13px] text-slate-400 hover:text-white hover:border-slate-500 transition-colors">
             取消
           </button>
           <button
@@ -1361,7 +1361,7 @@ const InlineNumberCell: React.FC<{ value: number; onSave: (v: number) => void }>
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-        className="w-[72px] h-6 bg-[#1E1E26] border border-[#4D7CFF] rounded-[4px] text-[12px] font-mono text-slate-200 px-1.5 outline-none"
+        className="w-[72px] h-6 bg-white/[0.06] border border-[#4D7CFF] rounded-[4px] text-[12px] font-mono text-slate-200 px-1.5 outline-none"
       />
     );
   }
@@ -1402,7 +1402,7 @@ const InlineDateCell: React.FC<{ value: string; onSave: (v: string) => void }> =
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-        className="h-6 bg-[#1E1E26] border border-[#4D7CFF] rounded-[4px] text-[12px] font-mono text-slate-200 px-1.5 outline-none"
+        className="h-6 bg-white/[0.06] border border-[#4D7CFF] rounded-[4px] text-[12px] font-mono text-slate-200 px-1.5 outline-none"
         style={{ colorScheme: 'dark' }}
       />
     );
@@ -1711,29 +1711,29 @@ export default function TradeLogPage() {
     <ConfigProvider
       theme={{
         token: {
-          colorBgContainer: '#131318',
-          colorBgElevated: '#1E1E26',
-          colorBorder: '#2F2F38',
+          colorBgContainer: 'rgba(255,255,255,0.04)',
+          colorBgElevated: 'rgba(255,255,255,0.08)',
+          colorBorder: 'rgba(255,255,255,0.1)',
           colorText: '#CBD5E1',
           colorTextHeading: '#F1F5F9',
           colorPrimary: '#4D7CFF',
-          colorBgLayout: '#17181C',
+          colorBgLayout: 'rgba(255,255,255,0.03)',
           borderRadius: 8,
           fontFamily: 'inherit',
         },
         components: {
           Table: {
-            headerBg: '#0A0A0D',
+            headerBg: 'rgba(0,0,0,0.5)',
             headerColor: '#64748B',
-            rowHoverBg: '#1a1a22',
-            borderColor: '#1E1E26',
+            rowHoverBg: 'rgba(255,255,255,0.05)',
+            borderColor: 'rgba(255,255,255,0.06)',
             cellPaddingBlock: 12,
             cellPaddingInline: 16,
-            colorBgContainer: '#131318',
+            colorBgContainer: 'rgba(255,255,255,0.04)',
           },
           Checkbox: {
             colorPrimary: '#4D7CFF',
-            colorBorder: '#3F3F50',
+            colorBorder: 'rgba(255,255,255,0.15)',
           },
         },
       }}
@@ -1742,6 +1742,7 @@ export default function TradeLogPage() {
       <div className="absolute inset-0">
         <ElasticLayout
           restGap={4}
+          gapColor="rgba(10,10,13,0.5)"
           // ===== 顶部 Header 区域（毛玻璃+固定高度） =====
           header={
             <div className="flex flex-col gap-3 px-2 pt-2 pb-0" style={{ background: 'rgba(10,10,13,0.5)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
@@ -1766,7 +1767,7 @@ export default function TradeLogPage() {
                       'flex items-center gap-1.5 px-2.5 h-8 rounded-[8px] border text-[13px] font-bold transition-all duration-150',
                       batchMode
                         ? 'bg-white/[0.06] border-white/20 text-white'
-                        : 'bg-[#131318] border-[#2F2F38] text-slate-300 hover:border-white/20 hover:text-white'
+                        : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/20 hover:text-white'
                     )}
                   >
                     {batchMode ? <CheckSquare size={14} /> : <Square size={14} />}
@@ -1844,7 +1845,7 @@ export default function TradeLogPage() {
                       value={searchText}
                       onChange={e => setSearchText(e.target.value)}
                       placeholder="搜索代码、账户、标签..."
-                      className="h-8 pl-8 pr-3 bg-[#131318] border border-[#2F2F38] rounded-[8px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-white/25 transition-colors w-[220px]"
+                      className="h-8 pl-8 pr-3 bg-white/[0.04] border border-white/10 rounded-[8px] text-[13px] text-slate-200 placeholder:text-slate-600 outline-none focus:border-white/25 transition-colors w-[220px]"
                     />
                   </div>
                 </div>
@@ -1877,7 +1878,7 @@ export default function TradeLogPage() {
         >
           {/* ===== 主表格区域（自动撑满剩余高度，垂直滚动） ===== */}
           <div className="px-2 pt-2 pb-2 h-full flex flex-col">
-            <div ref={tableWrapRef} className="flex-1 min-h-0 overflow-hidden rounded-[10px] border border-[#1E1E26]">
+            <div ref={tableWrapRef} className="flex-1 min-h-0 overflow-hidden rounded-[10px] border border-white/[0.06]" style={{ background: 'rgba(10,10,13,0.5)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
               <Table<TradeRecord>
                 dataSource={filteredData}
                 columns={tableColumns}

@@ -228,7 +228,7 @@ const DigitalClock = () => {
   return (
     <div className="flex items-center justify-center px-2.5 h-[40px] bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] text-slate-200">
       {(() => {
-        const t = time.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const t = time.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const i = t.lastIndexOf(' ');
         return (
           <>

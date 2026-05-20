@@ -467,8 +467,9 @@ export const IVSurfaceWidget = ({
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
   return (
-    <div className="w-full overflow-auto">
-      <table className="w-full text-[11px]">
+    <div className="overflow-hidden rounded-[18px]">
+      <div className="w-full overflow-auto">
+        <table className="w-full text-[11px]">
         <thead>
           <tr>
             <th className="text-left px-2 py-1.5 text-slate-600 font-bold">Δ / Exp</th>
@@ -511,7 +512,8 @@ export const IVSurfaceWidget = ({
               );
             })}
           </tbody>
-        </table>
+          </table>
+      </div>
     </div>
   );
 };

@@ -373,7 +373,7 @@ const AppNavigationDropdown = () => {
         </button>
 
         <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-          <div className="w-[220px] p-2">
+          <div className="w-[160px] p-2">
             <div className="flex flex-col gap-0.5">
               {([
                 { label: '监控', icon: Activity, to: '/monitor' },

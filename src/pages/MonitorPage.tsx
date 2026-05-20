@@ -50,7 +50,7 @@ export default function MonitorPage() {
         <ElasticLayout className="h-full">
           <div className="px-3 pt-0.5 pb-3">
             {tab === 'overview' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="波动率概览" headerDensity="compact" className="col-span-7 h-[360px]">
                   <VolOverviewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
@@ -61,7 +61,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'surface' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="波动率微笑（点击点可钻取）" headerDensity="compact" className="col-span-6 h-[340px]">
                   <VolSmileWidget
                     coin={coin}
@@ -83,7 +83,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'history' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="VRP 历史（30D）" headerDensity="compact" className="col-span-6 h-[300px]">
                   <VRPHistoryWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
@@ -97,7 +97,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'distribution' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="固定期限方差分布" headerDensity="compact" className="col-span-6 h-[300px]">
                   <FixedTenorWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
@@ -108,7 +108,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'greeks' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard
                   title="Greeks Heatmap"
                   headerDensity="compact"
@@ -123,7 +123,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'chain' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard
                   title="期权链（跳转到独立页面）"
                   headerDensity="compact"
@@ -145,7 +145,7 @@ export default function MonitorPage() {
             )}
 
             {tab === 'polymarket' && (
-              <div className="grid grid-cols-12 gap-3">
+              <div className="grid grid-cols-12 gap-2">
                 <WidgetCard title="市场预测（Polymarket）" headerDensity="compact" className="col-span-12 h-[420px]">
                   <PolymarketWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>

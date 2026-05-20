@@ -56,7 +56,7 @@ const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
   <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)] ring-1 ring-inset ring-white/6">
     {(['BTC', 'ETH'] as Coin[]).map(c => (
       <button key={c} onClick={() => set(c)}
-        className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
+        className={cn('text-[12px] font-bold px-3 py-1 rounded-[18px] transition-colors',
           v === c
             ? (c === 'BTC' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400')
             : 'text-slate-600 hover:text-slate-400'

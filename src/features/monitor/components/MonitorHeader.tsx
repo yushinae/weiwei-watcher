@@ -68,7 +68,7 @@ export function MonitorHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="sticky top-0 z-[120] glass-nav h-[44px]">
+    <div className="sticky top-0 z-[120] glass-bar h-[44px]">
       <div className="flex items-center gap-4 px-5 h-full">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-[10px] bg-surface-2 ring-1 ring-inset ring-border-subtle grid place-items-center">

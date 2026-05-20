@@ -238,6 +238,7 @@ export function Modal({
             zIndex={zIndex + 1}
             className={cn('relative', className)}
             style={style}
+            transition={{ duration: 0.12, ease: EASE_EMPHASIS }}
             initial={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}
             animate={{ opacity: 1, rotateX: 0, y: 0, scale: 1 }}
             exit={{ opacity: 0, rotateX: 10, y: -25, scale: 0.92 }}

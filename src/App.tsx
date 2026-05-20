@@ -1153,6 +1153,7 @@ const AddTabModal = ({
       onClose={onClose}
       zIndex={100}
       className="w-full max-w-[360px] border border-white/10"
+      style={{ background: 'var(--glass)' }}
     >
       <motion.div
         layoutId="addTabModalBackground"

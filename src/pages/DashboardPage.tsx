@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Minimize2, LayoutGrid } from 'lucide-react';
+import { Minimize2, LayoutGrid, Trash2 } from 'lucide-react';
 import { Responsive as ResponsiveGridLayout, useContainerWidth, Layout, LayoutItem } from 'react-grid-layout';
 import { cn } from '../lib/utils';
 import { useWorkspaceStore } from '../store/useWorkspaceStore';
@@ -95,6 +95,8 @@ export const DashboardPage = () => {
                 cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                 rowHeight={50}
                 onLayoutChange={onLayoutChange}
+                isResizable
+                resizeHandles={['se']}
                 dragConfig={{ handle: ".widget-drag-handle" }}
                 margin={[8, 8]}
                 containerPadding={[8, 0]}
@@ -113,6 +115,15 @@ export const DashboardPage = () => {
                       <WidgetCard
                         title={defn.label}
                         dragHandle
+                        actions={[
+                          {
+                            id: 'delete',
+                            icon: Trash2,
+                            label: '删除组件',
+                            tone: 'danger',
+                            onClick: () => removeInstance(activePage.id, inst.instanceId),
+                          },
+                        ]}
                       >
                         <Component {...(inst.props ?? {})} />
                       </WidgetCard>

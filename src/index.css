@@ -318,6 +318,37 @@ html.is-scrolling * {
   user-select: none;
 }
 
+/* ── 卡片缩放拖柄（右下角） ── */
+.react-resizable-handle {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.widget-card:hover .react-resizable-handle {
+  opacity: 0.6;
+}
+.react-resizable-handle:hover {
+  opacity: 1 !important;
+}
+.react-resizable-handle::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0 0 2px 0;
+}
+
 .widget-head-left {
   display: flex;
   align-items: center;

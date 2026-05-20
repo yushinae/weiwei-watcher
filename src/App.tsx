@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   Calculator,
@@ -7,9 +7,8 @@ import { HoverPopover } from './components/popup/Popup';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 
 import { cn } from './lib/utils';
-
-const MonitorPage = lazy(() => import('./pages/MonitorPage'));
-const PositionBuilderPage = lazy(() => import('./pages/PositionBuilderPage'));
+import MonitorPage from './pages/MonitorPage';
+import PositionBuilderPage from './pages/PositionBuilderPage';
 
 const MARKET_TICKERS = [
   { symbol: 'BTCUSDT', price: '64,123.50', change: '+1.2%', up: true },
@@ -212,14 +211,14 @@ const AppNavigationDropdown = () => {
         )}>
         监控
       </button>
-      <Link
-        to="/position-builder"
+      <a
+        href="/position-builder"
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] text-[13px] font-bold outline-none focus:outline-none no-underline",
           isPositionBuilder ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10"
         )}>
         头寸
-      </Link>
+      </a>
     </div>
   );
 };
@@ -281,7 +280,6 @@ export default function App() {
       </header>
 
       <main className="flex-1 relative overflow-hidden z-[1]">
-        <Suspense fallback={<div className="absolute inset-0 bg-[#0A0A0F]" />}>
         <Routes>
             <Route path="/monitor" element={
               <div className="absolute inset-0">
@@ -296,7 +294,6 @@ export default function App() {
             <Route path="/" element={<Navigate to="/monitor" replace />} />
             <Route path="*" element={<Navigate to="/monitor" replace />} />
         </Routes>
-        </Suspense>
       </main>
 
       <footer className="h-[34px] glass-bar flex items-center px-1.5 shrink-0 z-10 w-full relative" />

@@ -67,9 +67,9 @@ const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
   </div>
 );
 
-function ivrColor(r: number) { return r <= 30 ? '#1EC98C' : r <= 70 ? '#F59E0B' : '#FF4D6A'; }
+function ivrColor(r: number) { return r <= 30 ? '#25a750' : r <= 70 ? '#F59E0B' : '#ca3f64'; }
 function ivrLabel(r: number) { return r <= 20 ? '极低' : r <= 40 ? '偏低' : r <= 60 ? '中性' : r <= 80 ? '偏高' : '极高'; }
-function pcrColor(p: number) { return p < 0.7 ? '#1EC98C' : p < 1.0 ? '#F59E0B' : '#FF4D6A'; }
+function pcrColor(p: number) { return p < 0.7 ? '#25a750' : p < 1.0 ? '#F59E0B' : '#ca3f64'; }
 function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : '偏空'; }
 
 // ── Base chart components (take coin as prop) ─────────────────────────────────
@@ -87,8 +87,8 @@ const SmileChart = ({
   const lo = Math.floor(Math.min(...allV) / 5) * 5;
   const hi = Math.ceil(Math.max(...allV) / 5) * 5;
   const lines = [
-    { key: '7D', color: '#4D7CFF', dash: '' },
-    { key: '30D', color: '#1EC98C', dash: '4,2' },
+    { key: '7D', color: '#25e889', dash: '' },
+    { key: '30D', color: '#25a750', dash: '4,2' },
     { key: '90D', color: '#F59E0B', dash: '2,2' },
   ] as const;
   const yGrids = [lo, lo+(hi-lo)*0.25, lo+(hi-lo)*0.5, lo+(hi-lo)*0.75, hi];
@@ -146,9 +146,9 @@ const SmileChart = ({
 
 const GRID = 'var(--color-border-subtle)';
 const TXT = 'var(--color-text-muted)';
-const BLUE = 'var(--color-brand-blue)';
-const GREEN = 'var(--color-trade-up)';
-const RED = 'var(--color-trade-down)';
+const BRAND = 'var(--color-brand)';
+const UP = 'var(--color-trade-up)';
+const DOWN = 'var(--color-trade-down)';
 const YELLOW = 'var(--nexus-yellow)';
 
 const VRPChart = ({ coin }: { coin: Coin }) => {
@@ -172,13 +172,13 @@ const VRPChart = ({ coin }: { coin: Coin }) => {
       })}
       <path d={vrpFill} fill="rgba(77,124,255,0.08)" />
       <path d={area(rvPts, H, py)} fill="rgba(30,201,140,0.06)" />
-      <polyline points={poly(rvPts)} fill="none" stroke={GREEN} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points={poly(ivPts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <line x1={px} y1={8} x2={px+10} y2={8} stroke={BLUE} strokeWidth={1.5} />
+      <polyline points={poly(rvPts)} fill="none" stroke={UP} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={poly(ivPts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <line x1={px} y1={8} x2={px+10} y2={8} stroke={BRAND} strokeWidth={1.5} />
       <text x={px+13} y={11} fontSize={7} fill={TXT}>IV</text>
-      <line x1={px+36} y1={8} x2={px+46} y2={8} stroke={GREEN} strokeWidth={1.2} />
+      <line x1={px+36} y1={8} x2={px+46} y2={8} stroke={UP} strokeWidth={1.2} />
       <text x={px+49} y={11} fontSize={7} fill={TXT}>RV</text>
-      <text x={px+72} y={11} fontSize={7} fill={BLUE} opacity={0.5}>■ VRP</text>
+      <text x={px+72} y={11} fontSize={7} fill={BRAND} opacity={0.5}>■ VRP</text>
     </svg>
   );
 };
@@ -201,14 +201,14 @@ const IVRankChart = ({ coin }: { coin: Coin }) => {
           <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
         </React.Fragment>;
       })}
-      <line x1={px} y1={y30} x2={W-4} y2={y30} stroke={GREEN} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
-      <line x1={px} y1={y70} x2={W-4} y2={y70} stroke={RED} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
+      <line x1={px} y1={y30} x2={W-4} y2={y30} stroke={UP} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
+      <line x1={px} y1={y70} x2={W-4} y2={y70} stroke={DOWN} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
       <path d={area(linePts, H, py)} fill="rgba(77,124,255,0.07)" />
-      <polyline points={poly(linePts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={poly(linePts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       {(() => { const [x,y] = linePts[linePts.length-1]; const c = ivrColor(data[data.length-1]);
         return <circle cx={x} cy={y} r={3} fill={c} stroke="var(--color-bg-deep)" strokeWidth={1} />; })()}
-      <text x={px+4} y={y30-3} fontSize={7} fill={GREEN}>30</text>
-      <text x={px+4} y={y70-3} fontSize={7} fill={RED}>70</text>
+      <text x={px+4} y={y30-3} fontSize={7} fill={UP}>30</text>
+      <text x={px+4} y={y70-3} fontSize={7} fill={DOWN}>70</text>
     </svg>
   );
 };
@@ -303,7 +303,7 @@ const ImpliedDistChart = ({ coin }: { coin: Coin }) => {
       <path d={`M ${x1lo} ${py} L ${x1lo} ${H-py} L ${x1hi} ${H-py} L ${x1hi} ${py} Z`} fill="rgba(77,124,255,0.06)" />
       <line x1={px} y1={H-py} x2={W-px} y2={H-py} stroke={GRID} strokeWidth={0.5} />
       <path d={aFill} fill="rgba(77,124,255,0.10)" />
-      <path d={smooth(curvePts)} fill="none" stroke={BLUE} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={smooth(curvePts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       <line x1={x1lo} y1={py} x2={x1lo} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
       <line x1={x1hi} y1={py} x2={x1hi} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
       <line x1={xS} y1={py} x2={xS} y2={H-py} stroke={YELLOW} strokeWidth={1} strokeDasharray="2,2" />
@@ -585,7 +585,7 @@ export const PolymarketWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Polymarket</span>
       </div>
       {markets.map((m, i) => {
-        const yc = m.yes >= 50 ? '#1EC98C' : '#F59E0B';
+        const yc = m.yes >= 50 ? '#25a750' : '#F59E0B';
         return (
           <div key={i} className="px-3 py-2.5 border-t border-surface-4 hover:bg-surface-2 transition-colors cursor-pointer">
             <p className="text-[11px] text-slate-300 leading-snug mb-2">{m.q}</p>

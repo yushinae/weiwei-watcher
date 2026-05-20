@@ -12,17 +12,15 @@
   --dur-card: 160ms;
   --lift-card: 1.5px;
 
-  /* Brand */
-  --color-brand-blue: #4D7CFF;
-  --color-brand-blue-deep: #191970;
-  --color-brand-blue-soft: #C0CBF6;
+  /* Brand — 薄荷绿，唯一品牌色 */
+  --color-brand: #25e889;
+  --color-brand-blue: #25e889;
 
-  /* Surface elevations — 毛玻璃主题：更深的底色让玻璃效果更突出 */
-  --color-bg-base: #0d0d0d;
-  --color-bg-dim: #1F2021;
-  --color-bg-deep: #0A0A0D;
+  /* Surface elevations — 纯黑背景上的半透层 */
+  --color-bg-base: #000000;
+  --color-bg-dim: #000000;
+  --color-bg-deep: #000000;
   --color-bg-card: rgba(255, 255, 255, 0.02);
-  /* 卡片内部元素背景 — 半透明白而非纯黑 */
   --color-surface-1: rgba(255, 255, 255, 0.03);
   --color-surface-2: rgba(255, 255, 255, 0.05);
   --color-surface-3: rgba(255, 255, 255, 0.07);
@@ -32,16 +30,16 @@
   --color-bg-hover: rgba(255, 255, 255, 0.06);
 
   /* Borders */
-  --color-border-subtle: #2F2F38;
-  --color-border-strong: #3E3E4A;
+  --color-border-subtle: #2a2a2a;
+  --color-border-strong: #3a3a3a;
 
   /* Input / Form */
-  --color-input-bg: #31333F;
+  --color-input-bg: #1a1a1a;
   --color-text-muted: #8B93A5;
 
   /* Trade colors */
-  --color-trade-up: #1EC98C;
-  --color-trade-down: #FF4D6A;
+  --color-trade-up: #25a750;
+  --color-trade-down: #ca3f64;
 
   --radius-button: 8px;
   --radius-modal: 12px;
@@ -153,10 +151,10 @@ body {
 
 /* Monitor page local theme scope (避免污染全局 token) */
 .monitor-scope {
-  --monitor-signal-glow: rgba(77, 124, 255, 0.65);
+  --monitor-signal-glow: rgba(37, 232, 137, 0.65);
   --monitor-accent-btc: #F59E0B;
-  --monitor-accent-eth: #4D7CFF;
-  --monitor-gridline: rgba(47, 47, 56, 0.9);
+  --monitor-accent-eth: #25e889;
+  --monitor-gridline: rgba(42, 42, 42, 0.9);
 }
 
 /* 期权链数字：Inter tabular-nums，无 Mono */
@@ -187,17 +185,17 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(77, 124, 255, 0);
+  background: rgba(37, 232, 137, 0);
   border-radius: 999px;
   transition: background-color 0.3s ease;
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb {
-  background: rgba(77, 124, 255, 0.65);
+  background: rgba(37, 232, 137, 0.65);
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb:active {
-  background: rgba(77, 124, 255, 0.9);
+  background: rgba(37, 232, 137, 0.9);
 }
 
 /* Firefox */
@@ -207,7 +205,7 @@ html.is-scrolling ::-webkit-scrollbar-thumb:active {
 }
 
 html.is-scrolling * {
-  scrollbar-color: rgba(77, 124, 255, 0.65) transparent;
+  scrollbar-color: rgba(37, 232, 137, 0.65) transparent;
 }
 
 .hide-scrollbar {
@@ -225,23 +223,41 @@ html.is-scrolling * {
    ═══════════════════════════════════════════ */
 
 :root {
-  --nexus-accent: #4D7CFF;
-  --nexus-green: #30D158;
-  --nexus-red: #FF453A;
+  --nexus-accent: #25e889;
+  --nexus-green: #25a750;
+  --nexus-red: #ca3f64;
   --nexus-yellow: #F59E0B;
   --nexus-text-pri: rgba(255, 255, 255, 0.93);
   --nexus-text-sec: rgba(255, 255, 255, 0.58);
   --nexus-text-dim: rgba(255, 255, 255, 0.32);
   --nexus-radius: 18px;
-  /* macOS Widget standard corner radius */
 
-  /* Widget 材料色 — 暗色半透毛玻璃 */
-  --widget-bg: rgba(26, 26, 30, 0.80);
-  /* 卡片背景（语义命名） */
-  --widget-glass: rgba(26, 26, 30, 0.80);
-  /* 默认卡片材料 */
-  --widget-glass-dim: rgba(26, 26, 30, 0.70);
-  /* 顶栏/次要面板 */
+  --widget-bg: rgba(0, 0, 0, 0.85);
+  --widget-glass: rgba(0, 0, 0, 0.85);
+  --widget-glass-dim: rgba(0, 0, 0, 0.75);
+}
+
+/* ── Light mode ── */
+[data-theme="light"] {
+  --nexus-text-pri: rgba(0, 0, 0, 0.90);
+  --nexus-text-sec: rgba(0, 0, 0, 0.55);
+  --nexus-text-dim: rgba(0, 0, 0, 0.30);
+  --widget-bg: rgba(255, 255, 255, 0.85);
+  --widget-glass: rgba(255, 255, 255, 0.85);
+  --widget-glass-dim: rgba(255, 255, 255, 0.75);
+  --color-bg-base: #f5f5f5;
+  --color-bg-dim: #f0f0f0;
+  --color-bg-deep: #eaeaea;
+  --color-bg-card: rgba(0, 0, 0, 0.03);
+  --color-surface-1: rgba(0, 0, 0, 0.03);
+  --color-surface-2: rgba(0, 0, 0, 0.05);
+  --color-surface-3: rgba(0, 0, 0, 0.07);
+  --color-surface-4: rgba(0, 0, 0, 0.09);
+  --color-surface-5: rgba(0, 0, 0, 0.12);
+  --color-surface-6: rgba(0, 0, 0, 0.15);
+  --color-border-subtle: #d0d0d0;
+  --color-border-strong: #b0b0b0;
+  --color-text-muted: #6B7280;
 }
 
 /* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
@@ -328,24 +344,24 @@ html.is-scrolling * {
   -webkit-backdrop-filter: blur(8px);
 }
 
-.widget-icon.ico-blue {
-  background: rgba(77, 124, 255, 0.20);
+.widget-icon.ico-brand {
+  background: rgba(37, 232, 137, 0.18);
   color: var(--nexus-accent);
 }
 
+.widget-icon.ico-green {
+  background: rgba(37, 167, 80, 0.15);
+  color: var(--nexus-green);
+}
+
 .widget-icon.ico-red {
-  background: rgba(255, 69, 58, 0.18);
+  background: rgba(202, 63, 100, 0.18);
   color: var(--nexus-red);
 }
 
 .widget-icon.ico-yellow {
   background: rgba(245, 158, 11, 0.18);
   color: var(--nexus-yellow);
-}
-
-.widget-icon.ico-green {
-  background: rgba(48, 209, 88, 0.15);
-  color: var(--nexus-green);
 }
 
 .widget-name {
@@ -483,7 +499,7 @@ html.is-scrolling * {
   border-radius: 10px;
   backdrop-filter: blur(12px) saturate(1.3);
   -webkit-backdrop-filter: blur(12px) saturate(1.3);
-  background: rgba(47, 111, 235, 0.12);
+  background: rgba(37, 232, 137, 0.10);
   margin-bottom: 12px;
   position: relative;
   z-index: 1;
@@ -811,145 +827,16 @@ html.is-scrolling * {
   }
 }
 
+
 /* ── Trade number glow ── */
 .glow-green {
-  text-shadow: 0 0 14px rgba(30, 201, 140, 0.5);
+  text-shadow: 0 0 14px rgba(37, 167, 80, 0.5);
 }
 
 .glow-red {
-  text-shadow: 0 0 14px rgba(255, 77, 106, 0.5);
+  text-shadow: 0 0 14px rgba(202, 63, 100, 0.5);
 }
 
-.glow-blue {
-  text-shadow: 0 0 14px rgba(77, 124, 255, 0.55);
-}
-
-/* ── Ant Design Table 暗色主题覆写 ── */
-.trade-log-table .ant-table {
-  background: transparent !important;
-  color: #CBD5E1;
-}
-
-.trade-log-table .ant-table-thead>tr>th {
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: rgba(255, 255, 255, 0.45) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  text-transform: none;
-  letter-spacing: 0.02em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
-}
-
-.trade-log-table .ant-table-tbody>tr>td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-  background: transparent !important;
-  padding-top: 11px !important;
-  padding-bottom: 11px !important;
-}
-
-.trade-log-table .ant-table-tbody>tr:nth-child(even)>td {
-  background: rgba(255, 255, 255, 0.012) !important;
-}
-
-.trade-log-table .ant-table-tbody>tr:hover>td {
-  background: rgba(255, 255, 255, 0.04) !important;
-}
-
-/* 行内操作按钮（hover 才显示） */
-.trade-log-table .tl-actions {
-  opacity: 0;
-}
-
-.trade-log-table .ant-table-tbody>tr:hover .tl-actions {
-  opacity: 1;
-}
-
-.tl-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 13px;
-  font-weight: 700;
-  transition: background-color 120ms ease, color 120ms ease;
-}
-
-.tl-menu-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.tl-menu-item.tl-danger {
-  color: rgba(255, 120, 120, 0.95);
-}
-
-.tl-menu-item.tl-danger:hover {
-  background: rgba(255, 77, 106, 0.10);
-  color: rgba(255, 160, 170, 0.98);
-}
-
-.trade-log-table .ant-table-wrapper {
-  height: 100%;
-}
-
-.trade-log-table .ant-spin-nested-loading,
-.trade-log-table .ant-spin-container,
-.trade-log-table .ant-table-container {
-  height: 100%;
-}
-
-.trade-log-table .ant-table-body {
-  overflow-y: auto !important;
-}
-
-.trade-log-table .ant-checkbox-inner {
-  background: transparent !important;
-  border-color: #3F3F50 !important;
-  border-radius: 3px !important;
-}
-
-.trade-log-table .ant-checkbox-checked .ant-checkbox-inner {
-  background: #4D7CFF !important;
-  border-color: #4D7CFF !important;
-}
-
-.trade-log-table .ant-table-selection-column {
-  border-right: 1px solid #1E1E26 !important;
-}
-
-/* 水平滚动条蓝色 */
-.trade-log-table .ant-table-body::-webkit-scrollbar-thumb,
-.trade-log-table .ant-table-content::-webkit-scrollbar-thumb {
-  background: rgba(77, 124, 255, 0.45) !important;
-  border-radius: 4px;
-}
-
-.trade-log-table .ant-table-body::-webkit-scrollbar-thumb:active,
-.trade-log-table .ant-table-content::-webkit-scrollbar-thumb:active {
-  background: rgba(77, 124, 255, 0.8) !important;
-}
-
-/* 水平滚动蓝色光晕 — 持续平滑过渡防止中断 */
-.trade-log-table .ant-table-container::before,
-.trade-log-table .ant-table-container::after {
-  transition: box-shadow 0.2s ease, opacity 0.2s ease !important;
-  will-change: opacity, box-shadow;
-}
-
-.trade-log-table .ant-table-ping-left .ant-table-container::before {
-  box-shadow: inset 12px 0 12px -8px rgba(77, 124, 255, 0.5) !important;
-}
-
-.trade-log-table .ant-table-ping-right .ant-table-container::after {
-  box-shadow: inset -12px 0 12px -8px rgba(77, 124, 255, 0.5) !important;
-}
-
-/* 日期选择器暗色 */
-.ant-picker-dropdown {
-  z-index: 9999;
+.glow-brand {
+  text-shadow: 0 0 14px rgba(37, 232, 137, 0.55);
 }

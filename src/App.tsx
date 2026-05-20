@@ -97,7 +97,7 @@ const PriceTicker = ({ symbol, price, change, up }: { symbol: string; price: str
   const formattedPrice = `$${displayPrice}`;
 
   return (
-    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#4D7CFF]/40 hover:shadow-[0_0_10px_rgba(77,124,255,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
+    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#25e889]/40 hover:shadow-[0_0_10px_rgba(37,232,137,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
       <TokenIcon symbol={symbol} />
       <span className={cn(
         "text-[16px] font-bold font-mono tnum transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ml-1.5",

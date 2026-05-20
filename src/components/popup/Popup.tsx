@@ -159,17 +159,21 @@ export function HoverPopover({
   panelClassName,
   panelStyle,
   children,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   open: boolean;
   panelZ?: number;
   panelClassName?: string;
   panelStyle?: React.CSSProperties;
   children: React.ReactNode;
+  onMouseEnter?: React.MouseEventHandler;
+  onMouseLeave?: React.MouseEventHandler;
 }) {
   return (
     <AnimatePresence>
       {open && (
-        <PopupCard zIndex={panelZ} className={panelClassName} style={panelStyle}>
+        <PopupCard zIndex={panelZ} className={panelClassName} style={panelStyle} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
           {children}
         </PopupCard>
       )}

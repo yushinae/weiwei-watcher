@@ -317,10 +317,18 @@ const AppNavigationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeCat, setActiveCat] = useState<'all' | 'account' | 'help'>('all');
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const isAssets = location.pathname === '/assets';
   const isMonitor = location.pathname === '/monitor';
+
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -335,8 +343,8 @@ const AppNavigationDropdown = () => {
   return (
     <div className="relative flex items-center gap-4" ref={containerRef}>
       <div
-        onMouseEnter={() => { setActiveCat('all'); setIsOpen(true); }}
-        onMouseLeave={() => setIsOpen(false)}
+        onMouseEnter={() => { setActiveCat('all'); cancelClose(); setIsOpen(true); }}
+        onMouseLeave={scheduleClose}
         className="relative"
       >
         <button
@@ -348,7 +356,7 @@ const AppNavigationDropdown = () => {
           <NineDots size={24} />
         </button>
 
-        <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden">
+        <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
           {/* 二级菜单：左侧分类 + 右侧条目（同一张卡片内） */}
           <div className="flex w-[420px]">
             {/* Left: categories */}
@@ -855,14 +863,22 @@ const WidgetToggle: React.FC<{ label: string, checked: boolean, onChange: () => 
 
 const TopBarSettingsDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const widgets = useWorkspaceStore(state => state.widgets);
   const toggleWidget = useWorkspaceStore(state => state.toggleWidget);
+
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
 
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
+      onMouseLeave={scheduleClose}
     >
       <button className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.08] active:scale-[0.94]", isOpen ? "bg-brand-blue-deep text-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-100 hover:bg-brand-blue-deep hover:text-[#4D7CFF]")}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[26px] h-[26px] opacity-90">
@@ -873,6 +889,8 @@ const TopBarSettingsDropdown = () => {
         open={isOpen}
         panelZ={60}
         panelClassName="absolute top-full right-0 mt-2 w-48"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
       >
         <div className="p-2 flex flex-col gap-1">
           <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">行情组件 (Tickers)</div>
@@ -899,11 +917,18 @@ const TopBarSettingsDropdown = () => {
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
+      onMouseLeave={scheduleClose}
     >
       <button className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.08] active:scale-[0.94]", isOpen ? "bg-brand-blue-deep text-[#4D7CFF] shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent text-slate-100 hover:bg-brand-blue-deep hover:text-[#4D7CFF]")}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[26px] h-[26px] opacity-90">
@@ -914,6 +939,8 @@ const NotificationDropdown = () => {
         open={isOpen}
         panelZ={60}
         panelClassName="absolute top-full right-0 mt-2 w-64"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
       >
         <div className="p-2 flex flex-col gap-1">
           <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">通知中心</div>
@@ -928,11 +955,18 @@ const NotificationDropdown = () => {
 const UserDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+  };
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
+      onMouseLeave={scheduleClose}
     >
       <div className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] cursor-pointer transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]", isOpen ? "bg-brand-blue-deep shadow-[0_0_12px_rgba(25,25,112,0.4)]" : "bg-transparent hover:bg-brand-blue-deep")}>
         <div className="w-7 h-7 rounded-[5px] overflow-hidden">
@@ -947,6 +981,8 @@ const UserDropdown = () => {
         open={isOpen}
         panelZ={60}
         panelClassName="absolute top-full right-0 mt-2 w-48 overflow-hidden"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
       >
         <div className="px-3 py-2.5 flex flex-col" style={{ background: 'rgba(255,255,255,0.03)' }}>
           <span className="text-sm font-bold text-white/90">User</span>

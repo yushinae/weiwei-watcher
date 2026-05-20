@@ -41,7 +41,7 @@ function Segmented<T extends string>({
           className={cn(
             'relative rounded-[8px] px-3 py-1.5 font-bold tracking-[-0.01em] transition-colors',
             'text-slate-500 hover:text-slate-300',
-            value === o.value && cn(activeCls, 'shadow-[0_0_0_1px_rgba(77,124,255,0.18)]'),
+            value === o.value && cn(activeCls, 'shadow-[0_0_0_1px_rgba(37,232,137,0.18)]'),
           )}
         >
           {o.label}

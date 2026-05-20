@@ -170,8 +170,8 @@ const VRPChart = ({ coin }: { coin: Coin }) => {
           <text x={px-4} y={y+3.5} textAnchor="end" fontSize={7} fill={TXT}>{v.toFixed(0)}</text>
         </React.Fragment>;
       })}
-      <path d={vrpFill} fill="rgba(77,124,255,0.08)" />
-      <path d={area(rvPts, H, py)} fill="rgba(30,201,140,0.06)" />
+      <path d={vrpFill} fill="rgba(37,232,137,0.08)" />
+      <path d={area(rvPts, H, py)} fill="rgba(37,167,80,0.06)" />
       <polyline points={poly(rvPts)} fill="none" stroke={UP} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
       <polyline points={poly(ivPts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       <line x1={px} y1={8} x2={px+10} y2={8} stroke={BRAND} strokeWidth={1.5} />
@@ -192,8 +192,8 @@ const IVRankChart = ({ coin }: { coin: Coin }) => {
   const y70 = (H-py) - (70/100) * (H-2*py);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-      <rect x={px} y={py} width={W-px-4} height={y70-py} fill="rgba(255,77,106,0.04)" />
-      <rect x={px} y={y30} width={W-px-4} height={H-py-y30} fill="rgba(30,201,140,0.04)" />
+      <rect x={px} y={py} width={W-px-4} height={y70-py} fill="rgba(202,63,100,0.04)" />
+      <rect x={px} y={y30} width={W-px-4} height={H-py-y30} fill="rgba(37,167,80,0.04)" />
       {[0,25,50,75,100].map(v => {
         const y = (H-py) - (v/100) * (H-2*py);
         return <React.Fragment key={v}>
@@ -203,7 +203,7 @@ const IVRankChart = ({ coin }: { coin: Coin }) => {
       })}
       <line x1={px} y1={y30} x2={W-4} y2={y30} stroke={UP} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
       <line x1={px} y1={y70} x2={W-4} y2={y70} stroke={DOWN} strokeWidth={0.8} strokeDasharray="3,2" opacity={0.4} />
-      <path d={area(linePts, H, py)} fill="rgba(77,124,255,0.07)" />
+      <path d={area(linePts, H, py)} fill="rgba(37,232,137,0.07)" />
       <polyline points={poly(linePts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       {(() => { const [x,y] = linePts[linePts.length-1]; const c = ivrColor(data[data.length-1]);
         return <circle cx={x} cy={y} r={3} fill={c} stroke="var(--color-bg-deep)" strokeWidth={1} />; })()}
@@ -234,15 +234,15 @@ const VolConeChart = ({ coin }: { coin: Coin }) => {
         const x = fx(i);
         const y10=fy(d.p10[i]), y25=fy(d.p25[i]), y50=fy(d.p50[i]), y75=fy(d.p75[i]), y90=fy(d.p90[i]);
         return <React.Fragment key={t}>
-          <rect x={x-7} y={y90} width={14} height={y10-y90} rx={2} fill="rgba(77,124,255,0.07)" />
-          <rect x={x-7} y={y75} width={14} height={y25-y75} rx={2} fill="rgba(77,124,255,0.18)" />
-          <line x1={x-7} y1={y50} x2={x+7} y2={y50} stroke="rgba(77,124,255,0.6)" strokeWidth={1.5} />
+          <rect x={x-7} y={y90} width={14} height={y10-y90} rx={2} fill="rgba(37,232,137,0.07)" />
+          <rect x={x-7} y={y75} width={14} height={y25-y75} rx={2} fill="rgba(37,232,137,0.18)" />
+          <line x1={x-7} y1={y50} x2={x+7} y2={y50} stroke="rgba(37,232,137,0.6)" strokeWidth={1.5} />
           <text x={x} y={H-3} textAnchor="middle" fontSize={7} fill={TXT}>{t}</text>
         </React.Fragment>;
       })}
       <polyline points={poly(currPts)} fill="none" stroke={YELLOW} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       {currPts.map(([x,y],i) => <circle key={i} cx={x} cy={y} r={2.5} fill={YELLOW} />)}
-      <rect x={px} y={6} width={8} height={6} rx={1} fill="rgba(77,124,255,0.18)" />
+      <rect x={px} y={6} width={8} height={6} rx={1} fill="rgba(37,232,137,0.18)" />
       <text x={px+11} y={11} fontSize={7} fill={TXT}>历史RV区间</text>
       <line x1={px+70} y1={9} x2={px+80} y2={9} stroke={YELLOW} strokeWidth={1.5} />
       <text x={px+83} y={11} fontSize={7} fill={TXT}>当前IV</text>
@@ -272,14 +272,14 @@ const FixedTenorChart = ({ coin }: { coin: Coin }) => {
         const cx = px + i*barW + barW/2;
         const vsY = fy(d.varSwap[i]), rvY = fy(d.rv[i]), baseY = fy(0);
         return <React.Fragment key={t}>
-          <rect x={cx-bw-1} y={vsY} width={bw} height={baseY-vsY} rx={1.5} fill="rgba(77,124,255,0.5)" />
-          <rect x={cx+1}    y={rvY} width={bw} height={baseY-rvY}  rx={1.5} fill="rgba(30,201,140,0.4)" />
+          <rect x={cx-bw-1} y={vsY} width={bw} height={baseY-vsY} rx={1.5} fill="rgba(37,232,137,0.5)" />
+          <rect x={cx+1}    y={rvY} width={bw} height={baseY-rvY}  rx={1.5} fill="rgba(37,167,80,0.4)" />
           <text x={cx} y={H-3} textAnchor="middle" fontSize={7} fill={TXT}>{t}</text>
         </React.Fragment>;
       })}
-      <rect x={px} y={5} width={8} height={6} rx={1} fill="rgba(77,124,255,0.5)" />
+      <rect x={px} y={5} width={8} height={6} rx={1} fill="rgba(37,232,137,0.5)" />
       <text x={px+11} y={10} fontSize={7} fill={TXT}>方差互换 IV²</text>
-      <rect x={px+75} y={5} width={8} height={6} rx={1} fill="rgba(30,201,140,0.4)" />
+      <rect x={px+75} y={5} width={8} height={6} rx={1} fill="rgba(37,167,80,0.4)" />
       <text x={px+86} y={10} fontSize={7} fill={TXT}>已实现方差 RV²</text>
     </svg>
   );
@@ -300,12 +300,12 @@ const ImpliedDistChart = ({ coin }: { coin: Coin }) => {
   const x1lo = fx(S - sigma); const x1hi = fx(S + sigma); const xS = fx(S);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-      <path d={`M ${x1lo} ${py} L ${x1lo} ${H-py} L ${x1hi} ${H-py} L ${x1hi} ${py} Z`} fill="rgba(77,124,255,0.06)" />
+      <path d={`M ${x1lo} ${py} L ${x1lo} ${H-py} L ${x1hi} ${H-py} L ${x1hi} ${py} Z`} fill="rgba(37,232,137,0.06)" />
       <line x1={px} y1={H-py} x2={W-px} y2={H-py} stroke={GRID} strokeWidth={0.5} />
-      <path d={aFill} fill="rgba(77,124,255,0.10)" />
+      <path d={aFill} fill="rgba(37,232,137,0.10)" />
       <path d={smooth(curvePts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <line x1={x1lo} y1={py} x2={x1lo} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
-      <line x1={x1hi} y1={py} x2={x1hi} y2={H-py} stroke="rgba(77,124,255,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
+      <line x1={x1lo} y1={py} x2={x1lo} y2={H-py} stroke="rgba(37,232,137,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
+      <line x1={x1hi} y1={py} x2={x1hi} y2={H-py} stroke="rgba(37,232,137,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
       <line x1={xS} y1={py} x2={xS} y2={H-py} stroke={YELLOW} strokeWidth={1} strokeDasharray="2,2" />
       {[-2,-1,0,1,2].map(k => {
         const x = fx(S + k*sigma); const lbl = k === 0 ? 'S' : `${k > 0 ? '+' : ''}${k}σ`;
@@ -412,7 +412,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                   <span className="text-[8px] font-mono tnum text-slate-600 leading-none">{t.iv.toFixed(0)}</span>
-                  <div className="w-full rounded-t-[2px]" style={{ height: barH, background: 'linear-gradient(to top,rgba(77,124,255,.55),rgba(77,124,255,.2))' }} />
+                  <div className="w-full rounded-t-[2px]" style={{ height: barH, background: 'linear-gradient(to top,rgba(37,232,137,.55),rgba(37,232,137,.2))' }} />
                 </div>
               );
             })}
@@ -483,7 +483,7 @@ export const IVSurfaceWidget = ({
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
   return (
-    <div className="overflow-hidden rounded-[18px]" style={{ backgroundColor: 'rgba(77,124,255,0.04)' }}>
+    <div className="overflow-hidden rounded-[18px]" style={{ backgroundColor: 'rgba(37,232,137,0.04)' }}>
       <div className="w-full overflow-auto">
         <table className="w-full text-[11px]">
         <thead>
@@ -510,7 +510,7 @@ export const IVSurfaceWidget = ({
                         onPickCell && 'cursor-pointer hover:brightness-110',
                       )}
                       style={{
-                        backgroundColor: `rgba(77,124,255,${(0.05 + (v - lo) / (hi - lo) * 0.35).toFixed(2)})`,
+                        backgroundColor: `rgba(37,232,137,${(0.05 + (v - lo) / (hi - lo) * 0.35).toFixed(2)})`,
                       }}
                       onClick={() => onPickCell?.({ coin, row, col: SKEW_COLS[ci]!, value: v })}
                       onKeyDown={(e) => {

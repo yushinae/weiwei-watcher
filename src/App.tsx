@@ -252,7 +252,7 @@ export default function App() {
       <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]">
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
-            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(77,124,255,0.4)]" />
+            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(37,232,137,0.4)]" />
             <span className="font-bold text-sm tracking-tight text-slate-100">
               薇薇看板
             </span>

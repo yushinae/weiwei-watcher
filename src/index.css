@@ -87,12 +87,10 @@ body::after {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* 毛玻璃顶栏变体：全宽无圆角（用于 App 顶部栏） */
+/* 顶栏 & 底栏：纯黑背景 */
 .glass-bar {
-  background: var(--widget-glass-dim);
-  backdrop-filter: blur(30px) saturate(1.6);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
-  border: none;
+  background: #000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: none;
 }
 

@@ -296,7 +296,7 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="h-[34px] glass-bar flex items-center px-1.5 shrink-0 z-10 w-full relative" style={{ background: 'rgba(26, 26, 30, 0.80)' }} />
+      <footer className="h-[34px] glass-bar flex items-center px-1.5 shrink-0 z-10 w-full relative" />
     </div>
   );
 }

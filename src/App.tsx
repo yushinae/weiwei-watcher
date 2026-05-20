@@ -43,8 +43,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import TradeLogPage from './pages/TradeLogPage';
 import AssetsPage from './pages/AssetsPage';
 import MonitorPage from './pages/MonitorPage';
-import OptionsPage from './pages/OptionsPage';
-import OptionsMarketBrowser from './pages/OptionsMarketBrowser';
+
 import OptionsChainPage from './pages/OptionsChainPage';
 import PositionBuilderPage from './pages/PositionBuilderPage';
 
@@ -1686,18 +1685,6 @@ export default function App() {
                 className="absolute inset-0"
               >
                 <MonitorPage />
-              </motion.div>
-            } />
-            <Route path="/options" element={
-              <motion.div
-                key="options"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-0"
-              >
-                <OptionsMarketBrowser />
               </motion.div>
             } />
             <Route path="/options-chain" element={

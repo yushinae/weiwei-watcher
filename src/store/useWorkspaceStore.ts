@@ -32,7 +32,6 @@ const DEFAULT_PAGES: WorkspacePage[] = [
   },
   { id: 'page-trade-log', label: '交易日志', instances: [], routePath: '/trade-log' },
   { id: 'page-monitor', label: '监控', instances: [], routePath: '/monitor' },
-  { id: 'page-options', label: '期权', instances: [], routePath: '/options' },
 ];
 
 export interface OptionsChainTab {

@@ -254,6 +254,8 @@ html.is-scrolling * {
   /* 默认卡片材料 */
   --widget-glass-dim: rgba(26, 26, 30, 0.70);
   /* 顶栏/次要面板 */
+  /* 卡片主背景 — 与 widget-glass 一致，语义更通用 */
+  --glass: rgba(26, 26, 30, 0.80);
 }
 
 /* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
@@ -283,6 +285,11 @@ html.is-scrolling * {
 
 .widget-card.is-fullscreen {
   border-radius: 0;
+}
+
+/* 卡片主背景 */
+.my-card {
+  background: var(--glass);
 }
 
 /* ── HIG 字体层次 ── */

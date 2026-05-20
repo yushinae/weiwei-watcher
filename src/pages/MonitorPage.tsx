@@ -88,7 +88,7 @@ export default function MonitorPage() {
                 <WidgetCard title="IV 百分位历史（90D）" headerDensity="compact" className="col-span-6 h-[300px]">
                   <IVRankHistoryWidget coin={coin} />
                 </WidgetCard>
-                <WidgetCard title="波动率锥" headerDensity="compact" className="col-start-3 col-span-8 h-[280px]">
+                <WidgetCard title="波动率锥" headerDensity="compact" className="col-start-4 col-span-6 h-[280px]">
                   <VolConeWidget coin={coin} />
                 </WidgetCard>
               </div>

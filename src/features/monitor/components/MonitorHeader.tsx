@@ -71,9 +71,6 @@ export function MonitorHeader({
     <div className="sticky top-0 z-[120] glass-bar h-[44px]">
       <div className="flex items-center gap-4 px-5 h-full">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-[10px] bg-surface-2 ring-1 ring-inset ring-border-subtle grid place-items-center">
-            <div className="h-2.5 w-2.5 rounded-full bg-brand-blue shadow-[0_0_14px_var(--monitor-signal-glow)]" />
-          </div>
           <div className="leading-tight">
             <div className="text-[13px] font-extrabold text-slate-100 tracking-[-0.02em]">监控</div>
             <div className="text-[10px] text-text-muted tnum">Workspace · Live</div>

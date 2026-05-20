@@ -1031,6 +1031,13 @@ const FooterTab: React.FC<FooterTabProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(tab.label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setIsMenuOpen(false), 120);
+  };
 
   const isActive = activeTab === tab.id;
 
@@ -1075,7 +1082,7 @@ const FooterTab: React.FC<FooterTabProps> = ({
     <div
       className="relative h-full flex"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => { setIsHovered(false); setIsMenuOpen(false); }}
+      onMouseLeave={() => { setIsHovered(false); scheduleClose(); }}
       onContextMenu={handleContextMenu}
     >
       {/* 
@@ -1127,6 +1134,8 @@ const FooterTab: React.FC<FooterTabProps> = ({
         backdropZ={90}
         panelZ={91}
         panelClassName="absolute bottom-full mb-2 left-0 min-w-[124px] p-1 after:absolute after:-bottom-2 after:left-0 after:w-full after:h-2"
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
       >
         <button className="flex items-center gap-2.5 px-2.5 py-2 text-[13px] font-bold text-slate-200 hover:bg-surface-5 rounded-[4px] transition-colors text-left" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsEditing(true); }}>
           <Edit2 size={14} strokeWidth={2} />

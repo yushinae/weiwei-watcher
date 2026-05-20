@@ -118,6 +118,8 @@ export function Popover({
   panelClassName,
   panelStyle,
   children,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   open: boolean;
   onClose: () => void;
@@ -126,6 +128,8 @@ export function Popover({
   panelClassName?: string;
   panelStyle?: React.CSSProperties;
   children: React.ReactNode;
+  onMouseEnter?: React.MouseEventHandler;
+  onMouseLeave?: React.MouseEventHandler;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -141,7 +145,7 @@ export function Popover({
       <Backdrop open={open} onClose={onClose} zIndex={backdropZ} tone="transparent" />
       <AnimatePresence>
         {open && (
-          <PopupCard zIndex={panelZ} className={panelClassName} style={panelStyle}>
+          <PopupCard zIndex={panelZ} className={panelClassName} style={panelStyle} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
             {children}
           </PopupCard>
         )}

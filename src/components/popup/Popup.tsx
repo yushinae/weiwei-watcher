@@ -227,9 +227,9 @@ export function Modal({
             zIndex={zIndex + 1}
             className={cn('relative', className)}
             style={style}
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
           >
             {children}
           </PopupCard>

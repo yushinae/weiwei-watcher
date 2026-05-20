@@ -394,7 +394,7 @@ const AppNavigationDropdown = () => {
                       setIsOpen(false);
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-3 h-9 rounded-[10px] text-left transition-colors",
+                      "flex items-center gap-3 px-3 h-9 rounded-[14px] text-left transition-colors",
                       disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-[var(--glass-tint-2)]"
                     )}
                   >

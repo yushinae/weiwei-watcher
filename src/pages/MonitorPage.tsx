@@ -69,7 +69,7 @@ export default function MonitorPage() {
                     onPickSmilePoint={(p) => onPickSmilePoint({ type: 'smilePoint', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="IV 曲面偏斜表（点击单元可钻取）" headerDensity="compact" className="col-span-6">
+                <WidgetCard title="IV 曲面偏斜表（点击单元可钻取）" headerDensity="compact" className="col-span-6 self-start">
                   <IVSurfaceWidget
                     coin={coin}
                     onCoinChange={setCoin}

@@ -72,7 +72,7 @@ export default function MonitorPage() {
                     onPickCell={(p) => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="波动率微笑（点击点可钻取）" headerDensity="compact" className="col-start-4 col-span-6 h-[340px]">
+                <WidgetCard title="波动率微笑（期限结构）" headerDensity="compact" className="col-start-4 col-span-6 h-[340px]">
                   <VolSmileWidget
                     coin={coin}
                     onCoinChange={setCoin}

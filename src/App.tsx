@@ -1792,8 +1792,7 @@ export default function App() {
             maxHeight: '960px',
           }}
         >
-          <motion.div
-            layoutId="addWidgetModalBackground"
+          <div
             className="flex w-full h-full"
           >
               {/* Left Sidebar */}
@@ -1891,7 +1890,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </Modal>
         )}
 

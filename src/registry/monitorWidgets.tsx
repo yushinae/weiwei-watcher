@@ -467,15 +467,14 @@ export const IVSurfaceWidget = ({
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
-      <div className="flex-1 min-h-0 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr>
-              <th className="text-left px-2 py-1.5 text-slate-600 font-bold">Δ / Exp</th>
-              {SKEW_COLS.map(c => <th key={c} className="px-2 py-1.5 text-slate-600 font-bold text-right">{c}</th>)}
-            </tr>
-          </thead>
+    <div className="w-full overflow-auto">
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr>
+            <th className="text-left px-2 py-1.5 text-slate-600 font-bold">Δ / Exp</th>
+            {SKEW_COLS.map(c => <th key={c} className="px-2 py-1.5 text-slate-600 font-bold text-right">{c}</th>)}
+          </tr>
+        </thead>
           <tbody>
             {SKEW_ROWS.map((row, ri) => {
               const data = SKEW_DATA[coin];
@@ -513,7 +512,6 @@ export const IVSurfaceWidget = ({
             })}
           </tbody>
         </table>
-      </div>
     </div>
   );
 };

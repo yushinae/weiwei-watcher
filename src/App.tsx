@@ -12,7 +12,6 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  ChevronRight,
   ChevronDown,
   Activity,
   Search,
@@ -333,7 +332,6 @@ const NineDots = ({ size = 24, className = "" }: { size?: number, className?: st
 
 const AppNavigationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeCat, setActiveCat] = useState<'all' | 'account' | 'help'>('all');
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
@@ -361,7 +359,7 @@ const AppNavigationDropdown = () => {
   return (
     <div className="relative flex items-center gap-4" ref={containerRef}>
       <div
-        onMouseEnter={() => { setActiveCat('all'); cancelClose(); setIsOpen(true); }}
+        onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
         onMouseLeave={scheduleClose}
         className="relative"
       >
@@ -375,84 +373,36 @@ const AppNavigationDropdown = () => {
         </button>
 
         <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-          {/* 二级菜单：左侧分类 + 右侧条目（同一张卡片内） */}
-          <div className="flex w-[420px]">
-            {/* Left: categories */}
-            <div className="w-[130px] p-2 border-r border-white/10 bg-white/[0.015]">
-              <div className="flex items-center gap-2 px-2 py-2 text-[12px] font-semibold text-white/35">
-                <Search size={14} className="text-white/30" />
-                <span>查找组件</span>
-              </div>
-
+          <div className="w-[220px] p-2">
+            <div className="flex flex-col gap-0.5">
               {([
-                { k: 'all' as const, l: '所有' },
-                { k: 'account' as const, l: '账户' },
-                { k: 'help' as const, l: '工具' },
-              ]).map(({ k, l }) => {
-                const on = activeCat === k;
+                { label: '监控', icon: Activity, to: '/monitor' },
+                { label: '交易日志', icon: History, to: '/trade-log' },
+                { label: '账户概览', icon: Wallet, to: '/assets' },
+                { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
+              ]).map((it) => {
+                const Icon = it.icon;
+                const disabled = !it.to;
                 return (
                   <button
-                    key={k}
-                    onMouseEnter={() => setActiveCat(k)}
-                    onClick={(e) => { e.stopPropagation(); setActiveCat(k); }}
+                    key={it.label}
+                    disabled={disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!it.to) return;
+                      navigate(it.to);
+                      setIsOpen(false);
+                    }}
                     className={cn(
-                      "w-full flex items-center justify-between px-2.5 h-9 rounded-[10px] text-[13px] font-semibold transition-colors",
-                      on ? "bg-white/[0.06] text-white" : "text-white/45 hover:bg-white/[0.04] hover:text-white/80"
+                      "flex items-center gap-3 px-3 h-11 rounded-[12px] text-left transition-colors",
+                      disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.06]"
                     )}
                   >
-                    <span>{l}</span>
-                    <ChevronRight size={14} className={cn("transition-opacity", on ? "opacity-70" : "opacity-30")} />
+                    <Icon size={16} className="text-white/55 shrink-0" />
+                    <span className="text-[13px] font-semibold text-white/80">{it.label}</span>
                   </button>
                 );
               })}
-            </div>
-
-            {/* Right: items */}
-            <div className="flex-1 p-2">
-              {(() => {
-                const map: Record<typeof activeCat, { label: string; icon: React.ElementType; to?: string }[]> = {
-                  all: [
-                    { label: '监控', icon: Activity, to: '/monitor' },
-                    { label: '交易日志', icon: History, to: '/trade-log' },
-                    { label: '账户概览', icon: Wallet, to: '/assets' },
-                    { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
-                  ],
-                  account: [
-                    { label: '账户概览', icon: Wallet, to: '/assets' },
-                  ],
-                  help: [
-                    { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
-                  ],
-                };
-                const items = map[activeCat] ?? map.all;
-                return (
-                  <div className="flex flex-col gap-0.5">
-                    {items.map((it) => {
-                      const Icon = it.icon;
-                      const disabled = !it.to;
-                      return (
-                        <button
-                          key={it.label}
-                          disabled={disabled}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!it.to) return;
-                            navigate(it.to);
-                            setIsOpen(false);
-                          }}
-                          className={cn(
-                            "flex items-center gap-3 px-3 h-11 rounded-[12px] text-left transition-colors",
-                            disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/[0.06]"
-                          )}
-                        >
-                          <Icon size={16} className="text-white/55 shrink-0" />
-                          <span className="text-[13px] font-semibold text-white/80">{it.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
             </div>
           </div>
         </HoverPopover>

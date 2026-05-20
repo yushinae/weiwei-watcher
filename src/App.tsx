@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import {
   Activity,
   Calculator,
-  Settings,
 } from 'lucide-react';
 import { HoverPopover } from './components/popup/Popup';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -290,89 +289,7 @@ const TickerBar = () => {
   );
 };
 
-const NotificationDropdown = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelClose = () => {
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-  };
-  const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
-  };
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
-      onMouseLeave={scheduleClose}
-    >
-      <button className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] outline-none focus:outline-none", isOpen ? "bg-white/15 text-slate-100" : "bg-transparent text-slate-100/80 hover:bg-white/10")}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-[26px] h-[26px]">
-          <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0113.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 01-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 11-7.48 0 24.585 24.585 0 01-4.831-1.244.75.75 0 01-.298-1.205A8.217 8.217 0 005.25 9.75V9zm4.502 8.9a2.25 2.25 0 104.496 0 25.057 25.057 0 01-4.496 0z" clipRule="evenodd" />
-        </svg>
-      </button>
-      <HoverPopover
-        open={isOpen}
-        panelZ={60}
-        panelClassName="absolute top-full right-0 mt-2 w-64"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-      >
-        <div className="p-2 flex flex-col gap-1">
-          <div className="px-2 py-1 text-[11px] font-bold text-white/55 tracking-wider uppercase">通知中心</div>
-          <div className="h-px w-full bg-white/10 my-1" />
-          <div className="px-2 py-3 text-sm text-white/45 text-center">暂无新通知</div>
-        </div>
-      </HoverPopover>
-    </div>
-  );
-};
 
-const UserDropdown = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelClose = () => {
-    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
-  };
-  const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
-  };
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
-      onMouseLeave={scheduleClose}
-    >
-      <div className={cn("flex items-center justify-center w-[32px] h-[32px] rounded-[8px] cursor-pointer transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] outline-none focus:outline-none", isOpen ? "bg-white/15" : "bg-transparent hover:bg-white/10")}>
-        <div className="w-7 h-7 rounded-[5px] overflow-hidden">
-          <img
-            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-            alt="Avatar"
-            className="w-full h-full object-cover"
-          />
-        </div>
-      </div>
-      <HoverPopover
-        open={isOpen}
-        panelZ={60}
-        panelClassName="absolute top-full right-0 mt-2 w-48 overflow-hidden"
-        onMouseEnter={cancelClose}
-        onMouseLeave={scheduleClose}
-      >
-        <div className="px-3 py-2.5 flex flex-col" style={{ background: 'rgba(255,255,255,0.03)' }}>
-          <span className="text-sm font-bold text-white/90">User</span>
-          <span className="text-xs text-white/45">user@nexus.com</span>
-        </div>
-        <div className="h-px w-full bg-white/10" />
-        <div className="flex flex-col p-1.5 gap-0.5">
-          <button className="flex items-center gap-2.5 px-2.5 h-9 hover:bg-[var(--glass-tint-2)] rounded-[12px] cursor-pointer group transition-colors w-full text-left">
-            <Settings size={15} className="text-white/55 group-hover:text-white transition-colors shrink-0" />
-            <span className="text-sm text-white/75 group-hover:text-white transition-colors">设置</span>
-          </button>
-        </div>
-      </HoverPopover>
-    </div>
-  );
-};
 
 export default function App() {
   useEffect(() => {
@@ -411,9 +328,12 @@ export default function App() {
 
           <div className="flex items-center gap-6">
             <DigitalClock />
-            <div className="flex items-center gap-2">
-              <NotificationDropdown />
-              <UserDropdown />
+            <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-surface-2/60 px-3 py-2 ring-1 ring-inset ring-border-subtle/70">
+              <span className="relative flex h-4 w-4 items-center justify-center">
+                <span className="absolute h-4 w-4 animate-ping rounded-full bg-trade-up/60" />
+                <span className="relative h-2 w-2 rounded-full bg-trade-up" />
+              </span>
+              <span className="text-[11px] text-slate-400">实时</span>
             </div>
           </div>
         </div>

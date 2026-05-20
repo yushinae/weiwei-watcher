@@ -212,7 +212,6 @@ const NineDots = ({ size = 24, className = "" }: { size?: number, className?: st
 
 const AppNavigationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -222,21 +221,11 @@ const AppNavigationDropdown = () => {
     if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
   };
   const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setIsOpen(false), 120);
+    closeTimer.current = setTimeout(() => setIsOpen(false), 200);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   return (
-    <div className="relative flex items-center gap-4" ref={containerRef}>
+    <div className="relative flex items-center gap-4">
       <div
         onMouseEnter={() => { cancelClose(); setIsOpen(true); }}
         onMouseLeave={scheduleClose}
@@ -251,7 +240,7 @@ const AppNavigationDropdown = () => {
           <NineDots size={24} />
         </button>
 
-        <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-2 overflow-hidden" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+        <HoverPopover open={isOpen} panelZ={60} panelClassName="absolute top-full left-0 mt-1 overflow-hidden" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
           <div className="w-[160px] p-2">
             <div className="flex flex-col gap-0.5">
               {([

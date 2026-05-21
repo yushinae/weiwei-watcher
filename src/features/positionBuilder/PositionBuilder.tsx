@@ -1,11 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import Plotly from 'plotly.js-dist';
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 import { cn } from '../../lib/utils';
 
 const PRESETS: Record<string, { spot: number; iv: number; strikeStep: number }> = {
   BTC: { spot: 65000, iv: 0.55, strikeStep: 1000 },
   ETH: { spot: 3000, iv: 0.7, strikeStep: 50 },
   SOL: { spot: 150, iv: 0.85, strikeStep: 5 },
+};
+
+const DERIBIT_INDEX: Record<string, string> = {
+  BTC: 'btc_usd',
+  ETH: 'eth_usd',
+  SOL: 'sol_usd',
 };
 
 function normCdf(x: number) {
@@ -34,17 +41,31 @@ function bsGreeks(S: number, K: number, T: number, sigma: number, type: 'call' |
     let delta = 0;
     if (type === 'call') delta = S > K ? 1 : 0;
     else delta = S < K ? -1 : 0;
-    return { delta, gamma: 0, theta: 0, vega: 0 };
+    return { delta, gamma: 0, theta: 0, vega: 0, vanna: 0, volga: 0, charm: 0, speed: 0 };
   }
   const sqrtT = Math.sqrt(T);
   const d1 = (Math.log(S / K) + (sigma * sigma / 2) * T) / (sigma * sqrtT);
+  const d2 = d1 - sigma * sqrtT;
   const pdf = normPdf(d1);
   let delta: number;
   if (type === 'call') { delta = normCdf(d1); } else { delta = normCdf(d1) - 1; }
   const theta = (-S * pdf * sigma / (2 * sqrtT)) / 365;
   const gamma = pdf / (S * sigma * sqrtT);
   const vega = (S * pdf * sqrtT) / 100;
-  return { delta, gamma, theta, vega };
+  // Higher-order Greeks (per 1% IV move convention matched to vega)
+  // Vanna = ∂Delta/∂σ = -d2/σ × normPdf(d1)  (scaled ×0.01 to match /1% vega)
+  const vanna = -(d2 / sigma) * pdf * 0.01;
+  // Volga / Vomma = ∂²V/∂σ² = Vega × d1 × d2 / σ  (scaled /100 for vega, then ×0.01 for 1% σ step)
+  const volga = vega * d1 * d2 / sigma * 0.01;
+  // Charm = ∂Delta/∂t (per calendar day) — numerical: delta after 1 day passes
+  const T1 = Math.max(1e-12, T - hoursToYears(24));
+  const sqrtT1 = Math.sqrt(T1);
+  const d1_1 = (Math.log(S / K) + (sigma * sigma / 2) * T1) / (sigma * sqrtT1);
+  const delta1 = type === 'call' ? normCdf(d1_1) : normCdf(d1_1) - 1;
+  const charm = delta1 - delta; // negative for long calls: delta drifts toward 0 or 1
+  // Speed = ∂Gamma/∂S = -Gamma × (d1/(σ√T) + 1) / S
+  const speed = -gamma * (d1 / (sigma * sqrtT) + 1) / S;
+  return { delta, gamma, theta, vega, vanna, volga, charm, speed };
 }
 
 interface Leg {
@@ -55,10 +76,55 @@ interface Leg {
   qty: number;
   hoursToExpiry: number;
   entryPremium: number;
+  // real-market fields
+  expiryTs?: number;       // ms timestamp from Deribit
+  legIv?: number;          // per-leg implied vol (decimal)
+  instrumentName?: string; // e.g. "BTC-27DEC24-70000-C"
+  fetchingTicker?: boolean;
+  bid?: number;            // best_bid × underlying_price (USDT)
+  ask?: number;            // best_ask × underlying_price (USDT)
 }
 
+interface DeribitInstrument {
+  instrument_name: string;
+  strike: number;
+  option_type: 'call' | 'put';
+  expiration_timestamp: number;
+}
+
+type ExpiryGroup = {
+  ts: number;
+  deribitLabel: string;   // "27DEC24"
+  displayLabel: string;   // "27 Dec 24"
+  callByStrike: Map<number, string>;
+  putByStrike: Map<number, string>;
+  strikes: number[];
+};
+
 const N_POINTS = 120;
-const TRACE = { GREEN_FILL: 0, RED_FILL: 1, EXPIRY: 2, CURRENT: 3, MARKER: 4, BREAKEVEN: 5 };
+
+const SPOT_OFFSETS = [-30, -20, -10, 0, 10, 20, 30];
+const IV_OFFSETS   = [0.30, 0.15, 0, -0.15, -0.30];
+
+const SCENARIO_PRESETS: { label: string; desc: string; spotPct: number; ivAdj: number; historical?: boolean }[] = [
+  // ── Generic stress ──────────────────────────────────────────────────────────
+  { label: '急跌',    desc: '−20% / IV +30',  spotPct: -20, ivAdj:  0.30 },
+  { label: '崩盘',    desc: '−30% / IV +50',  spotPct: -30, ivAdj:  0.50 },
+  { label: '暴涨',    desc: '+20% / IV −15',  spotPct:  20, ivAdj: -0.15 },
+  { label: 'IV 压缩', desc: '0% / IV −20',    spotPct:   0, ivAdj: -0.20 },
+  // ── Historical events ───────────────────────────────────────────────────────
+  { label: 'Black Thu', desc: '2020-03-12  −49% / IV +120', spotPct: -49, ivAdj:  1.20, historical: true },
+  { label: 'LUNA 崩',   desc: '2022-05-12  −57% / IV +160', spotPct: -57, ivAdj:  1.60, historical: true },
+  { label: 'FTX 暴雷',  desc: '2022-11-09  −26% / IV +80',  spotPct: -26, ivAdj:  0.80, historical: true },
+  { label: '21年顶',    desc: '2021-11↓  −53% / IV +60',   spotPct: -53, ivAdj:  0.60, historical: true },
+  { label: '21年牛',    desc: '2021-10 +102% / IV −30',    spotPct: 102, ivAdj: -0.30, historical: true },
+];
+
+
+// ── Greeks Heatmap axis configuration ────────────────────────────────────────
+const HEATMAP_SPOT = [-30, -20, -10, 0, 10, 20, 30];
+const HEATMAP_IV   = [0.40, 0.20, 0, -0.20, -0.40];
+// ─────────────────────────────────────────────────────────────────────────────
 
 function formatHours(h: number) {
   if (h < 24) return `${h}h`;
@@ -129,27 +195,247 @@ function Panel({ title, subtitle, actions, noPadding, noScroll, children }: {
   );
 }
 
+// ── localStorage persistence helpers ────────────────────────────────────────
+const STORAGE_KEY = 'pb_state_v1';
+
+const _saved = (() => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.legs)) {
+      const now = Date.now();
+      parsed.legs = (parsed.legs as Leg[])
+        .map(l => ({
+          ...l,
+          hoursToExpiry: l.expiryTs
+            ? Math.max(1, (l.expiryTs - now) / 3_600_000)
+            : (l.hoursToExpiry ?? 168),
+          fetchingTicker: false,
+        }))
+        .filter(l => !l.expiryTs || l.expiryTs > now); // drop expired
+    }
+    return parsed as { symbol: string; spot: number; baseIv: number; legs: Leg[] };
+  } catch { return null; }
+})();
+// ────────────────────────────────────────────────────────────────────────────
+
 export function PositionBuilder() {
-  const [symbol, setSymbol] = useState('BTC');
-  const [spot, setSpot] = useState(PRESETS.BTC.spot);
-  const [baseIv, setBaseIv] = useState(PRESETS.BTC.iv);
-  const [legs, setLegs] = useState<Leg[]>([]);
-  const [nextId, setNextId] = useState(1);
+  const [symbol, setSymbol] = useState<string>(_saved?.symbol ?? 'BTC');
+  const [spot,   setSpot]   = useState<number>(_saved?.spot   ?? PRESETS.BTC.spot);
+  const [baseIv, setBaseIv] = useState<number>(_saved?.baseIv ?? PRESETS.BTC.iv);
+  const [legs,   setLegs]   = useState<Leg[]>(_saved?.legs    ?? []);
+  const [nextId, setNextId] = useState<number>(
+    _saved?.legs?.length ? Math.max(..._saved.legs.map((l: Leg) => l.id)) + 1 : 1
+  );
   const [hoursForward, setHoursForward] = useState(0);
   const [ivAdjust, setIvAdjust] = useState(0);
   const [spotPctOffset, setSpotPctOffset] = useState(0);
+  const [showTimeSlices, setShowTimeSlices] = useState(false);
 
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInitialized = useRef(false);
+  // Correlated stress parameters
+  const [correlatedMode, setCorrelatedMode] = useState(false);
+  const [rho, setRho] = useState(-0.7);         // spot-vol correlation (typically negative for crypto)
+  const [volBeta, setVolBeta] = useState(1.5);   // % IV change per 1% spot move
+
+  const [instruments, setInstruments] = useState<DeribitInstrument[]>([]);
+  const [instrumentsLoading, setInstrumentsLoading] = useState(false);
+
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [priceDir, setPriceDir] = useState<'up' | 'down' | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const prevPriceRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const plChartRef = useRef<ReactECharts>(null);
+  const dgChartRef = useRef<ReactECharts>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Extended state ────────────────────────────────────────────────────────
+  // IV Rank: manual 52-week historical range
+  const [ivRankLow,  setIvRankLow]  = useState(20);
+  const [ivRankHigh, setIvRankHigh] = useState(120);
+  // Custom scenario save/load
+  const [savedScenarios, setSavedScenarios] = useState<{ name: string; spotPct: number; ivAdj: number }[]>(() => {
+    try { return JSON.parse(localStorage.getItem('pb_scenarios_v1') || '[]'); } catch { return []; }
+  });
+  const [scenarioName, setScenarioName] = useState('');
+  // Jump-diffusion VaR (Merton model)
+  const [jumpLambda,   setJumpLambda]   = useState(2.0);
+  const [jumpMuPct,    setJumpMuPct]    = useState(-15);
+  const [jumpSigPct,   setJumpSigPct]   = useState(10);
+  const [showJumpRisk, setShowJumpRisk] = useState(false);
+  // Greeks heatmap metric toggle
+  const [heatmapMetric, setHeatmapMetric] = useState<'delta' | 'gamma' | 'vega'>('gamma');
+  // Right-panel active tab
+  type RightTab = 'chart' | 'scenario' | 'greeks' | 'risk' | 'structure';
+  const [activeTab, setActiveTab] = useState<RightTab>('chart');
+  const RIGHT_TABS: { id: RightTab; label: string; icon: string }[] = [
+    { id: 'chart',     label: '行情',   icon: '📊' },
+    { id: 'scenario',  label: '情景',   icon: '🎛' },
+    { id: 'greeks',    label: '希腊',   icon: '⚡' },
+    { id: 'risk',      label: '风险',   icon: '📉' },
+    { id: 'structure', label: '结构',   icon: '📅' },
+  ];
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Deribit index price WebSocket ──────────────────────────────────────────
+  useEffect(() => {
+    const indexName = DERIBIT_INDEX[symbol];
+    let ws: WebSocket;
+
+    function connect() {
+      ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'public/subscribe',
+          params: { channels: [`deribit_price_index.${indexName}`] },
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.method === 'subscription' &&
+              msg.params?.channel === `deribit_price_index.${indexName}`) {
+            const newPrice: number = msg.params.data.price;
+            setLivePrice(newPrice);
+            if (prevPriceRef.current !== null && newPrice !== prevPriceRef.current) {
+              const dir = newPrice > prevPriceRef.current ? 'up' : 'down';
+              setPriceDir(dir);
+              if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+              flashTimerRef.current = setTimeout(() => setPriceDir(null), 700);
+            }
+            prevPriceRef.current = newPrice;
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      ws.onclose = () => {
+        reconnectTimerRef.current = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    setLivePrice(null);
+    prevPriceRef.current = null;
+    connect();
+
+    return () => {
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      ws?.close();
+    };
+  }, [symbol]);
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // ── Persist state to localStorage (debounced 600 ms) ────────────────────────
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ symbol, spot, baseIv, legs }));
+      } catch { /* storage full / private mode */ }
+    }, 600);
+  }, [symbol, spot, baseIv, legs]);
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── Correlated stress: auto-sync IV when spot moves ──────────────────────────
+  useEffect(() => {
+    if (!correlatedMode) return;
+    // Δσ = −ρ × volBeta × ΔS/S
+    setIvAdjust(-rho * volBeta * spotPctOffset / 100);
+  }, [correlatedMode, rho, volBeta, spotPctOffset]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // ── Deribit options chain ──────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setInstrumentsLoading(true);
+      try {
+        const res = await fetch(
+          `https://www.deribit.com/api/v2/public/get_instruments?currency=${symbol}&kind=option&expired=false`
+        );
+        const json = await res.json();
+        if (!cancelled) setInstruments(json.result ?? []);
+      } catch {
+        if (!cancelled) setInstruments([]);
+      } finally {
+        if (!cancelled) setInstrumentsLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [symbol]);
+
+  const expiryGroups = useMemo<ExpiryGroup[]>(() => {
+    const map = new Map<number, ExpiryGroup>();
+    for (const inst of instruments) {
+      const ts = inst.expiration_timestamp;
+      if (!map.has(ts)) {
+        const label = inst.instrument_name.split('-')[1] ?? '';
+        const d = new Date(ts);
+        const displayLabel = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' });
+        map.set(ts, { ts, deribitLabel: label, displayLabel, callByStrike: new Map(), putByStrike: new Map(), strikes: [] });
+      }
+      const g = map.get(ts)!;
+      if (inst.option_type === 'call') g.callByStrike.set(inst.strike, inst.instrument_name);
+      else g.putByStrike.set(inst.strike, inst.instrument_name);
+      if (!g.strikes.includes(inst.strike)) g.strikes.push(inst.strike);
+    }
+    for (const g of map.values()) g.strikes.sort((a, b) => a - b);
+    return Array.from(map.values()).sort((a, b) => a.ts - b.ts);
+  }, [instruments]);
+  // Re-fetch tickers for saved/snapped legs once the chain is loaded
+  useEffect(() => {
+    if (expiryGroups.length === 0) return;
+    legs.forEach(l => {
+      if (l.instrumentName && !l.fetchingTicker) fetchTicker(l.id, l.instrumentName);
+    });
+    // Only fire when chain first populates — eslint-disable-next-line is intentional
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiryGroups]);
+  // ───────────────────────────────────────────────────────────────────────────
 
   const currentS = spot * (1 + spotPctOffset / 100);
   const sigma = Math.max(0.01, baseIv + ivAdjust);
   const maxHours = useMemo(() => legs.reduce((m, l) => Math.max(m, l.hoursToExpiry), 0), [legs]);
 
   const repriceEntry = useCallback((leg: Leg) => {
+    // Real-instrument legs keep their fetched entry premium
+    if (leg.instrumentName) return leg;
     const T = hoursToYears(leg.hoursToExpiry);
     return { ...leg, entryPremium: bsPrice(spot, leg.K, T, baseIv, leg.type) };
   }, [spot, baseIv]);
+
+  const fetchTicker = useCallback(async (legId: number, instrumentName: string) => {
+    setLegs(prev => prev.map(l => l.id === legId ? { ...l, fetchingTicker: true } : l));
+    try {
+      const res = await fetch(
+        `https://www.deribit.com/api/v2/public/ticker?instrument_name=${instrumentName}`
+      );
+      const json = await res.json();
+      if (json.result) {
+        const { mark_price, mark_iv, underlying_price, best_bid, best_ask } = json.result;
+        const entryPremium = mark_price * underlying_price;
+        const legIv = mark_iv / 100;
+        const bid = typeof best_bid === 'number' ? best_bid * underlying_price : undefined;
+        const ask = typeof best_ask === 'number' ? best_ask * underlying_price : undefined;
+        setLegs(prev => prev.map(l =>
+          l.id === legId ? { ...l, entryPremium, legIv, bid, ask, fetchingTicker: false } : l
+        ));
+      }
+    } catch {
+      setLegs(prev => prev.map(l => l.id === legId ? { ...l, fetchingTicker: false } : l));
+    }
+  }, []);
 
   const addLeg = useCallback((partial: Partial<Leg> = {}) => {
     const defaultK = roundStrike(spot, PRESETS[symbol].strikeStep);
@@ -169,19 +455,72 @@ export function PositionBuilder() {
     setLegs(prev => prev.map(l => {
       if (l.id !== id) return l;
       const updated = { ...l, ...patch };
+      if (patch.expiryTs !== undefined) {
+        updated.hoursToExpiry = Math.max(1, (patch.expiryTs - Date.now()) / (1000 * 3600));
+        updated.instrumentName = undefined;
+        updated.legIv = undefined;
+        updated.entryPremium = 0;
+      }
       return repriceEntry(updated);
     }));
   }, [repriceEntry]);
+
+  // Resolve instrumentName and fetch ticker whenever expiryTs / K / type are all set
+  const resolveInstrument = useCallback((legId: number, leg: Leg) => {
+    if (!leg.expiryTs || !leg.K) return;
+    const group = expiryGroups.find(g => g.ts === leg.expiryTs);
+    if (!group) return;
+    const map = leg.type === 'call' ? group.callByStrike : group.putByStrike;
+    const name = map.get(leg.K);
+    if (!name || name === leg.instrumentName) return;
+    setLegs(prev => prev.map(l => l.id === legId ? { ...l, instrumentName: name } : l));
+    fetchTicker(legId, name);
+  }, [expiryGroups, fetchTicker]);
 
   const applyTemplate = useCallback((key: string) => {
     const fn = TEMPLATES[key];
     if (!fn) return;
     let idCounter = 1;
-    const newLegs = fn(spot, PRESETS[symbol].strikeStep, () => idCounter++);
-    const priced = newLegs.map(repriceEntry);
-    setLegs(priced);
+    const rawLegs = fn(spot, PRESETS[symbol].strikeStep, () => idCounter++);
+
+    // If real chain is loaded, snap each leg to nearest real expiry + strike
+    const snapped: Leg[] = rawLegs.map(leg => {
+      if (expiryGroups.length === 0) return repriceEntry(leg);
+
+      const targetTs = Date.now() + leg.hoursToExpiry * 3600 * 1000;
+      const nearestGroup = expiryGroups.reduce((best, g) =>
+        Math.abs(g.ts - targetTs) < Math.abs(best.ts - targetTs) ? g : best
+      );
+      const strikeMap = leg.type === 'call' ? nearestGroup.callByStrike : nearestGroup.putByStrike;
+      const nearestK = nearestGroup.strikes.reduce((best, s) =>
+        Math.abs(s - leg.K) < Math.abs(best - leg.K) ? s : best,
+        nearestGroup.strikes[0] ?? leg.K
+      );
+      return {
+        ...leg,
+        K: nearestK,
+        hoursToExpiry: Math.max(1, (nearestGroup.ts - Date.now()) / 3_600_000),
+        expiryTs: nearestGroup.ts,
+        instrumentName: strikeMap.get(nearestK),
+        entryPremium: 0,
+        legIv: undefined,
+      };
+    });
+
+    setLegs(snapped);
     setNextId(idCounter);
-  }, [spot, symbol, repriceEntry]);
+
+    // Fetch tickers for snapped legs (defer to let React commit state first)
+    snapped.forEach(leg => {
+      if (leg.instrumentName) setTimeout(() => fetchTicker(leg.id, leg.instrumentName!), 50);
+    });
+  }, [spot, symbol, repriceEntry, expiryGroups, fetchTicker]);
+
+  const refreshAllTickers = useCallback(() => {
+    legs.forEach(leg => {
+      if (leg.instrumentName) fetchTicker(leg.id, leg.instrumentName);
+    });
+  }, [legs, fetchTicker]);
 
   const clearAll = useCallback(() => {
     setLegs([]);
@@ -195,6 +534,24 @@ export function PositionBuilder() {
     setSpotPctOffset(0);
   }, []);
 
+  const saveScenario = useCallback(() => {
+    if (!scenarioName.trim()) return;
+    setSavedScenarios(prev => {
+      const next = [...prev, { name: scenarioName.trim(), spotPct: spotPctOffset, ivAdj: ivAdjust }];
+      try { localStorage.setItem('pb_scenarios_v1', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setScenarioName('');
+  }, [scenarioName, spotPctOffset, ivAdjust]);
+
+  const deleteScenario = useCallback((idx: number) => {
+    setSavedScenarios(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      try { localStorage.setItem('pb_scenarios_v1', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   const changeSymbol = useCallback((newSymbol: string) => {
     const p = PRESETS[newSymbol];
     setSymbol(newSymbol);
@@ -202,12 +559,14 @@ export function PositionBuilder() {
     setBaseIv(p.iv);
     setLegs([]);
     setNextId(1);
+    setInstruments([]);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }, []);
 
   function legCurrentValue(leg: Leg, S: number, hf: number, ivAdj: number) {
     const remH = Math.max(0, leg.hoursToExpiry - hf);
     const T = hoursToYears(remH);
-    const sig = Math.max(0.01, baseIv + ivAdj);
+    const sig = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdj);
     return bsPrice(S, leg.K, T, sig, leg.type);
   }
 
@@ -221,25 +580,31 @@ export function PositionBuilder() {
   }
 
   function positionGreeks(S: number, hf: number, ivAdj: number) {
-    let d = 0, g = 0, t = 0, v = 0;
-    const sig = Math.max(0.01, baseIv + ivAdj);
+    let d = 0, g = 0, t = 0, v = 0, va = 0, vo = 0, ch = 0, sp = 0;
     for (const leg of legs) {
       const remH = Math.max(0, leg.hoursToExpiry - hf);
       const T = hoursToYears(remH);
+      const sig = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdj);
       const grk = bsGreeks(S, leg.K, T, sig, leg.type);
-      d += leg.side * leg.qty * grk.delta;
-      g += leg.side * leg.qty * grk.gamma;
-      t += leg.side * leg.qty * grk.theta;
-      v += leg.side * leg.qty * grk.vega;
+      const scale = leg.side * leg.qty;
+      d += scale * grk.delta;
+      g += scale * grk.gamma;
+      t += scale * grk.theta;
+      v += scale * grk.vega;
+      va += scale * grk.vanna;
+      vo += scale * grk.volga;
+      ch += scale * grk.charm;
+      sp += scale * grk.speed;
     }
-    return { delta: d, gamma: g, theta: t, vega: v };
+    return { delta: d, gamma: g, theta: t, vega: v, vanna: va, volga: vo, charm: ch, speed: sp };
   }
 
   const chartXs = useMemo(() => {
-    const lo = spot * 0.5;
-    const hi = spot * 1.5;
+    const strikes = legs.map(l => l.K).filter(k => k > 0);
+    const lo = Math.min(spot * 0.55, ...strikes.map(k => k * 0.82));
+    const hi = Math.max(spot * 1.45, ...strikes.map(k => k * 1.18));
     return Array.from({ length: N_POINTS + 1 }, (_, i) => lo + (hi - lo) * i / N_POINTS);
-  }, [spot]);
+  }, [spot, legs]);
 
   const expiryPL = useMemo(() => {
     const maxH = legs.reduce((m, l) => Math.max(m, l.hoursToExpiry), 0);
@@ -250,68 +615,493 @@ export function PositionBuilder() {
     return chartXs.map(x => positionPL(x, hoursForward, ivAdjust));
   }, [legs, chartXs, hoursForward, ivAdjust, baseIv]);
 
+  // Time slice curves: pure theta decay at entry spot range, no IV stress
+  const timePL_25 = useMemo(() =>
+    showTimeSlices && legs.length > 0
+      ? chartXs.map(x => positionPL(x, maxHours * 0.25, 0))
+      : [],
+  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+
+  const timePL_50 = useMemo(() =>
+    showTimeSlices && legs.length > 0
+      ? chartXs.map(x => positionPL(x, maxHours * 0.50, 0))
+      : [],
+  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+
+  const timePL_75 = useMemo(() =>
+    showTimeSlices && legs.length > 0
+      ? chartXs.map(x => positionPL(x, maxHours * 0.75, 0))
+      : [],
+  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+
+  // Delta and Gamma profiles (for the secondary chart)
+  const deltaProfile = useMemo(() =>
+    legs.length > 0 ? chartXs.map(x => positionGreeks(x, hoursForward, ivAdjust).delta) : [],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [legs, chartXs, hoursForward, ivAdjust, baseIv]);
+
+  const gammaProfile = useMemo(() =>
+    legs.length > 0 ? chartXs.map(x => positionGreeks(x, hoursForward, ivAdjust).gamma) : [],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [legs, chartXs, hoursForward, ivAdjust, baseIv]);
+
+  // Daily theta calendar: P/L change each day from entry to max expiry (spot unchanged)
+  const thetaCalendar = useMemo(() => {
+    if (legs.length === 0 || maxHours <= 0) return null;
+    const maxDays = Math.min(Math.ceil(maxHours / 24), 180);
+    const rows = Array.from({ length: maxDays }, (_, d) => {
+      const daily = positionPL(spot, (d + 1) * 24, 0) - positionPL(spot, d * 24, 0);
+      const cumPL  = positionPL(spot, (d + 1) * 24, 0);
+      return { day: d + 1, daily, cumPL };
+    });
+    return rows;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, spot, baseIv, maxHours]);
+
   const grk = useMemo(() => positionGreeks(currentS, hoursForward, ivAdjust), [legs, currentS, hoursForward, ivAdjust, baseIv]);
-  const pl = useMemo(() => positionPL(currentS, hoursForward, ivAdjust), [legs, currentS, hoursForward, ivAdjust, baseIv]);
+  const pl  = useMemo(() => positionPL(currentS, hoursForward, ivAdjust), [legs, currentS, hoursForward, ivAdjust, baseIv]);
 
-  useEffect(() => {
-    if (!chartRef.current || legs.length === 0) return;
+  // Live mark-to-market P/L using real-time index price, no scenario offsets
+  const livePL = useMemo(() => {
+    if (livePrice === null || legs.length === 0) return null;
+    return positionPL(livePrice, 0, 0);
+  }, [livePrice, legs, baseIv]);
 
-    const breakevens: number[] = [];
+  // Max profit / max loss within chart range (expiry curve)
+  const maxProfit = useMemo(() => legs.length === 0 ? null : Math.max(...expiryPL), [expiryPL, legs]);
+  const maxLoss   = useMemo(() => legs.length === 0 ? null : Math.min(...expiryPL), [expiryPL, legs]);
+
+  // Breakevens (expiry P/L zero-crossings) — shared with chart effect
+  const breakevens = useMemo(() => {
+    const bvs: number[] = [];
     for (let i = 1; i < chartXs.length; i++) {
       if (expiryPL[i - 1] * expiryPL[i] < 0) {
         const x = chartXs[i - 1] + (chartXs[i] - chartXs[i - 1]) * (-expiryPL[i - 1]) / (expiryPL[i] - expiryPL[i - 1]);
-        breakevens.push(x);
+        bvs.push(x);
       }
     }
+    return bvs;
+  }, [chartXs, expiryPL]);
 
-    const currentY = positionPL(currentS, hoursForward, ivAdjust);
-    const expiryForFill = expiryPL;
+  // Net premium: positive = net paid (debit), negative = net received (credit)
+  const netPremium = useMemo(
+    () => legs.reduce((s, l) => s + l.side * l.qty * l.entryPremium, 0),
+    [legs],
+  );
 
-    const shapes: any[] = [
-      { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: '#2a3447', width: 1 } },
-      { type: 'line', x0: spot, x1: spot, yref: 'paper', y0: 0, y1: 1, line: { color: '#8a93a6', width: 1, dash: 'dot' } },
-    ];
+  // VaR / CVaR: Monte Carlo simulation (log-normal, 1-day horizon, 5000 paths)
+  // Seeded manually to prevent recalculating on every live price tick.
+  // varSeed is bumped by the "重算" button OR whenever legs/spot/sigma change.
+  const [varSeed, setVarSeed] = useState(0);
+
+  const varCvar = useMemo(() => {
+    if (legs.length === 0) return null;
+    const baseS = livePrice ?? spot; // use live price if available, but don't re-run on every tick
+    const N = 5000;
+    const T1 = hoursToYears(24);
+    const sig = sigma;
+    // Seeded LCG PRNG to avoid non-determinism across renders while still giving fresh numbers per seed
+    let rngState = (varSeed * 1664525 + 1013904223 + legs.length * 6364136 + Math.round(sig * 1000)) >>> 0;
+    function lcgRand() {
+      rngState = (rngState * 1664525 + 1013904223) >>> 0;
+      return rngState / 0x100000000;
+    }
+    const pls: number[] = new Array(N);
+    const base0 = positionPL(baseS, 0, 0);
+    for (let i = 0; i < N; i++) {
+      const u1 = lcgRand() + 1e-15, u2 = lcgRand();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      const S1 = baseS * Math.exp((-sig * sig / 2) * T1 + sig * Math.sqrt(T1) * z);
+      pls[i] = positionPL(S1, 24, 0) - base0;
+    }
+    pls.sort((a, b) => a - b);
+    const var95 = pls[Math.floor(N * 0.05)];
+    const var99 = pls[Math.floor(N * 0.01)];
+    const cvar95 = pls.slice(0, Math.floor(N * 0.05)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.05);
+    const cvar99 = pls.slice(0, Math.floor(N * 0.01)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.01);
+    // Build P/L histogram (30 bins) for distribution chart
+    const HIST_N = 30;
+    const hMin = pls[0], hMax = pls[N - 1];
+    const hWidth = (hMax - hMin) / HIST_N || 1;
+    const histCounts = new Array(HIST_N).fill(0) as number[];
+    for (const v of pls) {
+      const bi = Math.min(HIST_N - 1, Math.floor((v - hMin) / hWidth));
+      histCounts[bi]++;
+    }
+    const histEdges = Array.from({ length: HIST_N }, (_, i) => hMin + i * hWidth);
+    return { var95, var99, cvar95, cvar99, baseS, histEdges, histCounts, hWidth };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, spot, sigma, baseIv, varSeed]);
+  // Auto-bump seed when legs or spot change (but NOT on live price ticks)
+  const prevLegsKey = useRef('');
+  useEffect(() => {
+    const key = legs.map(l => `${l.id}:${l.qty}:${l.K}:${l.hoursToExpiry}`).join('|') + `|${spot}|${sigma.toFixed(4)}`;
+    if (key !== prevLegsKey.current) { prevLegsKey.current = key; setVarSeed(s => s + 1); }
+  }, [legs, spot, sigma]);
+
+  // Probability of Profit at expiry — analytical log-normal integration over chartXs
+  const probOfProfit = useMemo(() => {
+    if (legs.length === 0 || maxHours <= 0) return null;
+    const T = hoursToYears(maxHours);
+    const S0 = spot;
+    const sig = sigma;
+    if (T <= 0 || sig <= 0) return null;
+    const sqrtT = Math.sqrt(T);
+    let prob = 0;
+    const n = chartXs.length;
+    for (let i = 0; i < n; i++) {
+      if (expiryPL[i] <= 0) continue;
+      const S = chartXs[i];
+      // Log-normal PDF (risk-neutral, r=0): f(S) = 1/(S·σ·√T·√2π) · exp(-½·z²)
+      // where z = (ln(S/S0) + σ²T/2) / (σ√T)
+      const z = (Math.log(S / S0) + (sig * sig / 2) * T) / (sig * sqrtT);
+      const pdf = Math.exp(-0.5 * z * z) / (S * sig * sqrtT * Math.sqrt(2 * Math.PI));
+      const dS = i < n - 1 ? chartXs[i + 1] - S : S - chartXs[i - 1];
+      prob += pdf * dS;
+    }
+    return Math.min(0.999, Math.max(0.001, prob));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, chartXs, expiryPL, spot, sigma, baseIv, maxHours]);
+
+  // Greeks sensitivity ladder: P/L, Δ, Γ at ±15% spot levels
+  const LADDER_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
+  const greeksLadder = useMemo(() => {
+    if (legs.length === 0) return null;
+    return LADDER_OFFSETS.map(pct => {
+      const S = spot * (1 + pct / 100);
+      const g = positionGreeks(S, hoursForward, ivAdjust);
+      const p = positionPL(S, hoursForward, ivAdjust);
+      return { pct, S, pl: p, delta: g.delta, gamma: g.gamma, theta: g.theta };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, spot, hoursForward, ivAdjust, baseIv]);
+
+  // IV skew / term structure data from fetched leg IVs
+  // Skew: legs with the same (approx) expiry grouped by strike
+  // Term structure: ATM IV per expiry
+  const ivSkewData = useMemo(() => {
+    const withIv = legs.filter(l => l.legIv !== undefined && l.expiryTs !== undefined);
+    if (withIv.length < 2) return null;
+    // Group by expiry; within each expiry collect strike→IV points
+    const byExpiry = new Map<number, { strike: number; iv: number; type: string }[]>();
+    for (const leg of withIv) {
+      if (!byExpiry.has(leg.expiryTs!)) byExpiry.set(leg.expiryTs!, []);
+      byExpiry.get(leg.expiryTs!)!.push({ strike: leg.K, iv: leg.legIv! * 100, type: leg.type });
+    }
+    // For each expiry, sort by strike
+    const expiries = Array.from(byExpiry.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, pts]) => ({
+        ts,
+        label: expiryGroups.find(g => g.ts === ts)?.displayLabel ?? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        points: pts.sort((a, b) => a.strike - b.strike),
+      }));
+    // Term structure: use ATM-ish IV for each expiry (closest strike to spot)
+    const termStructure = expiries.map(e => {
+      const atm = e.points.reduce((best, p) =>
+        Math.abs(p.strike - spot) < Math.abs(best.strike - spot) ? p : best
+      );
+      return { label: e.label, iv: atm.iv };
+    });
+    return { expiries, termStructure };
+  }, [legs, spot, expiryGroups]);
+
+  // P&L attribution: decompose scenario P&L into Greek contributions
+  const plAttribution = useMemo(() => {
+    if (legs.length === 0) return null;
+    const grkEntry = positionGreeks(spot, 0, 0);
+    const dS = currentS - spot;
+    const dT = hoursForward / 24;          // days elapsed
+    const dSigma = ivAdjust * 100;         // IV change in percentage points
+    const plDelta  = grkEntry.delta * dS;
+    const plGamma  = 0.5 * grkEntry.gamma * dS * dS;
+    const plTheta  = grkEntry.theta * dT;
+    const plVega   = grkEntry.vega * dSigma;
+    const plTotal  = pl;
+    const plResidual = plTotal - plDelta - plGamma - plTheta - plVega;
+    return { plDelta, plGamma, plTheta, plVega, plResidual, plTotal };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, spot, currentS, hoursForward, ivAdjust, baseIv]);
+
+  // ── Strategy auto-detection ───────────────────────────────────────────────
+  const strategyName = useMemo(() => {
+    if (legs.length === 0) return null;
+    const lc = legs.filter(l => l.side ===  1 && l.type === 'call');
+    const sc = legs.filter(l => l.side === -1 && l.type === 'call');
+    const lp = legs.filter(l => l.side ===  1 && l.type === 'put');
+    const sp = legs.filter(l => l.side === -1 && l.type === 'put');
+    const sameExp = (a: Leg, b: Leg) => Math.abs(a.hoursToExpiry - b.hoursToExpiry) < 12;
+    if (legs.length === 1) {
+      const l = legs[0];
+      if (l.side ===  1 && l.type === 'call') return 'Long Call';
+      if (l.side ===  1 && l.type === 'put')  return 'Long Put';
+      if (l.side === -1 && l.type === 'call') return 'Short Call';
+      return 'Short Put';
+    }
+    if (legs.length === 2) {
+      if (lc.length === 1 && lp.length === 1 && sameExp(lc[0], lp[0]))
+        return lc[0].K === lp[0].K ? 'Long Straddle' : 'Long Strangle';
+      if (sc.length === 1 && sp.length === 1 && sameExp(sc[0], sp[0]))
+        return sc[0].K === sp[0].K ? 'Short Straddle' : 'Short Strangle';
+      if (lc.length === 1 && sc.length === 1 && sameExp(lc[0], sc[0]))
+        return lc[0].K < sc[0].K ? 'Bull Call Spread' : 'Bear Call Spread';
+      if (lp.length === 1 && sp.length === 1 && sameExp(lp[0], sp[0]))
+        return lp[0].K < sp[0].K ? 'Bull Put Spread' : 'Bear Put Spread';
+      if (legs[0].K === legs[1].K && legs[0].type === legs[1].type && legs[0].side !== legs[1].side)
+        return 'Calendar Spread';
+    }
+    if (legs.length === 3 && legs.every(l => l.type === legs[0].type))
+      return legs[0].type === 'call' ? 'Call Butterfly' : 'Put Butterfly';
+    if (legs.length === 4) {
+      if (sp.length === 1 && lp.length === 1 && sc.length === 1 && lc.length === 1) {
+        if (lp[0].K < sp[0].K && sc[0].K < lc[0].K) return 'Iron Condor';
+        if (lp[0].K === sc[0].K && sp[0].K === lc[0].K) return 'Iron Butterfly';
+      }
+      if (legs.every(l => l.type === 'call') && lc.length === 2 && sc.length === 2) return 'Call Condor';
+      if (legs.every(l => l.type === 'put')  && lp.length === 2 && sp.length === 2) return 'Put Condor';
+    }
+    return `${legs.length}腿自定义`;
+  }, [legs]);
+
+  // ── Dollar Greeks: scale to USD notional ─────────────────────────────────
+  const dollarGreeks = useMemo(() => ({
+    dollarDelta: grk.delta * currentS,                       // USDT directional exposure
+    dollarGamma: grk.gamma * currentS * currentS / 100,      // USDT P/L for 1% spot move (2nd order)
+  }), [grk, currentS]);
+
+  // ── Per-leg Greeks breakdown table ────────────────────────────────────────
+  const legGreeksTable = useMemo(() => {
+    if (legs.length === 0) return null;
+    return legs.map((leg, i) => {
+      const remH = Math.max(0, leg.hoursToExpiry - hoursForward);
+      const T    = hoursToYears(remH);
+      const sig  = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdjust);
+      const g    = bsGreeks(currentS, leg.K, T, sig, leg.type);
+      const sc   = leg.side * leg.qty;
+      return {
+        label:       `#${i + 1} ${leg.side === 1 ? 'L' : 'S'} ${leg.type[0].toUpperCase()} ${leg.K.toLocaleString()}`,
+        delta:       sc * g.delta,
+        dollarDelta: sc * g.delta * currentS,
+        gamma:       sc * g.gamma,
+        theta:       sc * g.theta,
+        vega:        sc * g.vega,
+      };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, currentS, hoursForward, ivAdjust, baseIv]);
+
+  // ── IV Rank: current IV percentile within user-supplied historical range ──
+  const ivRankPct = useMemo(() => {
+    const range = ivRankHigh - ivRankLow;
+    if (range <= 0) return null;
+    return Math.min(100, Math.max(0, (baseIv * 100 - ivRankLow) / range * 100));
+  }, [baseIv, ivRankLow, ivRankHigh]);
+
+  // ── Greeks Heatmap: 2D grid across HEATMAP_SPOT × HEATMAP_IV ─────────────
+  const greeksHeatmapData = useMemo(() => {
+    if (legs.length === 0) return null;
+    return HEATMAP_IV.map(ivOff =>
+      HEATMAP_SPOT.map(spotOff => {
+        const S = spot * (1 + spotOff / 100);
+        const g = positionGreeks(S, 0, ivOff);
+        return heatmapMetric === 'delta' ? g.delta
+             : heatmapMetric === 'gamma' ? g.gamma
+             : g.vega;
+      })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, spot, baseIv, heatmapMetric]);
+
+  // ── Jump-diffusion VaR (Merton: GBM + Poisson jumps) ─────────────────────
+  const jumpVaR = useMemo(() => {
+    if (!showJumpRisk || legs.length === 0) return null;
+    const baseS = livePrice ?? spot;
+    const N   = 5000;
+    const T1  = hoursToYears(24);
+    const sig = sigma;
+    const lam = jumpLambda * T1;       // expected jumps in 1 day
+    const muJ = jumpMuPct  / 100;
+    const sjJ = jumpSigPct / 100;
+    let rng = ((varSeed + 7919) * 1664525 + 1013904223 + Math.round(sig * 999)) >>> 0;
+    const rand  = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 0x100000000; };
+    const randn = () => { const u1 = rand() + 1e-15, u2 = rand(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    const base0 = positionPL(baseS, 0, 0);
+    const pls: number[] = new Array(N);
+    for (let i = 0; i < N; i++) {
+      const nj   = rand() < lam ? 1 : 0;  // Bernoulli approx (valid for small lam)
+      const logJ = nj > 0 ? muJ + sjJ * randn() : 0;
+      const S1   = baseS * Math.exp((-sig * sig / 2) * T1 + sig * Math.sqrt(T1) * randn() + logJ);
+      pls[i] = positionPL(S1, 24, 0) - base0;
+    }
+    pls.sort((a, b) => a - b);
+    return {
+      var95:  pls[Math.floor(N * 0.05)],
+      var99:  pls[Math.floor(N * 0.01)],
+      cvar95: pls.slice(0, Math.floor(N * 0.05)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.05),
+      cvar99: pls.slice(0, Math.floor(N * 0.01)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.01),
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showJumpRisk, legs, spot, sigma, baseIv, varSeed, jumpLambda, jumpMuPct, jumpSigPct, livePrice]);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Entry friction: half-spread × qty per leg (cost vs mid-market to enter)
+  const totalSlippage = useMemo(
+    () => legs.reduce((s, l) =>
+      l.bid !== undefined && l.ask !== undefined
+        ? s + (l.ask - l.bid) / 2 * l.qty
+        : s,
+      0),
+    [legs],
+  );
+
+  // 2-D scenario matrix: rows = IV offsets, cols = spot offsets
+  const scenarioMatrix = useMemo(() => {
+    if (legs.length === 0) return null;
+    return IV_OFFSETS.map(ivOff =>
+      SPOT_OFFSETS.map(spotOff => positionPL(spot * (1 + spotOff / 100), 0, ivOff))
+    );
+  }, [legs, spot, baseIv]);
+
+  const matrixAbsMax = useMemo(() => {
+    if (!scenarioMatrix) return 1;
+    return Math.max(1, ...scenarioMatrix.flat().map(Math.abs));
+  }, [scenarioMatrix]);
+
+  // ── ECharts: P/L chart option ─────────────────────────────────────────────
+  const axisStyle = {
+    axisLine:  { lineStyle: { color: '#2a3447' } },
+    splitLine: { lineStyle: { color: '#1a2233' } },
+    axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10 },
+    nameTextStyle: { color: 'rgba(255,255,255,0.35)', fontSize: 10 },
+  };
+
+  const plOption = useMemo(() => {
+    if (legs.length === 0) return {};
+    // Build unique strike markLines (call=blue, put=yellow)
+    const strikeMLines: any[] = [];
     const seen = new Set<string>();
-    legs.forEach(leg => {
-      const k = `${leg.K}-${leg.type}`;
-      if (seen.has(k)) return;
-      seen.add(k);
-      shapes.push({
-        type: 'line', x0: leg.K, x1: leg.K, yref: 'paper', y0: 0, y1: 0.06,
-        line: { color: leg.type === 'call' ? '#4ea1ff' : '#fbbf24', width: 1.5 },
-      });
+    legs.forEach(l => {
+      const k = `${l.K}-${l.type}`;
+      if (seen.has(k)) return; seen.add(k);
+      strikeMLines.push({ xAxis: l.K, lineStyle: { color: l.type === 'call' ? 'rgba(78,161,255,0.35)' : 'rgba(251,191,36,0.35)', width: 1, type: 'solid' as const }, label: { show: false } });
     });
 
-    const traces = [
-      { x: chartXs, y: expiryForFill.map(v => Math.max(0, v)), type: 'scatter', mode: 'lines', line: { color: 'rgba(0,0,0,0)' }, fill: 'tozeroy', fillcolor: 'rgba(52,211,153,0.10)', hoverinfo: 'skip', showlegend: false },
-      { x: chartXs, y: expiryForFill.map(v => Math.min(0, v)), type: 'scatter', mode: 'lines', line: { color: 'rgba(0,0,0,0)' }, fill: 'tozeroy', fillcolor: 'rgba(248,113,113,0.10)', hoverinfo: 'skip', showlegend: false },
-      { x: chartXs, y: expiryPL, type: 'scatter', mode: 'lines', name: '到期 P/L', line: { color: '#aaa', dash: 'dash', width: 1.5 }, hovertemplate: '标的 %{x:.2f}<br>到期 P/L %{y:.2f}<extra></extra>' },
-      { x: chartXs, y: currentPL, type: 'scatter', mode: 'lines', name: '当前 P/L', line: { color: '#4ea1ff', width: 2.5 }, hovertemplate: '标的 %{x:.2f}<br>当前 P/L %{y:.2f}<extra></extra>' },
-      { x: [currentS], y: [currentY], type: 'scatter', mode: 'markers', marker: { size: 10, color: '#fbbf24', line: { color: '#fff', width: 2 } }, name: '情景点', hovertemplate: '当前点<br>标的 %{x:.2f}<br>P/L %{y:.2f}<extra></extra>' },
-      { x: breakevens, y: breakevens.map(() => 0), type: 'scatter', mode: 'markers', marker: { size: 8, color: '#34d399', symbol: 'diamond', line: { color: '#0b0f17', width: 1 } }, name: '盈亏平衡', hovertemplate: '盈亏平衡 %{x:.2f}<extra></extra>' },
-    ];
-
-    const layout = {
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-      font: { color: '#e5e9f0', size: 12 },
-      margin: { l: 60, r: 20, t: 10, b: 40 },
-      xaxis: { title: `${symbol} 价格`, gridcolor: '#1a2233', zerolinecolor: '#2a3447', tickfont: { size: 11 } },
-      yaxis: { title: 'P/L (USDT)', gridcolor: '#1a2233', zerolinecolor: '#2a3447', tickfont: { size: 11 } },
-      shapes,
-      showlegend: false,
-      hovermode: 'x unified' as const,
+    const tooltipFmt = (params: any[]) => {
+      if (!Array.isArray(params)) return '';
+      const visible = params.filter(p => !String(p.seriesName).startsWith('_'));
+      const x = params[0]?.axisValue ?? params[0]?.value?.[0];
+      let html = `<div style="color:rgba(255,255,255,0.4);font-size:10px;margin-bottom:3px">${symbol} ${Number(x).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>`;
+      visible.forEach(p => {
+        const y = Array.isArray(p.value) ? p.value[1] : p.data?.[1];
+        if (y == null) return;
+        const sign = Number(y) >= 0 ? '+' : '';
+        const col  = Number(y) >= 0 ? '#34d399' : '#f87171';
+        html += `<div style="display:flex;justify-content:space-between;gap:14px;line-height:1.6">
+          <span style="color:${p.color}">${p.seriesName}</span>
+          <span style="font-family:monospace;color:${col}">${sign}${Number(y).toFixed(2)}</span></div>`;
+      });
+      return html;
     };
 
-    Plotly.react(chartRef.current, traces as any, layout as any, { displayModeBar: false, responsive: true });
-    chartInitialized.current = true;
-  }, [legs, chartXs, expiryPL, currentPL, symbol, spot, baseIv]);
+    return {
+      backgroundColor: 'transparent', animation: false,
+      grid: { left: 58, right: 16, top: 8, bottom: 38 },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#1a2233', color: '#e5e9f0', fontSize: 10 } },
+        backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
+        padding: [6, 10], textStyle: { color: '#e5e9f0', fontSize: 11 }, formatter: tooltipFmt,
+      },
+      xAxis: { type: 'value' as const, name: `${symbol} 价格`, nameLocation: 'middle' as const, nameGap: 26, min: chartXs[0], max: chartXs[chartXs.length - 1], ...axisStyle },
+      yAxis: { type: 'value' as const, name: 'P/L (USDT)', nameLocation: 'middle' as const, nameGap: 44, ...axisStyle },
+      series: [
+        // 0-1: area fill (silent, hidden from legend/tooltip)
+        { name: '_pos', type: 'line' as const, data: chartXs.map((x, i) => [x, Math.max(0, expiryPL[i])]), lineStyle: { width: 0, color: 'transparent' }, symbol: 'none', areaStyle: { color: 'rgba(52,211,153,0.10)', origin: 0 }, silent: true, legendHoverLink: false },
+        { name: '_neg', type: 'line' as const, data: chartXs.map((x, i) => [x, Math.min(0, expiryPL[i])]), lineStyle: { width: 0, color: 'transparent' }, symbol: 'none', areaStyle: { color: 'rgba(248,113,113,0.10)', origin: 0 }, silent: true, legendHoverLink: false },
+        // 2: Expiry P/L (carries all markLines)
+        {
+          name: '到期 P/L', type: 'line' as const,
+          data: chartXs.map((x, i) => [x, expiryPL[i]]),
+          lineStyle: { color: 'rgba(180,180,180,0.65)', type: 'dashed' as const, width: 1.5 }, symbol: 'none',
+          markLine: { silent: true, symbol: ['none', 'none'], data: [
+            { xAxis: spot, lineStyle: { color: '#8a93a6', type: 'dotted' as const, width: 1 }, label: { show: false } },
+            ...strikeMLines,
+          ]},
+        },
+        // 3: Current P/L
+        { name: '当前 P/L', type: 'line' as const, data: chartXs.map((x, i) => [x, currentPL[i]]), lineStyle: { color: '#4ea1ff', width: 2.5 }, symbol: 'none' },
+        // 4: Breakevens
+        { name: '盈亏平衡', type: 'scatter' as const, data: breakevens.map(b => [b, 0]), symbol: 'diamond', symbolSize: 10, itemStyle: { color: '#34d399', borderColor: '#0b0f17', borderWidth: 1.5 } },
+        // 5: Scenario marker
+        { name: '情景点', type: 'scatter' as const, data: [[currentS, pl]], symbol: 'circle', symbolSize: 12, itemStyle: { color: '#fbbf24', borderColor: '#ffffff', borderWidth: 2 } },
+        // 6: Live price marker
+        { name: '实时', type: 'scatter' as const, data: livePrice !== null ? [[livePrice, positionPL(livePrice, 0, 0)]] : [], symbol: 'emptyCircle', symbolSize: 10, itemStyle: { borderColor: '#ffffff', borderWidth: 2, color: 'transparent' } },
+        // 7-9: Time slices (always present, empty when off)
+        { name: `T+${formatHours(maxHours * 0.25)}`, type: 'line' as const, data: showTimeSlices && timePL_25.length ? chartXs.map((x, i) => [x, timePL_25[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.55)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+        { name: `T+${formatHours(maxHours * 0.50)}`, type: 'line' as const, data: showTimeSlices && timePL_50.length ? chartXs.map((x, i) => [x, timePL_50[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.38)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+        { name: `T+${formatHours(maxHours * 0.75)}`, type: 'line' as const, data: showTimeSlices && timePL_75.length ? chartXs.map((x, i) => [x, timePL_75[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.22)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+      ],
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, chartXs, expiryPL, currentPL, breakevens, currentS, pl, livePrice, symbol, spot, showTimeSlices, timePL_25, timePL_50, timePL_75, maxHours, baseIv, hoursForward, ivAdjust]);
 
+  // ── ECharts: Delta / Gamma chart option ───────────────────────────────────
+  const dgOption = useMemo(() => {
+    if (legs.length === 0) return {};
+    const tooltipFmt2 = (params: any[]) => {
+      if (!Array.isArray(params)) return '';
+      const x = params[0]?.axisValue ?? params[0]?.value?.[0];
+      let html = `<div style="color:rgba(255,255,255,0.4);font-size:10px;margin-bottom:3px">${symbol} ${Number(x).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>`;
+      params.forEach(p => {
+        const y = Array.isArray(p.value) ? p.value[1] : null;
+        if (y == null) return;
+        const fmt = p.seriesName === 'Delta' ? y.toFixed(3) : y.toFixed(5);
+        html += `<div style="display:flex;justify-content:space-between;gap:14px;line-height:1.6"><span style="color:${p.color}">${p.seriesName}</span><span style="font-family:monospace;color:rgba(255,255,255,0.7)">${fmt}</span></div>`;
+      });
+      return html;
+    };
+    return {
+      backgroundColor: 'transparent', animation: false,
+      grid: { left: 55, right: 55, top: 6, bottom: 38 },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#1a2233', color: '#e5e9f0', fontSize: 10 } },
+        backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
+        padding: [6, 10], textStyle: { color: '#e5e9f0', fontSize: 11 }, formatter: tooltipFmt2,
+      },
+      legend: { show: false },
+      xAxis: { type: 'value' as const, name: `${symbol} 价格`, nameLocation: 'middle' as const, nameGap: 26, min: chartXs[0], max: chartXs[chartXs.length - 1], ...axisStyle },
+      yAxis: [
+        { type: 'value' as const, name: 'Delta', nameLocation: 'middle' as const, nameGap: 40, position: 'left' as const, ...axisStyle },
+        { type: 'value' as const, name: 'Gamma', nameLocation: 'middle' as const, nameGap: 44, position: 'right' as const, splitLine: { show: false }, axisLine: { lineStyle: { color: '#2a3447' } }, axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10 }, nameTextStyle: { color: 'rgba(167,139,250,0.6)', fontSize: 10 } },
+      ],
+      series: [
+        { name: 'Delta', type: 'line' as const, yAxisIndex: 0, data: chartXs.map((x, i) => [x, deltaProfile[i]]), lineStyle: { color: '#4ea1ff', width: 2 }, symbol: 'none',
+          markLine: { silent: true, symbol: ['none', 'none'], data: [
+            { yAxis: 0, lineStyle: { color: '#2a3447', width: 1 }, label: { show: false } },
+            { xAxis: spot, lineStyle: { color: '#8a93a6', type: 'dotted' as const, width: 1 }, label: { show: false } },
+          ]}
+        },
+        { name: 'Gamma', type: 'line' as const, yAxisIndex: 1, data: chartXs.map((x, i) => [x, gammaProfile[i]]), lineStyle: { color: '#a78bfa', width: 2, type: 'dotted' as const }, symbol: 'none' },
+        { name: '情景Δ', type: 'scatter' as const, yAxisIndex: 0, data: [[currentS, grk.delta]], symbol: 'circle',  symbolSize: 9, itemStyle: { color: '#4ea1ff', borderColor: '#fff', borderWidth: 2 } },
+        { name: '情景Γ', type: 'scatter' as const, yAxisIndex: 1, data: [[currentS, grk.gamma]], symbol: 'diamond', symbolSize: 9, itemStyle: { color: '#a78bfa', borderColor: '#fff', borderWidth: 2 } },
+      ],
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legs, chartXs, deltaProfile, gammaProfile, symbol, spot, currentS, grk, baseIv, hoursForward, ivAdjust]);
+
+  // ── Connect the two charts for synchronized crosshair ─────────────────────
   useEffect(() => {
-    if (!chartInitialized.current || legs.length === 0) return;
-    const currentY = positionPL(currentS, hoursForward, ivAdjust);
-    Plotly.restyle(chartRef.current!, { y: [currentPL] }, [TRACE.CURRENT]);
-    Plotly.restyle(chartRef.current!, { x: [[currentS]], y: [[currentY]] }, [TRACE.MARKER]);
-  }, [hoursForward, ivAdjust, spotPctOffset]);
+    const id = setTimeout(() => {
+      const pl = plChartRef.current?.getEchartsInstance();
+      const dg = dgChartRef.current?.getEchartsInstance();
+      if (!pl || !dg) return;
+      pl.group = 'posBuilder';
+      dg.group = 'posBuilder';
+      echarts.connect('posBuilder');
+    }, 200);
+    return () => clearTimeout(id);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const gClass = (val: number) => val > 0 ? 'text-[var(--nexus-green)]' : (val < 0 ? 'text-[var(--nexus-red)]' : 'text-white/40');
 
@@ -326,34 +1116,54 @@ export function PositionBuilder() {
           <span className="text-[11px] text-white/25 uppercase tracking-[0.08em]">U 本位 · 策略训练沙盒</span>
         </div>
 
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-white/30 uppercase tracking-[0.06em]">标的</span>
-            <select value={symbol} onChange={e => changeSymbol(e.target.value)} className={cn(selectCls, '!w-24')}>
-              <option value="BTC">BTC</option>
-              <option value="ETH">ETH</option>
-              <option value="SOL">SOL</option>
-            </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] text-white/25 uppercase tracking-[0.06em]">{symbol} 指数</span>
+          {livePrice !== null ? (
+            <>
+              <span className={cn(
+                'font-mono tnum text-[15px] font-semibold transition-colors duration-150',
+                priceDir === 'up' ? 'price-flash-up' : priceDir === 'down' ? 'price-flash-down' : 'text-white/80',
+              )}>
+                {livePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={cn(
+                'text-[11px] transition-opacity duration-150',
+                priceDir === 'up' ? 'text-[var(--nexus-green)]' : priceDir === 'down' ? 'text-[var(--nexus-red)]' : 'opacity-0',
+              )}>
+                {priceDir === 'up' ? '▲' : '▼'}
+              </span>
+              <button
+                onClick={() => { setSpot(livePrice); setLegs(prev => prev.map(l => repriceEntry(l))); }}
+                className="px-2 py-0.5 rounded-[6px] bg-white/[0.04] border border-white/[0.08] text-[10px] text-white/40 hover:text-white/70 hover:bg-white/[0.08] transition-colors"
+              >
+                用实时价
+              </button>
+            </>
+          ) : (
+            <span className="text-[12px] text-white/20 animate-pulse">连接中…</span>
+          )}
+        </div>
+
+        {livePL !== null && (
+          <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-white/[0.06]">
+            <span className="text-[10px] text-white/25 uppercase tracking-[0.06em]">实时盯市</span>
+            <span className={cn(
+              'font-mono tnum text-[15px] font-semibold',
+              livePL > 0 ? 'text-[var(--nexus-green)]' : livePL < 0 ? 'text-[var(--nexus-red)]' : 'text-white/40',
+            )}>
+              {livePL >= 0 ? '+' : ''}{livePL.toFixed(2)}
+            </span>
+            <span className="text-[10px] text-white/25">USDT</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-white/30 uppercase tracking-[0.06em]">入场基准价</span>
-            <input
-              type="number"
-              value={spot}
-              onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setSpot(v); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
-              className={cn(inputCls, '!w-28')}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-white/30 uppercase tracking-[0.06em]">基础 IV</span>
-            <input
-              type="number"
-              value={(baseIv * 100).toFixed(0)}
-              onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setBaseIv(v / 100); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
-              className={cn(inputCls, '!w-20')}
-            />
-            <span className="text-[11px] text-white/30">%</span>
-          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-white/30 uppercase tracking-[0.06em]">标的</span>
+          <select value={symbol} onChange={e => changeSymbol(e.target.value)} className={cn(selectCls, '!w-24')}>
+            <option value="BTC">BTC</option>
+            <option value="ETH">ETH</option>
+            <option value="SOL">SOL</option>
+          </select>
         </div>
 
       </header>
@@ -362,8 +1172,38 @@ export function PositionBuilder() {
         <div className="px-2 pb-2">
           <div className="grid grid-cols-12 gap-2">
             <div className="col-span-4 h-[750px]">
-              <Panel title="策略组合" subtitle="期权腿组合">
+              <Panel title="策略组合" subtitle="期权腿组合"
+                actions={legs.some(l => l.instrumentName) ? (
+                  <button onClick={refreshAllTickers}
+                    className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-white/[0.04] border border-white/[0.07] text-[10px] text-white/40 hover:text-white/70 hover:bg-white/[0.07] transition-colors">
+                    ↺ 刷新全部
+                  </button>
+                ) : undefined}
+              >
                 <div className="flex flex-col gap-3 pt-1">
+                  {/* ── 基准参数 ───────────────────────────────────────────── */}
+                  <div className="bg-white/[0.02] border border-white/[0.05] rounded-[10px] p-2.5 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-white/30 uppercase tracking-[0.06em] w-14 shrink-0" title="情景分析的坐标原点。点「用实时价」可同步到当前市场指数价。">基准价</span>
+                      <input
+                        type="number"
+                        value={spot}
+                        onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setSpot(v); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
+                        className={cn(inputCls, 'flex-1')}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-white/30 uppercase tracking-[0.06em] w-14 shrink-0">基础 IV</span>
+                      <input
+                        type="number"
+                        value={(baseIv * 100).toFixed(0)}
+                        onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setBaseIv(v / 100); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
+                        className={cn(inputCls, 'flex-1')}
+                      />
+                      <span className="text-[11px] text-white/30 shrink-0">%</span>
+                    </div>
+                  </div>
+                  {/* ── 模板 + 清空 ─────────────────────────────────────────── */}
                   <div className="flex items-center gap-2">
                     <select onChange={e => { if (e.target.value) { applyTemplate(e.target.value); e.target.value = ''; } }}
                       className={cn(selectCls, 'flex-1 text-xs')}>
@@ -392,13 +1232,20 @@ export function PositionBuilder() {
                     ) : legs.map((leg, idx) => {
                       const remH = Math.max(0, leg.hoursToExpiry - hoursForward);
                       const T = hoursToYears(remH);
-                      const g = bsGreeks(currentS, leg.K, T, sigma, leg.type);
+                      const legSig = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdjust);
+                      const g = bsGreeks(currentS, leg.K, T, legSig, leg.type);
                       const d = leg.side * leg.qty * g.delta;
                       const gm = leg.side * leg.qty * g.gamma;
                       const th = leg.side * leg.qty * g.theta;
                       const v = leg.side * leg.qty * g.vega;
+
+                      // Available strikes for this leg's selected expiry
+                      const selGroup = expiryGroups.find(eg => eg.ts === leg.expiryTs);
+                      const availStrikes = selGroup?.strikes ?? [];
+
                       return (
                         <div key={leg.id} className="bg-white/[0.03] border border-white/[0.06] rounded-[12px] p-3">
+                          {/* Header row */}
                           <div className="flex items-center justify-between mb-2.5">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-white/25">#{idx + 1}</span>
@@ -410,53 +1257,196 @@ export function PositionBuilder() {
                                 leg.type === 'call' ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]' : 'bg-[var(--nexus-yellow)]/15 text-[var(--nexus-yellow)]')}>
                                 {leg.type === 'call' ? 'Call' : 'Put'}
                               </span>
+                              {leg.legIv !== undefined && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 font-mono">
+                                  IV {(leg.legIv * 100).toFixed(1)}%
+                                </span>
+                              )}
+                              {leg.fetchingTicker && (
+                                <span className="text-[10px] text-white/25 animate-pulse">拉取中…</span>
+                              )}
                             </div>
-                            <button onClick={() => removeLeg(leg.id)}
-                              className="w-6 h-6 flex items-center justify-center rounded-[6px] text-white/25 hover:text-rose-400 hover:bg-rose-500/15 transition-colors text-[14px]">
-                              ×
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {leg.instrumentName && (
+                                <button
+                                  onClick={() => fetchTicker(leg.id, leg.instrumentName!)}
+                                  disabled={!!leg.fetchingTicker}
+                                  className="w-6 h-6 flex items-center justify-center rounded-[6px] text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-colors text-[12px] disabled:opacity-30"
+                                  title="刷新市价"
+                                >
+                                  ↺
+                                </button>
+                              )}
+                              <button onClick={() => removeLeg(leg.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-[6px] text-white/25 hover:text-rose-400 hover:bg-rose-500/15 transition-colors text-[14px]">
+                                ×
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Controls grid */}
                           <div className="grid grid-cols-2 gap-2 mb-2">
+                            {/* 方向 */}
                             <div>
                               <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">方向</label>
-                              <select value={leg.side} onChange={e => updateLeg(leg.id, { side: parseInt(e.target.value) as 1 | -1 })} className={selectCls}>
+                              <select value={leg.side}
+                                onChange={e => updateLeg(leg.id, { side: parseInt(e.target.value) as 1 | -1 })}
+                                className={selectCls}>
                                 <option value="1">买入 (Long)</option>
                                 <option value="-1">卖出 (Short)</option>
                               </select>
                             </div>
+                            {/* 类型 */}
                             <div>
                               <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">类型</label>
-                              <select value={leg.type} onChange={e => updateLeg(leg.id, { type: e.target.value as 'call' | 'put' })} className={selectCls}>
+                              <select value={leg.type}
+                                onChange={e => {
+                                  const type = e.target.value as 'call' | 'put';
+                                  updateLeg(leg.id, { type, instrumentName: undefined, legIv: undefined });
+                                  // Re-resolve instrument with new type
+                                  setTimeout(() => resolveInstrument(leg.id, { ...leg, type }), 0);
+                                }}
+                                className={selectCls}>
                                 <option value="call">看涨 Call</option>
                                 <option value="put">看跌 Put</option>
                               </select>
                             </div>
+                            {/* 到期日 */}
+                            <div className="col-span-2">
+                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">
+                                到期日 {instrumentsLoading && <span className="text-white/20 normal-case">（加载中…）</span>}
+                              </label>
+                              <select
+                                value={leg.expiryTs ?? ''}
+                                onChange={e => {
+                                  const ts = parseInt(e.target.value);
+                                  // Auto-snap to ATM strike for this expiry
+                                  const group = expiryGroups.find(g => g.ts === ts);
+                                  const atmK = group?.strikes.reduce((best, s) =>
+                                    Math.abs(s - spot) < Math.abs(best - spot) ? s : best,
+                                    group.strikes[0] ?? leg.K
+                                  ) ?? leg.K;
+                                  updateLeg(leg.id, { expiryTs: ts, K: atmK });
+                                  setTimeout(() => resolveInstrument(leg.id, { ...leg, expiryTs: ts, K: atmK }), 0);
+                                }}
+                                className={selectCls}
+                              >
+                                <option value="">— 选择到期日 —</option>
+                                {expiryGroups.map(eg => (
+                                  <option key={eg.ts} value={eg.ts}>{eg.displayLabel}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* 行权价 */}
                             <div>
                               <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">行权价</label>
-                              <input type="number" step="any" value={leg.K} onChange={e => updateLeg(leg.id, { K: parseFloat(e.target.value) })} className={inputCls} />
+                              {availStrikes.length > 0 ? (
+                                <select
+                                  value={leg.K}
+                                  onChange={e => {
+                                    const K = parseFloat(e.target.value);
+                                    updateLeg(leg.id, { K, instrumentName: undefined, legIv: undefined });
+                                    setTimeout(() => resolveInstrument(leg.id, { ...leg, K }), 0);
+                                  }}
+                                  className={selectCls}
+                                >
+                                  {availStrikes.map(k => {
+                                    const pct = ((k - spot) / spot * 100);
+                                    const tag = Math.abs(pct) < 0.5
+                                      ? ' · ATM'
+                                      : ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+                                    return (
+                                      <option key={k} value={k}>
+                                        {k.toLocaleString()}{tag}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              ) : (
+                                <input type="number" step="any" value={leg.K}
+                                  onChange={e => updateLeg(leg.id, { K: parseFloat(e.target.value) })}
+                                  className={inputCls} />
+                              )}
                             </div>
+                            {/* 数量 */}
                             <div>
                               <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">数量</label>
-                              <input type="number" step="0.1" min="0.1" value={leg.qty} onChange={e => updateLeg(leg.id, { qty: parseFloat(e.target.value) })} className={inputCls} />
+                              <input type="number" step="0.1" min="0.1" value={leg.qty}
+                                onChange={e => updateLeg(leg.id, { qty: parseFloat(e.target.value) })}
+                                className={inputCls} />
                             </div>
-                            <div>
-                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">到期 (小时)</label>
-                              <input type="number" step="1" min="1" value={leg.hoursToExpiry} onChange={e => updateLeg(leg.id, { hoursToExpiry: Math.max(1, Math.round(parseFloat(e.target.value))) })} className={inputCls} />
+                            {/* 入场权利金 */}
+                            <div className="col-span-2 flex items-center justify-between pt-1">
+                              <span className="text-[9px] uppercase tracking-[0.06em] text-white/20">
+                                入场权利金 {leg.instrumentName ? '· 市价' : '· BS 估算'}
+                              </span>
+                              <span className="text-[14px] font-mono tnum text-white/80">
+                                {leg.entryPremium.toFixed(2)} USDT
+                              </span>
                             </div>
-                            <div>
-                              <label className="text-[9px] uppercase tracking-[0.06em] text-white/20 block mb-1">入场权利金 (自动)</label>
-                              <div className="text-[14px] font-mono tnum text-white/80 pt-1">{leg.entryPremium.toFixed(2)}</div>
-                            </div>
+                            {/* 买一 / 卖一 / 点差 */}
+                            {leg.bid !== undefined && leg.ask !== undefined && (
+                              <div className="col-span-2 flex items-center justify-between bg-white/[0.02] rounded-[6px] px-2 py-1">
+                                <span className="text-[9px] uppercase tracking-[0.06em] text-white/20">买一 / 卖一</span>
+                                <span className="text-[10px] font-mono tnum">
+                                  <span className="text-[var(--nexus-green)]/70">{leg.bid.toFixed(2)}</span>
+                                  <span className="text-white/20"> / </span>
+                                  <span className="text-[var(--nexus-red)]/70">{leg.ask.toFixed(2)}</span>
+                                  <span className="ml-2 text-white/30">
+                                    点差 {(leg.ask - leg.bid).toFixed(2)}
+                                    <span className="ml-1 text-white/20">
+                                      ({leg.entryPremium > 0 ? ((leg.ask - leg.bid) / leg.entryPremium * 50).toFixed(1) : '—'}%)
+                                    </span>
+                                  </span>
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-[11px] text-white/25 mb-2">
+
+                          {/* Summary + live P/L */}
+                          <div className="text-[11px] text-white/25 mb-1.5">
                             ≈ {formatHours(leg.hoursToExpiry)} · 入场总额 {(leg.side * leg.qty * leg.entryPremium).toFixed(2)}
                           </div>
-                          <div className="flex gap-3 text-[11px] pt-2 border-t border-white/[0.05]">
-                            <span className="text-white/25">δ</span><span className="font-mono tnum"><span className={gClass(d)}>{d.toFixed(3)}</span></span>
-                            <span className="text-white/25">γ</span><span className="font-mono tnum"><span className={gClass(gm)}>{gm.toFixed(5)}</span></span>
-                            <span className="text-white/25">θ</span><span className="font-mono tnum"><span className={gClass(th)}>{th.toFixed(2)}</span></span>
-                            <span className="text-white/25">ν</span><span className="font-mono tnum"><span className={gClass(v)}>{v.toFixed(2)}</span></span>
-                          </div>
+                          {(() => {
+                            const curVal = legCurrentValue(leg, currentS, hoursForward, ivAdjust);
+                            const legPlVal = leg.side * leg.qty * (curVal - leg.entryPremium);
+                            return (
+                              <div className="flex items-center justify-between text-[11px] mb-2">
+                                <span className="text-white/20">情景盯市 {curVal.toFixed(2)}</span>
+                                <span className={cn('font-mono tnum font-semibold', gClass(legPlVal))}>
+                                  {legPlVal >= 0 ? '+' : ''}{legPlVal.toFixed(2)} USDT
+                                </span>
+                              </div>
+                            );
+                          })()}
+                          {(() => {
+                            const legGrk = bsGreeks(currentS, leg.K, T, legSig, leg.type);
+                            const va = leg.side * leg.qty * legGrk.vanna;
+                            const vo = leg.side * leg.qty * legGrk.volga;
+                            return (
+                              <>
+                                <div className="flex gap-3 text-[11px] pt-2 border-t border-white/[0.05]">
+                                  <span className="text-white/25">δ</span><span className="font-mono tnum"><span className={gClass(d)}>{d.toFixed(3)}</span></span>
+                                  <span className="text-white/25">γ</span><span className="font-mono tnum"><span className={gClass(gm)}>{gm.toFixed(5)}</span></span>
+                                  <span className="text-white/25">θ</span><span className="font-mono tnum"><span className={gClass(th)}>{th.toFixed(2)}</span></span>
+                                  <span className="text-white/25">ν</span><span className="font-mono tnum"><span className={gClass(v)}>{v.toFixed(2)}</span></span>
+                                </div>
+                                <div className="flex gap-3 text-[11px] pt-1.5 flex-wrap" title="高阶希腊字母">
+                                  {[
+                                    { label: 'vanna', val: leg.side * leg.qty * legGrk.vanna, fmt: (v: number) => v.toFixed(4) },
+                                    { label: 'volga', val: leg.side * leg.qty * legGrk.volga, fmt: (v: number) => v.toFixed(4) },
+                                    { label: 'charm', val: leg.side * leg.qty * legGrk.charm, fmt: (v: number) => v.toFixed(4) },
+                                    { label: 'speed', val: leg.side * leg.qty * legGrk.speed, fmt: (v: number) => v.toExponential(2) },
+                                  ].map(({ label, val, fmt }) => (
+                                    <span key={label} className="flex gap-1">
+                                      <span className="text-white/15">{label}</span>
+                                      <span className={cn('font-mono tnum text-[10px]', gClass(val))}>{fmt(val)}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -468,68 +1458,368 @@ export function PositionBuilder() {
                   </button>
 
                   <p className="text-[11px] text-white/20 leading-relaxed pt-1 border-t border-white/[0.04]">
-                    入场价按当前 标的/IV 用 Black-Scholes 估算。修改腿参数后会重算入场价；之后调"入场基准价/IV/时间"滑块只改变浮盈浮亏，不动入场价。
+                    选择到期日 + 行权价后自动从 Deribit 拉取市价权利金和该合约 IV。每条腿独立使用自己的 IV 定价；IV 偏移滑块在各腿基础上叠加偏移。未选真实合约时用全局 IV + BS 估算。
                   </p>
                 </div>
               </Panel>
             </div>
 
             <div className="col-span-8 flex flex-col gap-2">
+              {/* ── Position Summary ─────────────────────────────────────── */}
+              {legs.length > 0 && (
+                <div className="grid grid-cols-8 gap-px bg-white/[0.04] rounded-[12px] overflow-hidden border border-white/[0.06] text-center text-[10px]">
+                  {[
+                    {
+                      label: '策略',
+                      value: strategyName ?? '—',
+                      color: strategyName ? 'text-[var(--nexus-accent)]/75' : 'text-white/25',
+                      hint: '自动识别策略结构',
+                    },
+                    {
+                      label: 'IV Rank',
+                      value: ivRankPct !== null ? `${ivRankPct.toFixed(0)}%` : '—',
+                      color: ivRankPct === null ? 'text-white/25'
+                           : ivRankPct > 70 ? 'text-[var(--nexus-red)]'
+                           : ivRankPct < 30 ? 'text-[var(--nexus-green)]'
+                           : 'text-[var(--nexus-yellow)]',
+                      hint: 'IV 历史百分位（高 = 可考虑卖方；低 = 买方占优）',
+                    },
+                    {
+                      label: '到期PoP',
+                      value: probOfProfit !== null ? `${(probOfProfit * 100).toFixed(1)}%` : '—',
+                      color: probOfProfit !== null ? (probOfProfit >= 0.5 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]') : 'text-white/30',
+                      hint: '对数正态到期盈利概率（风险中性）',
+                    },
+                    {
+                      label: '净权利金',
+                      value: `${netPremium >= 0 ? '−' : '+'}${Math.abs(netPremium).toFixed(2)}`,
+                      color: netPremium < 0 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]',
+                      hint: netPremium >= 0 ? '净付出（借方价差）' : '净收取（贷方价差）',
+                    },
+                    {
+                      label: '最大盈利',
+                      value: maxProfit === null ? '—' : maxProfit > 9999 ? '+∞' : `+${maxProfit.toFixed(0)}`,
+                      color: maxProfit !== null && maxProfit > 0 ? 'text-[var(--nexus-green)]' : 'text-white/30',
+                      hint: '图表范围内到期最大 P/L',
+                    },
+                    {
+                      label: '最大亏损',
+                      value: maxLoss === null ? '—' : maxLoss < -9999 ? '−∞' : maxLoss.toFixed(0),
+                      color: maxLoss !== null && maxLoss < 0 ? 'text-[var(--nexus-red)]' : 'text-white/30',
+                      hint: '图表范围内到期最大亏损',
+                    },
+                    {
+                      label: 'Δ 敞口',
+                      value: `${grk.delta >= 0 ? '+' : ''}${grk.delta.toFixed(3)}`,
+                      color: grk.delta > 0.05 ? 'text-[var(--nexus-green)]' : grk.delta < -0.05 ? 'text-[var(--nexus-red)]' : 'text-white/50',
+                      hint: `Delta = ${(grk.delta * currentS).toFixed(0)} USDT 名义方向敞口`,
+                    },
+                    {
+                      label: '入场摩擦',
+                      value: totalSlippage > 0 ? `−${totalSlippage.toFixed(2)}` : '—',
+                      color: totalSlippage > 0 ? 'text-[var(--nexus-yellow)]' : 'text-white/25',
+                      hint: '半点差×数量（以市价入场相对于中间价的成本）',
+                    },
+                  ].map(({ label, value, color, hint }) => (
+                    <div key={label} className="bg-white/[0.02] py-2 px-1" title={hint}>
+                      <div className="text-[9px] uppercase tracking-[0.05em] text-white/20 mb-1">{label}</div>
+                      <div className={cn('font-mono tnum font-semibold text-[13px]', color)}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Panel title="损益曲线" noPadding noScroll
                   subtitle={
-                    <span className="flex items-center gap-3 text-[11px] text-white/30">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />当前</span>
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t border-dashed border-white/30" />到期</span>
+                    <span className="flex items-center gap-3 flex-wrap text-[11px] text-white/30">
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />当前情景</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed border-white/30" />到期</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full border-2 border-white bg-transparent" />实时</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rotate-45 bg-[#34d399]" />盈亏平衡</span>
+                      {legs.length > 0 && (
+                        <button
+                          onClick={() => setShowTimeSlices(v => !v)}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[10px] transition-colors',
+                            showTimeSlices
+                              ? 'border-[#4ea1ff]/40 text-[#4ea1ff]/80 bg-[#4ea1ff]/10'
+                              : 'border-white/[0.08] text-white/30 hover:text-white/50 hover:border-white/20',
+                          )}
+                        >
+                          <span className="inline-block w-3 border-t border-dotted border-current" />
+                          时间切片
+                        </button>
+                      )}
                     </span>
                   }
                 >
-                  <div ref={chartRef} className="w-full h-full" style={{ minHeight: 400 }} />
+                  <ReactECharts
+                    ref={plChartRef}
+                    option={plOption}
+                    notMerge={true}
+                    style={{ width: '100%', height: 400 }}
+                    opts={{ renderer: 'canvas' }}
+                  />
                 </Panel>
 
-              <Panel title="情景参数"
+              {/* ── 始终可见：三滑杆 ──────────────────────────────────── */}
+              <div className="bg-white/[0.025] border border-white/[0.07] rounded-[14px] px-4 py-3 flex flex-wrap gap-x-6 gap-y-3 items-center">
+                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
+                  <span className="text-[10px] text-white/30 uppercase tracking-[0.06em] shrink-0 w-14">时间快进</span>
+                  <input type="range" min="0" max={maxHours || 720} step="1" value={hoursForward}
+                    onChange={e => setHoursForward(Number(e.target.value))}
+                    className="range-slider flex-1" />
+                  <span className="text-[11px] font-mono tnum text-white/55 shrink-0 w-12 text-right">{formatHours(hoursForward)}</span>
+                </div>
+                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
+                  <span className={cn('text-[10px] uppercase tracking-[0.06em] shrink-0 w-14', correlatedMode ? 'text-amber-400/50' : 'text-white/30')}>
+                    {correlatedMode ? 'IV (ρ)' : 'IV 偏移'}
+                  </span>
+                  <input type="range" min="-60" max="100" step="1" value={Math.round(ivAdjust * 100)}
+                    disabled={correlatedMode}
+                    onChange={e => setIvAdjust(Number(e.target.value) / 100)}
+                    className={cn('range-slider flex-1', correlatedMode && 'opacity-30')} />
+                  <span className={cn('text-[11px] font-mono tnum shrink-0 w-12 text-right', ivAdjust > 0 ? 'text-[var(--nexus-red)]' : ivAdjust < 0 ? 'text-[var(--nexus-green)]' : 'text-white/55')}>
+                    {ivAdjust >= 0 ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
+                  <span className="text-[10px] text-white/30 uppercase tracking-[0.06em] shrink-0 w-14">价格偏移</span>
+                  <input type="range" min="-30" max="30" step="0.5" value={spotPctOffset}
+                    onChange={e => setSpotPctOffset(Number(e.target.value))}
+                    className="range-slider flex-1" />
+                  <span className={cn('text-[11px] font-mono tnum shrink-0 w-12 text-right', spotPctOffset > 0 ? 'text-[var(--nexus-green)]' : spotPctOffset < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55')}>
+                    {spotPctOffset >= 0 ? '+' : ''}{spotPctOffset.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Tab 导航 ──────────────────────────────────────────── */}
+              <div className="flex gap-1 px-1 pt-1 pb-0">
+                {RIGHT_TABS.map(tab => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] transition-colors border',
+                      activeTab === tab.id
+                        ? 'bg-white/[0.08] border-white/[0.14] text-white/85'
+                        : 'bg-transparent border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.04]',
+                    )}>
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === 'chart' && <Panel title="Delta / Gamma 曲线" noPadding noScroll
+                subtitle={
+                  <span className="flex items-center gap-3 text-[11px] text-white/30">
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />Delta（左轴）</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dotted border-[#a78bfa]" />Gamma（右轴）</span>
+                  </span>
+                }
+              >
+                <ReactECharts
+                  ref={dgChartRef}
+                  option={dgOption}
+                  notMerge={true}
+                  style={{ width: '100%', height: 220 }}
+                  opts={{ renderer: 'canvas' }}
+                />
+              </Panel>}
+
+              {activeTab === 'scenario' && <Panel title="情景参数"
                 actions={
                   <button onClick={resetScenario}
                     className="flex items-center gap-1 px-3 py-1 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[11px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors">
                     <span>↺</span> 重置情景
                   </button>
                 }>
-                  <div className="grid grid-cols-3 gap-4 pt-1">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                         <span className="text-[11px] text-white/50">时间快进</span>
-                        <span className="font-mono tnum text-[11px] text-white/50">{formatHours(hoursForward)}</span>
-                      </div>
-                      <input type="range" min="0" max={Math.max(1, maxHours)} value={hoursForward}
-                        onChange={e => setHoursForward(parseInt(e.target.value))} className="w-full range-slider" />
-                      <p className="text-[10px] text-white/20 mt-1.5 leading-snug">把"当前"时间点向前推，看 theta 怎么吃仓位</p>
+                  {/* Correlated scenario presets */}
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {SCENARIO_PRESETS.map(p => (
+                      <button
+                        key={p.label}
+                        onClick={() => { setSpotPctOffset(p.spotPct); setIvAdjust(p.ivAdj); }}
+                        title={p.desc}
+                        className={cn(
+                          'px-3 py-1.5 rounded-[8px] border text-[11px] transition-colors',
+                          p.historical
+                            ? 'bg-amber-500/[0.06] border-amber-500/[0.15] text-amber-300/60 hover:bg-amber-500/[0.12] hover:text-amber-300/80 hover:border-amber-500/[0.25]'
+                            : 'bg-white/[0.04] border-white/[0.07] text-white/50 hover:bg-white/[0.08] hover:text-white/75 hover:border-white/[0.12]',
+                        )}
+                      >
+                        {p.historical && <span className="mr-1 text-[8px] text-amber-500/50">历史</span>}
+                        {p.label}
+                        <span className="ml-1.5 text-[9px] opacity-50">{p.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Custom scenario save / load ───────────────────────── */}
+                  {savedScenarios.length > 0 && (
+                    <div className="flex gap-2 flex-wrap mb-1">
+                      {savedScenarios.map((s, i) => (
+                        <div key={i} className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => { setSpotPctOffset(s.spotPct); setIvAdjust(s.ivAdj); }}
+                            title={`spot ${s.spotPct >= 0 ? '+' : ''}${s.spotPct}% / IV ${s.ivAdj >= 0 ? '+' : ''}${(s.ivAdj * 100).toFixed(0)}%`}
+                            className="px-2.5 py-1.5 rounded-[8px] bg-indigo-500/[0.08] border border-indigo-500/[0.20] text-[11px] text-indigo-300/70 hover:bg-indigo-500/[0.14] hover:text-indigo-300/90 transition-colors"
+                          >
+                            {s.name}
+                          </button>
+                          <button onClick={() => deleteScenario(i)}
+                            className="w-5 h-5 flex items-center justify-center text-[11px] text-white/20 hover:text-rose-400 rounded transition-colors">
+                            ×
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                         <span className="text-[11px] text-white/50">IV 偏移</span>
-                        <span className="font-mono tnum text-[11px] text-white/50">{(ivAdjust * 100).toFixed(0) >= '0' ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%</span>
+                  )}
+                  <div className="flex items-center gap-2 mb-4">
+                    <input
+                      value={scenarioName}
+                      onChange={e => setScenarioName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveScenario()}
+                      placeholder="命名当前情景后保存…"
+                      className={cn(inputCls, '!w-44 text-[11px]')}
+                    />
+                    <button
+                      onClick={saveScenario}
+                      disabled={!scenarioName.trim()}
+                      className="px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[11px] text-white/50 hover:text-white/70 hover:bg-white/[0.07] disabled:opacity-30 transition-colors"
+                    >
+                      保存情景
+                    </button>
+                  </div>
+
+                  {/* ── IV Rank range settings ──────────────────────────────── */}
+                  <div className="flex items-center gap-3 mb-4 text-[11px]">
+                    <span className="text-white/30 shrink-0">IV Rank 区间</span>
+                    <span className="text-white/20 text-[10px] shrink-0">历史低</span>
+                    <input type="number" value={ivRankLow}
+                      onChange={e => setIvRankLow(parseFloat(e.target.value) || 0)}
+                      className="w-14 bg-white/[0.04] border border-white/[0.08] rounded-[6px] px-2 py-1 text-[11px] text-white/70 outline-none text-center" />
+                    <span className="text-white/15">–</span>
+                    <input type="number" value={ivRankHigh}
+                      onChange={e => setIvRankHigh(parseFloat(e.target.value) || 0)}
+                      className="w-14 bg-white/[0.04] border border-white/[0.08] rounded-[6px] px-2 py-1 text-[11px] text-white/70 outline-none text-center" />
+                    <span className="text-white/20 text-[10px]">% (52w 范围)</span>
+                    {ivRankPct !== null && (
+                      <div className="flex items-center gap-2 ml-2">
+                        <div className="w-20 h-[4px] bg-white/[0.08] rounded-full overflow-hidden">
+                          <div style={{ width: `${ivRankPct}%`, background: ivRankPct > 70 ? '#f87171' : ivRankPct < 30 ? '#34d399' : '#fbbf24' }} className="h-full rounded-full" />
+                        </div>
+                        <span className={cn('font-mono tnum', ivRankPct > 70 ? 'text-[var(--nexus-red)]' : ivRankPct < 30 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-yellow)]')}>
+                          {ivRankPct.toFixed(0)}%
+                        </span>
                       </div>
-                      <input type="range" min="-30" max="50" value={ivAdjust * 100}
-                        onChange={e => setIvAdjust(parseInt(e.target.value) / 100)} className="w-full range-slider" />
-                      <p className="text-[10px] text-white/20 mt-1.5 leading-snug">基础 IV 上的加减，测 vega 敏感度</p>
+                    )}
+                  </div>
+
+                  {/* ── Correlated stress ──────────────────────────────────── */}
+                  <div className={cn(
+                    'mt-4 rounded-[10px] border p-3 transition-colors',
+                    correlatedMode ? 'bg-amber-500/[0.05] border-amber-500/[0.20]' : 'bg-white/[0.02] border-white/[0.06]',
+                  )}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCorrelatedMode(v => !v)}
+                          className={cn(
+                            'w-8 h-4 rounded-full transition-colors relative shrink-0',
+                            correlatedMode ? 'bg-amber-500/60' : 'bg-white/[0.1]',
+                          )}
+                        >
+                          <span className={cn(
+                            'absolute top-0.5 w-3 h-3 rounded-full transition-all',
+                            correlatedMode ? 'left-[18px] bg-amber-300' : 'left-0.5 bg-white/40',
+                          )} />
+                        </button>
+                        <span className={cn('text-[11px] font-semibold', correlatedMode ? 'text-amber-300/80' : 'text-white/40')}>
+                          相关性压力模式
+                        </span>
+                        {correlatedMode && (
+                          <span className="text-[9px] text-amber-400/50 ml-1">
+                            Δσ = −ρ×β×ΔS/S = {(-rho * volBeta * spotPctOffset / 100 * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-white/20">开启后 IV 偏移由 ρ 和 ΔS 自动计算</span>
                     </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                         <span className="text-[11px] text-white/50">标的价偏移</span>
-                        <span className="font-mono tnum text-[11px] text-white/50">{spotPctOffset >= 0 ? '+' : ''}{spotPctOffset}%</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] text-white/40">相关系数 ρ</span>
+                          <span className="font-mono tnum text-[10px] text-white/60">{rho.toFixed(2)}</span>
+                        </div>
+                        <input type="range" min="-100" max="100" value={Math.round(rho * 100)}
+                          onChange={e => setRho(parseInt(e.target.value) / 100)}
+                          className="w-full range-slider" />
+                        <p className="text-[9px] text-white/20 mt-1">加密市场典型值 −0.6 ~ −0.8（下跌时 IV 急升）</p>
                       </div>
-                      <input type="range" min="-40" max="40" value={spotPctOffset}
-                        onChange={e => setSpotPctOffset(parseInt(e.target.value))} className="w-full range-slider" />
-                      <p className="text-[10px] text-white/20 mt-1.5 leading-snug">假设标的从入场基准价涨跌 X%</p>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] text-white/40">vol 敏感度 β</span>
+                          <span className="font-mono tnum text-[10px] text-white/60">{volBeta.toFixed(2)}</span>
+                        </div>
+                        <input type="range" min="0" max="400" value={Math.round(volBeta * 100)}
+                          onChange={e => setVolBeta(parseInt(e.target.value) / 100)}
+                          className="w-full range-slider" />
+                        <p className="text-[9px] text-white/20 mt-1">每 1% 价格变动带来的 IV 变化百分点（1.5 = 典型）</p>
+                      </div>
                     </div>
                   </div>
-                </Panel>
+                </Panel>}
 
-              <Panel title="希腊字母"
+              {activeTab === 'greeks' && <Panel title="希腊字母"
                   subtitle={legs.length > 0 ? (
-                    <span className="text-[11px] text-white/40">
-                      情景 P/L <span className={cn('font-mono tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
-                        {pl >= 0 ? '+' : ''}{pl.toFixed(2)} USDT
+                    <span className="flex items-center gap-3 text-[11px] text-white/40 flex-wrap">
+                      <span>
+                        情景 P/L&nbsp;
+                        <span className={cn('font-mono tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
+                          {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
+                        </span>
                       </span>
+                      <span className="text-white/20">·</span>
+                      <span>
+                        净权利金&nbsp;
+                        <span className={cn('font-mono tnum', netPremium < 0 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]')}>
+                          {netPremium >= 0 ? '−' : '+'}{Math.abs(netPremium).toFixed(2)}
+                        </span>
+                      </span>
+                      {probOfProfit !== null && (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <span title="到期盈利概率：以情景基准价为中心的对数正态分布，积分盈利区间概率">
+                            到期PoP&nbsp;
+                            <span className={cn('font-mono tnum', probOfProfit >= 0.5 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]')}>
+                              {(probOfProfit * 100).toFixed(1)}%
+                            </span>
+                          </span>
+                        </>
+                      )}
+                      {totalSlippage > 0 && (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <span title="各腿半点差 × 数量之和，即以市价入场相对于中间价的摩擦成本">
+                            入场摩擦&nbsp;
+                            <span className="font-mono tnum text-[var(--nexus-yellow)]">
+                              −{totalSlippage.toFixed(2)}
+                            </span>
+                          </span>
+                        </>
+                      )}
+                      {breakevens.length > 0 && (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <span>
+                            盈亏平衡&nbsp;
+                            <span className="font-mono tnum text-[var(--nexus-green)]">
+                              {breakevens.map(b => b.toLocaleString('en-US', { maximumFractionDigits: 0 })).join(' / ')}
+                            </span>
+                          </span>
+                        </>
+                      )}
                     </span>
                   ) : undefined}
                 >
@@ -549,7 +1839,735 @@ export function PositionBuilder() {
                       </div>
                     ))}
                   </div>
+                  {legs.length > 0 && (
+                    <>
+                      {/* Dollar Greeks strip */}
+                      <div className="mt-2 flex items-center gap-4 flex-wrap px-3 py-2 rounded-[8px] bg-white/[0.02] border border-white/[0.04] text-[11px]">
+                        <span className="text-[10px] text-white/20 uppercase tracking-[0.06em] shrink-0">美元化</span>
+                        <span className="text-white/30 shrink-0">$Δ</span>
+                        <span className={cn('font-mono tnum shrink-0', gClass(dollarGreeks.dollarDelta))}>
+                          {dollarGreeks.dollarDelta >= 0 ? '+' : ''}{dollarGreeks.dollarDelta.toFixed(0)}
+                        </span>
+                        <span className="text-white/20 text-[10px] shrink-0">USDT 名义敞口</span>
+                        <span className="text-white/15 shrink-0">·</span>
+                        <span className="text-white/30 shrink-0">$Γ /1%</span>
+                        <span className={cn('font-mono tnum shrink-0', gClass(dollarGreeks.dollarGamma))}>
+                          {dollarGreeks.dollarGamma >= 0 ? '+' : ''}{dollarGreeks.dollarGamma.toFixed(2)}
+                        </span>
+                        <span className="text-white/20 text-[10px] shrink-0">USDT 二阶 P/L</span>
+                      </div>
+
+                      {/* Per-leg Greeks table (only when 2+ legs) */}
+                      {legGreeksTable && legGreeksTable.length >= 2 && (
+                        <div className="mt-2 pt-2 border-t border-white/[0.04]">
+                          <p className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1.5">逐腿 Greeks 贡献</p>
+                          <table className="w-full text-[10px]">
+                            <thead>
+                              <tr className="text-white/20 text-[9px] uppercase tracking-[0.05em]">
+                                <th className="text-left font-normal pb-1.5 pr-2">腿</th>
+                                <th className="text-right font-normal pb-1.5 pr-2">Δ</th>
+                                <th className="text-right font-normal pb-1.5 pr-2">$Δ</th>
+                                <th className="text-right font-normal pb-1.5 pr-2">Γ</th>
+                                <th className="text-right font-normal pb-1.5 pr-2">Θ/天</th>
+                                <th className="text-right font-normal pb-1.5">ν/1%</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {legGreeksTable.map(row => (
+                                <tr key={row.label} className="border-t border-white/[0.03]">
+                                  <td className="py-1 pr-2 text-white/40 whitespace-nowrap">{row.label}</td>
+                                  <td className={cn('text-right pr-2 font-mono', gClass(row.delta))}>{row.delta >= 0 ? '+' : ''}{row.delta.toFixed(3)}</td>
+                                  <td className={cn('text-right pr-2 font-mono text-[9px]', gClass(row.dollarDelta))}>{row.dollarDelta >= 0 ? '+' : ''}{row.dollarDelta.toFixed(0)}</td>
+                                  <td className={cn('text-right pr-2 font-mono', gClass(row.gamma))}>{row.gamma.toFixed(5)}</td>
+                                  <td className={cn('text-right pr-2 font-mono', gClass(row.theta))}>{row.theta.toFixed(2)}</td>
+                                  <td className={cn('text-right font-mono', gClass(row.vega))}>{row.vega.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-4 gap-3 mt-2">
+                        {[
+                          { label: 'Vanna /1% IV', val: grk.vanna, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'IV 涨 1% 带来的 delta 变化；方向-波动率交叉敞口' },
+                          { label: 'Volga /1% IV', val: grk.volga, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'IV 涨 1% 带来的 vega 变化（IV 凸性）；正值受益于 IV 大幅移动' },
+                          { label: 'Charm /天',    val: grk.charm, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'Delta 每天衰减量；临近到期时急速增大' },
+                          { label: 'Speed',        val: grk.speed, fmt: (v: number) => v.toExponential(2),                 desc: '∂Γ/∂S：大幅移动时 gamma 的变化；绝对值越大模型越快失效' },
+                        ].map(({ label, val, fmt, desc }) => (
+                          <div key={label} className="bg-white/[0.02] border border-white/[0.04] rounded-[10px] p-3">
+                            <div className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
+                            <div className={cn('text-[13px] font-mono tnum mb-1', gClass(val))}>{fmt(val)}</div>
+                            <div className="text-[9px] text-white/20 leading-snug">{desc}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Delta hedge suggestion */}
+                      <div className="mt-2 flex items-center gap-3 px-3 py-2 rounded-[8px] bg-white/[0.02] border border-white/[0.04] text-[11px]">
+                        <span className="text-white/25 shrink-0">Δ 对冲建议</span>
+                        {Math.abs(grk.delta) < 0.001 ? (
+                          <span className="text-white/40">仓位已近似 Delta 中性</span>
+                        ) : (
+                          <>
+                            <span className={cn('font-mono tnum font-semibold', grk.delta > 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
+                              {grk.delta > 0 ? '做空' : '做多'} {Math.abs(grk.delta).toFixed(4)} {symbol}
+                            </span>
+                            <span className="text-white/20">
+                              (≈ {(Math.abs(grk.delta) * currentS).toFixed(0)} USDT 名义敞口)
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {(maxProfit !== null || maxLoss !== null) && (
+                    <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-white/[0.04]">
+                      <div className="bg-white/[0.03] border border-white/[0.05] rounded-[10px] p-3">
+                        <div className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1">最大盈利（到期）</div>
+                        <div className={cn('text-[18px] font-mono tnum mb-1', maxProfit && maxProfit > 0 ? 'text-[var(--nexus-green)]' : 'text-white/30')}>
+                          {maxProfit === null ? '—' : maxProfit > 9999 ? '+∞ *' : `+${maxProfit.toFixed(0)}`}
+                        </div>
+                        <div className="text-[10px] text-white/20">图表范围内最大值</div>
+                      </div>
+                      <div className="bg-white/[0.03] border border-white/[0.05] rounded-[10px] p-3">
+                        <div className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1">最大亏损（到期）</div>
+                        <div className={cn('text-[18px] font-mono tnum mb-1', maxLoss && maxLoss < 0 ? 'text-[var(--nexus-red)]' : 'text-white/30')}>
+                          {maxLoss === null ? '—' : maxLoss < -9999 ? '−∞ *' : `${maxLoss.toFixed(0)}`}
+                        </div>
+                        <div className="text-[10px] text-white/20">图表范围内最小值</div>
+                      </div>
+                    </div>
+                  )}
+                </Panel>}
+
+              {activeTab === 'risk' && varCvar && (
+                <Panel title="风险价值 VaR / CVaR"
+                  subtitle={<span>1日 · 对数正态 MC 5000条路径 · 基准价 {varCvar.baseS.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
+                  actions={
+                    <button onClick={() => setVarSeed(s => s + 1)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-white/[0.04] border border-white/[0.07] text-[10px] text-white/40 hover:text-white/70 hover:bg-white/[0.07] transition-colors">
+                      ↺ 重算
+                    </button>
+                  }
+                >
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'VaR 95%',  val: varCvar.var95,  hint: '5% 最差情形 P/L 下限' },
+                      { label: 'CVaR 95%', val: varCvar.cvar95, hint: '最差 5% 情形均值（尾部期望）' },
+                      { label: 'VaR 99%',  val: varCvar.var99,  hint: '1% 最差情形 P/L 下限' },
+                      { label: 'CVaR 99%', val: varCvar.cvar99, hint: '最差 1% 均值（Expected Shortfall）' },
+                    ].map(({ label, val, hint }) => (
+                      <div key={label} className="bg-white/[0.02] border border-white/[0.05] rounded-[10px] p-3">
+                        <div className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-1">{label}</div>
+                        <div className={cn('text-[16px] font-mono tnum mb-1', val < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
+                          {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                        </div>
+                        <div className="text-[9px] text-white/20 leading-snug">{hint}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/20 mt-2">对数正态路径 · IV = 全局基础 IV · 仅腿位/Spot/IV 变化时自动刷新 · 点「重算」强制重新采样</p>
+
+                  {/* P/L distribution histogram */}
+                  {varCvar.histEdges.length > 0 && (() => {
+                    const { histEdges, histCounts, hWidth } = varCvar;
+                    const n = histCounts.length;
+                    const hMin = histEdges[0], hMax = histEdges[n - 1] + hWidth;
+                    const maxCount = Math.max(...histCounts);
+                    const W = 560, H = 80, PAD = { l: 36, r: 10, t: 4, b: 22 };
+                    const innerW = W - PAD.l - PAD.r, innerH = H - PAD.t - PAD.b;
+                    const barW = innerW / n;
+                    const sx = (v: number) => PAD.l + ((v - hMin) / (hMax - hMin)) * innerW;
+                    const zeroX = sx(0), v95X = sx(varCvar.var95), v99X = sx(varCvar.var99);
+                    return (
+                      <div className="mt-3 pt-3 border-t border-white/[0.05]">
+                        <p className="text-[9px] uppercase tracking-[0.06em] text-white/20 mb-2">P/L 分布（5000 路径 · 1 日）</p>
+                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
+                          {histCounts.map((count, i) => {
+                            const x = PAD.l + i * barW;
+                            const bh = maxCount > 0 ? (count / maxCount) * innerH : 0;
+                            const edge = histEdges[i];
+                            return (
+                              <rect key={i} x={x + 0.5} y={PAD.t + innerH - bh}
+                                width={Math.max(0.5, barW - 0.5)} height={bh}
+                                fill={edge >= 0 ? 'rgba(52,211,153,0.55)' : 'rgba(248,113,113,0.55)'}>
+                                <title>{edge.toFixed(0)}–{(edge + hWidth).toFixed(0)}: {count}条</title>
+                              </rect>
+                            );
+                          })}
+                          {hMin < 0 && hMax > 0 && (
+                            <line x1={zeroX} x2={zeroX} y1={PAD.t} y2={PAD.t + innerH + 2}
+                              stroke="#8a93a6" strokeWidth="1" strokeDasharray="3,2" />
+                          )}
+                          <line x1={v95X} x2={v95X} y1={PAD.t} y2={PAD.t + innerH} stroke="#fbbf24" strokeWidth="1.2" strokeDasharray="2,2" />
+                          <text x={v95X} y={PAD.t + innerH + 11} textAnchor="middle" fontSize="7" fill="rgba(251,191,36,0.65)">VaR95</text>
+                          <line x1={v99X} x2={v99X} y1={PAD.t} y2={PAD.t + innerH} stroke="#f87171" strokeWidth="1.2" strokeDasharray="2,2" />
+                          <text x={v99X} y={PAD.t + innerH + 11} textAnchor="middle" fontSize="7" fill="rgba(248,113,113,0.65)">VaR99</text>
+                          {[hMin, (hMin + hMax) / 2, hMax].map((v, i) => (
+                            <text key={i} x={sx(v)} y={H - 2} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)">
+                              {v >= 0 ? '+' : ''}{v.toFixed(0)}
+                            </text>
+                          ))}
+                          <text x="4" y={H / 2 + 3} fontSize="7" fill="rgba(255,255,255,0.15)" textAnchor="middle" transform={`rotate(-90,7,${H / 2})`}>频率</text>
+                        </svg>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Jump Risk (Merton model) */}
+                  <div className={cn(
+                    'mt-3 rounded-[10px] border p-3 transition-colors',
+                    showJumpRisk ? 'bg-amber-500/[0.04] border-amber-500/[0.18]' : 'bg-white/[0.02] border-white/[0.06]',
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button onClick={() => setShowJumpRisk(v => !v)}
+                        className={cn('w-8 h-4 rounded-full relative shrink-0 transition-colors', showJumpRisk ? 'bg-amber-500/60' : 'bg-white/[0.1]')}>
+                        <span className={cn('absolute top-0.5 w-3 h-3 rounded-full transition-all', showJumpRisk ? 'left-[18px] bg-amber-300' : 'left-0.5 bg-white/40')} />
+                      </button>
+                      <span className={cn('text-[11px] font-semibold', showJumpRisk ? 'text-amber-300/80' : 'text-white/40')}>
+                        跳跃风险（Merton Jump-Diffusion）
+                      </span>
+                      {showJumpRisk && (
+                        <span className="text-[9px] text-amber-400/50 ml-1">λ={jumpLambda}/年 · μ_J={jumpMuPct}% · σ_J={jumpSigPct}%</span>
+                      )}
+                    </div>
+                    {showJumpRisk && (
+                      <>
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div>
+                            <div className="flex justify-between mb-1.5">
+                              <span className="text-[10px] text-white/40">跳跃频率 λ（/年）</span>
+                              <span className="font-mono text-[10px] text-white/60">{jumpLambda.toFixed(1)}</span>
+                            </div>
+                            <input type="range" min="0" max="20" step="0.5" value={jumpLambda}
+                              onChange={e => setJumpLambda(parseFloat(e.target.value))} className="w-full range-slider" />
+                            <p className="text-[9px] text-white/20 mt-1">加密典型值 2–5；极端年可达 10+</p>
+                          </div>
+                          <div>
+                            <div className="flex justify-between mb-1.5">
+                              <span className="text-[10px] text-white/40">均值跳幅 μ_J</span>
+                              <span className="font-mono text-[10px] text-white/60">{jumpMuPct >= 0 ? '+' : ''}{jumpMuPct}%</span>
+                            </div>
+                            <input type="range" min="-50" max="30" value={jumpMuPct}
+                              onChange={e => setJumpMuPct(parseInt(e.target.value))} className="w-full range-slider" />
+                            <p className="text-[9px] text-white/20 mt-1">负值 = 向下跳为主（加密典型）</p>
+                          </div>
+                          <div>
+                            <div className="flex justify-between mb-1.5">
+                              <span className="text-[10px] text-white/40">跳幅波动 σ_J</span>
+                              <span className="font-mono text-[10px] text-white/60">{jumpSigPct}%</span>
+                            </div>
+                            <input type="range" min="1" max="40" value={jumpSigPct}
+                              onChange={e => setJumpSigPct(parseInt(e.target.value))} className="w-full range-slider" />
+                            <p className="text-[9px] text-white/20 mt-1">每次跳跃幅度的标准差</p>
+                          </div>
+                        </div>
+                        {jumpVaR && (
+                          <div className="grid grid-cols-4 gap-2">
+                            {[
+                              { label: 'VaR 95% (+跳)', val: jumpVaR.var95  },
+                              { label: 'CVaR 95% (+跳)', val: jumpVaR.cvar95 },
+                              { label: 'VaR 99% (+跳)', val: jumpVaR.var99  },
+                              { label: 'CVaR 99% (+跳)', val: jumpVaR.cvar99 },
+                            ].map(({ label, val }) => (
+                              <div key={label} className="bg-amber-500/[0.05] border border-amber-500/[0.12] rounded-[8px] p-2">
+                                <div className="text-[9px] text-amber-300/40 uppercase tracking-[0.05em] mb-1">{label}</div>
+                                <div className={cn('text-[13px] font-mono tnum', val < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
+                                  {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </Panel>
+              )}
+
+              {activeTab === 'risk' && plAttribution && (hoursForward > 0 || spotPctOffset !== 0 || ivAdjust !== 0) && (
+                <Panel title="P/L 归因" subtitle="当前情景 P/L 拆解为各希腊字母贡献（一阶近似，以入场价为基点）">
+                  <div className="grid grid-cols-6 gap-2 text-[11px]">
+                    {[
+                      { label: 'Delta', val: plAttribution.plDelta, hint: `δ×ΔS (ΔS=${currentS > spot ? '+' : ''}${(currentS-spot).toFixed(0)})` },
+                      { label: 'Gamma', val: plAttribution.plGamma, hint: `½γΔS²` },
+                      { label: 'Theta', val: plAttribution.plTheta, hint: `θ×${(hoursForward/24).toFixed(1)}d` },
+                      { label: 'Vega',  val: plAttribution.plVega,  hint: `ν×${ivAdjust>=0?'+':''}${(ivAdjust*100).toFixed(0)}%` },
+                      { label: '残差',  val: plAttribution.plResidual, hint: '高阶效应 + 模型误差' },
+                      { label: '合计',  val: plAttribution.plTotal,    hint: '情景总 P/L' },
+                    ].map(({ label, val, hint }) => (
+                      <div key={label} className={cn(
+                        'rounded-[8px] p-2.5 border',
+                        label === '合计'
+                          ? 'bg-white/[0.04] border-white/[0.10]'
+                          : 'bg-white/[0.02] border-white/[0.05]',
+                      )}>
+                        <div className="text-[9px] uppercase tracking-[0.06em] text-white/25 mb-1">{label}</div>
+                        <div className={cn('text-[15px] font-mono tnum mb-0.5', gClass(val))}>
+                          {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                        </div>
+                        <div className="text-[9px] text-white/20 leading-snug">{hint}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Waterfall chart */}
+                  {(() => {
+                    const { plDelta, plGamma, plTheta, plVega, plResidual, plTotal } = plAttribution;
+                    const segs = [
+                      { label: 'Δ', val: plDelta,    col: '#4ea1ff' },
+                      { label: 'Γ', val: plGamma,    col: '#a78bfa' },
+                      { label: 'Θ', val: plTheta,    col: '#fbbf24' },
+                      { label: 'ν', val: plVega,     col: '#34d399' },
+                      { label: '残', val: plResidual, col: '#f87171' },
+                    ];
+                    const runs: number[] = [];
+                    let r = 0;
+                    for (const s of segs) { runs.push(r); r += s.val; }
+                    const W = 480, H = 90, PL = 10, PR = 10, PT = 8, PB = 22;
+                    const iW = W - PL - PR, iH = H - PT - PB;
+                    const totalCols = segs.length + 2;
+                    const cW = iW / totalCols, bW = cW * 0.68, bP = cW * 0.16;
+                    const allY = [...runs, ...segs.map((s, i) => runs[i] + s.val), 0, plTotal];
+                    const yMin = Math.min(...allY), yMax = Math.max(...allY);
+                    const yRng = yMax - yMin || 1;
+                    const sy = (v: number) => PT + iH * (1 - (v - yMin) / yRng);
+                    const zY = sy(0);
+                    return (
+                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible mt-2">
+                        <line x1={PL} x2={W - PR} y1={zY} y2={zY} stroke="#2a3447" strokeWidth="1" />
+                        {segs.map((seg, i) => {
+                          const x = PL + i * cW + bP;
+                          const y1 = sy(runs[i]), y2 = sy(runs[i] + seg.val);
+                          const bY = Math.min(y1, y2), bH = Math.max(1, Math.abs(y1 - y2));
+                          const alpha = seg.val >= 0 ? 'cc' : '88';
+                          return (
+                            <g key={i}>
+                              <rect x={x} y={bY} width={bW} height={bH}
+                                fill={seg.col + alpha} stroke={seg.col} strokeWidth="0.5" strokeOpacity="0.5">
+                                <title>{seg.label}: {seg.val >= 0 ? '+' : ''}{seg.val.toFixed(2)}</title>
+                              </rect>
+                              {i < segs.length - 1 && (
+                                <line x1={x + bW} x2={x + cW + bP} y1={sy(runs[i] + seg.val)} y2={sy(runs[i] + seg.val)}
+                                  stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="2,2" />
+                              )}
+                              <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize="8.5"
+                                fill={seg.col} fillOpacity="0.8">{seg.label}</text>
+                              <text x={x + bW / 2} y={seg.val >= 0 ? bY - 2 : bY + bH + 8}
+                                textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.4)">
+                                {seg.val >= 0 ? '+' : ''}{seg.val.toFixed(1)}
+                              </text>
+                            </g>
+                          );
+                        })}
+                        {(() => {
+                          const x = PL + (segs.length + 1) * cW + bP;
+                          const y1 = sy(0), y2 = sy(plTotal);
+                          const bY = Math.min(y1, y2), bH = Math.max(1, Math.abs(y1 - y2));
+                          const fill = plTotal >= 0 ? 'rgba(52,211,153,0.75)' : 'rgba(248,113,113,0.75)';
+                          const stroke = plTotal >= 0 ? '#34d399' : '#f87171';
+                          return (
+                            <g>
+                              <rect x={x} y={bY} width={bW} height={bH} fill={fill} stroke={stroke} strokeWidth="1">
+                                <title>合计: {plTotal >= 0 ? '+' : ''}{plTotal.toFixed(2)}</title>
+                              </rect>
+                              <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize="8.5" fill="rgba(255,255,255,0.55)">合计</text>
+                              <text x={x + bW / 2} y={plTotal >= 0 ? bY - 2 : bY + bH + 8}
+                                textAnchor="middle" fontSize="7" fill={plTotal >= 0 ? 'rgba(52,211,153,0.85)' : 'rgba(248,113,113,0.85)'}>
+                                {plTotal >= 0 ? '+' : ''}{plTotal.toFixed(1)}
+                              </text>
+                            </g>
+                          );
+                        })()}
+                        <text x="5" y={zY + 3} fontSize="7" fill="rgba(255,255,255,0.2)">0</text>
+                      </svg>
+                    );
+                  })()}
+                  <div className="flex gap-3 mt-1.5 flex-wrap text-[9px] text-white/30">
+                    {[
+                      { label: 'Delta', color: '#4ea1ff' },
+                      { label: 'Gamma', color: '#a78bfa' },
+                      { label: 'Theta', color: '#fbbf24' },
+                      { label: 'Vega',  color: '#34d399' },
+                      { label: '残差',  color: '#f87171' },
+                    ].map(({ label, color }) => (
+                      <span key={label} className="flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: color, opacity: 0.7 }} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
+              {activeTab === 'scenario' && scenarioMatrix && (
+                <Panel title="情景矩阵" subtitle="到期 P/L (USDT) · spot 偏移 × IV 偏移">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-separate border-spacing-[3px] text-[10px]">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-white/20 font-normal pb-1 pr-2 whitespace-nowrap">IV \ 价格</th>
+                          {SPOT_OFFSETS.map(s => (
+                            <th key={s} className={cn(
+                              'text-center font-mono font-normal pb-1 px-1',
+                              s === 0 ? 'text-white/60' : s < 0 ? 'text-[var(--nexus-red)]/60' : 'text-[var(--nexus-green)]/60',
+                            )}>
+                              {s >= 0 ? '+' : ''}{s}%
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {IV_OFFSETS.map((ivOff, ri) => (
+                          <tr key={ivOff}>
+                            <td className={cn(
+                              'text-right pr-2 font-mono whitespace-nowrap',
+                              ivOff === 0 ? 'text-white/60' : 'text-white/30',
+                            )}>
+                              {ivOff >= 0 ? '+' : ''}{(ivOff * 100).toFixed(0)}%
+                            </td>
+                            {SPOT_OFFSETS.map((spotOff, ci) => {
+                              const val = scenarioMatrix[ri][ci];
+                              const intensity = Math.min(0.72, Math.abs(val) / matrixAbsMax * 0.72);
+                              const isActive = Math.abs(spotOff - spotPctOffset) < 5.5
+                                            && Math.abs(ivOff - ivAdjust) < 0.08;
+                              // Correlated path: for this spot column, the "realistic" IV row
+                              const correlatedIv = -rho * volBeta * spotOff / 100;
+                              const isCorrelated = correlatedMode
+                                && Math.abs(ivOff - correlatedIv) === Math.min(
+                                  ...IV_OFFSETS.map(iv => Math.abs(iv - correlatedIv))
+                                );
+                              return (
+                                <td key={spotOff}
+                                  style={{
+                                    backgroundColor: val > 0
+                                      ? `rgba(52,211,153,${intensity})`
+                                      : val < 0
+                                      ? `rgba(248,113,113,${intensity})`
+                                      : 'transparent',
+                                  }}
+                                  className={cn(
+                                    'text-center py-1 px-1.5 font-mono rounded-[4px] cursor-pointer transition-all',
+                                    val > 0 ? 'text-green-200' : val < 0 ? 'text-red-200' : 'text-white/25',
+                                    isActive && 'ring-1 ring-white/50 ring-inset',
+                                    isCorrelated && !isActive && 'ring-1 ring-amber-400/50 ring-inset',
+                                  )}
+                                  onClick={() => { setSpotPctOffset(spotOff); setIvAdjust(ivOff); }}
+                                  title={`spot ${spotOff >= 0 ? '+' : ''}${spotOff}% / IV ${ivOff >= 0 ? '+' : ''}${(ivOff * 100).toFixed(0)}%${isCorrelated ? ' ← 相关路径' : ''}`}
+                                >
+                                  {val >= 0 ? '+' : ''}{val.toFixed(0)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-white/20 mt-2">点击任意格子跳转到该情景 · 高亮格 = 当前情景参数</p>
+                </Panel>
+              )}
+              {activeTab === 'greeks' && greeksLadder && (
+                <Panel title="希腊字母价格阶梯" subtitle={`当前情景设置 · Spot 偏移 ±15% · ${formatHours(hoursForward)} 时间快进`}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px] border-separate border-spacing-y-[2px]">
+                      <thead>
+                        <tr className="text-white/25 text-[9px] uppercase tracking-[0.06em]">
+                          <th className="text-left pb-2 font-normal">价格偏移</th>
+                          <th className="text-right pb-2 font-normal pr-2">{symbol} 价格</th>
+                          <th className="text-right pb-2 font-normal pr-2">P/L</th>
+                          <th className="text-right pb-2 font-normal pr-2">Delta</th>
+                          <th className="text-right pb-2 font-normal pr-2">Gamma</th>
+                          <th className="text-right pb-2 font-normal">Theta/天</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {greeksLadder.map(row => {
+                          const isCurrent = row.pct === 0;
+                          const isNearCurrent = Math.abs(row.pct - spotPctOffset) < 3;
+                          return (
+                            <tr key={row.pct}
+                              className={cn(
+                                'rounded-[4px] cursor-pointer transition-colors',
+                                isCurrent ? 'bg-white/[0.05]' : 'hover:bg-white/[0.03]',
+                                isNearCurrent && !isCurrent && 'ring-1 ring-inset ring-white/10',
+                              )}
+                              onClick={() => setSpotPctOffset(row.pct)}
+                            >
+                              <td className={cn('pl-2 py-1.5 rounded-l-[4px] font-mono',
+                                row.pct < 0 ? 'text-[var(--nexus-red)]/70' : row.pct > 0 ? 'text-[var(--nexus-green)]/70' : 'text-white/50',
+                              )}>
+                                {row.pct >= 0 ? '+' : ''}{row.pct}%
+                              </td>
+                              <td className="text-right pr-2 font-mono text-white/40">
+                                {row.S.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                              </td>
+                              <td className={cn('text-right pr-2 font-mono font-semibold', gClass(row.pl))}>
+                                {row.pl >= 0 ? '+' : ''}{row.pl.toFixed(2)}
+                              </td>
+                              <td className={cn('text-right pr-2 font-mono', gClass(row.delta))}>
+                                {row.delta >= 0 ? '+' : ''}{row.delta.toFixed(3)}
+                              </td>
+                              <td className={cn('text-right pr-2 font-mono', gClass(row.gamma))}>
+                                {row.gamma.toFixed(5)}
+                              </td>
+                              <td className={cn('text-right pr-2 rounded-r-[4px] font-mono', gClass(row.theta))}>
+                                {row.theta.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-white/20 mt-1.5">点击行跳转到对应 Spot 偏移情景</p>
+                </Panel>
+              )}
+
+              {activeTab === 'greeks' && greeksHeatmapData && (
+                <Panel title="Greeks 热力图"
+                  subtitle={`${heatmapMetric === 'delta' ? 'Delta' : heatmapMetric === 'gamma' ? 'Gamma' : 'Vega'} · Spot 偏移 × IV 偏移（以入场时间为基点）`}
+                  actions={
+                    <div className="flex gap-1">
+                      {(['delta', 'gamma', 'vega'] as const).map(m => (
+                        <button key={m} onClick={() => setHeatmapMetric(m)}
+                          className={cn(
+                            'px-2 py-0.5 rounded-[5px] text-[10px] border transition-colors',
+                            heatmapMetric === m
+                              ? 'bg-[var(--nexus-accent)]/15 border-[var(--nexus-accent)]/30 text-[var(--nexus-accent)]/80'
+                              : 'bg-white/[0.03] border-white/[0.07] text-white/35 hover:text-white/60',
+                          )}>
+                          {m === 'delta' ? 'Δ Delta' : m === 'gamma' ? 'Γ Gamma' : 'ν Vega'}
+                        </button>
+                      ))}
+                    </div>
+                  }
+                >
+                  {(() => {
+                    const absMax = Math.max(1e-8, ...greeksHeatmapData.flat().map(Math.abs));
+                    const fmt = (v: number) => heatmapMetric === 'gamma' ? v.toFixed(4) : v.toFixed(3);
+                    return (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-separate border-spacing-[3px] text-[10px]">
+                          <thead>
+                            <tr>
+                              <th className="text-left text-white/20 font-normal pb-1 pr-2 whitespace-nowrap">IV \ Spot</th>
+                              {HEATMAP_SPOT.map(s => (
+                                <th key={s} className={cn(
+                                  'text-center font-mono font-normal pb-1 px-1',
+                                  s === 0 ? 'text-white/60' : s < 0 ? 'text-[var(--nexus-red)]/60' : 'text-[var(--nexus-green)]/60',
+                                )}>
+                                  {s >= 0 ? '+' : ''}{s}%
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {HEATMAP_IV.map((ivOff, ri) => (
+                              <tr key={ivOff}>
+                                <td className={cn('text-right pr-2 font-mono whitespace-nowrap', ivOff === 0 ? 'text-white/60' : 'text-white/30')}>
+                                  {ivOff >= 0 ? '+' : ''}{(ivOff * 100).toFixed(0)}%
+                                </td>
+                                {greeksHeatmapData[ri].map((val, ci) => {
+                                  const intensity = Math.min(0.75, Math.abs(val) / absMax * 0.75);
+                                  const nearSpot = Math.abs(HEATMAP_SPOT[ci] - spotPctOffset) < 11;
+                                  const nearIv   = Math.abs(ivOff - ivAdjust) < 0.12;
+                                  return (
+                                    <td key={ci}
+                                      style={{ backgroundColor: val > 0 ? `rgba(52,211,153,${intensity})` : val < 0 ? `rgba(248,113,113,${intensity})` : 'transparent' }}
+                                      className={cn(
+                                        'text-center py-1 px-1.5 font-mono rounded-[4px]',
+                                        val > 0 ? 'text-green-200' : val < 0 ? 'text-red-200' : 'text-white/25',
+                                        nearSpot && nearIv && 'ring-1 ring-white/50 ring-inset',
+                                      )}
+                                      title={`Spot ${HEATMAP_SPOT[ci] >= 0 ? '+' : ''}${HEATMAP_SPOT[ci]}% / IV ${ivOff >= 0 ? '+' : ''}${(ivOff * 100).toFixed(0)}%  →  ${heatmapMetric}=${fmt(val)}`}
+                                    >
+                                      {fmt(val)}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-[10px] text-white/20 mt-1.5">
+                    {heatmapMetric === 'delta' ? 'Delta 越大说明方向性敞口越强，绿 = 净多 / 红 = 净空'
+                     : heatmapMetric === 'gamma' ? 'Gamma 集中处是凸性最强的区域 — 绿 = 正 Gamma（买方）/ 红 = 负 Gamma（卖方）'
+                     : 'Vega 越大说明 IV 变动影响越强 — 绿 = 正 Vega（buy vol）/ 红 = 负 Vega（sell vol）'}
+                  </p>
+                </Panel>
+              )}
+
+              {activeTab === 'structure' && thetaCalendar && (
+                <Panel title="每日 Theta 日历" subtitle={`以情景基准价为锚 · ${thetaCalendar.length} 天 · 柱 = 日收益 / 线 = 累计 P/L`}>
+                  {(() => {
+                    const W = 560, H = 130, PAD = { l: 38, r: 10, t: 8, b: 22 };
+                    const innerW = W - PAD.l - PAD.r;
+                    const innerH = H - PAD.t - PAD.b;
+                    const n = thetaCalendar.length;
+                    const barW = Math.max(1, innerW / n - 1);
+
+                    const dailyMin = Math.min(...thetaCalendar.map(r => r.daily));
+                    const dailyMax = Math.max(...thetaCalendar.map(r => r.daily));
+                    const cumMin   = Math.min(...thetaCalendar.map(r => r.cumPL), 0);
+                    const cumMax   = Math.max(...thetaCalendar.map(r => r.cumPL), 0);
+
+                    // Normalise two independent scales
+                    const dRange = dailyMax - dailyMin || 1;
+                    const cRange = cumMax - cumMin || 1;
+                    const zero_y = PAD.t + innerH * (dailyMax / dRange);
+
+                    const sy  = (v: number) => PAD.t + innerH * (1 - (v - dailyMin) / dRange);
+                    const scy = (v: number) => PAD.t + innerH * (1 - (v - cumMin)   / cRange);
+                    const sx  = (i: number) => PAD.l + (i + 0.5) * (innerW / n);
+
+                    const cumPath = thetaCalendar.map((r, i) =>
+                      `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${scy(r.cumPL).toFixed(1)}`
+                    ).join(' ');
+
+                    // Tick marks: every 7 days or every 30
+                    const tickStep = n <= 60 ? 7 : 30;
+
+                    return (
+                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
+                        {/* Zero baseline */}
+                        <line x1={PAD.l} x2={W - PAD.r} y1={zero_y} y2={zero_y} stroke="#2a3447" strokeWidth="1" />
+                        {/* Daily theta bars */}
+                        {thetaCalendar.map((r, i) => {
+                          const barH = Math.abs(sy(r.daily) - zero_y);
+                          const barY = r.daily >= 0 ? zero_y - barH : zero_y;
+                          return (
+                            <rect key={i}
+                              x={PAD.l + i * (innerW / n)}
+                              y={barY} width={barW} height={Math.max(1, barH)}
+                              fill={r.daily >= 0 ? 'rgba(52,211,153,0.55)' : 'rgba(248,113,113,0.55)'}
+                            >
+                              <title>Day {r.day}: {r.daily >= 0 ? '+' : ''}{r.daily.toFixed(2)} / 累计 {r.cumPL.toFixed(2)}</title>
+                            </rect>
+                          );
+                        })}
+                        {/* Cumulative P/L line (right scale) */}
+                        <path d={cumPath} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeOpacity="0.8" />
+                        {/* X-axis tick labels */}
+                        {thetaCalendar.filter((_, i) => i % tickStep === tickStep - 1).map((r, _) => (
+                          <text key={r.day} x={sx(r.day - 1)} y={H - 4}
+                            textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.25)">
+                            D{r.day}
+                          </text>
+                        ))}
+                        {/* Left y-axis label */}
+                        <text x="3" y={H / 2} fontSize="7" fill="rgba(255,255,255,0.2)"
+                          textAnchor="middle" transform={`rotate(-90,7,${H / 2})`}>日θ</text>
+                        {/* Right y-axis label */}
+                        <text x={W - 3} y={H / 2} fontSize="7" fill="rgba(251,191,36,0.4)"
+                          textAnchor="middle" transform={`rotate(90,${W - 5},${H / 2})`}>累计</text>
+                      </svg>
+                    );
+                  })()}
+                  <div className="flex gap-4 mt-1.5 text-[9px] text-white/25 flex-wrap">
+                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 bg-[rgba(52,211,153,0.55)]" />每日正收益（卖方）</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 bg-[rgba(248,113,113,0.55)]" />每日 Theta 损耗（买方）</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-4 border-t border-[#fbbf24] opacity-60" />累计 P/L（右轴）</span>
+                    <span className="ml-auto">总 Theta 衰减 {thetaCalendar[thetaCalendar.length - 1].cumPL.toFixed(2)} USDT</span>
+                  </div>
+                </Panel>
+              )}
+
+              {activeTab === 'structure' && ivSkewData && (
+                <Panel title="IV 结构" subtitle="各腿市场 IV — 偏斜（左）· 期限结构（右）">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Skew chart: per-expiry IV vs strike */}
+                    <div>
+                      <p className="text-[9px] text-white/20 uppercase tracking-[0.06em] mb-2">IV 偏斜（各到期日）</p>
+                      <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+                        {(() => {
+                          const allPts = ivSkewData.expiries.flatMap(e => e.points);
+                          if (allPts.length === 0) return null;
+                          const strikes = allPts.map(p => p.strike);
+                          const ivs = allPts.map(p => p.iv);
+                          const sMin = Math.min(...strikes), sMax = Math.max(...strikes);
+                          const ivMin = Math.max(0, Math.min(...ivs) - 5), ivMax = Math.max(...ivs) + 5;
+                          const sx = (s: number) => ((s - sMin) / (sMax - sMin || 1)) * 220 + 10;
+                          const sy = (iv: number) => 110 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 100;
+                          const COLORS = ['#4ea1ff', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+                          return ivSkewData.expiries.map((exp, ei) => {
+                            if (exp.points.length === 0) return null;
+                            const color = COLORS[ei % COLORS.length];
+                            const pts = exp.points.map(p => `${sx(p.strike).toFixed(1)},${sy(p.iv).toFixed(1)}`).join(' ');
+                            return (
+                              <g key={exp.ts}>
+                                {exp.points.length > 1 && (
+                                  <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeOpacity="0.7" />
+                                )}
+                                {exp.points.map((p, pi) => (
+                                  <circle key={pi} cx={sx(p.strike)} cy={sy(p.iv)} r="3"
+                                    fill={color} fillOpacity="0.8">
+                                    <title>{exp.label} K={p.strike} IV={p.iv.toFixed(1)}%</title>
+                                  </circle>
+                                ))}
+                                {/* Spot line */}
+                                <line x1={sx(spot)} x2={sx(spot)} y1="10" y2="115"
+                                  stroke="#8a93a6" strokeWidth="0.8" strokeDasharray="3,3" strokeOpacity="0.4" />
+                              </g>
+                            );
+                          });
+                        })()}
+                        {/* Axes labels */}
+                        <text x="125" y="120" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)">行权价</text>
+                        <text x="2" y="60" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)" transform="rotate(-90,5,60)">IV %</text>
+                      </svg>
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {ivSkewData.expiries.map((exp, ei) => {
+                          const COLORS = ['#4ea1ff', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+                          return (
+                            <span key={exp.ts} className="flex items-center gap-1 text-[9px] text-white/30">
+                              <span className="inline-block w-2 h-0.5" style={{ backgroundColor: COLORS[ei % COLORS.length] }} />
+                              {exp.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Term structure: ATM IV per expiry */}
+                    <div>
+                      <p className="text-[9px] text-white/20 uppercase tracking-[0.06em] mb-2">期限结构（ATM IV）</p>
+                      {ivSkewData.termStructure.length < 2 ? (
+                        <p className="text-[10px] text-white/20 italic pt-4">需要至少 2 个到期日的数据</p>
+                      ) : (
+                        <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+                          {(() => {
+                            const ts = ivSkewData.termStructure;
+                            const ivMin = Math.max(0, Math.min(...ts.map(t => t.iv)) - 5);
+                            const ivMax = Math.max(...ts.map(t => t.iv)) + 5;
+                            const n = ts.length;
+                            const sx = (i: number) => (i / (n - 1)) * 220 + 10;
+                            const sy = (iv: number) => 100 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 90;
+                            const pts = ts.map((t, i) => `${sx(i).toFixed(1)},${sy(t.iv).toFixed(1)}`).join(' ');
+                            return (
+                              <g>
+                                <polyline points={pts} fill="none" stroke="#34d399" strokeWidth="1.5" strokeOpacity="0.8" />
+                                {ts.map((t, i) => (
+                                  <g key={i}>
+                                    <circle cx={sx(i)} cy={sy(t.iv)} r="3" fill="#34d399" fillOpacity="0.85">
+                                      <title>{t.label}  ATM IV {t.iv.toFixed(1)}%</title>
+                                    </circle>
+                                    <text x={sx(i)} y="115" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.25)">{t.label}</text>
+                                    <text x={sx(i)} y={sy(t.iv) - 5} textAnchor="middle" fontSize="7" fill="rgba(52,211,153,0.7)">{t.iv.toFixed(1)}%</text>
+                                  </g>
+                                ))}
+                              </g>
+                            );
+                          })()}
+                          <text x="2" y="55" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)" transform="rotate(-90,5,55)">IV %</text>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/20 mt-2">数据来源：各腿 Deribit mark_iv · 点击刷新按钮更新</p>
+                </Panel>
+              )}
             </div>
           </div>
         </div>
@@ -564,6 +2582,8 @@ export function PositionBuilder() {
           input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
           input[type="number"] { -moz-appearance: textfield; }
           select option { background: #1a1a24; color: rgba(255,255,255,0.8); }
+          .price-flash-up { color: var(--nexus-green); }
+          .price-flash-down { color: var(--nexus-red); }
         `}</style>
       </div>
     </div>

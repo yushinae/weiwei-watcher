@@ -265,8 +265,8 @@ export default function App() {
           <TickerBar />
         </div>
 
-        <div className="flex items-center gap-2 ml-6 shrink-0">
-          <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 ml-8 shrink-0">
+          <div className="flex items-center gap-2">
             <DigitalClock />
             <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-surface-2/60 px-3 py-2 ring-1 ring-inset ring-border-subtle/70">
               <span className="relative flex h-4 w-4 items-center justify-center">

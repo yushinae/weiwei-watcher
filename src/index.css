@@ -133,16 +133,25 @@ body {
 @layer utilities {
   @keyframes shimmer {
     0% {
-      transform: translateX(-100%);
+      transform: translateX(-160%);
     }
 
     100% {
-      transform: translateX(100%);
+      transform: translateX(260%);
     }
   }
 
   .animate-shimmer {
-    animation: shimmer 2s infinite;
+    animation: shimmer 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
   }
 }
 
@@ -234,6 +243,10 @@ html.is-scrolling * {
   --nexus-text-dim: rgba(255, 255, 255, 0.32);
   --nexus-radius: 18px;
 
+  /* ── 毛玻璃材质变量（深色主题默认值） ─── */
+  --widget-glass:     rgba(24, 24, 28, 0.76);   /* 卡片主背景 */
+  --widget-glass-dim: rgba(18, 18, 22, 0.68);   /* 次级面板/导航栏 */
+
   /* ── 卡片层叠透明度系统 ─── */
   --base:          rgba(26, 26, 30, 0.80);  /* 卡片主背景 */
   --base-dim:      rgba(26, 26, 30, 0.70);  /* 顶栏/次要面板 */
@@ -273,13 +286,15 @@ html.is-scrolling * {
 /* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
 .widget-card {
   background: var(--widget-glass);
-  backdrop-filter: blur(22px) saturate(1.5);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
   border-radius: var(--nexus-radius);
   box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.40),
-    0 2px 8px rgba(0, 0, 0, 0.20);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   padding: 8px;
   color: rgba(255, 255, 255, 0.86);
   transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
@@ -291,8 +306,10 @@ html.is-scrolling * {
 .widget-card:not(.is-fullscreen):hover {
   transform: translateY(calc(var(--lift-card) * -1));
   box-shadow:
-    0 10px 36px rgba(0, 0, 0, 0.45),
-    0 3px 10px rgba(0, 0, 0, 0.25);
+    0 12px 42px rgba(0, 0, 0, 0.52),
+    0 4px 14px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14);
 }
 
 .widget-card.is-fullscreen {
@@ -385,7 +402,8 @@ html.is-scrolling * {
 .widget-meta {
   font-size: 9px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.22);
+  letter-spacing: 0.01em;
   margin-top: 1px;
 }
 
@@ -849,4 +867,107 @@ html.is-scrolling * {
 
 .glow-brand {
   text-shadow: 0 0 14px rgba(37, 232, 137, 0.55);
+}
+
+/* ── Chart helpers ── */
+/* Wraps an inline SVG chart — removes bottom gap from svg display:inline */
+.chart-wrap {
+  display: block;
+  width: 100%;
+  line-height: 0;
+}
+
+/* Skeleton content block — pulse without shimmer sweep */
+.skel-block {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+/* ── Widget empty / loading inline state ── */
+.widget-idle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+}
+
+.widget-idle-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.20);
+  letter-spacing: 0.02em;
+}
+
+/* ── Subtle divider used inside widget body ── */
+.widget-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 8px 0;
+}
+
+/* ── Number badge pills ── */
+.badge-green {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(37, 167, 80, 0.15);
+  color: var(--nexus-green);
+}
+
+.badge-red {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(202, 63, 100, 0.15);
+  color: var(--nexus-red);
+}
+
+.badge-yellow {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--nexus-yellow);
+}
+
+/* ── Stat mini card (used in compact kpi rows) ── */
+.kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.kpi-label {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.kpi-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.90);
 }

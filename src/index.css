@@ -56,8 +56,8 @@ body {
 /* EFFECT 1: 毛玻璃卡片 — 22px 模糊 macOS Widget 风格 */
 .glass {
   background: var(--widget-glass);
-  backdrop-filter: blur(22px) saturate(1.5);
-  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 18px;
   box-shadow:
@@ -68,8 +68,8 @@ body {
 /* EFFECT 2: 毛玻璃顶栏 — 30px 强模糊 + 更透底 */
 .glass-header {
   background: var(--widget-glass-dim);
-  backdrop-filter: blur(30px) saturate(1.6);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   box-shadow:
@@ -82,6 +82,8 @@ body {
   background: #000;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: none;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* 毛玻璃导航栏变体：全宽无圆角 + 底部边框（用于 MonitorHeader / 次级顶栏） */
@@ -166,6 +168,7 @@ body {
   --monitor-accent-btc: #F59E0B;
   --monitor-accent-eth: #25e889;
   --monitor-gridline: rgba(42, 42, 42, 0.9);
+  background: var(--color-bg-base);
 }
 
 /* 期权链数字：Inter tabular-nums，无 Mono */
@@ -286,8 +289,8 @@ html.is-scrolling * {
 /* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
 .widget-card {
   background: var(--widget-glass);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border-radius: var(--nexus-radius);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.45),

@@ -72,7 +72,6 @@ export default function MonitorPage() {
   return (
     <div
       className="absolute inset-0 monitor-scope flex flex-col text-slate-200"
-      style={{ backdropFilter: 'blur(30px) saturate(1.6)', WebkitBackdropFilter: 'blur(30px) saturate(1.6)' }}
     >
       {/* Global SVG gradient defs — referenced by all inline chart SVGs */}
       <GlobalGradDefs />

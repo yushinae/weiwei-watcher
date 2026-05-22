@@ -414,7 +414,7 @@ function evalAlerts(coin: Coin): void {
 // VOLOVERVIEW WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VolOverviewWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data, loading } = useDeribitOptions(coin);
@@ -533,8 +533,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // IV SIGNAL WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -679,7 +678,7 @@ function generateSignals(
   return signals;
 }
 
-export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const IVSignalWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading }    = useDeribitOptions(coin);
   const { data: histData }   = useDeribitHistory(coin);
@@ -727,13 +726,12 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
       ))}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // LIVE OPTIONS CHAIN WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const LiveOptionsChainWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -863,13 +861,12 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // IMPLIED MOVE WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const ImpliedMoveWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -928,13 +925,12 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       })}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPOT TICKER WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const SpotTickerWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [snap, setSnap] = useState<TickerSnapshot | null>(null);
@@ -1017,8 +1013,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       <Stat label="期权成交" value={`$${snap.optVol24h_M.toFixed(0)}M`} />
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // SENTIMENT COMPOSITE WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1056,7 +1051,7 @@ async function computeSentiment(coin: Coin): Promise<{ composite: number; factor
   return { composite, factors };
 }
 
-export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const SentimentCompositeWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [result, setResult] = useState<{ composite: number; factors: SentFactor[] } | null>(null);
@@ -1141,13 +1136,12 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // ORDERBOOK DEPTH WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const OrderbookDepthWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [ob, setOb] = useState<{ bids: [number, number][]; asks: [number, number][]; mark: number; spread: number } | null>(null);
@@ -1227,13 +1221,12 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // ALERTS WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const AlertsWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [alerts, setAlerts] = useState<UserAlert[]>([...ALERTS_STORE]);
@@ -1346,13 +1339,12 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
       )}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // BLOCK TRADE WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const BlockTradeWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { trades, loading } = useBlockTrades(coin);
   const { setHeaderRight } = useCardHeader();
@@ -1453,15 +1445,14 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // STRATEGY PRICER WIDGET
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { bsCall as mBsCall, bsPut as mBsPut } from '../lib/bs-math';
 
-export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const StrategyPricerWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -1577,4 +1568,4 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
+)};

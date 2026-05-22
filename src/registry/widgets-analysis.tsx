@@ -139,7 +139,7 @@ function classifyRegime(
   return { regime, confidence, ...INFO[regime] };
 }
 
-export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VolRegimeWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin }      = useCoinControl({ coin: coinProp, onCoinChange });
   const { data }               = useDeribitOptions(coin);
   const { data: hist }         = useDeribitHistory(coin);
@@ -244,8 +244,7 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // GreeksScenarioWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -253,7 +252,7 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
 const SCEN_SPOT = [-15, -10, -7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15];
 const SCEN_IV   = [-20, -10, -5, 0, 5, 10, 20];
 
-export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const GreeksScenarioWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [ddata, setDdata] = useState<DeribitData | null>(null);
@@ -386,15 +385,14 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // PriceTargetProbWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const PROB_STRIKE_OFFSETS = [-0.20, -0.15, -0.10, -0.07, -0.04, 0, +0.04, +0.07, +0.10, +0.15, +0.20];
 
-export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const PriceTargetProbWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -503,13 +501,12 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // EWMAForecastWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const EWMAForecastWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin }   = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: hist }      = useDeribitHistory(coin);
   const { data: optData }   = useDeribitOptions(coin);
@@ -671,13 +668,12 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // TenorIVHeatmapWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const TenorIVHeatmapWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const TenorIVHeatmapWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -803,8 +799,7 @@ export const TenorIVHeatmapWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // BTCETHSpreadWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -823,7 +818,7 @@ function useDualHistory() {
   return { btc, eth };
 }
 
-export const BTCETHSpreadWidget = () => {
+export const BTCETHSpreadWidget = React.memo(() => {
   const { btc, eth } = useDualHistory();
   const { setHeaderRight } = useCardHeader();
 
@@ -919,8 +914,7 @@ export const BTCETHSpreadWidget = () => {
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // CorrelationWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -970,7 +964,7 @@ function rollingCorr(x: number[], y: number[], win: number): number[] {
   });
 }
 
-export const CorrelationWidget = () => {
+export const CorrelationWidget = React.memo(() => {
   const [corrSeries, setCorrSeries] = useState<number[]>([]);
   const [current, setCurrent] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1031,15 +1025,14 @@ export const CorrelationWidget = () => {
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // IVCheapnessWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const CONE_TENORS2 = [7, 14, 30, 60, 90, 180];
 
-export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const IVCheapnessWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [opt, setOpt]   = useState<DeribitData | null>(null);
@@ -1179,4 +1172,4 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
+)};

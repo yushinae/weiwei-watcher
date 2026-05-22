@@ -45,7 +45,7 @@ async function refreshWatchItems(): Promise<WatchItem[]> {
   return results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<WatchItem>).value);
 }
 
-export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const WatchlistWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [items, setItems] = useState<WatchItem[]>([]);
@@ -139,8 +139,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
       )}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // PositionTracker + PayoffProfile shared
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -192,7 +191,7 @@ async function fetchLivePositions(positions: UserPosition[]): Promise<LivePositi
   }));
 }
 
-export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const PositionTrackerWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [positions, setPositions] = useState<UserPosition[]>([...POS_STORE]);
@@ -340,8 +339,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
       )}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // PayoffProfileWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -355,7 +353,7 @@ function parseInstForPayoff(inst: string): { K: number; type: 'C' | 'P'; expiryL
   return { K, type: typeStr === 'C' ? 'C' : 'P', expiryLabel: expiryRaw };
 }
 
-export const PayoffProfileWidget = () => {
+export const PayoffProfileWidget = React.memo(() => {
   const { setHeaderRight } = useCardHeader();
   const [live, setLive] = useState<LivePosition[]>([]);
   const [posCount, setPosCount] = useState(POS_STORE.length);
@@ -472,15 +470,14 @@ export const PayoffProfileWidget = () => {
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // VerticalSpreadPricerWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
 type SpreadType = 'bull-call' | 'bear-put' | 'risk-reversal';
 
-export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VerticalSpreadPricerWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [ddata, setDdata]         = useState<DeribitData | null>(null);
@@ -686,13 +683,12 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
       )}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // RollCostWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const RollCostWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data: ddata, loading } = useCoinData(coin);
@@ -771,8 +767,7 @@ export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
       </div>
     </div>
   );
-};
-
+)};
 function useCoinData(coin: Coin) {
   const [data, setData] = useState<DeribitData | null>(null);
   const [loading, setLoading] = useState(true);

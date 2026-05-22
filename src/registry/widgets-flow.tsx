@@ -16,7 +16,7 @@ import {
 // FundingRateWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const FundingRateWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useFlowData(coin);
   const { setHeaderRight } = useCardHeader();
@@ -95,13 +95,12 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // FuturesBasisWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const FuturesBasisWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useFlowData(coin);
   const { setHeaderRight } = useCardHeader();
@@ -161,13 +160,12 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // OptionsFlowWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const OptionsFlowWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -255,8 +253,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // FearGreedWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -272,7 +269,7 @@ function fgColor(v: number) {
   return FG_ZONES.find(z => v >= z.min && v <= z.max)?.color ?? '#F59E0B';
 }
 
-export const FearGreedWidget = () => {
+export const FearGreedWidget = React.memo(() => {
   // Reuse the shared poller from useFlowData
   const [fearGreed, setFearGreed] = useState<{ value: number; label: string; ts: number }[]>([]);
   const [currentFG, setCurrentFG] = useState<number>(50);
@@ -392,13 +389,12 @@ export const FearGreedWidget = () => {
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // PCRHistoryWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const PCRHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const PCRHistoryWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -496,8 +492,7 @@ export const PCRHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // PremiumFlowWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -591,7 +586,7 @@ function processPremiumFlow(coin: Coin, trades: RawOptionTrade[]): void {
   PFLOW_LAST2.set(coin, trades[0]?.id ?? lastId ?? '');
 }
 
-export const PremiumFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const PremiumFlowWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [series, setSeries] = useState<{ ts: number; c: number; p: number }[]>([]);
@@ -656,8 +651,7 @@ export const PremiumFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // LargeTradeAlertWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -681,7 +675,7 @@ function processLargeTrades(coin: Coin, trades: RawOptionTrade[], minUSD: number
   }
 }
 
-export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const LargeTradeAlertWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [trades, setTrades] = useState<RawOptionTrade[]>([]);
@@ -778,4 +772,4 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
       )}
     </div>
   );
-};
+)};

@@ -50,7 +50,7 @@ function maxPain(exp: ExpiryGroup, spot: number): number {
 // OIByStrikeWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const OIByStrikeWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -232,13 +232,12 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // GEXWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const GEXWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -385,13 +384,12 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // DEXWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const DEXWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -501,13 +499,12 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // KeyLevelsWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const KeyLevelsWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -628,13 +625,12 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // ExpiryCalendarWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const ExpiryCalendarWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -755,13 +751,12 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // TopOIWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const TopOIWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -856,8 +851,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
       </div>
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // OIDeltaWidget
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -900,7 +894,7 @@ async function fetchOIDelta(coin: Coin): Promise<OIDeltaRow[]> {
   return rowsI.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 20);
 }
 
-export const OIDeltaWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const OIDeltaWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [rows, setRows] = useState<OIDeltaRow[]>([]);
@@ -1006,13 +1000,12 @@ export const OIDeltaWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
       )}
     </div>
   );
-};
-
+)};
 // ═══════════════════════════════════════════════════════════════════════════════
 // GammaPinWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const GammaPinWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data: ddata, loading } = useDeribitOptions(coin);
@@ -1100,4 +1093,4 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
       </div>
     </div>
   );
-};
+)};

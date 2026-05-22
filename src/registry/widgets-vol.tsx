@@ -308,7 +308,7 @@ export const VolSmileWidget = ({
   );
 };
 
-export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VRPHistoryWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: histData } = useDeribitHistory(coin);
   const vrpData = histData?.vrp ?? VRP_HIST[coin];
@@ -329,9 +329,8 @@ export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
-export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+)};
+export const IVRankHistoryWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: histData } = useDeribitHistory(coin);
   const ivrData = histData?.ivr ?? IVR_HIST[coin];
@@ -352,11 +351,10 @@ export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinContro
       </div>
     </div>
   );
-};
-
+)};
 const CONE_TENOR_TARGETS = [7, 14, 30, 60, 90, 180];
 
-export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VolConeWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: histData } = useDeribitHistory(coin);
   const { data: optData } = useDeribitOptions(coin);
@@ -405,12 +403,11 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
       </div>
     </div>
   );
-};
-
+)};
 const FIXED_TENORS_DAYS = [7, 14, 30, 60, 90, 180, 365] as const;
 const FIXED_TENOR_LABELS = FIXED_TENORS_DAYS.map(d => `${d}D`);
 
-export const FixedTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const FixedTenorWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: histData } = useDeribitHistory(coin);
   const { data: optData } = useDeribitOptions(coin);
@@ -454,9 +451,8 @@ export const FixedTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
-export const ImpliedDistWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+)};
+export const ImpliedDistWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data } = useDeribitOptions(coin);
   const mock = VOL[coin];
@@ -467,8 +463,7 @@ export const ImpliedDistWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       <ImpliedDistChart spot={spot} iv30={iv30} />
     </WidgetShell>
   );
-};
-
+)};
 const SURFACE_ROWS: { label: string; type: 'C' | 'P'; delta: number }[] = [
   { label: '10P', type: 'P', delta: 0.10 },
   { label: '25P', type: 'P', delta: 0.25 },
@@ -560,7 +555,7 @@ export const IVSurfaceWidget = ({
   );
 };
 
-export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const OptionsSkewWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data, loading } = useDeribitOptions(coin);
@@ -623,11 +618,10 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       }
     </div>
   );
-};
-
+)};
 // ── DVOLSeriesWidget ─────────────────────────────────────────────────────
 
-export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const DVOLSeriesWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: histData } = useDeribitHistory(coin);
   const { setHeaderRight } = useCardHeader();
@@ -707,8 +701,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
+)};
 // ── SkewHistoryWidget ─────────────────────────────────────────────────────
 
 const SKEW_TENOR_COLORS: Record<string, string> = {
@@ -716,7 +709,7 @@ const SKEW_TENOR_COLORS: Record<string, string> = {
   '30D': '#F59E0B', '60D': '#84cc16', '90D': '#4ea1ff',
 };
 
-export const SkewHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const SkewHistoryWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -824,13 +817,12 @@ export const SkewHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ── VannaCharmWidget ──────────────────────────────────────────────────────
 
 import { bsVanna, bsCharm, heatColor } from '../lib/bs-math';
 
-export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const VannaCharmWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -964,11 +956,10 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
-
+)};
 // ── TermStructureDriftWidget ──────────────────────────────────────────────
 
-export const TermStructureDriftWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const TermStructureDriftWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -1069,11 +1060,10 @@ export const TermStructureDriftWidget = ({ coin: coinProp, onCoinChange }: CoinC
       </div>
     </div>
   );
-};
-
+)};
 // ── DollarGreeksWidget ────────────────────────────────────────────────────
 
-export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const DollarGreeksWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
@@ -1166,13 +1156,12 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       ))}
     </div>
   );
-};
-
+)};
 // ── RVvsIVTenorWidget ─────────────────────────────────────────────────────
 
 const RV_IV_TENORS = [7, 14, 30, 60, 90, 180] as const;
 
-export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const RVvsIVTenorWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data }          = useDeribitOptions(coin);
   const { data: hist }    = useDeribitHistory(coin);
@@ -1286,11 +1275,10 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       </div>
     </div>
   );
-};
-
+)};
 // ── CalendarSpreadWidget ──────────────────────────────────────────────────
 
-export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const CalendarSpreadWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data: ddata, loading } = useDeribitOptions(coin);
@@ -1349,11 +1337,10 @@ export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
     </div>
   );
-};
-
+)};
 // ── ForwardVolWidget ──────────────────────────────────────────────────────
 
-export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
+export const ForwardVolWidget = React.memo(({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const { data: ddata, loading } = useDeribitOptions(coin);
@@ -1416,4 +1403,4 @@ export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
     </div>
   );
-};
+)};

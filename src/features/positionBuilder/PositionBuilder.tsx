@@ -1091,6 +1091,7 @@ export function PositionBuilder() {
 
   // ── Connect the two charts for synchronized crosshair ─────────────────────
   useEffect(() => {
+    if (activeTab !== 'chart') return;
     const id = setTimeout(() => {
       const pl = plChartRef.current?.getEchartsInstance();
       const dg = dgChartRef.current?.getEchartsInstance();
@@ -1100,7 +1101,7 @@ export function PositionBuilder() {
       echarts.connect('posBuilder');
     }, 200);
     return () => clearTimeout(id);
-  }, []);
+  }, [activeTab]);
   // ─────────────────────────────────────────────────────────────────────────────
 
   const gClass = (val: number) => val > 0 ? 'text-[var(--nexus-green)]' : (val < 0 ? 'text-[var(--nexus-red)]' : 'text-white/40');

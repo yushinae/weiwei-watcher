@@ -325,7 +325,7 @@ export default function App() {
         <div className="flex items-center gap-2 ml-8 shrink-0">
           <div className="flex items-center gap-2">
             <DigitalClock />
-            <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-surface-2/60 px-3 py-2 ring-1 ring-inset ring-border-subtle/70 hover:bg-surface-2/80 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
+            <div className="hidden md:flex items-center gap-2 rounded-[12px] bg-white/5 px-3 py-2 ring-1 ring-inset ring-border-subtle/70 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)]">
               <span className="relative flex h-4 w-4 items-center justify-center">
                 <span className="absolute h-4 w-4 animate-ping rounded-full bg-trade-up/60" />
                 <span className="relative h-2 w-2 rounded-full bg-trade-up" />

@@ -3,8 +3,7 @@ import { cn } from '../lib/utils';
 import { useCardHeader } from '../components/card/WidgetCard';
 import type { Coin } from '../features/monitor/types';
 import {
-  BTC_POLY, ETH_POLY,
-  FIXED_TENOR_VAR, VOL_CONE,
+  VOL_CONE,
   VRP_HIST, IVR_HIST,
   VOL,
 } from '../features/monitor/data/mock';
@@ -912,93 +911,6 @@ const VolConeChart = ({
     </svg>
   );
 };
-
-const FixedTenorChart = ({
-  tenors,
-  atmIVs,
-  rvs,
-}: {
-  tenors: string[];
-  atmIVs: number[];   // ATM IV at each tenor (from options chain)
-  rvs: number[];      // rolling realized vol at same windows
-}) => {
-  const W = 320, H = 140, px = 28, py = 14;
-  const allV = [...atmIVs, ...rvs].filter(v => v > 0);
-  if (!allV.length) return <Skeleton />;
-  const hi = Math.ceil(Math.max(...allV) / 10) * 10 + 5;
-  function fy(v: number) { return (H - py) - (v / hi) * (H - 2 * py); }
-  const n = tenors.length;
-  const barW = (W - 2 * px) / n;
-  const bw = barW * 0.3;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-      {[0, 15, 30, 45, 60].filter(v => v <= hi).map(v => (
-        <React.Fragment key={v}>
-          <line x1={px} y1={fy(v)} x2={W - px} y2={fy(v)} stroke={GRID} strokeWidth={0.5} />
-          <text x={px - 4} y={fy(v) + 3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
-        </React.Fragment>
-      ))}
-      {tenors.map((t, i) => {
-        const cx = px + i * barW + barW / 2;
-        const iv = atmIVs[i] ?? 0;
-        const rv = rvs[i] ?? 0;
-        return (
-          <React.Fragment key={t}>
-            <rect x={cx - bw - 1} y={fy(iv)} width={bw} height={Math.max(0, fy(0) - fy(iv))} rx={1.5} fill="rgba(37,232,137,0.55)" />
-            <rect x={cx + 1}      y={fy(rv)} width={bw} height={Math.max(0, fy(0) - fy(rv))} rx={1.5} fill="rgba(37,167,80,0.42)" />
-            <text x={cx} y={H - 3} textAnchor="middle" fontSize={7} fill={TXT}>{t}</text>
-          </React.Fragment>
-        );
-      })}
-      <rect x={px} y={5} width={8} height={6} rx={1} fill="rgba(37,232,137,0.55)" />
-      <text x={px + 11} y={10} fontSize={7} fill={TXT}>ATM IV</text>
-      <rect x={px + 50} y={5} width={8} height={6} rx={1} fill="rgba(37,167,80,0.42)" />
-      <text x={px + 61} y={10} fontSize={7} fill={TXT}>已实现 RV</text>
-    </svg>
-  );
-};
-
-// Dynamic implied distribution – recomputes when spot/iv change
-function lnDistPts(S: number, iv: number, T: number, pts = 80) {
-  const sigma = (iv / 100) * Math.sqrt(T / 365);
-  const mu = Math.log(S) - 0.5 * sigma * sigma;
-  return Array.from({ length: pts }, (_, i) => {
-    const x = S * (0.55 + (i * 0.9) / (pts - 1));
-    const z = (Math.log(x) - mu) / sigma;
-    return { x, y: Math.exp(-0.5 * z * z) / (x * sigma * Math.sqrt(2 * Math.PI)) };
-  });
-}
-
-const ImpliedDistChart = ({ spot, iv30 }: { spot: number; iv30: number }) => {
-  const data = lnDistPts(spot, iv30, 30);
-  const W = 320, H = 140, px = 8, py = 12;
-  const xs = data.map(d => d.x); const ys = data.map(d => d.y);
-  const lo = Math.min(...xs); const hi = Math.max(...xs);
-  const yHi = Math.max(...ys) * 1.1;
-  function fx(x: number) { return px + ((x - lo) / (hi - lo)) * (W - 2 * px); }
-  function fy(y: number) { return (H - py) - (y / yHi) * (H - 2 * py); }
-  const curvePts: [number, number][] = data.map(d => [fx(d.x), fy(d.y)]);
-  const aFill = `${smooth(curvePts)} L ${curvePts[curvePts.length - 1][0].toFixed(1)} ${fy(0)} L ${curvePts[0][0].toFixed(1)} ${fy(0)} Z`;
-  const sigma = (iv30 / 100) * Math.sqrt(30 / 365) * spot;
-  const xS = fx(spot);
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-      <path d={`M ${fx(spot - sigma)} ${py} L ${fx(spot - sigma)} ${H - py} L ${fx(spot + sigma)} ${H - py} L ${fx(spot + sigma)} ${py} Z`} fill="rgba(37,232,137,0.06)" />
-      <line x1={px} y1={H - py} x2={W - px} y2={H - py} stroke={GRID} strokeWidth={0.5} />
-      <path d={aFill} fill="rgba(37,232,137,0.10)" />
-      <path d={smooth(curvePts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <line x1={fx(spot - sigma)} y1={py} x2={fx(spot - sigma)} y2={H - py} stroke="rgba(37,232,137,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
-      <line x1={fx(spot + sigma)} y1={py} x2={fx(spot + sigma)} y2={H - py} stroke="rgba(37,232,137,0.3)" strokeWidth={0.8} strokeDasharray="3,2" />
-      <line x1={xS} y1={py} x2={xS} y2={H - py} stroke={YELLOW} strokeWidth={1} strokeDasharray="2,2" />
-      {[-2, -1, 0, 1, 2].map(k => {
-        const x = fx(spot + k * sigma);
-        const lbl = k === 0 ? 'S' : `${k > 0 ? '+' : ''}${k}σ`;
-        return <text key={k} x={x} y={H - 3} textAnchor="middle" fontSize={7} fill={k === 0 ? YELLOW : TXT}>{lbl}</text>;
-      })}
-    </svg>
-  );
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // useCoinControl + WidgetShell
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1311,72 +1223,6 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
     </div>
   );
 };
-
-const FIXED_TENORS_DAYS = [7, 14, 30, 60, 90, 180, 365] as const;
-const FIXED_TENOR_LABELS = FIXED_TENORS_DAYS.map(d => `${d}D`);
-
-export const FixedTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: histData } = useDeribitHistory(coin);
-  const { data: optData } = useDeribitOptions(coin);
-  const mock = FIXED_TENOR_VAR[coin];
-  const { setHeaderRight } = useCardHeader();
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        {(histData && optData) && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, histData, optData]);
-
-  const hasReal = !!(histData && optData);
-
-  // ATM IVs: pick options chain closest to each tenor
-  const atmIVs: number[] = FIXED_TENORS_DAYS.map((days, i) => {
-    if (optData?.expiries.length) {
-      const e = optData.expiries.reduce((best, ex) =>
-        Math.abs(ex.daysToExp - days) < Math.abs(best.daysToExp - days) ? ex : best
-      );
-      return e.atmIV;
-    }
-    return mock.varSwap[i] ?? 0;
-  });
-
-  // Rolling RV: from history rvByTenor (indexed same as FIXED_TENORS_DAYS)
-  const rvs: number[] = FIXED_TENORS_DAYS.map((_, i) =>
-    histData?.rvByTenor[i] ?? mock.rv[i] ?? 0
-  );
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
-        <FixedTenorChart
-          tenors={hasReal ? FIXED_TENOR_LABELS : mock.tenors as string[]}
-          atmIVs={hasReal ? atmIVs : mock.varSwap as number[]}
-          rvs={hasReal ? rvs : mock.rv as number[]}
-        />
-      </div>
-    </div>
-  );
-};
-
-// ImpliedDist uses real spot + 30D IV when available
-export const ImpliedDistWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data } = useDeribitOptions(coin);
-  const mock = VOL[coin];
-  const spot = data?.spot ?? (coin === 'BTC' ? 95000 : 3200);
-  const iv30 = data?.dvol30 ?? mock.iv30;
-  return (
-    <WidgetShell coin={coin} setCoin={setCoin}>
-      <ImpliedDistChart spot={spot} iv30={iv30} />
-    </WidgetShell>
-  );
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // IVSurfaceWidget – real data
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1542,10 +1388,6 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     </div>
   );
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PolymarketWidget – mock
-// ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // LiveOptionsChainWidget – near-ATM options chain table
@@ -7886,45 +7728,6 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-export const PolymarketWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { setHeaderRight } = useCardHeader();
-  useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight]);
-  const markets = coin === 'BTC' ? BTC_POLY : ETH_POLY;
-  return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
-      <div className="flex items-center px-3 pt-2 pb-1.5 shrink-0">
-        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Polymarket</span>
-      </div>
-      {markets.map((m, i) => {
-        const yc = m.yes >= 50 ? '#25a750' : '#F59E0B';
-        return (
-          <div key={i} className="px-3 py-2.5 border-t border-surface-4 hover:bg-surface-2 transition-colors cursor-pointer">
-            <p className="text-[11px] text-slate-300 leading-snug mb-2">{m.q}</p>
-            <div className="flex h-1 rounded-full overflow-hidden bg-surface-4 mb-1.5">
-              <div className="h-full" style={{ width: `${m.yes}%`, backgroundColor: yc }} />
-              <div className="h-full flex-1 bg-rose-500/20" />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <span className="text-[10px] font-mono font-bold tnum" style={{ color: yc }}>YES {m.yes}%</span>
-                <span className="text-[10px] font-mono font-bold tnum text-rose-400/60">NO {100 - m.yes}%</span>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-[9px] text-slate-700">{m.vol}</span>
-                <span className="text-[9px] font-mono text-slate-700">{m.end}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 };

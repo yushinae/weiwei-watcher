@@ -89,8 +89,8 @@ body {
 /* 毛玻璃导航栏变体：全宽无圆角 + 底部边框（用于 MonitorHeader / 次级顶栏） */
 .glass-nav {
   background: var(--widget-glass-dim);
-  backdrop-filter: blur(30px) saturate(1.6);
-  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: none;
 }
@@ -201,11 +201,12 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgba(37, 232, 137, 0);
   border-radius: 999px;
-  transition: background-color 0.3s ease;
+  will-change: background-color;
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb {
   background: rgba(37, 232, 137, 0.65);
+  will-change: auto;
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb:active {
@@ -300,19 +301,16 @@ html.is-scrolling * {
   border: 1px solid rgba(255, 255, 255, 0.07);
   padding: 8px;
   color: rgba(255, 255, 255, 0.86);
-  transition: transform var(--dur-card) var(--ease-emphasis), box-shadow var(--dur-card) var(--ease-emphasis);
+  transition: box-shadow var(--dur-card) var(--ease-emphasis);
   /* flex 列布局：header → body(撑满) → footer */
   display: flex;
   flex-direction: column;
 }
 
 .widget-card:not(.is-fullscreen):hover {
-  transform: translateY(calc(var(--lift-card) * -1));
   box-shadow:
     0 12px 42px rgba(0, 0, 0, 0.52),
-    0 4px 14px rgba(0, 0, 0, 0.30),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+    0 4px 14px rgba(0, 0, 0, 0.30);
 }
 
 .widget-card.is-fullscreen {
@@ -426,7 +424,7 @@ html.is-scrolling * {
   color: rgba(255, 255, 255, 0.2);
   border: none;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: opacity 0.15s, color 0.15s;
   background: transparent;
 }
 
@@ -779,7 +777,8 @@ html.is-scrolling * {
 .pred-bar .fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.4s;
+  transform-origin: left center;
+  transition: transform 0.4s;
 }
 
 .pred-bar .fill.yes {

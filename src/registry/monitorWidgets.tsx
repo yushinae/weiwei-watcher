@@ -407,6 +407,7 @@ async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData
 function useDeribitOptions(coin: Coin) {
   const [data, setData] = useState<DeribitData | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastFetchedRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -415,7 +416,13 @@ function useDeribitOptions(coin: Coin) {
       `options-${coin}`,
       () => fetchDeribitOptions(coin),
       CACHE_TTL,
-      d => { if (active) { setData(d); setLoading(false); } },
+      d => {
+        if (!active) return;
+        if (d.fetchedAt === lastFetchedRef.current && data !== null) return;
+        lastFetchedRef.current = d.fetchedAt;
+        setData(d);
+        setLoading(false);
+      },
     );
     return () => { active = false; unsub(); };
   }, [coin]);
@@ -559,6 +566,7 @@ async function fetchDeribitHistory(currency: 'BTC' | 'ETH'): Promise<HistoryData
 
 function useDeribitHistory(coin: Coin) {
   const [data, setData] = useState<HistoryData | null>(null);
+  const lastFetchedRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -566,7 +574,12 @@ function useDeribitHistory(coin: Coin) {
       `history-${coin}`,
       () => fetchDeribitHistory(coin),
       HIST_TTL,
-      d => { if (active) setData(d); },
+      d => {
+        if (!active) return;
+        if (d.fetchedAt === lastFetchedRef.current && data !== null) return;
+        lastFetchedRef.current = d.fetchedAt;
+        setData(d);
+      },
     );
     return () => { active = false; unsub(); };
   }, [coin]);

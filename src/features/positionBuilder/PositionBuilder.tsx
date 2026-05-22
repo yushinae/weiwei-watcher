@@ -247,6 +247,18 @@ export function PositionBuilder() {
   const prevPriceRef = useRef<number | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const defer = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(fn, ms);
+    deferredTimersRef.current.push(id);
+    return id;
+  }, []);
+
+  const clearDeferred = useCallback(() => {
+    deferredTimersRef.current.forEach(clearTimeout);
+    deferredTimersRef.current = [];
+  }, []);
 
   const plChartRef = useRef<ReactECharts>(null);
   const dgChartRef = useRef<ReactECharts>(null);
@@ -330,7 +342,13 @@ export function PositionBuilder() {
     return () => {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      ws?.close();
+      if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.onopen = null;
+        ws.close();
+      }
     };
   }, [symbol]);
   // ───────────────────────────────────────────────────────────────────────────
@@ -511,10 +529,11 @@ export function PositionBuilder() {
     setNextId(idCounter);
 
     // Fetch tickers for snapped legs (defer to let React commit state first)
+    clearDeferred();
     snapped.forEach(leg => {
-      if (leg.instrumentName) setTimeout(() => fetchTicker(leg.id, leg.instrumentName!), 50);
+      if (leg.instrumentName) defer(() => fetchTicker(leg.id, leg.instrumentName!), 50);
     });
-  }, [spot, symbol, repriceEntry, expiryGroups, fetchTicker]);
+  }, [spot, symbol, repriceEntry, expiryGroups, fetchTicker, clearDeferred, defer]);
 
   const refreshAllTickers = useCallback(() => {
     legs.forEach(leg => {
@@ -1304,8 +1323,8 @@ export function PositionBuilder() {
                                 onChange={e => {
                                   const type = e.target.value as 'call' | 'put';
                                   updateLeg(leg.id, { type, instrumentName: undefined, legIv: undefined });
-                                  // Re-resolve instrument with new type
-                                  setTimeout(() => resolveInstrument(leg.id, { ...leg, type }), 0);
+                                  clearDeferred();
+                                  defer(() => resolveInstrument(leg.id, { ...leg, type }), 0);
                                 }}
                                 className={selectCls}>
                                 <option value="call">看涨 Call</option>
@@ -1328,7 +1347,8 @@ export function PositionBuilder() {
                                     group.strikes[0] ?? leg.K
                                   ) ?? leg.K;
                                   updateLeg(leg.id, { expiryTs: ts, K: atmK });
-                                  setTimeout(() => resolveInstrument(leg.id, { ...leg, expiryTs: ts, K: atmK }), 0);
+                                  clearDeferred();
+                                  defer(() => resolveInstrument(leg.id, { ...leg, expiryTs: ts, K: atmK }), 0);
                                 }}
                                 className={selectCls}
                               >
@@ -1347,7 +1367,8 @@ export function PositionBuilder() {
                                   onChange={e => {
                                     const K = parseFloat(e.target.value);
                                     updateLeg(leg.id, { K, instrumentName: undefined, legIv: undefined });
-                                    setTimeout(() => resolveInstrument(leg.id, { ...leg, K }), 0);
+                                    clearDeferred();
+                                    defer(() => resolveInstrument(leg.id, { ...leg, K }), 0);
                                   }}
                                   className={selectCls}
                                 >

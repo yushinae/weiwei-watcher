@@ -29,22 +29,18 @@ import {
   ExpiryCalendarWidget,
   DEXWidget,
   KeyLevelsWidget,
-  PCRHistoryWidget,
   ImpliedMoveWidget,
   DollarGreeksWidget,
   RVvsIVTenorWidget,
   TopOIWidget,
-  TermStructureDriftWidget,
   StrategyPricerWidget,
   BTCETHSpreadWidget,
   VolRegimeWidget,
   PriceTargetProbWidget,
   EWMAForecastWidget,
-  TenorIVHeatmapWidget,
   SpotTickerWidget,
   OIDeltaWidget,
   GreeksScenarioWidget,
-  PremiumFlowWidget,
   LargeTradeAlertWidget,
   CalendarSpreadWidget,
   ForwardVolWidget,
@@ -112,9 +108,6 @@ export default function MonitorPage() {
                 <WidgetCard title="波动率期限结构" headerDensity="compact" className="col-span-3 h-[440px]">
                   <VolOverviewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="策略快速定价（Straddle · Strangle · BE）" headerDensity="compact" className="col-span-12 h-[220px]">
-                  <StrategyPricerWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
               </div>
             )}
 
@@ -126,9 +119,6 @@ export default function MonitorPage() {
                 </WidgetCard>
                 <WidgetCard title="Skew 追踪（会话内）" headerDensity="compact" className="col-span-5 h-[210px]">
                   <SkewHistoryWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="期限结构漂移（会话内）" headerDensity="compact" className="col-span-2 h-[210px]">
-                  <TermStructureDriftWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="波动率微笑" headerDensity="compact" className="col-span-7 h-[300px]">
                   <VolSmileWidget
@@ -219,12 +209,6 @@ export default function MonitorPage() {
                 <WidgetCard title="恐慌贪婪指数（30D）" headerDensity="compact" className="col-span-5 h-[300px]">
                   <FearGreedWidget />
                 </WidgetCard>
-                <WidgetCard title="PCR 会话追踪" headerDensity="compact" className="col-span-12 h-[200px]">
-                  <PCRHistoryWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="净权利金流向（会话累计）" headerDensity="compact" className="col-span-12 h-[220px]">
-                  <PremiumFlowWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
                 <WidgetCard title="大单警报" headerDensity="compact" className="col-span-12 h-[360px]">
                   <LargeTradeAlertWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
@@ -248,9 +232,6 @@ export default function MonitorPage() {
                 </WidgetCard>
                 <WidgetCard title="BTC / ETH DVOL 价差（90D）" headerDensity="compact" className="col-span-12 h-[300px]">
                   <BTCETHSpreadWidget />
-                </WidgetCard>
-                <WidgetCard title="会话 IV 曲面热力图（期限 × 时间）" headerDensity="compact" className="col-span-12 h-[240px]">
-                  <TenorIVHeatmapWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="BTC / ETH 已实现相关系数（30日滚动）" headerDensity="compact" className="col-span-12 h-[200px]">
                   <CorrelationWidget />
@@ -281,9 +262,6 @@ export default function MonitorPage() {
                 </WidgetCard>
                 <WidgetCard title="策略快速定价（Straddle · Strangle · BE）" headerDensity="compact" className="col-span-7 h-[220px]">
                   <StrategyPricerWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="Straddle P&L 情景矩阵（Spot × IV）" headerDensity="compact" className="col-span-12 h-[380px]">
-                  <GreeksScenarioWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>
             )}

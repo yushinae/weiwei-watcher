@@ -10,10 +10,66 @@ import { cn } from './lib/utils';
 import MonitorPage from './pages/MonitorPage';
 import PositionBuilderPage from './pages/PositionBuilderPage';
 
-const MARKET_TICKERS = [
-  { symbol: 'BTCUSDT', price: '64,123.50', change: '+1.2%', up: true },
-  { symbol: 'ETHUSDT', price: '3,425.80', change: '+0.8%', up: true },
-];
+// ── Deribit index price hook ───────────────────────────────────────────────────
+
+interface TickerState {
+  symbol: string;
+  price: string;
+  change: string;
+  up: boolean;
+}
+
+function useDeribitIndexPrices(): TickerState[] {
+  const [tickers, setTickers] = useState<TickerState[]>([
+    { symbol: 'BTCUSDT', price: '—', change: '', up: true },
+    { symbol: 'ETHUSDT', price: '—', change: '', up: true },
+  ]);
+  const prevRef = useRef<{ btc: number; eth: number } | null>(null);
+  const baselineRef = useRef<{ btc: number; eth: number } | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [btcRes, ethRes] = await Promise.all([
+          fetch('https://www.deribit.com/api/v2/public/get_index_price?index_name=btc_usd'),
+          fetch('https://www.deribit.com/api/v2/public/get_index_price?index_name=eth_usd'),
+        ]);
+        const [btcJson, ethJson] = await Promise.all([btcRes.json(), ethRes.json()]);
+        const btc: number = btcJson?.result?.index_price ?? 0;
+        const eth: number = ethJson?.result?.index_price ?? 0;
+        if (!btc || !eth) return;
+
+        if (!baselineRef.current) {
+          baselineRef.current = { btc, eth };
+        }
+
+        const prev = prevRef.current;
+        const btcUp = prev ? btc >= prev.btc : true;
+        const ethUp = prev ? eth >= prev.eth : true;
+        prevRef.current = { btc, eth };
+
+        const base = baselineRef.current;
+        const btcChg = ((btc - base.btc) / base.btc) * 100;
+        const ethChg = ((eth - base.eth) / base.eth) * 100;
+        const fmtChg = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+        const fmtPx = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+        setTickers([
+          { symbol: 'BTCUSDT', price: fmtPx(btc), change: fmtChg(btcChg), up: btcUp },
+          { symbol: 'ETHUSDT', price: fmtPx(eth), change: fmtChg(ethChg), up: ethUp },
+        ]);
+      } catch {
+        // silently ignore network errors
+      }
+    };
+
+    load();
+    const id = setInterval(load, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  return tickers;
+}
 
 const TokenIcon = ({ symbol }: { symbol: string }) => {
   if (symbol.includes('BTC')) {
@@ -224,9 +280,10 @@ const AppNavigationDropdown = () => {
 };
 
 const TickerBar = () => {
+  const tickers = useDeribitIndexPrices();
   return (
     <div className="flex items-center w-full h-full justify-end gap-1.5 min-w-0">
-      {MARKET_TICKERS.map(({ symbol, price, change, up }) => (
+      {tickers.map(({ symbol, price, change, up }) => (
         <PriceTicker key={symbol} symbol={symbol} price={price} change={change} up={up} />
       ))}
     </div>

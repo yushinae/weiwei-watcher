@@ -276,7 +276,7 @@ function processDeribitResponse(results: any[]): DeribitData {
 }
 
 const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number }>();
-const CACHE_TTL = 30_000;
+const CACHE_TTL = 60_000;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shared polling scheduler
@@ -449,7 +449,7 @@ interface HistoryData {
 }
 
 const HIST_CACHE = new Map<string, { data: HistoryData; ts: number }>();
-const HIST_TTL = 300_000; // 5 min – history moves slowly
+const HIST_TTL = 900_000; // 15 min – history moves slowly
 
 // ── Rolling RV (annualised %) ────────────────────────────────────────────────
 function rollingRV(logRets: number[], window: number): number[] {
@@ -5456,10 +5456,11 @@ async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   const cur = coin === 'BTC' ? 'BTC' : 'ETH';
   const idx = coin === 'BTC' ? 'btc_usd' : 'eth_usd';
 
-  const [spotRes, perpRes, optRes] = await Promise.all([
+  const [spotRes, perpRes, optRes, optChain] = await Promise.all([
     fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${idx}`).then(r => r.json()),
     fetch(`https://www.deribit.com/api/v2/public/ticker?instrument_name=${cur}-PERPETUAL`).then(r => r.json()),
     fetch(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${cur}&kind=option`).then(r => r.json()),
+    fetchDeribitOptions(coin).catch(() => null),
   ]);
 
   const spot: number = spotRes.result?.index_price ?? 0;
@@ -5475,10 +5476,8 @@ async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   const optOI = books.reduce((s: number, b: any) => s + (b.open_interest ?? 0), 0);
   const optVol24h = books.reduce((s: number, b: any) => s + (b.volume_usd ?? 0), 0);
 
-  // DVOL index
-  const dvolKey = coin === 'BTC' ? 'btc_dvol' : 'eth_dvol';
-  const dvolRes = await fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${dvolKey}`).then(r => r.json()).catch(() => ({ result: null }));
-  const dvol: number = dvolRes.result?.index_price ?? 0;
+  // DVOL: use ATM 30D IV from options chain (get_index_price?index_name=btc_dvol returns 400)
+  const dvol: number = optChain?.dvol30 ?? 0;
 
   const data: TickerSnapshot = {
     spot,
@@ -5753,14 +5752,14 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
 
   useEffect(() => {
     let alive = true;
-    fetchDeribitOptions(coin)
-      .then(d => { if (alive) { setDdata(d); setLoading(false); } })
-      .catch(() => { if (alive) setLoading(false); });
-    const id = setInterval(() =>
-      fetchDeribitOptions(coin).then(d => { if (alive) setDdata(d); }).catch(() => {}),
-      30_000
+    setLoading(true);
+    const unsub = subscribeData<DeribitData>(
+      `options-${coin}`,
+      () => fetchDeribitOptions(coin),
+      CACHE_TTL,
+      d => { if (alive) { setDdata(d); setLoading(false); } },
     );
-    return () => { alive = false; clearInterval(id); };
+    return () => { alive = false; unsub(); };
   }, [coin]);
 
   if (loading || !ddata) return (
@@ -5991,14 +5990,16 @@ export const PremiumFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
-      const trades = await pollOptionTrades(coin);
-      processPremiumFlow(coin, trades);
-      if (alive) setSeries([...(PFLOW_SERIES.get(coin) ?? [])]);
-    };
-    load();
-    const id = setInterval(load, 10_000);
-    return () => { alive = false; clearInterval(id); };
+    const unsub = subscribeData<RawOptionTrade[]>(
+      `trades-${coin}`,
+      () => pollOptionTrades(coin),
+      10_000,
+      trades => {
+        processPremiumFlow(coin, trades);
+        if (alive) setSeries([...(PFLOW_SERIES.get(coin) ?? [])]);
+      },
+    );
+    return () => { alive = false; unsub(); };
   }, [coin]);
 
   const W = 800; const H = 120;
@@ -6107,14 +6108,16 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
 
   useEffect(() => {
     let alive = true;
-    const load = async () => {
-      const all = await pollOptionTrades(coin);
-      processLargeTrades(coin, all, thresholdRef.current);
-      if (alive) setTrades([...(LARGE_BUF.get(coin) ?? [])]);
-    };
-    load();
-    const id = setInterval(load, 10_000);
-    return () => { alive = false; clearInterval(id); };
+    const unsub = subscribeData<RawOptionTrade[]>(
+      `trades-${coin}`,
+      () => pollOptionTrades(coin),
+      10_000,
+      trades => {
+        processLargeTrades(coin, trades, thresholdRef.current);
+        if (alive) setTrades([...(LARGE_BUF.get(coin) ?? [])]);
+      },
+    );
+    return () => { alive = false; unsub(); };
   }, [coin]);
 
   const visible = trades.filter(t => filter === 'ALL' || t.optType === filter);
@@ -6786,13 +6789,14 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
 
   useEffect(() => {
     let alive = true;
-    const load = () =>
-      computeSentiment(coin)
-        .then(r => { if (alive) { setResult(r); setLoading(false); } })
-        .catch(() => { if (alive) setLoading(false); });
-    load();
-    const id = setInterval(load, 30_000);
-    return () => { alive = false; clearInterval(id); };
+    setLoading(true);
+    const unsub = subscribeData<{ composite: number; factors: SentFactor[] }>(
+      `sentiment-${coin}`,
+      () => computeSentiment(coin),
+      30_000,
+      r => { if (alive) { setResult(r); setLoading(false); } },
+    );
+    return () => { alive = false; unsub(); };
   }, [coin]);
 
   if (loading || !result) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
@@ -7519,15 +7523,22 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
   useEffect(() => {
     let alive = true;
-    Promise.all([fetchDeribitOptions(coin), fetchDeribitHistory(coin)])
-      .then(([o, h]) => { if (alive) { setOpt(o); setHist(h); setLoading(false); } })
-      .catch(() => { if (alive) setLoading(false); });
-    const id = setInterval(() =>
-      Promise.all([fetchDeribitOptions(coin), fetchDeribitHistory(coin)])
-        .then(([o, h]) => { if (alive) { setOpt(o); setHist(h); } }).catch(() => {}),
-      30_000
+    let gotOpt = false;
+    let gotHist = false;
+    setLoading(true);
+    const u1 = subscribeData<DeribitData>(
+      `options-${coin}`,
+      () => fetchDeribitOptions(coin),
+      CACHE_TTL,
+      d => { if (!alive) return; setOpt(d); gotOpt = true; if (gotHist) setLoading(false); },
     );
-    return () => { alive = false; clearInterval(id); };
+    const u2 = subscribeData<HistoryData>(
+      `history-${coin}`,
+      () => fetchDeribitHistory(coin),
+      HIST_TTL,
+      d => { if (!alive) return; setHist(d); gotHist = true; if (gotOpt) setLoading(false); },
+    );
+    return () => { alive = false; u1(); u2(); };
   }, [coin]);
 
   if (loading || !opt || !hist) return (
@@ -7666,9 +7677,14 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
 
   useEffect(() => {
     let alive = true;
-    fetchDeribitOptions(coin).then(d => { if (alive) { setDdata(d); setLoading(false); } }).catch(() => { if (alive) setLoading(false); });
-    const id = setInterval(() => fetchDeribitOptions(coin).then(d => { if (alive) setDdata(d); }).catch(() => {}), 30_000);
-    return () => { alive = false; clearInterval(id); };
+    setLoading(true);
+    const unsub = subscribeData<DeribitData>(
+      `options-${coin}`,
+      () => fetchDeribitOptions(coin),
+      CACHE_TTL,
+      d => { if (alive) { setDdata(d); setLoading(false); } },
+    );
+    return () => { alive = false; unsub(); };
   }, [coin]);
 
   // Reset strikes when expiry or type changes

@@ -8,6 +8,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-r
 
 import { cn } from './lib/utils';
 import MonitorPage from './pages/MonitorPage';
+import DigitalClock from './components/DigitalClock';
 import PositionBuilderPage from './pages/PositionBuilderPage';
 
 // ── Deribit index price hook ───────────────────────────────────────────────────
@@ -64,7 +65,7 @@ function useDeribitIndexPrices(): TickerState[] {
     };
 
     load();
-    const id = setInterval(load, 2000);
+    const id = setInterval(load, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -159,29 +160,6 @@ const PriceTicker = ({ symbol, price, change, up }: { symbol: string; price: str
         "text-[16px] font-bold font-mono tnum transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ml-1.5",
         flashColor ? flashColor : (up ? "text-trade-up" : "text-trade-down")
       )}>{formattedPrice}</span>
-    </div>
-  );
-};
-
-const DigitalClock = () => {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return (
-    <div className="flex items-center justify-center px-2 h-[36px] bg-white/5 hover:bg-white/10 transition-colors duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] text-slate-200">
-      {(() => {
-        const t = time.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const i = t.lastIndexOf(' ');
-        return (
-          <>
-            <span className="text-[18px] font-mono font-bold tnum tracking-wide mt-px text-slate-200">{t.slice(0, i)}</span>
-            <span className="text-[11px] font-bold font-mono tnum text-text-muted ml-0.5 mt-px">{t.slice(i + 1)}</span>
-          </>
-        );
-      })()}
     </div>
   );
 };
@@ -295,13 +273,17 @@ const TickerBar = () => {
 export default function App() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let lastScrollTs = 0;
     const onScroll = () => {
+      const now = Date.now();
+      if (now - lastScrollTs < 100) return;
+      lastScrollTs = now;
       document.documentElement.classList.add('is-scrolling');
       clearTimeout(timer);
       timer = setTimeout(() => document.documentElement.classList.remove('is-scrolling'), 800);
     };
-    window.addEventListener('scroll', onScroll, true);
-    return () => { window.removeEventListener('scroll', onScroll, true); clearTimeout(timer); };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => { window.removeEventListener('scroll', onScroll, { capture: true }); clearTimeout(timer); };
   }, []);
 
   return (

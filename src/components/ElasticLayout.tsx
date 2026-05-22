@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'motion/react';
 
 interface ElasticLayoutProps {
@@ -23,6 +23,16 @@ const SPRING = { type: 'spring' as const, stiffness: 420, damping: 28, mass: 0.7
 
 export const ElasticLayout = React.forwardRef<HTMLDivElement, ElasticLayoutProps>(
   ({ header, children, className = '', overflowX = 'hidden', detectionRef, restGap = REST_GAP, gapColor = 'transparent' }, forwardedRef) => {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReducedMotion(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   const internalRef = useRef<HTMLDivElement>(null);
 
   const setScrollRef = useCallback((el: HTMLDivElement | null) => {
@@ -113,6 +123,18 @@ export const ElasticLayout = React.forwardRef<HTMLDivElement, ElasticLayoutProps
       springBack();
     }
   }, [extra, springBack, detectionRef]);
+
+  if (reducedMotion) {
+    return (
+      <div className={`flex flex-col w-full h-full overflow-hidden select-none ${className}`}>
+        {header && <div className="shrink-0 relative z-[120]">{header}</div>}
+        <div ref={setScrollRef} className="flex-1 min-h-0 overflow-y-auto" style={{ overflowX }}>
+          {children}
+        </div>
+        <div style={{ height: restGap, backgroundColor: gapColor }} className="shrink-0 w-full" aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <div

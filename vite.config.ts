@@ -20,7 +20,7 @@ export default defineConfig(({mode}) => {
         output: {
           manualChunks: {
             // 重型第三方库单独成包，不阻塞主包解析
-            'vendor-plotly':   ['plotly.js-dist'],
+            'vendor-echarts':  ['echarts', 'echarts-for-react'],
             'vendor-motion':   ['motion'],
             'vendor-react':    ['react', 'react-dom', 'react-router-dom'],
           },

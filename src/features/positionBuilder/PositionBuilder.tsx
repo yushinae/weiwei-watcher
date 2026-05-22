@@ -1529,7 +1529,7 @@ export function PositionBuilder() {
                 </div>
               )}
 
-              <Panel title="损益曲线" noPadding noScroll
+              {activeTab === 'chart' && <Panel title="损益曲线" noPadding noScroll
                   subtitle={
                     <span className="flex items-center gap-3 flex-wrap text-[11px] text-white/30">
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />当前情景</span>
@@ -1560,7 +1560,7 @@ export function PositionBuilder() {
                     style={{ width: '100%', height: 400 }}
                     opts={{ renderer: 'canvas' }}
                   />
-                </Panel>
+                </Panel>}
 
               {/* ── 始终可见：三滑杆 ──────────────────────────────────── */}
               <div className="bg-white/[0.025] border border-white/[0.07] rounded-[14px] px-4 py-3 flex flex-wrap gap-x-6 gap-y-3 items-center">

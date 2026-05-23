@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { useCardHeader } from '../components/card/WidgetCard';
 import type { Coin } from '../features/monitor/types';
@@ -372,11 +372,6 @@ function subscribeData<T>(
   };
 }
 
-// Session-level skew history (resets on page reload)
-interface SkewSnap { ts: number; tenors: { label: string; rr25: number; rr10: number; atm: number }[]; pcr: number }
-const SKEW_BUFFER = new Map<string, SkewSnap[]>();
-const SKEW_BUFFER_MAX = 480; // ~4 hours at 30s intervals
-
 async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
   const cached = DERIBIT_CACHE.get(currency);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
@@ -388,18 +383,6 @@ async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData
   if (json.error) throw new Error(json.error.message ?? 'API error');
   const data = processDeribitResponse(json.result as any[]);
   DERIBIT_CACHE.set(currency, { data, ts: Date.now() });
-
-  // ── Append skew snapshot to session buffer ──────────────────────────────
-  const snap: SkewSnap = {
-    ts: Date.now(),
-    tenors: data.expiries.slice(0, 5).map(e => ({ label: e.label, rr25: e.rr25, rr10: e.rr10, atm: e.atmIV })),
-    pcr: data.pcr,
-  };
-  const skewBuf = SKEW_BUFFER.get(currency) ?? [];
-  skewBuf.push(snap);
-  if (skewBuf.length > SKEW_BUFFER_MAX) skewBuf.splice(0, skewBuf.length - SKEW_BUFFER_MAX);
-  SKEW_BUFFER.set(currency, skewBuf);
-
   return data;
 }
 
@@ -451,6 +434,7 @@ interface HistoryData {
   rvByTenor: number[];                 // current rolling RV at [7,14,30,60,90,180,365]D
   dvolSeries: number[];                // last 90 daily DVOL closing values
   rv30Series: number[];                // last 90 daily 30D-RV values (aligned with dvolSeries)
+  priceCloseSeries: number[];          // last 90 daily spot close prices (for correlation etc.)
   fetchedAt: number;
 }
 
@@ -546,19 +530,20 @@ async function fetchDeribitHistory(currency: 'BTC' | 'ETH'): Promise<HistoryData
     p10: coneP10, p25: coneP25, p50: coneP50, p75: coneP75, p90: coneP90,
   };
 
-  // ── Current rolling RV at [7,14,30,60,90,180,365] for FixedTenorWidget ────
+  // ── Current rolling RV at [7,14,30,60,90,180,365] ────
   const RV_TENORS = [7, 14, 30, 60, 90, 180, 365] as const;
   const rvByTenor: number[] = RV_TENORS.map(t => {
     const s = rollingRV(logRets, t);
     return s[s.length - 1] ?? 0;
   });
 
-  // ── Last 90D DVOL + aligned 30D-RV ──────────────────────────────────────────
+  // ── Last 90D DVOL + aligned 30D-RV + price closes ────────────────────────
   const SERIES_LEN = 90;
   const dvolSeries = dvolCloses.slice(-SERIES_LEN);
   const rv30Series = rv30All.slice(-SERIES_LEN);
+  const priceCloseSeries = prices.slice(-SERIES_LEN);
 
-  const data: HistoryData = { vrp, ivr, ivRankCurrent, dvolChange24h, volCone, rvByTenor, dvolSeries, rv30Series, fetchedAt: now };
+  const data: HistoryData = { vrp, ivr, ivRankCurrent, dvolChange24h, volCone, rvByTenor, dvolSeries, rv30Series, priceCloseSeries, fetchedAt: now };
   HIST_CACHE.set(currency, { data, ts: now });
   return data;
 }
@@ -2750,131 +2735,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SkewHistoryWidget — RR25 / RR10 实时追踪（会话内）
-// ═══════════════════════════════════════════════════════════════════════════════
-
-const SKEW_TENOR_COLORS: Record<string, string> = {
-  '7D': '#f87171', '14D': '#fb923c', '28D': '#F59E0B',
-  '30D': '#F59E0B', '60D': '#84cc16', '90D': '#4ea1ff',
-};
-
-export const SkewHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data } = useDeribitOptions(coin); // shared poller — re-renders this widget whenever new data arrives
-  const { setHeaderRight } = useCardHeader();
-  const [mode, setMode] = useState<'rr25' | 'rr10'>('rr25');
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)]">
-          {(['rr25', 'rr10'] as const).map(m => (
-            <button key={m} onClick={() => setMode(m)}
-              className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
-                mode === m ? 'bg-white/10 text-white/80' : 'text-white/25 hover:text-white/50'
-              )}>
-              {m === 'rr25' ? '25δ RR' : '10δ RR'}
-            </button>
-          ))}
-        </div>
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时
-        </span>
-        <CoinTabs v={coin} set={setCoin} />
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, mode]);
-
-  const currency = coin === 'BTC' ? 'BTC' : 'ETH';
-  const buf = SKEW_BUFFER.get(currency) ?? [];
-
-  if (buf.length < 2) return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/20">
-      <div className="text-[11px]">正在积累数据…</div>
-      <div className="text-[9px]">每 30 秒更新一次，稍候片刻</div>
-    </div>
-  );
-
-  // Collect unique tenor labels present in buffer
-  const tenorSet = new Set<string>();
-  buf.forEach(s => s.tenors.forEach(t => tenorSet.add(t.label)));
-  const tenors = [...tenorSet].sort((a, b) => parseInt(a) - parseInt(b)).slice(0, 5);
-
-  const W = 480, H = 120, PX = 6, PY = 12;
-  const n = buf.length;
-
-  // All rr values for y-range
-  const allVals = buf.flatMap(s => s.tenors.map(t => mode === 'rr25' ? t.rr25 : t.rr10)).filter(v => isFinite(v));
-  if (!allVals.length) return <Skeleton />;
-  const lo = Math.min(...allVals) - 0.5;
-  const hi = Math.max(...allVals) + 0.5;
-
-  const getVal = (snap: SkewSnap, label: string) => {
-    const t = snap.tenors.find(t => t.label === label);
-    return t ? (mode === 'rr25' ? t.rr25 : t.rr10) : null;
-  };
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0">
-      {/* Current values */}
-      <div className="flex gap-1.5 px-3 pt-2 pb-1.5 shrink-0 flex-wrap">
-        {tenors.map(label => {
-          const last = buf[buf.length - 1];
-          const val = getVal(last, label);
-          const color = SKEW_TENOR_COLORS[label] ?? '#a78bfa';
-          return val !== null ? (
-            <div key={label} className="flex items-center gap-1 bg-white/[0.025] border border-white/[0.06] rounded-[7px] px-2 py-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-              <span className="text-[9px] text-white/40">{label}</span>
-              <span className="font-mono text-[11px] font-bold ml-1" style={{ color }}>
-                {val >= 0 ? '+' : ''}{val.toFixed(2)}%
-              </span>
-            </div>
-          ) : null;
-        })}
-      </div>
-
-      {/* Chart */}
-      <div className="flex-1 min-h-0 px-3 pb-1">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
-          {/* Zero line */}
-          {lo < 0 && hi > 0 && (() => {
-            const y = (H - PY) - ((0 - lo) / (hi - lo)) * (H - 2 * PY);
-            return <line x1={PX} y1={y} x2={W - PX} y2={y} stroke="rgba(255,255,255,0.1)" strokeWidth={0.8} strokeDasharray="4,3" />;
-          })()}
-          {/* Grid */}
-          {[lo, (lo + hi) / 2, hi].map(v => {
-            const y = (H - PY) - ((v - lo) / (hi - lo)) * (H - 2 * PY);
-            return <text key={v} x={PX} y={y - 2} fontSize={8} fill={TXT}>{v.toFixed(1)}</text>;
-          })}
-          {/* Lines per tenor */}
-          {tenors.map(label => {
-            const color = SKEW_TENOR_COLORS[label] ?? '#a78bfa';
-            const pts: [number, number][] = buf
-              .map((snap, i) => {
-                const v = getVal(snap, label);
-                if (v === null) return null;
-                const x = PX + (i / Math.max(n - 1, 1)) * (W - 2 * PX);
-                const y = (H - PY) - ((v - lo) / (hi - lo)) * (H - 2 * PY);
-                return [x, y] as [number, number];
-              })
-              .filter((p): p is [number, number] => p !== null);
-            if (pts.length < 2) return null;
-            return (
-              <polyline key={label} points={poly(pts)} fill="none" stroke={color} strokeWidth={1.3} opacity={0.8} />
-            );
-          })}
-        </svg>
-      </div>
-
-      <div className="px-3 pb-1.5 text-[9px] text-white/15 shrink-0">
-        会话内 Skew 追踪（每 30 秒一点）· {mode === 'rr25' ? '25δ Risk Reversal = Call25IV − Put25IV' : '10δ Risk Reversal = Call10IV − Put10IV'} · Deribit
-      </div>
-    </div>
-  );
-};
+// SkewHistoryWidget removed — session-only, always empty on page load
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VannaCharmWidget — 高阶 Greeks 热力图（Strike × Expiry）
@@ -3659,120 +3520,7 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PCRHistoryWidget — Put/Call Ratio 会话追踪
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export const PCRHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data } = useDeribitOptions(coin); // shared poller
-  const { setHeaderRight } = useCardHeader();
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时
-        </span>
-        <CoinTabs v={coin} set={setCoin} />
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight]);
-
-  const currency = coin === 'BTC' ? 'BTC' : 'ETH';
-  const buf = SKEW_BUFFER.get(currency) ?? [];
-
-  if (buf.length < 2) return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/20">
-      <div className="text-[11px]">正在积累数据…</div>
-      <div className="text-[9px]">每 30 秒更新一次</div>
-    </div>
-  );
-
-  const pcrVals = buf.map(s => s.pcr);
-  const currentPCR = pcrVals[pcrVals.length - 1];
-  const W = 480, H = 110, PX = 8, PY = 14;
-
-  // Y range: show 0.5–2.0 but clamp to actual data
-  const lo = Math.max(0.3, Math.min(...pcrVals) - 0.1);
-  const hi = Math.min(3.0,  Math.max(...pcrVals) + 0.1);
-
-  const pts = mapPts(pcrVals, W, H, lo, hi, PX, PY);
-  const yAt = (v: number) => (H - PY) - ((v - lo) / (hi - lo)) * (H - 2 * PY);
-
-  // Reference lines
-  const REFS = [
-    { v: 1.0, label: '中性', color: 'rgba(255,255,255,0.15)', dash: '4,3' },
-    { v: 0.7, label: '偏多', color: 'rgba(37,232,137,0.2)',   dash: '4,3' },
-    { v: 1.3, label: '偏空', color: 'rgba(248,113,113,0.2)',  dash: '4,3' },
-  ].filter(r => r.v >= lo && r.v <= hi);
-
-  const pcrColor2 = currentPCR >= 1.3 ? '#f87171' : currentPCR <= 0.7 ? '#25e889' : '#F59E0B';
-  const pcrLabel2 = currentPCR >= 1.3 ? '偏空' : currentPCR <= 0.7 ? '偏多' : '中性';
-
-  // Change from session start
-  const startPCR = pcrVals[0];
-  const pcrDelta = currentPCR - startPCR;
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0">
-      {/* Stats */}
-      <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
-        {[
-          { label: 'PCR 当前', val: currentPCR.toFixed(2), color: pcrColor2 },
-          { label: '情绪', val: pcrLabel2, color: pcrColor2 },
-          { label: '会话变化', val: `${pcrDelta >= 0 ? '+' : ''}${pcrDelta.toFixed(2)}`, color: pcrDelta > 0.05 ? '#f87171' : pcrDelta < -0.05 ? '#25e889' : 'rgba(255,255,255,0.4)' },
-          { label: '样本数', val: `${buf.length}点`, color: 'rgba(255,255,255,0.3)' },
-        ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1">
-            <div className="text-[9px] text-white/20 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
-            <div className="font-mono text-[12px] font-bold" style={{ color: s.color }}>{s.val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div className="flex-1 min-h-0 px-3 pb-1">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
-          {/* Reference bands + lines */}
-          {REFS.map(r => (
-            <g key={r.v}>
-              <line x1={PX} y1={yAt(r.v)} x2={W - PX} y2={yAt(r.v)}
-                stroke={r.color} strokeWidth={0.8} strokeDasharray={r.dash} />
-              <text x={W - PX - 2} y={yAt(r.v) - 2} textAnchor="end" fontSize={7} fill={r.color}>{r.label}</text>
-            </g>
-          ))}
-          {/* Bearish zone fill (above 1.0) */}
-          {lo < 1.0 && hi > 1.0 && (
-            <rect x={PX} y={PY} width={W - 2 * PX} height={yAt(1.0) - PY}
-              fill="rgba(248,113,113,0.04)" />
-          )}
-          {/* Bullish zone fill (below 0.7) */}
-          {lo < 0.7 && hi > 0.7 && (
-            <rect x={PX} y={yAt(0.7)} width={W - 2 * PX} height={(H - PY) - yAt(0.7)}
-              fill="rgba(37,232,137,0.04)" />
-          )}
-          {/* PCR line */}
-          <path d={area(pts, H, PY)} fill={`${pcrColor2}10`} />
-          <polyline points={poly(pts)} fill="none" stroke={pcrColor2} strokeWidth={1.5} opacity={0.9} />
-          {/* Last point dot */}
-          {pts.length > 0 && (
-            <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={2.5} fill={pcrColor2} />
-          )}
-          {/* Y axis ticks */}
-          {[lo, 1.0, hi].filter(v => v >= lo && v <= hi).map(v => (
-            <text key={v} x={PX} y={yAt(v) - 2} fontSize={7} fill={TXT}>{v.toFixed(1)}</text>
-          ))}
-        </svg>
-      </div>
-
-      <div className="px-3 pb-1.5 text-[9px] text-white/15 shrink-0">
-        Put/Call 持仓量比 · 每 30 秒一点 · &gt;1.3 看跌 / &lt;0.7 看涨 · Deribit
-      </div>
-    </div>
-  );
-};
+// PCRHistoryWidget removed — session-only, always empty on page load
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ImpliedMoveWidget — 隐含波动区间（每个到期日 ATM straddle 隐含涨跌幅）
@@ -4201,122 +3949,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// TermStructureDriftWidget — 期限结构漂移（会话内 ATM IV 变化）
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export const TermStructureDriftWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data } = useDeribitOptions(coin); // shared poller — re-renders whenever new data arrives
-  const { setHeaderRight } = useCardHeader();
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />会话内
-        </span>
-        <CoinTabs v={coin} set={setCoin} />
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight]);
-
-  const currency = coin === 'BTC' ? 'BTC' : 'ETH';
-  const buf = SKEW_BUFFER.get(currency) ?? [];
-
-  if (buf.length < 2) return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/20">
-      <div className="text-[11px]">正在积累数据…</div>
-      <div className="text-[9px]">每 30 秒更新一次</div>
-    </div>
-  );
-
-  const first = buf[0];
-  const last  = buf[buf.length - 1];
-
-  // Collect tenors present in both first & last
-  const tenorSet = new Set<string>();
-  first.tenors.forEach(t => tenorSet.add(t.label));
-  last.tenors.forEach(t => tenorSet.add(t.label));
-  const tenors = [...tenorSet].sort((a, b) => parseInt(a) - parseInt(b));
-
-  const getAtm = (snap: SkewSnap, label: string) =>
-    snap.tenors.find(t => t.label === label)?.atm ?? null;
-
-  const drifts = tenors.map(label => {
-    const startIV = getAtm(first, label);
-    const nowIV   = getAtm(last, label);
-    if (startIV === null || nowIV === null) return null;
-    return { label, startIV, nowIV, delta: nowIV - startIV };
-  }).filter((d): d is NonNullable<typeof d> => d !== null);
-
-  if (!drifts.length) return <Skeleton />;
-
-  const maxAbsDelta = Math.max(...drifts.map(d => Math.abs(d.delta)), 0.5);
-  const BAR_HALF = 140;
-
-  const sessionMinutes = Math.round((last.ts - first.ts) / 60_000);
-  const sessionStr = sessionMinutes < 60
-    ? `${sessionMinutes}分钟`
-    : `${Math.floor(sessionMinutes / 60)}h ${sessionMinutes % 60}m`;
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0">
-      {/* Session summary */}
-      <div className="flex items-center gap-3 px-3 pt-2 pb-1.5 shrink-0">
-        <span className="text-[9px] text-white/25">会话时长 {sessionStr} · {buf.length} 个采样点</span>
-        <span className="ml-auto text-[9px] text-white/20">起始 IV → 当前 IV · 差值</span>
-      </div>
-
-      {/* Drift bars */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
-        {drifts.map(d => {
-          const barW = (Math.abs(d.delta) / maxAbsDelta) * BAR_HALF;
-          const color = d.delta > 0 ? '#f87171' : d.delta < 0 ? '#25e889' : 'rgba(255,255,255,0.2)';
-          const isPos = d.delta >= 0;
-          return (
-            <div key={d.label} className="flex items-center gap-2 py-1.5 border-b border-white/[0.025] last:border-0">
-              {/* Tenor */}
-              <div className="w-[28px] shrink-0 text-[11px] font-mono font-bold text-white/50">{d.label}</div>
-
-              {/* Start / now values */}
-              <div className="w-[80px] shrink-0 flex items-center gap-1">
-                <span className="font-mono text-[10px] text-white/30">{d.startIV.toFixed(1)}</span>
-                <span className="text-[9px] text-white/15">→</span>
-                <span className="font-mono text-[10px] text-white/60 font-bold">{d.nowIV.toFixed(1)}</span>
-              </div>
-
-              {/* Centre bar */}
-              <div className="flex items-center" style={{ width: BAR_HALF * 2 + 2 }}>
-                <div className="flex justify-end" style={{ width: BAR_HALF }}>
-                  {!isPos && (
-                    <div className="h-[7px] rounded-l-[2px]" style={{ width: barW, background: color }} />
-                  )}
-                </div>
-                <div className="w-px h-[9px] bg-white/10 shrink-0" />
-                <div className="flex justify-start" style={{ width: BAR_HALF }}>
-                  {isPos && (
-                    <div className="h-[7px] rounded-r-[2px]" style={{ width: barW, background: color }} />
-                  )}
-                </div>
-              </div>
-
-              {/* Delta label */}
-              <div className="w-[44px] text-right font-mono text-[10px] font-bold shrink-0" style={{ color }}>
-                {d.delta >= 0 ? '+' : ''}{d.delta.toFixed(2)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="px-3 pb-1.5 text-[9px] text-white/15 shrink-0">
-        绿=IV 下行 红=IV 上行 · 单位 vol pts · Deribit
-      </div>
-    </div>
-  );
-};
+// TermStructureDriftWidget removed — session-only, always empty on page load
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // StrategyPricerWidget — ATM Straddle / 25δ Strangle 快速定价
@@ -4870,11 +4503,30 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     return (Math.log(S / K) - 0.5 * sigma * sigma * T) / (sigma * Math.sqrt(T));
   };
 
+  // Interpolate per-strike IV from the option chain for a given expiry
+  const getStrikeIV = (e: ExpiryGroup, k: number): number => {
+    // Build a sorted array of {strike, iv} from calls (puts have same IV by put-call parity)
+    const chain = [...e.calls, ...e.puts]
+      .filter(o => o.iv > 0)
+      .sort((a, b) => a.strike - b.strike);
+    if (chain.length === 0) return e.atmIV;
+    // Find the two nearest strikes and linearly interpolate
+    if (k <= chain[0].strike) return chain[0].iv;
+    if (k >= chain[chain.length - 1].strike) return chain[chain.length - 1].iv;
+    for (let i = 0; i < chain.length - 1; i++) {
+      if (chain[i].strike <= k && k <= chain[i + 1].strike) {
+        const t = (k - chain[i].strike) / (chain[i + 1].strike - chain[i].strike);
+        return chain[i].iv + t * (chain[i + 1].iv - chain[i].iv);
+      }
+    }
+    return e.atmIV;
+  };
+
   // Probability cells: rows = strikes, cols = expiries
   const strikes = PROB_STRIKE_OFFSETS.map(o => Math.round(spot * (1 + o) / (spot > 10_000 ? 1_000 : 100)) * (spot > 10_000 ? 1_000 : 100));
   const probGrid: number[][] = strikes.map(k =>
     exps.map(e => {
-      const iv = e.atmIV; // use ATM IV as proxy (could interpolate skew more precisely)
+      const iv = getStrikeIV(e, k); // interpolated per-strike IV from smile
       return normCDF(d2(spot, k, e.T, iv)) * 100; // P(above K)
     })
   );
@@ -5143,150 +4795,7 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// TenorIVHeatmapWidget — 会话 IV 曲面热力图（期限 × 时间）
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export const TenorIVHeatmapWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data } = useDeribitOptions(coin); // shared poller — re-renders whenever new data arrives
-  const { setHeaderRight } = useCardHeader();
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />会话内
-        </span>
-        <CoinTabs v={coin} set={setCoin} />
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight]);
-
-  const currency = coin === 'BTC' ? 'BTC' : 'ETH';
-  const buf = SKEW_BUFFER.get(currency) ?? [];
-
-  if (buf.length < 2) return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/20">
-      <div className="text-[11px]">正在积累数据…</div>
-      <div className="text-[9px]">每 30 秒一个快照</div>
-    </div>
-  );
-
-  // Collect all tenor labels
-  const tenorSet = new Set<string>();
-  buf.forEach(s => s.tenors.forEach(t => tenorSet.add(t.label)));
-  const tenors = [...tenorSet].sort((a, b) => parseInt(a) - parseInt(b)).slice(0, 6);
-
-  // Build matrix: tenors (rows) × time snaps (cols)
-  const matrix: (number | null)[][] = tenors.map(label =>
-    buf.map(snap => snap.tenors.find(t => t.label === label)?.atm ?? null)
-  );
-
-  // Global min/max for colour scaling
-  const allVals = matrix.flat().filter((v): v is number => v !== null);
-  if (!allVals.length) return <Skeleton />;
-  const gMin = Math.min(...allVals);
-  const gMax = Math.max(...allVals);
-  const gRange = gMax - gMin || 1;
-
-  // Colour: cool blue→warm orange from low→high IV
-  const cellColor = (v: number | null) => {
-    if (v === null) return 'rgba(255,255,255,0.03)';
-    const t = (v - gMin) / gRange; // 0–1
-    // Interpolate: blue(low) → green(mid) → orange/red(high)
-    if (t < 0.5) {
-      const s = t * 2;
-      const r = Math.round(78  + (37  - 78)  * s);
-      const g = Math.round(161 + (232 - 161) * s);
-      const b = Math.round(255 + (137 - 255) * s);
-      return `rgba(${r},${g},${b},${0.25 + 0.5 * t})`;
-    } else {
-      const s = (t - 0.5) * 2;
-      const r = Math.round(37  + (248 - 37)  * s);
-      const g = Math.round(232 + (113 - 232) * s);
-      const b = Math.round(137 + (113 - 137) * s);
-      return `rgba(${r},${g},${b},${0.5 + 0.4 * (t - 0.5)})`;
-    }
-  };
-
-  const CELL_H = 30, LABEL_W = 36;
-  // Downsample columns to at most 60 (for readability)
-  const MAX_COLS = 60;
-  const step = Math.max(1, Math.ceil(buf.length / MAX_COLS));
-  const colIndices = Array.from({ length: Math.ceil(buf.length / step) }, (_, i) => i * step);
-  const nCols = colIndices.length;
-
-  // Time labels for first, mid, last
-  const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  const firstTs = buf[0].ts;
-  const lastTs  = buf[buf.length - 1].ts;
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0">
-      <div className="flex items-center px-3 pt-1.5 pb-1 shrink-0">
-        <span className="text-[9px] text-white/20">
-          {fmtTime(firstTs)} → {fmtTime(lastTs)} · {buf.length} 点 · 颜色 = ATM IV（蓝低→橙高）
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <div className="w-16 h-2 rounded-full" style={{
-            background: 'linear-gradient(to right, rgba(78,161,255,0.6), rgba(37,232,137,0.6), rgba(248,113,113,0.8))'
-          }} />
-          <span className="text-[8px] text-white/20">{gMin.toFixed(0)}% → {gMax.toFixed(0)}%</span>
-        </div>
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
-        <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px repeat(${nCols}, 1fr)`, minWidth: LABEL_W + nCols * 8 }}>
-          {/* Time header */}
-          <div style={{ height: 18 }} />
-          {colIndices.map((ci, j) => {
-            const isFirst = j === 0;
-            const isLast  = j === colIndices.length - 1;
-            const isMid   = Math.abs(j - Math.floor(colIndices.length / 2)) <= 1;
-            return (
-              <div key={ci} style={{ height: 18, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                {(isFirst || isLast || isMid) && (
-                  <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>
-                    {fmtTime(buf[Math.min(ci, buf.length - 1)].ts)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Data rows */}
-          {tenors.map((label, ri) => (
-            <>
-              {/* Tenor label */}
-              <div key={`lbl-${label}`} style={{ height: CELL_H, display: 'flex', alignItems: 'center', paddingRight: 4 }}>
-                <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>
-                  {label}
-                </span>
-              </div>
-              {/* Cells */}
-              {colIndices.map((ci, j) => {
-                const val = matrix[ri][Math.min(ci, buf.length - 1)];
-                return (
-                  <div key={`${ri}-${j}`}
-                    title={val !== null ? `${label}: ${val.toFixed(1)}%` : '—'}
-                    style={{
-                      height: CELL_H,
-                      background: cellColor(val),
-                      margin: '1px',
-                      borderRadius: 2,
-                    }}
-                  />
-                );
-              })}
-            </>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+// TenorIVHeatmapWidget removed — session-only, always empty on page load
 
 // ── SpotTickerWidget ──────────────────────────────────────────────────────
 // Compact real-time market overview: price flash, 24h range, DVOL, funding, OI
@@ -5434,159 +4943,8 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   );
 };
 
-// ── OIDeltaWidget ─────────────────────────────────────────────────────────
-// Captures an OI snapshot at session start; tracks per-instrument delta live.
-// Shows top-20 movers as horizontal mirror bars.
-const OI_SNAPSHOT = new Map<string, Map<string, number>>(); // coin → instrument → oi
+// OIDeltaWidget removed — session-only, always empty on page load
 
-interface OIDeltaRow {
-  instrument: string;
-  strike: number;
-  type: 'C' | 'P';
-  expiry: string;
-  delta: number;
-  current: number;
-}
-
-async function fetchOIDelta(coin: Coin): Promise<OIDeltaRow[]> {
-  const cur = coin === 'BTC' ? 'BTC' : 'ETH';
-  const res = await fetch(
-    `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${cur}&kind=option`
-  ).then(r => r.json());
-  const books: any[] = res.result ?? [];
-
-  const currentMap = new Map<string, number>();
-  for (const b of books) currentMap.set(b.instrument_name as string, b.open_interest ?? 0);
-
-  // First call → set snapshot
-  if (!OI_SNAPSHOT.has(coin)) OI_SNAPSHOT.set(coin, new Map(currentMap));
-  const snapshot = OI_SNAPSHOT.get(coin)!;
-
-  const rows: OIDeltaRow[] = [];
-  for (const [inst, curr] of currentMap) {
-    const parts = inst.split('-');
-    if (parts.length !== 4) continue;
-    const [, expiryRaw, strikeStr, typeStr] = parts;
-    const strike = Number(strikeStr);
-    const type = typeStr === 'C' ? 'C' : 'P';
-    const snap = snapshot.get(inst) ?? 0;
-    const delta = curr - snap;
-    if (Math.abs(delta) > 0) rows.push({ instrument: inst, strike, type, expiry: expiryRaw, delta, current: curr });
-  }
-  return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 20);
-}
-
-export const OIDeltaWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { setHeaderRight } = useCardHeader();
-  const [rows, setRows] = useState<OIDeltaRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
-
-  const resetSnapshot = useCallback(() => {
-    OI_SNAPSHOT.delete(coin);
-    setLoading(true);
-    fetchOIDelta(coin)
-      .then(r => { setRows(r); setLoading(false); setUpdatedAt(Date.now()); })
-      .catch(() => setLoading(false));
-  }, [coin]);
-
-  useEffect(() => {
-    setHeaderRight(
-      <div className="flex items-center gap-2">
-        <CoinTabs v={coin} set={setCoin} />
-        <button
-          onClick={resetSnapshot}
-          className="text-[9px] text-slate-600 hover:text-slate-300 transition-colors px-1.5 py-0.5 rounded border border-white/8">
-          重置快照
-        </button>
-      </div>
-    );
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, resetSnapshot]);
-
-  useEffect(() => {
-    let alive = true;
-    const unsub = subscribeData<OIDeltaRow[]>(
-      `oidelta-${coin}`,
-      () => fetchOIDelta(coin),
-      30_000,
-      d => {
-        if (!alive) return;
-        setRows(d);
-        setLoading(false);
-        setUpdatedAt(Date.now());
-      },
-    );
-    return () => { alive = false; unsub(); };
-  }, [coin]);
-
-  if (loading) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
-
-  const maxAbs = Math.max(...rows.map(r => Math.abs(r.delta)), 1);
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0">
-      <div className="flex items-center justify-between px-3 pt-1 pb-0.5 shrink-0">
-        <span className="text-[9px] text-slate-600">
-          Top {rows.length} 合约 OI 变动（会话内）
-        </span>
-        {updatedAt && (
-          <span className="text-[9px] text-slate-700">
-            {new Date(updatedAt).toLocaleTimeString('zh', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-        )}
-      </div>
-
-      {rows.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
-          快照已记录，等待 OI 变动…
-        </div>
-      ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
-          {rows.map(r => {
-            const barW = (Math.abs(r.delta) / maxAbs) * 100;
-            const isInc = r.delta > 0;
-            const color = isInc ? 'var(--nexus-green)' : 'var(--nexus-red)';
-            return (
-              <div key={r.instrument} className="flex items-center gap-2 py-[3px] border-b border-white/4">
-                {/* Type badge */}
-                <span className="w-3 text-center text-[9px] font-bold shrink-0"
-                  style={{ color: r.type === 'C' ? 'var(--nexus-green)' : 'var(--nexus-red)' }}>
-                  {r.type}
-                </span>
-                {/* Expiry + strike */}
-                <span className="w-[68px] shrink-0 text-[9px] font-mono text-slate-500 truncate">
-                  {r.expiry}
-                </span>
-                <span className="w-[58px] shrink-0 text-[9px] font-mono text-slate-300 text-right">
-                  {r.strike.toLocaleString()}
-                </span>
-                {/* Mirror bar: negative → right-aligned, positive → left-aligned */}
-                <div className="flex-1 h-[8px] rounded-full overflow-hidden bg-white/4 relative">
-                  <div
-                    className="absolute top-0 h-full rounded-full"
-                    style={{
-                      width: `${barW}%`,
-                      [isInc ? 'left' : 'right']: 0,
-                      background: color,
-                      opacity: 0.65,
-                    }}
-                  />
-                </div>
-                {/* Delta value */}
-                <span className="w-[52px] shrink-0 text-right text-[10px] font-mono font-bold tnum"
-                  style={{ color }}>
-                  {isInc ? '+' : ''}{r.delta.toFixed(0)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ── GreeksScenarioWidget ──────────────────────────────────────────────────
 // ATM Straddle P&L scenario matrix: rows = spot %, cols = IV additive shift
@@ -5830,80 +5188,8 @@ function processPremiumFlow(coin: Coin, trades: RawOptionTrade[]): void {
   PFLOW_LAST.set(coin, trades[0]?.id ?? lastId ?? '');
 }
 
-// ── PremiumFlowWidget ─────────────────────────────────────────────────────
-// Cumulative net premium paid for Calls vs Puts over the session.
-// Positive = net buyers; negative = net sellers.
-export const PremiumFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
-  const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { setHeaderRight } = useCardHeader();
-  const [series, setSeries] = useState<{ ts: number; c: number; p: number }[]>([]);
-
-  useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
-    return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight]);
-
-  useEffect(() => {
-    let alive = true;
-    const unsub = subscribeData<RawOptionTrade[]>(
-      `trades-${coin}`,
-      () => pollOptionTrades(coin),
-      10_000,
-      trades => {
-        processPremiumFlow(coin, trades);
-        if (alive) setSeries([...(PFLOW_SERIES.get(coin) ?? [])]);
-      },
-    );
-    return () => { alive = false; unsub(); };
-  }, [coin]);
-
-  const W = 800; const H = 120;
-  const cVals = series.map(s => s.c);
-  const pVals = series.map(s => s.p);
-  const allVals = [...cVals, ...pVals];
-  const lo = Math.min(...allVals, 0);
-  const hi = Math.max(...allVals, 0);
-  const fmtM = (v: number) => `$${v >= 0 ? '+' : ''}${(v / 1e6).toFixed(2)}M`;
-  const zero = H - ((0 - lo) / (hi - lo || 1)) * H;
-
-  if (series.length < 2) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">
-      会话数据积累中…
-    </div>
-  );
-
-  const cPts = mapPts(cVals, W, H, lo, hi);
-  const pPts = mapPts(pVals, W, H, lo, hi);
-  const latest = series[series.length - 1];
-
-  return (
-    <div className="w-full h-full flex flex-col min-h-0 px-3 pt-1 pb-2">
-      {/* Legend */}
-      <div className="flex items-center gap-4 mb-1 shrink-0">
-        <span className="text-[10px] font-mono" style={{ color: 'var(--nexus-green)' }}>
-          ● Call净 {fmtM(latest?.c ?? 0)}
-        </span>
-        <span className="text-[10px] font-mono" style={{ color: 'var(--nexus-red)' }}>
-          ● Put净 {fmtM(latest?.p ?? 0)}
-        </span>
-        <span className="text-[9px] text-slate-600 ml-auto">正=净买入 / 负=净卖出</span>
-      </div>
-      {/* Chart */}
-      <div className="flex-1 min-h-0">
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height="100%">
-          {/* Zero line */}
-          <line x1="0" y1={zero} x2={W} y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4,4" />
-          {/* Call area */}
-          <path d={area(cPts, H)} fill="url(#wg-green-strong)" />
-          <path d={smooth(cPts)} fill="none" stroke="var(--nexus-green)" strokeWidth="1.5" />
-          {/* Put area */}
-          <path d={area(pPts, H)} fill="url(#wg-red)" />
-          <path d={smooth(pPts)} fill="none" stroke="var(--nexus-red)" strokeWidth="1.5" />
-        </svg>
-      </div>
-    </div>
-  );
-};
+// PremiumFlowWidget removed — session-only. processPremiumFlow still runs inside LargeTradeAlertWidget
+// so that AlertsWidget callflow/putflow metrics remain available.
 
 // ── LargeTradeAlertWidget ─────────────────────────────────────────────────
 // Live feed of large-notional option trades in this session.
@@ -5969,6 +5255,7 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
       10_000,
       trades => {
         processLargeTrades(coin, trades, thresholdRef.current);
+        processPremiumFlow(coin, trades);
         if (alive) setTrades([...(LARGE_BUF.get(coin) ?? [])]);
       },
     );
@@ -6180,7 +5467,7 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
 
   const candidates: PinCandidate[] = [];
   for (const exp of ddata.expiries) {
-    if (exp.daysToExp > 7 || exp.daysToExp < 0) continue; // only ≤7d expiries
+    if (exp.daysToExp > 14 || exp.daysToExp < 0) continue; // only ≤14d expiries
     const T = Math.max(exp.daysToExp / 365, 0.001);
     const iv = exp.atmIV / 100;
     // Build OI map by strike
@@ -6253,26 +5540,7 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
 
 // ── CorrelationWidget ─────────────────────────────────────────────────────
 // Rolling 30-day realized correlation between BTC and ETH daily returns.
-const CORR_HIST_CACHE = new Map<string, { prices: number[]; fetchedAt: number }>();
-const CORR_HIST_TTL = 10 * 60 * 1000;
-
-async function fetchCorrPrices(coin: Coin): Promise<number[]> {
-  const key = coin;
-  const hit = CORR_HIST_CACHE.get(key);
-  if (hit && Date.now() - hit.fetchedAt < CORR_HIST_TTL) return hit.prices;
-
-  const idx = coin === 'BTC' ? 'btc_usd' : 'eth_usd';
-  const endMs  = Date.now();
-  const startMs = endMs - 90 * 86400 * 1000;
-  const res = await fetch(
-    `https://www.deribit.com/api/v2/public/get_index_price_history?index_name=${idx}&start_timestamp=${startMs}&end_timestamp=${endMs}&resolution=1D`
-  ).then(r => r.json());
-
-  const raw: any[] = res.result?.data ?? [];
-  const prices = raw.map((d: any) => d[4] as number); // close
-  CORR_HIST_CACHE.set(key, { prices, fetchedAt: Date.now() });
-  return prices;
-}
+// Reuses priceCloseSeries from fetchDeribitHistory (no separate fetch).
 
 function dailyReturns(prices: number[]): number[] {
   const r: number[] = [];
@@ -6299,25 +5567,18 @@ function rollingCorr(x: number[], y: number[], win: number): number[] {
 }
 
 export const CorrelationWidget = () => {
-  const [corrSeries, setCorrSeries] = useState<number[]>([]);
-  const [current, setCurrent] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Reuse the shared history poller — priceCloseSeries is now included in HistoryData
+  const { btc, eth } = useDualHistory();
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const [btcP, ethP] = await Promise.all([fetchCorrPrices('BTC'), fetchCorrPrices('ETH')]);
-        const rBTC = dailyReturns(btcP);
-        const rETH = dailyReturns(ethP);
-        const corr = rollingCorr(rBTC, rETH, 30).filter(v => !isNaN(v));
-        if (alive) { setCorrSeries(corr); setCurrent(corr[corr.length - 1] ?? null); setLoading(false); }
-      } catch { if (alive) setLoading(false); }
-    };
-    load();
-    const id = setInterval(load, 10 * 60 * 1000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
+  const corrSeries = useMemo(() => {
+    if (!btc?.priceCloseSeries?.length || !eth?.priceCloseSeries?.length) return [];
+    const rBTC = dailyReturns(btc.priceCloseSeries);
+    const rETH = dailyReturns(eth.priceCloseSeries);
+    return rollingCorr(rBTC, rETH, 30).filter(v => !isNaN(v));
+  }, [btc, eth]);
+
+  const current = corrSeries.length > 0 ? corrSeries[corrSeries.length - 1] : null;
+  const loading = !btc || !eth;
 
   if (loading) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
 
@@ -6368,7 +5629,16 @@ export const CorrelationWidget = () => {
 
 // ── WatchlistWidget ───────────────────────────────────────────────────────
 // User-defined instrument watchlist with live ticker data.
-const WATCHLIST_SET = new Set<string>();  // persists in module scope (session)
+function loadWatchlist(): Set<string> {
+  try {
+    const raw = localStorage.getItem('ww_watchlist');
+    return raw ? new Set<string>(JSON.parse(raw) as string[]) : new Set<string>();
+  } catch { return new Set<string>(); }
+}
+function saveWatchlist(): void {
+  try { localStorage.setItem('ww_watchlist', JSON.stringify([...WATCHLIST_SET])); } catch { /* ignore */ }
+}
+const WATCHLIST_SET = loadWatchlist();  // persisted across sessions via localStorage
 interface WatchItem {
   instrument: string; bid: number; ask: number;
   iv: number; delta: number; mark: number;
@@ -6429,7 +5699,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
         `https://www.deribit.com/api/v2/public/ticker?instrument_name=${encodeURIComponent(inst)}`
       ).then(r => r.json());
       if (!res.result) { setError('合约不存在'); return; }
-      WATCHLIST_SET.add(inst);
+      WATCHLIST_SET.add(inst); saveWatchlist();
       setInput(''); setError('');
       const all = await refreshWatchItems();
       setItems(all);
@@ -6489,7 +5759,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
                 <span className="text-right text-[9px] font-mono font-bold" style={{ color: oiColor }}>
                   {item.oiDelta > 0 ? '+' : ''}{item.oiDelta.toFixed(0)}
                 </span>
-                <button onClick={() => { WATCHLIST_SET.delete(item.instrument); refreshWatchItems().then(r => setItems(r)); }}
+                <button onClick={() => { WATCHLIST_SET.delete(item.instrument); saveWatchlist(); refreshWatchItems().then(r => setItems(r)); }}
                   className="text-[9px] text-slate-700 hover:text-rose-400 transition-colors text-right">✕</button>
               </div>
             );
@@ -6614,8 +5884,14 @@ async function computeSentiment(coin: Coin): Promise<{ composite: number; factor
   // ⑤ Fear & Greed 0-100 directly (high = greedy = bullish)
   const fgScore    = clamp01(flow.currentFG / 100);
 
-  // ⑥ DVOL 24h change: rising DVOL = fear = bearish. Map [+10 → 0, -10 → 1]
-  const dvolScore  = clamp01((-hist.dvolChange24h + 10) / 20);
+  // ⑥ DVOL 24h change: use real-time opt.dvol30 vs yesterday's daily close from dvolSeries
+  //    (hist.dvolChange24h only reflects yesterday-vs-day-before, up to 24h stale)
+  const realtimeDvol   = opt.dvol30;
+  const yesterdayDvol  = hist.dvolSeries.length > 0
+    ? hist.dvolSeries[hist.dvolSeries.length - 1]
+    : realtimeDvol;
+  const dvolChangeLive = realtimeDvol - yesterdayDvol;
+  const dvolScore      = clamp01((-dvolChangeLive + 10) / 20);
 
   const factors: SentFactor[] = [
     { label: 'PCR',      score: pcrScore  * 100, raw: opt.pcr.toFixed(2),            weight: 2 },
@@ -6623,7 +5899,7 @@ async function computeSentiment(coin: Coin): Promise<{ composite: number; factor
     { label: 'IV Rank',  score: ivrScore  * 100, raw: `${hist.ivRankCurrent.toFixed(0)}%ile`,  weight: 1.5 },
     { label: '资金费率',  score: fundScore * 100, raw: `${flow.annFunding >= 0 ? '+' : ''}${flow.annFunding.toFixed(1)}%`, weight: 1.5 },
     { label: 'FG指数',   score: fgScore   * 100, raw: `${flow.currentFG} ${flow.currentFGLabel}`, weight: 1 },
-    { label: 'DVOL Δ',   score: dvolScore * 100, raw: `${hist.dvolChange24h >= 0 ? '+' : ''}${hist.dvolChange24h.toFixed(1)}%`, weight: 1 },
+    { label: 'DVOL Δ',   score: dvolScore * 100, raw: `${dvolChangeLive >= 0 ? '+' : ''}${dvolChangeLive.toFixed(1)}%`, weight: 1 },
   ];
 
   const totalW  = factors.reduce((s, f) => s + f.weight, 0);
@@ -6856,7 +6132,16 @@ interface LivePosition extends UserPosition {
   dollarDelta: number; dollarGamma: number; dollarVega: number; dollarTheta: number;
   spot: number; error?: string;
 }
-const POS_STORE: UserPosition[] = [];   // module-level position store (session)
+function loadPositions(): UserPosition[] {
+  try {
+    const raw = localStorage.getItem('ww_positions');
+    return raw ? (JSON.parse(raw) as UserPosition[]) : [];
+  } catch { return []; }
+}
+function savePositions(): void {
+  try { localStorage.setItem('ww_positions', JSON.stringify(POS_STORE)); } catch { /* ignore */ }
+}
+const POS_STORE: UserPosition[] = loadPositions();  // persisted across sessions via localStorage
 
 async function fetchLivePositions(positions: UserPosition[]): Promise<LivePosition[]> {
   return Promise.all(positions.map(async pos => {
@@ -6926,7 +6211,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
       ).then(r => r.json());
       if (!res.result) { setAddError('合约不存在'); setLoading(false); return; }
       const newPos: UserPosition = { id: `${inst}-${Date.now()}`, instrument: inst, qty };
-      POS_STORE.push(newPos);
+      POS_STORE.push(newPos); savePositions();
       setPositions([...POS_STORE]);
       setInput(''); setQtyInput('1'); setAddError('');
     } catch { setAddError('验证失败'); }
@@ -6935,7 +6220,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
 
   const removePosition = (id: string) => {
     const idx = POS_STORE.findIndex(p => p.id === id);
-    if (idx >= 0) POS_STORE.splice(idx, 1);
+    if (idx >= 0) { POS_STORE.splice(idx, 1); savePositions(); }
     setPositions([...POS_STORE]);
   };
 
@@ -7057,7 +6342,26 @@ interface UserAlert {
   threshold: number; active: boolean;
   triggered: boolean; lastValue: number | null; triggeredAt: number | null;
 }
-const ALERTS_STORE: UserAlert[] = [];
+function loadAlerts(): UserAlert[] {
+  try {
+    const raw = localStorage.getItem('ww_alerts');
+    if (!raw) return [];
+    // Reset runtime state on load (triggered state is session-specific)
+    return (JSON.parse(raw) as UserAlert[]).map(a => ({
+      ...a, triggered: false, lastValue: null, triggeredAt: null,
+    }));
+  } catch { return []; }
+}
+function saveAlerts(): void {
+  try {
+    // Persist only config fields, not transient trigger state
+    const toStore = ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
+      ({ id, coin, metric, op, threshold, active, triggered: false, lastValue: null, triggeredAt: null })
+    );
+    localStorage.setItem('ww_alerts', JSON.stringify(toStore));
+  } catch { /* ignore */ }
+}
+const ALERTS_STORE: UserAlert[] = loadAlerts();
 
 const METRIC_META: Record<AlertMetric, { label: string; unit: string; defaultVal: number }> = {
   spot:      { label: 'Spot 价格',    unit: '$',    defaultVal: 90000 },
@@ -7090,7 +6394,18 @@ function evalAlerts(coin: Coin): void {
     a.lastValue = v;
     const prev = a.triggered;
     a.triggered = a.op === '>' ? v > a.threshold : v < a.threshold;
-    if (a.triggered && !prev) a.triggeredAt = Date.now();
+    if (a.triggered && !prev) {
+      a.triggeredAt = Date.now();
+      // Browser push notification
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const meta = METRIC_META[a.metric];
+        new Notification(`${a.coin} 警报触发`, {
+          body: `${meta.label} ${a.op} ${a.threshold}${meta.unit}  (当前: ${v.toFixed(2)}${meta.unit})`,
+          icon: '/favicon.ico',
+          tag: a.id,
+        });
+      }
+    }
   }
 }
 
@@ -7108,6 +6423,13 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
+  // Request browser notification permission once on mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => { /* ignore */ });
+    }
+  }, []);
+
   // Evaluate every 10 s using cached data (no forced fetches)
   useEffect(() => {
     let alive = true;
@@ -7124,19 +6446,20 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
       id: `${Date.now()}`, coin, metric, op, threshold: t,
       active: true, triggered: false, lastValue: null, triggeredAt: null,
     });
+    saveAlerts();
     setAlerts([...ALERTS_STORE]);
     setThresh('');
   };
 
   const removeAlert = (id: string) => {
     const i = ALERTS_STORE.findIndex(a => a.id === id);
-    if (i >= 0) ALERTS_STORE.splice(i, 1);
+    if (i >= 0) { ALERTS_STORE.splice(i, 1); saveAlerts(); }
     setAlerts([...ALERTS_STORE]);
   };
 
   const toggleAlert = (id: string) => {
     const a = ALERTS_STORE.find(x => x.id === id);
-    if (a) { a.active = !a.active; a.triggered = false; }
+    if (a) { a.active = !a.active; a.triggered = false; saveAlerts(); }
     setAlerts([...ALERTS_STORE]);
   };
 

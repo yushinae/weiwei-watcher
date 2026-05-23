@@ -23,7 +23,6 @@ import {
   OptionsFlowWidget,
   FearGreedWidget,
   BlockTradeWidget,
-  SkewHistoryWidget,
   VannaCharmWidget,
   IVSignalWidget,
   ExpiryCalendarWidget,
@@ -39,7 +38,6 @@ import {
   PriceTargetProbWidget,
   EWMAForecastWidget,
   SpotTickerWidget,
-  OIDeltaWidget,
   GreeksScenarioWidget,
   LargeTradeAlertWidget,
   CalendarSpreadWidget,
@@ -114,11 +112,8 @@ export default function MonitorPage() {
             {/* ── 波动率 ────────────────────────────────────────────────────── */}
             {tab === 'vol' && (
               <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-5 h-[210px]">
+                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-12 h-[210px]">
                   <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="Skew 追踪（会话内）" headerDensity="compact" className="col-span-5 h-[210px]">
-                  <SkewHistoryWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="波动率微笑" headerDensity="compact" className="col-span-7 h-[300px]">
                   <VolSmileWidget
@@ -185,10 +180,7 @@ export default function MonitorPage() {
                 <WidgetCard title="最大持仓合约 Top 15" headerDensity="compact" className="col-span-12 h-[360px]">
                   <TopOIWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="OI 会话变动（Top 20）" headerDensity="compact" className="col-span-12 h-[380px]">
-                  <OIDeltaWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="Gamma 钉牢候选（≤7日到期）" headerDensity="compact" className="col-span-12 h-[240px]">
+                <WidgetCard title="Gamma 钉牢候选（≤14日到期）" headerDensity="compact" className="col-span-12 h-[240px]">
                   <GammaPinWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>

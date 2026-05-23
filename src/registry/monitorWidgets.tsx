@@ -157,6 +157,8 @@ interface DeribitData {
   expiries: ExpiryGroup[];
   callVol24h: number;
   putVol24h: number;
+  totalOptOI: number;        // sum of open_interest across ALL options (contracts, not filtered)
+  totalOptVol24hUSD: number; // sum of volume_usd across ALL options (raw USD)
   fetchedAt: number;
 }
 
@@ -271,11 +273,11 @@ function processDeribitResponse(results: any[]): DeribitData {
   );
   const dvol30 = dvol30Exp?.atmIV ?? 50;
 
-  return { spot, dvol30, pcr, expiries, callVol24h, putVol24h, fetchedAt: now };
+  return { spot, dvol30, pcr, expiries, callVol24h, putVol24h, totalOptOI: 0, totalOptVol24hUSD: 0, fetchedAt: now };
 }
 
 const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number }>();
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 300s — spot/DVOL/trades now come via WS; options chain REST can be slow
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shared polling scheduler
@@ -294,14 +296,24 @@ interface PollerEntry {
 }
 
 const POLLERS = new Map<string, PollerEntry>();
-let _isHidden = false;
+let _isHidden    = false;
+let _focusLostAt: number | null = null;            // non-null when window has lost focus
+const UNFOCUS_PAUSE_MS = 90_000;                   // pause all polls 90s after losing focus
+
+/** Returns true whenever polls should be skipped (tab hidden OR idle too long) */
+function _shouldSkip(): boolean {
+  if (_isHidden) return true;
+  if (_focusLostAt !== null && Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS) return true;
+  return false;
+}
 
 async function _pollOnce(key: string): Promise<void> {
-  if (_isHidden) return;
+  if (_shouldSkip()) return;
   const e = POLLERS.get(key);
   if (!e || e.subscribers.size === 0) return;
   try {
     const d = await e.fetcher();
+    if (_shouldSkip()) return; // drop result if we went idle during the await
     e.lastData = d;
     e.subscribers.forEach(fn => fn(d));
   } catch {}
@@ -315,6 +327,7 @@ function _resumeAll(): void {
       e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
     }
   });
+  DERIBIT_WS.resume();
 }
 
 function _pauseAll(): void {
@@ -322,12 +335,47 @@ function _pauseAll(): void {
   POLLERS.forEach(e => {
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
   });
+  DERIBIT_WS.pause();
 }
 
 if (typeof document !== 'undefined') {
+  // Tab hidden / shown (switching tabs or minimising the browser window)
   document.addEventListener('visibilitychange', () =>
     document.hidden ? _pauseAll() : _resumeAll()
   );
+}
+
+if (typeof window !== 'undefined') {
+  // Window loses focus → user switched to another app.
+  // visibilitychange doesn't fire in this case; we use window blur/focus instead.
+  // A 90s grace period avoids pausing on momentary focus losses (address bar, DevTools).
+  window.addEventListener('blur', () => {
+    if (!document.hasFocus()) _focusLostAt = _focusLostAt ?? Date.now();
+  });
+  window.addEventListener('focus', () => {
+    if (_focusLostAt === null) return;
+    const wasLongAway = Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS;
+    _focusLostAt = null;
+    if (wasLongAway && !_isHidden) {
+      POLLERS.forEach((_, key) => _pollOnce(key));
+      DERIBIT_WS.resume(); // reconnect WS and re-deliver fresh data
+    }
+  });
+}
+
+/**
+ * Like setInterval but automatically pauses when the page is hidden OR the
+ * window has been unfocused for more than UNFOCUS_PAUSE_MS. Returns cleanup fn.
+ */
+function setVisibleInterval(cb: () => void, ms: number): () => void {
+  let id: ReturnType<typeof setInterval> | null = null;
+  const tick = () => { if (!_shouldSkip()) cb(); };
+  const start = () => { if (id == null) id = setInterval(tick, ms); };
+  const stop  = () => { if (id != null) { clearInterval(id); id = null; } };
+  const onVis = () => document.hidden ? stop() : start();
+  if (!document.hidden) start();
+  document.addEventListener('visibilitychange', onVis);
+  return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
 }
 
 function subscribeData<T>(
@@ -372,6 +420,113 @@ function subscribeData<T>(
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DeribitWS — singleton WebSocket manager
+// One connection shared by all widgets. Pauses automatically when the page is
+// hidden or the window loses focus for >UNFOCUS_PAUSE_MS.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class DeribitWS {
+  private ws: WebSocket | null = null;
+  private subs = new Map<string, Set<(data: unknown) => void>>();
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatId: ReturnType<typeof setInterval> | null = null;
+  private msgId = 0;
+  private backoff = 1_000;
+
+  connect(): void {
+    if (this.ws?.readyState === WebSocket.OPEN ||
+        this.ws?.readyState === WebSocket.CONNECTING) return;
+    const ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
+    this.ws = ws;
+    ws.onopen = () => {
+      this.backoff = 1_000;
+      this.startHeartbeat();
+      this.resubscribeAll();
+    };
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.method === 'subscription') {
+          const { channel, data } = msg.params;
+          this.subs.get(channel)?.forEach(fn => fn(data));
+        }
+      } catch { /* ignore */ }
+    };
+    ws.onclose = () => {
+      this.stopHeartbeat();
+      if (this.reconnectTimer === null) {
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          this.backoff = Math.min(this.backoff * 2, 30_000);
+          this.connect();
+        }, this.backoff);
+      }
+    };
+    ws.onerror = () => ws.close();
+  }
+
+  disconnect(): void {
+    this.stopHeartbeat();
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.onclose = null; // prevent reconnect on intentional close
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
+      this.ws.onopen = null;
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  pause(): void  { this.disconnect(); }
+  resume(): void { this.connect(); }
+
+  subscribe<T>(channel: string, cb: (data: T) => void): () => void {
+    if (!this.subs.has(channel)) {
+      this.subs.set(channel, new Set());
+      this.send({ method: 'public/subscribe', params: { channels: [channel] } });
+    }
+    this.subs.get(channel)!.add(cb as (data: unknown) => void);
+    return () => {
+      const set = this.subs.get(channel);
+      if (!set) return;
+      set.delete(cb as (data: unknown) => void);
+      if (set.size === 0) {
+        this.subs.delete(channel);
+        this.send({ method: 'public/unsubscribe', params: { channels: [channel] } });
+      }
+    };
+  }
+
+  private send(payload: object): void {
+    if (this.ws?.readyState === WebSocket.OPEN)
+      this.ws.send(JSON.stringify({ jsonrpc: '2.0', id: ++this.msgId, ...payload }));
+  }
+
+  private resubscribeAll(): void {
+    const channels = [...this.subs.keys()];
+    if (channels.length) this.send({ method: 'public/subscribe', params: { channels } });
+  }
+
+  private startHeartbeat(): void {
+    this.heartbeatId = setInterval(() => this.send({ method: 'public/test' }), 15_000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatId !== null) { clearInterval(this.heartbeatId); this.heartbeatId = null; }
+  }
+}
+
+const DERIBIT_WS = new DeribitWS();
+if (typeof document !== 'undefined' && !document.hidden) DERIBIT_WS.connect();
+
+/** Max UI update rate for WS-driven hooks: 2 Hz. Keeps React reconciliation cheap. */
+const WS_FLUSH_MS = 500;
+
 async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
   const cached = DERIBIT_CACHE.get(currency);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
@@ -381,7 +536,15 @@ async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
   if (json.error) throw new Error(json.error.message ?? 'API error');
-  const data = processDeribitResponse(json.result as any[]);
+  const rawResults: any[] = json.result ?? [];
+
+  // Compute totals from raw results BEFORE filtering (used by SpotTickerWidget)
+  const totalOptOI        = rawResults.reduce((s, b) => s + (b.open_interest ?? 0), 0);
+  const totalOptVol24hUSD = rawResults.reduce((s, b) => s + (b.volume_usd      ?? 0), 0);
+
+  const data = processDeribitResponse(rawResults);
+  data.totalOptOI        = totalOptOI;
+  data.totalOptVol24hUSD = totalOptVol24hUSD;
   DERIBIT_CACHE.set(currency, { data, ts: Date.now() });
   return data;
 }
@@ -549,11 +712,15 @@ async function fetchDeribitHistory(currency: 'BTC' | 'ETH'): Promise<HistoryData
 }
 
 function useDeribitHistory(coin: Coin) {
-  const [data, setData] = useState<HistoryData | null>(null);
+  const [data, setData]       = useState<HistoryData | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const lastFetchedRef = useRef(0);
 
   useEffect(() => {
     let active = true;
+    setTimedOut(false);
+    // Show "load failed" hint if no data after 20 s
+    const timeout = setTimeout(() => { if (active && !data) setTimedOut(true); }, 20_000);
     const unsub = subscribeData<HistoryData>(
       `history-${coin}`,
       () => fetchDeribitHistory(coin),
@@ -562,13 +729,14 @@ function useDeribitHistory(coin: Coin) {
         if (!active) return;
         if (d.fetchedAt === lastFetchedRef.current && data !== null) return;
         lastFetchedRef.current = d.fetchedAt;
+        setTimedOut(false);
         setData(d);
       },
     );
-    return () => { active = false; unsub(); };
+    return () => { active = false; clearTimeout(timeout); unsub(); };
   }, [coin]);
 
-  return { data };
+  return { data, timedOut };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -707,6 +875,18 @@ const Skeleton = () => (
   </div>
 );
 
+// Shown when fetchDeribitHistory hasn't delivered data after 20s (API fail / network)
+const HistLoadErr = () => (
+  <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-center px-4">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="opacity-40">
+      <circle cx="10" cy="10" r="9" stroke="#f87171" strokeWidth="1.5"/>
+      <path d="M10 5.5v5M10 13.5v1" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+    <span className="text-[11px] text-slate-500">历史数据加载失败</span>
+    <span className="text-[10px] text-slate-600">Deribit 历史 API 无响应，请刷新重试</span>
+  </div>
+);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SmileChart – real data version
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -736,7 +916,7 @@ function buildSmileRows(expiries: ExpiryGroup[]): { rows: SmileRow[]; lines: { l
   return { rows, lines };
 }
 
-const SmileChartLive = ({
+const SmileChartLive = React.memo(({
   expiries,
   onPick,
 }: {
@@ -744,7 +924,7 @@ const SmileChartLive = ({
   onPick?: (p: { tenor: string; label: string; value: number }) => void;
 }) => {
   if (!expiries.length) return <Skeleton />;
-  const W = 320, H = 180, px = 28, py = 14;
+  const W = 500, H = 180, px = 36, py = 14;
   const { rows, lines } = buildSmileRows(expiries);
 
   // Collect all IVs to set y range
@@ -759,7 +939,7 @@ const SmileChartLive = ({
   const yTicks = Array.from({ length: Math.round((hi - lo) / 5) + 1 }, (_, i) => lo + i * 5);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       {/* Grid */}
       {yTicks.map(v => (
         <React.Fragment key={v}>
@@ -796,14 +976,14 @@ const SmileChartLive = ({
       ))}
     </svg>
   );
-};
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Historical charts – unchanged (use mock data)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const VRPChart = ({ data: d }: { data: { iv: number; rv: number }[] }) => {
-  const W = 320, H = 140, px = 28, py = 12;
+const VRPChart = React.memo(({ data: d }: { data: { iv: number; rv: number }[] }) => {
+  const W = 480, H = 140, px = 36, py = 12;
   const allV = d.flatMap(r => [r.iv, r.rv]);
   const lo = Math.floor(Math.min(...allV) / 5) * 5;
   const hi = Math.ceil(Math.max(...allV) / 5) * 5;
@@ -811,7 +991,7 @@ const VRPChart = ({ data: d }: { data: { iv: number; rv: number }[] }) => {
   const rvPts  = mapPts(d.map(r => r.rv), W, H, lo, hi, px, py);
   const vrpPts = mapPts(d.map(r => r.iv - r.rv), W, H, 0, Math.ceil(Math.max(...d.map(r => r.iv - r.rv)) / 5) * 5, px, py);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       {[lo, lo + (hi - lo) / 2, hi].map(v => {
         const y = (H - py) - ((v - lo) / (hi - lo)) * (H - 2 * py);
         return <React.Fragment key={v}>
@@ -828,28 +1008,28 @@ const VRPChart = ({ data: d }: { data: { iv: number; rv: number }[] }) => {
       <text x={px + 50} y={12} fontSize={7} fill={TXT}>RV</text>
     </svg>
   );
-};
+});
 
-const IVRankChart = ({ data: d }: { data: number[] }) => {
-  const W = 320, H = 120, px = 24, py = 10;
+const IVRankChart = React.memo(({ data: d }: { data: number[] }) => {
+  const W = 900, H = 120, px = 40, py = 10;
   const pts = mapPts(d, W, H, 0, 100, px, py);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       {[0, 30, 70, 100].map(v => {
         const y = (H - py) - (v / 100) * (H - 2 * py);
         const col = v === 30 ? 'rgba(37,232,137,0.3)' : v === 70 ? 'rgba(202,63,100,0.3)' : GRID;
         return <React.Fragment key={v}>
           <line x1={px} y1={y} x2={W - px} y2={y} stroke={col} strokeWidth={v === 30 || v === 70 ? 0.8 : 0.5} strokeDasharray={v === 30 || v === 70 ? '3,2' : undefined} />
-          <text x={px - 4} y={y + 3.5} textAnchor="end" fontSize={7} fill={TXT}>{v}</text>
+          <text x={px - 6} y={y + 3.5} textAnchor="end" fontSize={8} fill={TXT}>{v}</text>
         </React.Fragment>;
       })}
       <path d={area(pts, H, py)} fill="url(#wg-green)" />
       <polyline points={poly(pts)} fill="none" stroke={BRAND} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-};
+});
 
-const VolConeChart = ({
+const VolConeChart = React.memo(({
   cone,
   currIVs,     // current ATM IV at each tenor (from options chain)
   tenorLabels, // e.g. ['7D','14D','30D','60D','90D','180D']
@@ -858,7 +1038,7 @@ const VolConeChart = ({
   currIVs: number[];
   tenorLabels: string[];
 }) => {
-  const W = 320, H = 160, px = 28, py = 14;
+  const W = 380, H = 175, px = 32, py = 16;
   const allVals = [...cone.p90, ...currIVs].filter(v => v > 0);
   if (!allVals.length) return <Skeleton />;
   const hi = Math.ceil(Math.max(...allVals) / 10) * 10 + 5;
@@ -867,7 +1047,7 @@ const VolConeChart = ({
   function fx(i: number) { return px + (i / (n - 1)) * (W - 2 * px); }
   const currPts = currIVs.map((v, i): [number, number] => [fx(i), fy(v)]);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       {[0, 25, 50, 75, 100].filter(v => v <= hi).map(v => (
         <React.Fragment key={v}>
           <line x1={px} y1={fy(v)} x2={W - px} y2={fy(v)} stroke={GRID} strokeWidth={0.5} />
@@ -895,7 +1075,7 @@ const VolConeChart = ({
       <text x={px + 83} y={11} fontSize={7} fill={TXT}>当前IV</text>
     </svg>
   );
-};
+});
 // ═══════════════════════════════════════════════════════════════════════════════
 // useCoinControl + WidgetShell
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -918,7 +1098,7 @@ const WidgetShell = ({ children, coin, setCoin }: { children: React.ReactNode; c
   }, [coin, setCoin, setHeaderRight]);
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {children}
       </div>
     </div>
@@ -1123,8 +1303,8 @@ export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, histData]);
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-3 pb-2">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <VRPChart data={vrpData} />
       </div>
     </div>
@@ -1146,8 +1326,8 @@ export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinContro
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, histData]);
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-3 pb-2">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <IVRankChart data={ivrData} />
       </div>
     </div>
@@ -1194,8 +1374,8 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
   const labels = CONE_TENOR_TARGETS.map(t => `${t}D`);
 
   return (
-    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden">
-      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+    <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-2 pb-1">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {histData
           ? <VolConeChart cone={cone} currIVs={currIVs} tenorLabels={labels} />
           : <VolConeChart
@@ -1753,83 +1933,27 @@ interface BlockTrade {
   premiumUSD: number;    // amount × price × indexPrice
 }
 
-const BT_SEEN  = new Map<string, Set<string>>();   // currency → tradeId set
-const BT_STATE = new Map<string, BlockTrade[]>();  // currency → sorted trades
-const BT_TTL = 5_000;  // poll every 5s
-const BT_MIN_USD = 50_000; // minimum notional to show
+// BT_MIN_USD — default minimum notional for BlockTradeWidget filter
+const BT_MIN_USD = 50_000;
 
-async function fetchBlockTrades(currency: 'BTC' | 'ETH'): Promise<BlockTrade[]> {
-  const resp = await fetch(
-    `https://www.deribit.com/api/v2/public/get_last_trades_by_currency?currency=${currency}&kind=option&count=100`
+// useBlockTrades now derives from the shared WS option-trade stream (useOptionTradesWS).
+// No separate REST polling or OPT_STREAM reference needed.
+function useBlockTrades(coin: Coin, minUSD = BT_MIN_USD) {
+  const allTrades = useOptionTradesWS(coin);
+  const trades = useMemo<BlockTrade[]>(() =>
+    allTrades
+      .filter(t => t.notionalUSD >= minUSD)
+      .slice(0, 120)
+      .map(t => ({
+        tradeId: t.id, instrument: t.instrument,
+        direction: t.direction, amount: t.amount, price: t.price,
+        iv: t.iv, indexPrice: t.indexPrice, ts: t.ts,
+        strike: t.strike, expiry: t.expiry, optType: t.optType,
+        notionalUSD: t.notionalUSD, premiumUSD: t.premiumUSD,
+      })),
+    [allTrades, minUSD],
   );
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const json = await resp.json();
-  const rawTrades: any[] = json?.result?.trades ?? [];
-
-  const seen = BT_SEEN.get(currency) ?? new Set<string>();
-  const existing = BT_STATE.get(currency) ?? [];
-  const newTrades: BlockTrade[] = [];
-
-  for (const t of rawTrades) {
-    if (seen.has(t.trade_id)) continue;
-    const parts = (t.instrument_name as string).split('-');
-    if (parts.length < 4) continue;
-    const strike = parseInt(parts[2]);
-    const optType = parts[3] as 'C' | 'P';
-    const indexPrice: number = t.index_price ?? t.underlying_price ?? 0;
-    const amount: number = t.amount ?? 0;
-    const price: number = t.price ?? 0;
-    const notionalUSD = amount * indexPrice;
-    if (notionalUSD < BT_MIN_USD) continue;
-
-    seen.add(t.trade_id);
-    newTrades.push({
-      tradeId: t.trade_id,
-      instrument: t.instrument_name,
-      direction: t.direction as 'buy' | 'sell',
-      amount,
-      price,
-      iv: t.iv ?? t.mark_iv ?? 0,
-      indexPrice,
-      ts: t.timestamp,
-      strike,
-      expiry: parts[1],
-      optType,
-      notionalUSD,
-      premiumUSD: amount * price * indexPrice,
-    });
-  }
-
-  // Trim seen set to prevent unbounded growth
-  if (seen.size > 2000) {
-    const arr = [...seen];
-    arr.slice(0, arr.length - 1000).forEach(id => seen.delete(id));
-  }
-  BT_SEEN.set(currency, seen);
-
-  const merged = [...newTrades, ...existing].slice(0, 120);
-  BT_STATE.set(currency, merged);
-  return merged;
-}
-
-function useBlockTrades(coin: Coin) {
-  const [trades, setTrades] = useState<BlockTrade[]>([]);
-  const [loading, setLoading] = useState(true);
-  const currency = coin === 'BTC' ? 'BTC' : 'ETH';
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    const unsub = subscribeData<BlockTrade[]>(
-      `blocktrades-${currency}`,
-      () => fetchBlockTrades(currency),
-      BT_TTL,
-      d => { if (active) { setTrades([...d]); setLoading(false); } },
-    );
-    return () => { active = false; unsub(); };
-  }, [currency]);
-
-  return { trades, loading };
+  return { trades, loading: allTrades.length === 0 };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1854,7 +1978,7 @@ interface FlowData {
 }
 
 const FLOW_CACHE = new Map<string, { data: FlowData; ts: number }>();
-const FLOW_TTL = 60_000; // 1 min
+const FLOW_TTL = 300_000; // 300s — historical funding + Fear & Greed rarely change
 
 const MONTH_MAP_FUTURES: Record<string, number> = {
   JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
@@ -1894,8 +2018,8 @@ async function fetchFlowData(currency: 'BTC' | 'ETH'): Promise<FlowData> {
   let annFunding = 0;
   if (fundingResp.status === 'fulfilled') {
     const json = await fundingResp.value.json().catch(() => null);
-    const raw: Array<{ timestamp: number; interest: number }> = json?.result ?? [];
-    fundingHistory = raw.map(r => ({ ts: r.timestamp, rate: r.interest * 100 }));
+    const raw: Array<{ timestamp: number; interest_8h: number }> = json?.result ?? [];
+    fundingHistory = raw.map(r => ({ ts: r.timestamp, rate: r.interest_8h * 100 }));
     if (fundingHistory.length) {
       currentFunding8h = fundingHistory[fundingHistory.length - 1].rate;
       annFunding = currentFunding8h * 3 * 365; // 3 × per day × 365
@@ -2157,7 +2281,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
 
 export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: histData } = useDeribitHistory(coin);
+  const { data: histData, timedOut } = useDeribitHistory(coin);
   const { setHeaderRight } = useCardHeader();
 
   useEffect(() => {
@@ -2170,7 +2294,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, histData]);
 
-  if (!histData) return <Skeleton />;
+  if (!histData) return timedOut ? <HistLoadErr /> : <Skeleton />;
 
   const dvol = histData.dvolSeries;
   const rv30 = histData.rv30Series;
@@ -2645,7 +2769,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           ))}
         </div>
         <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />5s
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />10s
         </span>
         <CoinTabs v={coin} set={setCoin} />
       </div>
@@ -3122,23 +3246,26 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 
+  // maxPain is O(strikes²) per expiry — memoised so it only runs when data changes (every 90s).
+  const calRows = useMemo(() => {
+    if (!data || !data.expiries.length) return null;
+    const spot = data.spot;
+    return data.expiries.slice(0, 10).map(e => {
+      const callOI = e.calls.reduce((s, o) => s + o.oi, 0);
+      const putOI  = e.puts.reduce((s,  o) => s + o.oi, 0);
+      const totalOI = callOI + putOI;
+      const pcr = callOI > 0 ? putOI / callOI : 1;
+      const mp = maxPain(e, spot);
+      const mpPct = spot > 0 ? ((mp - spot) / spot) * 100 : 0;
+      return { label: e.label, daysToExp: e.daysToExp, callOI, putOI, totalOI, pcr, atmIV: e.atmIV, mp, mpPct };
+    });
+  }, [data]);
+
   if (loading && !data) return <Skeleton />;
-  if (!data || !data.expiries.length) return <div className="p-3 text-[11px] text-white/20">暂无到期日数据</div>;
+  if (!data || !data.expiries.length || !calRows) return <div className="p-3 text-[11px] text-white/20">暂无到期日数据</div>;
 
+  const rows = calRows;
   const spot = data.spot;
-  const exps = data.expiries.slice(0, 10); // up to 10 expiries
-
-  // Per expiry stats
-  const rows = exps.map(e => {
-    const callOI = e.calls.reduce((s, o) => s + o.oi, 0);
-    const putOI  = e.puts.reduce((s,  o) => s + o.oi, 0);
-    const totalOI = callOI + putOI;
-    const pcr = callOI > 0 ? putOI / callOI : 1;
-    const mp = maxPain(e, spot);
-    const mpPct = spot > 0 ? ((mp - spot) / spot) * 100 : 0;
-    return { label: e.label, daysToExp: e.daysToExp, callOI, putOI, totalOI, pcr, atmIV: e.atmIV, mp, mpPct };
-  });
-
   const maxOI = Math.max(...rows.map(r => r.totalOI), 1);
   const fmtK  = (v: number) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toFixed(0);
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
@@ -3718,8 +3845,8 @@ const RV_IV_TENORS = [7, 14, 30, 60, 90, 180] as const;
 
 export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data }          = useDeribitOptions(coin);
-  const { data: hist }    = useDeribitHistory(coin);
+  const { data }                    = useDeribitOptions(coin);
+  const { data: hist, timedOut }    = useDeribitHistory(coin);
   const { setHeaderRight } = useCardHeader();
 
   useEffect(() => {
@@ -3732,7 +3859,7 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data, hist]);
 
-  if (!data || !hist) return <Skeleton />;
+  if (!data || !hist) return timedOut ? <HistLoadErr /> : <Skeleton />;
 
   // Current IV: for each tenor find nearest expiry in data.expiries
   const currentIV: number[] = RV_IV_TENORS.map(t => {
@@ -3876,19 +4003,20 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data, sortBy]);
 
+  // Memoised: flatMap + sort of the full option chain, keyed on data + sortBy.
+  const { spot, sorted, maxVal } = useMemo(() => {
+    if (!data) return { spot: 0, sorted: [], maxVal: 1 };
+    const sp = data.spot;
+    const all = data.expiries.flatMap(e =>
+      [...e.calls, ...e.puts].map(o => ({ ...o, expLabel: e.label }))
+    );
+    const s = [...all].sort((a, b) => sortBy === 'oi' ? b.oi - a.oi : b.volume - a.volume).slice(0, 15);
+    return { spot: sp, sorted: s, maxVal: Math.max(...s.map(o => sortBy === 'oi' ? o.oi : o.volume), 1) };
+  }, [data, sortBy]);
+
   if (loading && !data) return <Skeleton />;
   if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
 
-  const spot = data.spot;
-  const allOpts = data.expiries.flatMap(e =>
-    [...e.calls, ...e.puts].map(o => ({ ...o, expLabel: e.label }))
-  );
-
-  const sorted = [...allOpts]
-    .sort((a, b) => sortBy === 'oi' ? b.oi - a.oi : b.volume - a.volume)
-    .slice(0, 15);
-
-  const maxVal = Math.max(...sorted.map(o => sortBy === 'oi' ? o.oi : o.volume), 1);
   const fmtN = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
   const fmtK = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
@@ -4093,21 +4221,24 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
 // Useful for cross-asset vol arb and relative positioning.
 
 function useDualHistory() {
-  const [btc, setBtc] = useState<HistoryData | null>(null);
-  const [eth, setEth] = useState<HistoryData | null>(null);
+  const [btc, setBtc]         = useState<HistoryData | null>(null);
+  const [eth, setEth]         = useState<HistoryData | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     let active = true;
-    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) setBtc(d); });
-    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) setEth(d); });
-    return () => { active = false; u1(); u2(); };
+    setTimedOut(false);
+    const timeout = setTimeout(() => { if (active && (!btc || !eth)) setTimedOut(true); }, 20_000);
+    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) { setBtc(d); setTimedOut(false); } });
+    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) { setEth(d); setTimedOut(false); } });
+    return () => { active = false; clearTimeout(timeout); u1(); u2(); };
   }, []);
 
-  return { btc, eth };
+  return { btc, eth, timedOut };
 }
 
 export const BTCETHSpreadWidget = () => {
-  const { btc, eth } = useDualHistory();
+  const { btc, eth, timedOut } = useDualHistory();
   const { setHeaderRight } = useCardHeader();
 
   useEffect(() => {
@@ -4118,7 +4249,7 @@ export const BTCETHSpreadWidget = () => {
     return () => setHeaderRight(null);
   }, [setHeaderRight, btc, eth]);
 
-  if (!btc || !eth) return <Skeleton />;
+  if (!btc || !eth) return timedOut ? <HistLoadErr /> : <Skeleton />;
 
   const btcSeries = btc.dvolSeries;
   const ethSeries = eth.dvolSeries;
@@ -4490,46 +4621,43 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 
-  if (loading && !data) return <Skeleton />;
-  if (!data || !data.expiries.length) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
-
-  const spot = data.spot;
-  const exps = data.expiries.slice(0, 6);
-
-  // d₂ = (ln(S/K) + (-σ²/2)·T) / (σ·√T)   →  P(above K) = N(d₂)
-  const d2 = (S: number, K: number, T: number, iv: number) => {
-    if (T <= 0 || iv <= 0) return S >= K ? 1 : 0;
-    const sigma = iv / 100;
-    return (Math.log(S / K) - 0.5 * sigma * sigma * T) / (sigma * Math.sqrt(T));
-  };
-
-  // Interpolate per-strike IV from the option chain for a given expiry
-  const getStrikeIV = (e: ExpiryGroup, k: number): number => {
-    // Build a sorted array of {strike, iv} from calls (puts have same IV by put-call parity)
-    const chain = [...e.calls, ...e.puts]
-      .filter(o => o.iv > 0)
-      .sort((a, b) => a.strike - b.strike);
-    if (chain.length === 0) return e.atmIV;
-    // Find the two nearest strikes and linearly interpolate
-    if (k <= chain[0].strike) return chain[0].iv;
-    if (k >= chain[chain.length - 1].strike) return chain[chain.length - 1].iv;
-    for (let i = 0; i < chain.length - 1; i++) {
-      if (chain[i].strike <= k && k <= chain[i + 1].strike) {
-        const t = (k - chain[i].strike) / (chain[i + 1].strike - chain[i].strike);
-        return chain[i].iv + t * (chain[i + 1].iv - chain[i].iv);
+  // Heavy computation: probGrid = 11 strikes × 6 expiries × IV interpolation per cell.
+  // Memoised on data so it only recalculates when the options chain refreshes (every 90s).
+  const computed = useMemo(() => {
+    if (!data || !data.expiries.length) return null;
+    const spot = data.spot;
+    const exps = data.expiries.slice(0, 6);
+    const d2 = (S: number, K: number, T: number, iv: number) => {
+      if (T <= 0 || iv <= 0) return S >= K ? 1 : 0;
+      const sigma = iv / 100;
+      return (Math.log(S / K) - 0.5 * sigma * sigma * T) / (sigma * Math.sqrt(T));
+    };
+    const getStrikeIV = (e: ExpiryGroup, k: number): number => {
+      const chain = [...e.calls, ...e.puts].filter(o => o.iv > 0).sort((a, b) => a.strike - b.strike);
+      if (chain.length === 0) return e.atmIV;
+      if (k <= chain[0].strike) return chain[0].iv;
+      if (k >= chain[chain.length - 1].strike) return chain[chain.length - 1].iv;
+      for (let i = 0; i < chain.length - 1; i++) {
+        if (chain[i].strike <= k && k <= chain[i + 1].strike) {
+          const t = (k - chain[i].strike) / (chain[i + 1].strike - chain[i].strike);
+          return chain[i].iv + t * (chain[i + 1].iv - chain[i].iv);
+        }
       }
-    }
-    return e.atmIV;
-  };
+      return e.atmIV;
+    };
+    const strikes = PROB_STRIKE_OFFSETS.map(o =>
+      Math.round(spot * (1 + o) / (spot > 10_000 ? 1_000 : 100)) * (spot > 10_000 ? 1_000 : 100)
+    );
+    const probGrid: number[][] = strikes.map(k =>
+      exps.map(e => normCDF(d2(spot, k, e.T, getStrikeIV(e, k))) * 100)
+    );
+    return { spot, exps, strikes, probGrid };
+  }, [data]);
 
-  // Probability cells: rows = strikes, cols = expiries
-  const strikes = PROB_STRIKE_OFFSETS.map(o => Math.round(spot * (1 + o) / (spot > 10_000 ? 1_000 : 100)) * (spot > 10_000 ? 1_000 : 100));
-  const probGrid: number[][] = strikes.map(k =>
-    exps.map(e => {
-      const iv = getStrikeIV(e, k); // interpolated per-strike IV from smile
-      return normCDF(d2(spot, k, e.T, iv)) * 100; // P(above K)
-    })
-  );
+  if (loading && !data) return <Skeleton />;
+  if (!data || !data.expiries.length || !computed) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+
+  const { spot, exps, strikes, probGrid } = computed;
 
   // Colour: green→yellow→red from 100%→50%→0%
   const probColor = (p: number) => {
@@ -4620,8 +4748,8 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
 
 export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin }   = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: hist }      = useDeribitHistory(coin);
-  const { data: optData }   = useDeribitOptions(coin);
+  const { data: hist, timedOut }  = useDeribitHistory(coin);
+  const { data: optData }         = useDeribitOptions(coin);
   const { setHeaderRight }  = useCardHeader();
 
   useEffect(() => {
@@ -4634,7 +4762,7 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, hist]);
 
-  if (!hist || !optData) return <Skeleton />;
+  if (!hist || !optData) return timedOut ? <HistLoadErr /> : <Skeleton />;
 
   const dvol    = hist.dvolSeries;
   const current = dvol[dvol.length - 1];
@@ -4810,7 +4938,7 @@ interface TickerSnapshot {
   optVol24h_M: number; // USD millions
 }
 const TICKER_CACHE2 = new Map<string, { data: TickerSnapshot; ts: number }>();
-const TICKER_TTL2 = 8_000;
+const TICKER_TTL2 = 15_000; // 15s — spot price display doesn't need 8s refresh
 
 async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   const key = coin;
@@ -4820,10 +4948,10 @@ async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   const cur = coin === 'BTC' ? 'BTC' : 'ETH';
   const idx = coin === 'BTC' ? 'btc_usd' : 'eth_usd';
 
-  const [spotRes, perpRes, optRes, optChain] = await Promise.all([
+  // Fetch spot + perp concurrently; reuse cached options chain — no extra book download
+  const [spotRes, perpRes, optChain] = await Promise.all([
     fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${idx}`).then(r => r.json()),
     fetch(`https://www.deribit.com/api/v2/public/ticker?instrument_name=${cur}-PERPETUAL`).then(r => r.json()),
-    fetch(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${cur}&kind=option`).then(r => r.json()),
     fetchDeribitOptions(coin).catch(() => null),
   ]);
 
@@ -4836,9 +4964,9 @@ async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   const funding8h: number = perp.current_funding ?? 0;
   const fundingAnn: number = funding8h * 3 * 365 * 100;
 
-  const books: any[] = optRes.result ?? [];
-  const optOI = books.reduce((s: number, b: any) => s + (b.open_interest ?? 0), 0);
-  const optVol24h = books.reduce((s: number, b: any) => s + (b.volume_usd ?? 0), 0);
+  // OI and volume from the cached options chain (totalOptOI/totalOptVol24hUSD set by fetchDeribitOptions)
+  const optOI     = optChain?.totalOptOI        ?? 0;
+  const optVol24h = optChain?.totalOptVol24hUSD ?? 0;
 
   // DVOL: use ATM 30D IV from options chain (get_index_price?index_name=btc_dvol returns 400)
   const dvol: number = optChain?.dvol30 ?? 0;
@@ -4857,37 +4985,242 @@ async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
   return data;
 }
 
+// ── useTickerSnapshotWS ───────────────────────────────────────────────────────
+// Assembles TickerSnapshot from 3 WS channels (spot · DVOL · perp ticker).
+// OI / Vol fields still come from the REST options-chain cache (updated every 5min).
+// Also writes TICKER_CACHE2 so evalAlerts() keeps working.
+function useTickerSnapshotWS(coin: Coin): TickerSnapshot | null {
+  const partialRef = useRef<{
+    spot?: number; dvol?: number; change24hPct?: number;
+    high24h?: number; low24h?: number; fundingAnn?: number;
+  }>({});
+  const pendingRef   = useRef<TickerSnapshot | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [snap, setSnap] = useState<TickerSnapshot | null>(() => TICKER_CACHE2.get(coin)?.data ?? null);
+
+  useEffect(() => {
+    partialRef.current = {};
+    pendingRef.current = null;
+    let alive = true;
+    const idx = coin === 'BTC' ? 'btc_usd' : 'eth_usd';
+    const cur = coin === 'BTC' ? 'BTC' : 'ETH';
+
+    const tryEmit = () => {
+      const s = partialRef.current;
+      if (s.spot === undefined) return;
+      const cached = DERIBIT_CACHE.get(coin);
+      const spot = s.spot;
+      const t: TickerSnapshot = {
+        spot,
+        dvol:         s.dvol         ?? cached?.data.dvol30 ?? 0,
+        change24hPct: s.change24hPct ?? 0,
+        high24h:      s.high24h      ?? spot,
+        low24h:       s.low24h       ?? spot,
+        fundingAnn:   s.fundingAnn   ?? 0,
+        optOI_M:     cached ? (cached.data.totalOptOI * spot) / 1e6 : 0,
+        optVol24h_M: cached ? cached.data.totalOptVol24hUSD / 1e6   : 0,
+      };
+      TICKER_CACHE2.set(coin, { data: t, ts: Date.now() });
+      pendingRef.current = t;
+      // Throttle React re-renders to WS_FLUSH_MS (2 Hz max)
+      if (!flushTimerRef.current) {
+        flushTimerRef.current = setTimeout(() => {
+          flushTimerRef.current = null;
+          if (alive && pendingRef.current) setSnap(pendingRef.current);
+        }, WS_FLUSH_MS);
+      }
+    };
+
+    const u1 = DERIBIT_WS.subscribe<{ price: number }>(
+      `deribit_price_index.${idx}`,
+      d => { partialRef.current.spot = d.price; tryEmit(); },
+    );
+    const u2 = DERIBIT_WS.subscribe<{ volatility: number }>(
+      `deribit_volatility_index.${idx}`,
+      d => { partialRef.current.dvol = d.volatility; tryEmit(); },
+    );
+    const u3 = DERIBIT_WS.subscribe<any>(
+      `ticker.${cur}-PERPETUAL.raw`,
+      d => {
+        partialRef.current.fundingAnn   = (d.current_funding ?? 0) * 3 * 365 * 100;
+        const st = d.stats ?? {};
+        if (st.price_change !== undefined) partialRef.current.change24hPct = st.price_change;
+        if (st.high !== undefined)         partialRef.current.high24h      = st.high;
+        if (st.low  !== undefined)         partialRef.current.low24h       = st.low;
+        tryEmit();
+      },
+    );
+
+    return () => {
+      alive = false;
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      u1(); u2(); u3();
+    };
+  }, [coin]);
+
+  return snap;
+}
+
+// ── useOptionTradesWS ─────────────────────────────────────────────────────────
+// Real-time option trade stream via WS. Replaces pollOptionTrades REST polling.
+// Maintains a 2000-trade newest-first buffer; also feeds processLargeTrades /
+// processPremiumFlow so AlertsWidget metrics remain available.
+function useOptionTradesWS(coin: Coin): RawOptionTrade[] {
+  const bufRef       = useRef<RawOptionTrade[]>([]);
+  const seenRef      = useRef(new Set<string>());
+  const dirtyRef     = useRef(false);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [trades, setTrades] = useState<RawOptionTrade[]>([]);
+
+  useEffect(() => {
+    bufRef.current  = [];
+    seenRef.current.clear();
+    dirtyRef.current = false;
+    let alive = true;
+    const cur = coin === 'BTC' ? 'BTC' : 'ETH';
+
+    const unsub = DERIBIT_WS.subscribe<any[]>(
+      `trades.option.${cur}.raw`,
+      (batch) => {
+        if (!alive) return;
+        const newTrades: RawOptionTrade[] = [];
+        for (const t of (Array.isArray(batch) ? batch : [])) {
+          if (seenRef.current.has(t.trade_id)) continue;
+          seenRef.current.add(t.trade_id);
+          const parts = (t.instrument_name as string).split('-');
+          if (parts.length !== 4) continue;
+          const ip = t.index_price ?? 1, amt = t.amount ?? 0, prc = t.price ?? 0;
+          newTrades.push({
+            id: t.trade_id, instrument: t.instrument_name,
+            strike: Number(parts[2]), expiry: parts[1],
+            optType: parts[3] === 'C' ? 'C' : 'P',
+            direction: t.direction === 'buy' ? 'buy' : 'sell',
+            amount: amt, price: prc, iv: t.iv ?? 0, indexPrice: ip,
+            premiumUSD: prc * amt * ip, notionalUSD: amt * ip,
+            ts: t.timestamp,
+          });
+        }
+        if (newTrades.length === 0) return;
+        // Trim seen set
+        if (seenRef.current.size > 5000) {
+          const arr = [...seenRef.current];
+          arr.slice(0, arr.length - 3000).forEach(id => seenRef.current.delete(id));
+        }
+        const updated = [...newTrades, ...bufRef.current].slice(0, 2000);
+        bufRef.current = updated;
+        // Alert aggregators run immediately (they write to module-level maps, not React state)
+        processLargeTrades(coin, updated, 0);
+        processPremiumFlow(coin, updated);
+        // Throttle the React re-render to WS_FLUSH_MS
+        dirtyRef.current = true;
+        if (!flushTimerRef.current) {
+          flushTimerRef.current = setTimeout(() => {
+            flushTimerRef.current = null;
+            if (alive && dirtyRef.current) { dirtyRef.current = false; setTrades([...bufRef.current]); }
+          }, WS_FLUSH_MS);
+        }
+      },
+    );
+    return () => {
+      alive = false;
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      unsub();
+    };
+  }, [coin]);
+
+  return trades;
+}
+
+// ── useOrderbookWS ────────────────────────────────────────────────────────────
+// Live order-book for PERPETUAL via WS. Replaces fetchOrderbook REST polling.
+// First WS message is a snapshot; subsequent messages apply incremental changes.
+type OBEntry = [number, number];
+function useOrderbookWS(coin: Coin): { bids: OBEntry[]; asks: OBEntry[]; mark: number; spread: number } | null {
+  const bidsMap       = useRef(new Map<number, number>());
+  const asksMap       = useRef(new Map<number, number>());
+  const pendingMarkRef = useRef<number | undefined>(undefined);
+  const dirtyRef      = useRef(false);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [ob, setOb] = useState<{ bids: OBEntry[]; asks: OBEntry[]; mark: number; spread: number } | null>(null);
+
+  useEffect(() => {
+    bidsMap.current.clear();
+    asksMap.current.clear();
+    dirtyRef.current = false;
+    pendingMarkRef.current = undefined;
+    let alive = true;
+    const inst = coin === 'BTC' ? 'BTC-PERPETUAL' : 'ETH-PERPETUAL';
+
+    const applyChange = (map: Map<number, number>, levels: [string, number, number][]) => {
+      for (const [action, price, amount] of levels) {
+        if (action === 'delete' || amount === 0) map.delete(price);
+        else map.set(price, amount);
+      }
+    };
+
+    const unsub = DERIBIT_WS.subscribe<any>(
+      `book.${inst}.100ms`,
+      (data) => {
+        if (!alive) return;
+        if (data.type === 'snapshot') {
+          bidsMap.current.clear(); asksMap.current.clear();
+          for (const [p, s] of (data.bids ?? [])) { if (s > 0) bidsMap.current.set(p, s); }
+          for (const [p, s] of (data.asks ?? [])) { if (s > 0) asksMap.current.set(p, s); }
+        } else {
+          applyChange(bidsMap.current, data.bids ?? []);
+          applyChange(asksMap.current, data.asks ?? []);
+        }
+        if (data.mark_price !== undefined) pendingMarkRef.current = data.mark_price;
+        // Throttle sort+slice+setState to WS_FLUSH_MS — maps update every 100ms, UI at 2Hz
+        dirtyRef.current = true;
+        if (!flushTimerRef.current) {
+          flushTimerRef.current = setTimeout(() => {
+            flushTimerRef.current = null;
+            if (!alive || !dirtyRef.current) return;
+            dirtyRef.current = false;
+            const bids: OBEntry[] = [...bidsMap.current.entries()].sort((a, b) => b[0] - a[0]).slice(0, 15);
+            const asks: OBEntry[] = [...asksMap.current.entries()].sort((a, b) => a[0] - b[0]).slice(0, 15);
+            const mark   = pendingMarkRef.current ?? (bids[0]?.[0] ?? 0);
+            const spread = bids.length && asks.length ? asks[0][0] - bids[0][0] : 0;
+            setOb({ bids, asks, mark, spread });
+          }, WS_FLUSH_MS);
+        }
+      },
+    );
+    return () => {
+      alive = false;
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      unsub();
+    };
+  }, [coin]);
+
+  return ob;
+}
+
 export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
-  const [snap, setSnap] = useState<TickerSnapshot | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
   const prevSpotRef = useRef<number | undefined>(undefined);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const snap = useTickerSnapshotWS(coin);
 
   useEffect(() => {
     setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
+  // Flash when spot price changes
   useEffect(() => {
-    let alive = true;
-    prevSpotRef.current = undefined;
-    const unsub = subscribeData<TickerSnapshot>(
-      `ticker-${coin}`,
-      () => fetchTickerSnapshot(coin),
-      TICKER_TTL2,
-      d => {
-        if (!alive) return;
-        if (prevSpotRef.current !== undefined && d.spot !== prevSpotRef.current) {
-          setFlash(d.spot > prevSpotRef.current ? 'up' : 'down');
-          setTimeout(() => setFlash(null), 500);
-        }
-        prevSpotRef.current = d.spot;
-        setSnap(d);
-      },
-    );
-    return () => { alive = false; unsub(); };
-  }, [coin]);
+    if (!snap) return;
+    if (prevSpotRef.current !== undefined && snap.spot !== prevSpotRef.current) {
+      setFlash(snap.spot > prevSpotRef.current ? 'up' : 'down');
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setFlash(null), 500);
+    }
+    prevSpotRef.current = snap.spot;
+  }, [snap?.spot]);
 
   if (!snap) return (
     <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>
@@ -5112,53 +5445,6 @@ interface RawOptionTrade {
   notionalUSD: number;
   ts: number;
 }
-const OPT_STREAM   = new Map<string, RawOptionTrade[]>();       // coin → newest-first, max 2000
-const OPT_SEEN     = new Map<string, Set<string>>();            // coin → trade_id
-const OPT_LAST_F   = new Map<string, number>();                 // coin → last fetch ts
-const OPT_FETCH_TTL = 10_000;
-
-async function pollOptionTrades(coin: Coin): Promise<RawOptionTrade[]> {
-  const now = Date.now();
-  if ((OPT_LAST_F.get(coin) ?? 0) + OPT_FETCH_TTL > now) return OPT_STREAM.get(coin) ?? [];
-  OPT_LAST_F.set(coin, now);
-
-  const cur = coin === 'BTC' ? 'BTC' : 'ETH';
-  try {
-    const res = await fetch(
-      `https://www.deribit.com/api/v2/public/get_last_trades_by_currency?currency=${cur}&kind=option&count=1000&sorting=desc`
-    ).then(r => r.json());
-
-    if (!OPT_SEEN.has(coin)) OPT_SEEN.set(coin, new Set());
-    const seen = OPT_SEEN.get(coin)!;
-    const newTrades: RawOptionTrade[] = [];
-
-    for (const t of (res.result?.trades ?? [])) {
-      if (seen.has(t.trade_id)) continue;
-      seen.add(t.trade_id);
-      const parts = (t.instrument_name as string).split('-');
-      if (parts.length !== 4) continue;
-      const ip: number  = t.index_price ?? 1;
-      const amt: number = t.amount      ?? 0;
-      const prc: number = t.price       ?? 0;
-      newTrades.push({
-        id: t.trade_id, instrument: t.instrument_name,
-        strike: Number(parts[2]), expiry: parts[1],
-        optType: parts[3] === 'C' ? 'C' : 'P',
-        direction: t.direction === 'buy' ? 'buy' : 'sell',
-        amount: amt, price: prc, iv: t.iv ?? 0, indexPrice: ip,
-        premiumUSD: prc * amt * ip, notionalUSD: amt * ip,
-        ts: t.timestamp,
-      });
-    }
-    // prepend newest (already desc from API, reversed = oldest-first for processing)
-    const updated = [...newTrades, ...(OPT_STREAM.get(coin) ?? [])].slice(0, 2000);
-    OPT_STREAM.set(coin, updated);
-    return updated;
-  } catch {
-    return OPT_STREAM.get(coin) ?? [];
-  }
-}
-
 // Cumulative premium-flow accumulators (persist across re-renders)
 interface PFlowAcc { cumCallNet: number; cumPutNet: number }
 const PFLOW_ACC    = new Map<string, PFlowAcc>();                          // coin → running totals
@@ -5215,12 +5501,8 @@ function processLargeTrades(coin: Coin, trades: RawOptionTrade[], minUSD: number
 export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
-  const [trades, setTrades] = useState<RawOptionTrade[]>([]);
   const [threshold, setThreshold] = useState(500_000);    // $500k notional
   const [filter, setFilter] = useState<'ALL' | 'C' | 'P'>('ALL');
-
-  const thresholdRef = React.useRef(threshold);
-  thresholdRef.current = threshold;
 
   useEffect(() => {
     setHeaderRight(
@@ -5247,22 +5529,14 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, threshold, filter]);
 
-  useEffect(() => {
-    let alive = true;
-    const unsub = subscribeData<RawOptionTrade[]>(
-      `trades-${coin}`,
-      () => pollOptionTrades(coin),
-      10_000,
-      trades => {
-        processLargeTrades(coin, trades, thresholdRef.current);
-        processPremiumFlow(coin, trades);
-        if (alive) setTrades([...(LARGE_BUF.get(coin) ?? [])]);
-      },
-    );
-    return () => { alive = false; unsub(); };
-  }, [coin]);
+  // WS stream — processLargeTrades + processPremiumFlow are called inside useOptionTradesWS
+  useOptionTradesWS(coin);
 
-  const visible = trades.filter(t => filter === 'ALL' || t.optType === filter);
+  // Pull filtered large trades from the shared LARGE_BUF (updated by processLargeTrades in hook)
+  const allTrades = LARGE_BUF.get(coin) ?? [];
+  const visible = allTrades.filter(t =>
+    t.notionalUSD >= threshold && (filter === 'ALL' || t.optType === filter)
+  );
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -5568,7 +5842,7 @@ function rollingCorr(x: number[], y: number[], win: number): number[] {
 
 export const CorrelationWidget = () => {
   // Reuse the shared history poller — priceCloseSeries is now included in HistoryData
-  const { btc, eth } = useDualHistory();
+  const { btc, eth, timedOut } = useDualHistory();
 
   const corrSeries = useMemo(() => {
     if (!btc?.priceCloseSeries?.length || !eth?.priceCloseSeries?.length) return [];
@@ -5580,7 +5854,7 @@ export const CorrelationWidget = () => {
   const current = corrSeries.length > 0 ? corrSeries[corrSeries.length - 1] : null;
   const loading = !btc || !eth;
 
-  if (loading) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading) return timedOut ? <HistLoadErr /> : <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
 
   const W = 800; const H = 100;
   const lo = -1; const hi = 1;
@@ -5647,33 +5921,14 @@ interface WatchItem {
 const WATCH_OI_SNAP = new Map<string, number>();
 const WATCH_CACHE2  = new Map<string, WatchItem>();
 
-async function refreshWatchItems(): Promise<WatchItem[]> {
-  const instruments = [...WATCHLIST_SET];
-  const results = await Promise.allSettled(
-    instruments.map(async inst => {
-      const res = await fetch(
-        `https://www.deribit.com/api/v2/public/ticker?instrument_name=${encodeURIComponent(inst)}`
-      ).then(r => r.json());
-      const t = res.result;
-      if (!t) throw new Error('no result');
-      const oi: number = t.open_interest ?? 0;
-      if (!WATCH_OI_SNAP.has(inst)) WATCH_OI_SNAP.set(inst, oi);
-      const item: WatchItem = {
-        instrument: inst, bid: t.best_bid_price ?? 0, ask: t.best_ask_price ?? 0,
-        iv: t.mark_iv ?? 0, delta: t.greeks?.delta ?? 0, mark: t.mark_price ?? 0,
-        oi, oiDelta: oi - (WATCH_OI_SNAP.get(inst) ?? oi), ts: Date.now(),
-      };
-      WATCH_CACHE2.set(inst, item);
-      return item;
-    })
-  );
-  return results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<WatchItem>).value);
-}
-
 export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
-  const [items, setItems] = useState<WatchItem[]>([]);
+  // watchlist as React state so re-subscriptions fire on add/remove
+  const [watchlist, setWatchlist] = useState<string[]>(() => [...WATCHLIST_SET]);
+  const [items, setItems] = useState<WatchItem[]>(() =>
+    [...WATCHLIST_SET].map(inst => WATCH_CACHE2.get(inst)).filter(Boolean) as WatchItem[]
+  );
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
 
@@ -5682,28 +5937,53 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     return () => setHeaderRight(null);
   }, [setHeaderRight]);
 
+  // Subscribe to ticker WS for each instrument; re-runs whenever watchlist changes.
+  // WS callbacks write to WATCH_CACHE2 (no React state); a 500ms flush interval
+  // batches all N per-instrument updates into a single setItems call.
+  const watchlistDirtyRef = useRef(false);
   useEffect(() => {
-    let alive = true;
-    const load = () => refreshWatchItems().then(r => { if (alive) setItems(r); }).catch(() => {});
-    load();
-    const id = setInterval(load, 5_000);
-    return () => { alive = false; clearInterval(id); };
-  }, []);
+    if (watchlist.length === 0) { setItems([]); return; }
+    watchlistDirtyRef.current = false;
+    const unsubs = watchlist.map(inst =>
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+        const oi: number = d.open_interest ?? 0;
+        if (!WATCH_OI_SNAP.has(inst)) WATCH_OI_SNAP.set(inst, oi);
+        WATCH_CACHE2.set(inst, {
+          instrument: inst, bid: d.best_bid_price ?? 0, ask: d.best_ask_price ?? 0,
+          iv: d.mark_iv ?? 0, delta: d.greeks?.delta ?? 0, mark: d.mark_price ?? 0,
+          oi, oiDelta: oi - (WATCH_OI_SNAP.get(inst) ?? oi), ts: Date.now(),
+        });
+        watchlistDirtyRef.current = true;
+      })
+    );
+    // Flush all pending WS updates at most every 500ms → single re-render
+    const flush = setInterval(() => {
+      if (!watchlistDirtyRef.current) return;
+      watchlistDirtyRef.current = false;
+      setItems(watchlist.map(w => WATCH_CACHE2.get(w)).filter(Boolean) as WatchItem[]);
+    }, WS_FLUSH_MS);
+    return () => { unsubs.forEach(u => u()); clearInterval(flush); };
+  }, [watchlist]);
 
   const addInstrument = async () => {
     const inst = input.trim().toUpperCase();
-    if (!inst) return;
-    // Quick validate via ticker
+    if (!inst || WATCHLIST_SET.has(inst)) return;
     try {
       const res = await fetch(
         `https://www.deribit.com/api/v2/public/ticker?instrument_name=${encodeURIComponent(inst)}`
       ).then(r => r.json());
       if (!res.result) { setError('合约不存在'); return; }
       WATCHLIST_SET.add(inst); saveWatchlist();
+      setWatchlist([...WATCHLIST_SET]);
       setInput(''); setError('');
-      const all = await refreshWatchItems();
-      setItems(all);
     } catch { setError('验证失败'); }
+  };
+
+  const removeInstrument = (inst: string) => {
+    WATCHLIST_SET.delete(inst); saveWatchlist();
+    WATCH_CACHE2.delete(inst);
+    setWatchlist([...WATCHLIST_SET]);
+    setItems(prev => prev.filter(i => i.instrument !== inst));
   };
 
   // Suggest instruments from current coin
@@ -5741,7 +6021,6 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
             <span className="text-right">OI</span><span className="text-right">OIΔ</span><span />
           </div>
           {items.map(item => {
-            const spread = item.ask > 0 && item.bid > 0 ? item.ask - item.bid : null;
             const oiColor = item.oiDelta > 0 ? 'var(--nexus-green)' : item.oiDelta < 0 ? 'var(--nexus-red)' : '#64748b';
             return (
               <div key={item.instrument}
@@ -5759,7 +6038,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
                 <span className="text-right text-[9px] font-mono font-bold" style={{ color: oiColor }}>
                   {item.oiDelta > 0 ? '+' : ''}{item.oiDelta.toFixed(0)}
                 </span>
-                <button onClick={() => { WATCHLIST_SET.delete(item.instrument); saveWatchlist(); refreshWatchItems().then(r => setItems(r)); }}
+                <button onClick={() => removeInstrument(item.instrument)}
                   className="text-[9px] text-slate-700 hover:text-rose-400 transition-colors text-right">✕</button>
               </div>
             );
@@ -6004,53 +6283,18 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
 };
 
 // ── OrderbookDepthWidget ──────────────────────────────────────────────────
-// Live order-book depth for BTC-PERPETUAL / ETH-PERPETUAL.
+// Live order-book depth for BTC-PERPETUAL / ETH-PERPETUAL via WS (useOrderbookWS).
 // Bids (green) mirrored against asks (red), cumulative depth bars.
-const OB_CACHE     = new Map<string, { data: any; ts: number }>();
-const OB_FETCH_TTL = 3_000;
-
-async function fetchOrderbook(coin: Coin): Promise<{ bids: [number, number][]; asks: [number, number][]; mark: number; spread: number }> {
-  const key = coin;
-  const hit = OB_CACHE.get(key);
-  if (hit && Date.now() - hit.ts < OB_FETCH_TTL) return hit.data;
-
-  const inst = coin === 'BTC' ? 'BTC-PERPETUAL' : 'ETH-PERPETUAL';
-  const res = await fetch(
-    `https://www.deribit.com/api/v2/public/get_order_book?instrument_name=${inst}&depth=20`
-  ).then(r => r.json());
-
-  const r = res.result ?? {};
-  const bids: [number, number][] = (r.bids ?? []).slice(0, 15);
-  const asks: [number, number][] = (r.asks ?? []).slice(0, 15);
-  const mark   = r.mark_price ?? 0;
-  const spread = asks.length && bids.length ? asks[0][0] - bids[0][0] : 0;
-  const data   = { bids, asks, mark, spread };
-  OB_CACHE.set(key, { data, ts: Date.now() });
-  return data;
-}
 
 export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
-  const [ob, setOb] = useState<{ bids: [number, number][]; asks: [number, number][]; mark: number; spread: number } | null>(null);
+  const ob = useOrderbookWS(coin);
 
   useEffect(() => {
     setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
-
-  useEffect(() => {
-    let alive = true;
-    const unsub = subscribeData(
-      `orderbook-${coin}`,
-      () => fetchOrderbook(coin),
-      OB_FETCH_TTL,
-      (d: { bids: [number, number][]; asks: [number, number][]; mark: number; spread: number }) => {
-        if (alive) setOb(d);
-      },
-    );
-    return () => { alive = false; unsub(); };
-  }, [coin]);
 
   if (!ob) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
 
@@ -6142,44 +6386,33 @@ function savePositions(): void {
   try { localStorage.setItem('ww_positions', JSON.stringify(POS_STORE)); } catch { /* ignore */ }
 }
 const POS_STORE: UserPosition[] = loadPositions();  // persisted across sessions via localStorage
+// Cache latest WS ticker data per instrument (shared across re-renders)
+const POS_TICKER_CACHE = new Map<string, any>();
 
-async function fetchLivePositions(positions: UserPosition[]): Promise<LivePosition[]> {
-  return Promise.all(positions.map(async pos => {
-    try {
-      const res = await fetch(
-        `https://www.deribit.com/api/v2/public/ticker?instrument_name=${encodeURIComponent(pos.instrument)}`
-      ).then(r => r.json());
-      const t = res.result;
-      if (!t) throw new Error('no result');
-      const spot: number = t.underlying_price ?? t.index_price ?? 1;
-      const g = t.greeks ?? {};
-      const delta: number = (g.delta ?? 0) * pos.qty;
-      const gamma: number = (g.gamma ?? 0) * pos.qty;
-      const vega:  number = (g.vega  ?? 0) * pos.qty;
-      const theta: number = (g.theta ?? 0) * pos.qty;
-      return {
-        ...pos,
-        mark: t.mark_price ?? 0,
-        iv: t.mark_iv ?? 0,
-        delta, gamma, vega, theta,
-        dollarDelta: delta * spot,
-        dollarGamma: gamma * spot * spot / 100,
-        dollarVega:  vega  / 100,       // per 1% IV move
-        dollarTheta: theta * spot,      // per day in USD
-        spot,
-      };
-    } catch {
-      return { ...pos, mark: 0, iv: 0, delta: 0, gamma: 0, vega: 0, theta: 0,
-               dollarDelta: 0, dollarGamma: 0, dollarVega: 0, dollarTheta: 0, spot: 0, error: '获取失败' };
-    }
-  }));
+/** Build LivePosition[] from current positions + cached WS ticker data */
+function buildLiveFromCache(positions: UserPosition[]): LivePosition[] {
+  return positions.map(pos => {
+    const t = POS_TICKER_CACHE.get(pos.instrument);
+    if (!t) return { ...pos, mark: 0, iv: 0, delta: 0, gamma: 0, vega: 0, theta: 0,
+                     dollarDelta: 0, dollarGamma: 0, dollarVega: 0, dollarTheta: 0, spot: 0 };
+    const spot: number = t.underlying_price ?? t.index_price ?? 1;
+    const g = t.greeks ?? {};
+    const delta: number = (g.delta ?? 0) * pos.qty;
+    const gamma: number = (g.gamma ?? 0) * pos.qty;
+    const vega:  number = (g.vega  ?? 0) * pos.qty;
+    const theta: number = (g.theta ?? 0) * pos.qty;
+    return { ...pos, mark: t.mark_price ?? 0, iv: t.mark_iv ?? 0,
+             delta, gamma, vega, theta,
+             dollarDelta: delta * spot, dollarGamma: gamma * spot * spot / 100,
+             dollarVega: vega / 100, dollarTheta: theta * spot, spot };
+  });
 }
 
 export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
   const [positions, setPositions] = useState<UserPosition[]>([...POS_STORE]);
-  const [live, setLive] = useState<LivePosition[]>([]);
+  const [live, setLive] = useState<LivePosition[]>(() => buildLiveFromCache([...POS_STORE]));
   const [input, setInput] = useState('');
   const [qtyInput, setQtyInput] = useState('1');
   const [addError, setAddError] = useState('');
@@ -6190,14 +6423,25 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     return () => setHeaderRight(null);
   }, [setHeaderRight]);
 
-  // Refresh live data every 5s
+  // Subscribe to ticker WS for each unique instrument; re-runs when positions change.
+  // Callbacks write to POS_TICKER_CACHE; a 500ms interval flushes to React state.
+  const posDirtyRef = useRef(false);
   useEffect(() => {
     if (positions.length === 0) { setLive([]); return; }
-    let alive = true;
-    const load = () => fetchLivePositions(positions).then(r => { if (alive) setLive(r); });
-    load();
-    const id = setInterval(load, 5_000);
-    return () => { alive = false; clearInterval(id); };
+    posDirtyRef.current = false;
+    const instruments = Array.from(new Set<string>(positions.map(p => p.instrument)));
+    const unsubs = instruments.map(inst =>
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+        POS_TICKER_CACHE.set(inst, d);
+        posDirtyRef.current = true;
+      })
+    );
+    const flush = setInterval(() => {
+      if (!posDirtyRef.current) return;
+      posDirtyRef.current = false;
+      setLive(buildLiveFromCache(positions));
+    }, WS_FLUSH_MS);
+    return () => { unsubs.forEach(u => u()); clearInterval(flush); };
   }, [positions]);
 
   const addPosition = async () => {
@@ -6435,8 +6679,8 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
     let alive = true;
     const tick = () => { evalAlerts(coin); if (alive) setAlerts([...ALERTS_STORE]); };
     tick();
-    const id = setInterval(tick, 10_000);
-    return () => { alive = false; clearInterval(id); };
+    const stop = setVisibleInterval(tick, 10_000);
+    return () => { alive = false; stop(); };
   }, [coin]);
 
   const addAlert = () => {
@@ -6562,17 +6806,27 @@ export const PayoffProfileWidget = () => {
     return () => setHeaderRight(null);
   }, [setHeaderRight]);
 
+  const payoffDirtyRef = useRef(false);
   useEffect(() => {
-    let alive = true;
-    const load = () => {
-      const snap = [...POS_STORE];
-      setPosCount(snap.length);
-      if (!snap.length) { setLive([]); return; }
-      fetchLivePositions(snap).then(r => { if (alive) setLive(r); }).catch(() => {});
-    };
-    load();
-    const id = setInterval(load, 8_000);
-    return () => { alive = false; clearInterval(id); };
+    const snap = [...POS_STORE];
+    setPosCount(snap.length);
+    if (snap.length === 0) { setLive([]); return; }
+    setLive(buildLiveFromCache(snap));
+    payoffDirtyRef.current = false;
+    const instruments = Array.from(new Set<string>(snap.map(p => p.instrument)));
+    const unsubs = instruments.map(inst =>
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+        POS_TICKER_CACHE.set(inst, d);
+        payoffDirtyRef.current = true;
+      })
+    );
+    const flush = setInterval(() => {
+      if (!payoffDirtyRef.current) return;
+      payoffDirtyRef.current = false;
+      setLive(buildLiveFromCache([...POS_STORE]));
+      setPosCount(POS_STORE.length);
+    }, WS_FLUSH_MS);
+    return () => { unsubs.forEach(u => u()); clearInterval(flush); };
   }, []);
 
   if (posCount === 0) return (
@@ -6690,9 +6944,10 @@ const CONE_TENORS = [7, 14, 30, 60, 90, 180];
 export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { setHeaderRight } = useCardHeader();
-  const [opt, setOpt]   = useState<DeribitData | null>(null);
-  const [hist, setHist] = useState<HistoryData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [opt, setOpt]     = useState<DeribitData | null>(null);
+  const [hist, setHist]   = useState<HistoryData | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [timedOut, setTimedOut]   = useState(false);
 
   useEffect(() => {
     setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
@@ -6704,6 +6959,8 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     let gotOpt = false;
     let gotHist = false;
     setLoading(true);
+    setTimedOut(false);
+    const timeout = setTimeout(() => { if (alive && (!opt || !hist)) setTimedOut(true); }, 20_000);
     const u1 = subscribeData<DeribitData>(
       `options-${coin}`,
       () => fetchDeribitOptions(coin),
@@ -6714,14 +6971,14 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       `history-${coin}`,
       () => fetchDeribitHistory(coin),
       HIST_TTL,
-      d => { if (!alive) return; setHist(d); gotHist = true; if (gotOpt) setLoading(false); },
+      d => { if (!alive) return; setHist(d); gotHist = true; setTimedOut(false); if (gotOpt) setLoading(false); },
     );
-    return () => { alive = false; u1(); u2(); };
+    return () => { alive = false; clearTimeout(timeout); u1(); u2(); };
   }, [coin]);
 
-  if (loading || !opt || !hist) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>
-  );
+  if (loading || !opt || !hist) return timedOut
+    ? <HistLoadErr />
+    : <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
 
   const cone = hist.volCone;
   const rvByTenor = hist.rvByTenor; // [7,14,30,60,90,180,365]D RV

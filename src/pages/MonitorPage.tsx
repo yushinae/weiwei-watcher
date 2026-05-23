@@ -91,10 +91,10 @@ export default function MonitorPage() {
                 <WidgetCard title="警报规则" headerDensity="compact" className="col-span-2 h-[130px]">
                   <AlertsWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="实时信号" headerDensity="compact" className="col-span-12 h-[116px]">
+                <WidgetCard title="实时信号" headerDensity="compact" className="col-span-12 h-[136px]">
                   <IVSignalWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[106px]">
+                <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[160px]">
                   <ImpliedMoveWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="实时期权链" headerDensity="compact" className="col-span-5 h-[440px]">
@@ -115,7 +115,7 @@ export default function MonitorPage() {
                 <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-12 h-[210px]">
                   <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="波动率微笑" headerDensity="compact" className="col-span-7 h-[300px]">
+                <WidgetCard title="波动率微笑" headerDensity="compact" className="col-span-7 h-[320px]">
                   <VolSmileWidget
                     coin={coin}
                     onCoinChange={setCoin}
@@ -141,7 +141,7 @@ export default function MonitorPage() {
                 <WidgetCard title="波动率锥" headerDensity="compact" className="col-span-5 h-[320px]">
                   <VolConeWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="IV 百分位历史（52周）" headerDensity="compact" className="col-span-12 h-[200px]">
+                <WidgetCard title="IV 百分位历史（52周）" headerDensity="compact" className="col-span-12 h-[220px]">
                   <IVRankHistoryWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="各期限 RV vs IV（VRP 分布）" headerDensity="compact" className="col-span-8 h-[240px]">
@@ -225,7 +225,7 @@ export default function MonitorPage() {
                 <WidgetCard title="BTC / ETH DVOL 价差（90D）" headerDensity="compact" className="col-span-12 h-[300px]">
                   <BTCETHSpreadWidget />
                 </WidgetCard>
-                <WidgetCard title="BTC / ETH 已实现相关系数（30日滚动）" headerDensity="compact" className="col-span-12 h-[200px]">
+                <WidgetCard title="BTC / ETH 已实现相关系数（30日滚动）" headerDensity="compact" className="col-span-12 h-[220px]">
                   <CorrelationWidget />
                 </WidgetCard>
                 <WidgetCard title="波动率便宜/贵评级（IV vs 历史 RV 锥）" headerDensity="compact" className="col-span-12 h-[280px]">

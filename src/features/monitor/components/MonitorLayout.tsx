@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { cn } from '../../../lib/utils';
 import { MONITOR_TABS, type MonitorTabId, type Coin } from '../types';
 
@@ -69,16 +68,7 @@ export function MonitorLayout({
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2 shrink-0">
-          <CoinSeg value={coin} onChange={onCoinChange} />
-          <div className="w-px h-4 bg-white/[0.08] mx-1 shrink-0" />
-          <Link
-            to="/position-builder"
-            className="text-[11px] text-white/35 hover:text-[var(--nexus-accent)] transition-colors font-medium no-underline shrink-0"
-          >
-            头寸 →
-          </Link>
-        </div>
+        <CoinSeg value={coin} onChange={onCoinChange} />
       </div>
 
       <div className="min-h-0 flex-1">{children}</div>

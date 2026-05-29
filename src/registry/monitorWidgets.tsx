@@ -8,119 +8,14 @@ import {
   VOL,
 } from '../features/monitor/data/mock';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Black-Scholes utilities
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function normCDF(x: number): number {
-  const a1 = 0.319381530, a2 = -0.356563782, a3 = 1.781477937,
-        a4 = -1.821255978, a5 = 1.330274429;
-  const L = Math.abs(x);
-  const k = 1.0 / (1.0 + 0.2316419 * L);
-  const w = 1.0 - (1.0 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * L * L) *
-    k * (a1 + k * (a2 + k * (a3 + k * (a4 + k * a5))));
-  return x >= 0 ? w : 1.0 - w;
-}
-
-function normPDF(x: number): number {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-}
-
-function bsGamma(S: number, K: number, T: number, iv: number): number {
-  if (T <= 0 || iv <= 0 || S <= 0 || K <= 0) return 0;
-  const sigma = iv / 100;
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
-  return normPDF(d1) / (S * sigma * sqrtT);
-}
-
-// Vanna: ΔΔ per 1% IV move (numerical bump)
-function bsVanna(S: number, K: number, T: number, iv: number, type: 'C' | 'P'): number {
-  if (T <= 0 || iv < 2) return 0;
-  return (bsDelta(S, K, T, iv + 1, type) - bsDelta(S, K, T, iv - 1, type)) / 2;
-}
-// Charm: ΔΔ per 1 calendar day (numerical bump)
-function bsCharm(S: number, K: number, T: number, iv: number, type: 'C' | 'P'): number {
-  if (T <= 2 / 365) return 0;
-  return bsDelta(S, K, T - 1 / 365, iv, type) - bsDelta(S, K, T, iv, type);
-}
-// Diverging heatmap cell colour (green pos / red neg)
-function heatColor(val: number, maxAbs: number): string {
-  if (maxAbs === 0 || val === 0) return 'rgba(255,255,255,0.04)';
-  const t = Math.max(-1, Math.min(1, val / maxAbs));
-  const i = Math.abs(t);
-  if (t > 0) return `rgba(37,232,137,${(0.10 + 0.55 * i).toFixed(2)})`;
-  return `rgba(248,113,113,${(0.10 + 0.55 * i).toFixed(2)})`;
-}
-
-function bsDelta(S: number, K: number, T: number, iv: number, type: 'C' | 'P'): number {
-  if (T <= 0 || iv <= 0 || S <= 0 || K <= 0) return type === 'C' ? (S >= K ? 1 : 0) : (S <= K ? -1 : 0);
-  const sigma = iv / 100;
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * Math.sqrt(T));
-  return type === 'C' ? normCDF(d1) : normCDF(d1) - 1;
-}
-
-// Vega: $ change per 1% IV move (dV/dσ × 0.01)
-function bsVega(S: number, K: number, T: number, iv: number): number {
-  if (T <= 0 || iv <= 0 || S <= 0 || K <= 0) return 0;
-  const sigma = iv / 100;
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
-  return S * normPDF(d1) * sqrtT * 0.01; // per 1% IV
-}
-
-// Theta: $ change per 1 calendar day (negative = decay)
-function bsTheta(S: number, K: number, T: number, iv: number): number {
-  if (T <= 1 / 365 || iv <= 0 || S <= 0 || K <= 0) return 0;
-  const sigma = iv / 100;
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
-  return -(S * normPDF(d1) * sigma) / (2 * sqrtT * 365);
-}
-
-// AR(1) OLS fit: y_t = α + β·y_{t-1}
-function fitAR1(series: number[]): { alpha: number; beta: number; mu: number } {
-  const n = series.length - 1;
-  if (n < 4) return { alpha: series[series.length - 1] * 0.02, beta: 0.98, mu: series[series.length - 1] };
-  const X = series.slice(0, n);
-  const Y = series.slice(1);
-  const Xm = X.reduce((s, v) => s + v, 0) / n;
-  const Ym = Y.reduce((s, v) => s + v, 0) / n;
-  const Sxy = X.reduce((s, v, i) => s + (v - Xm) * (Y[i] - Ym), 0);
-  const Sxx = X.reduce((s, v) => s + (v - Xm) ** 2, 0);
-  const beta  = Sxx > 0 ? Math.max(-0.999, Math.min(0.999, Sxy / Sxx)) : 0.97;
-  const alpha = Ym - beta * Xm;
-  const mu    = Math.abs(1 - beta) > 1e-6 ? alpha / (1 - beta) : Xm;
-  return { alpha, beta, mu };
-}
-
-// Multi-step AR(1) forecast: E[y_{t+h}] = μ + β^h·(y_t − μ)
-function forecastAR1(current: number, alpha: number, beta: number, horizon: number): number {
-  const mu = Math.abs(1 - beta) > 1e-6 ? alpha / (1 - beta) : current;
-  return mu + Math.pow(beta, horizon) * (current - mu);
-}
-
-// Full BS call price (r = q = 0, crypto convention)
-function bsCall(S: number, K: number, T: number, iv: number): number {
-  if (S <= 0 || K <= 0 || iv <= 0) return Math.max(0, S - K);
-  if (T <= 0) return Math.max(0, S - K);
-  const sigma = iv / 100;
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
-  const d2 = d1 - sigma * sqrtT;
-  return S * normCDF(d1) - K * normCDF(d2);
-}
-
-// Full BS put price
-function bsPut(S: number, K: number, T: number, iv: number): number {
-  if (S <= 0 || K <= 0 || iv <= 0) return Math.max(0, K - S);
-  if (T <= 0) return Math.max(0, K - S);
-  const sigma = iv / 100;
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);
-  const d2 = d1 - sigma * sqrtT;
-  return K * normCDF(-d2) - S * normCDF(-d1);
-}
+// Black-Scholes + AR(1) 数学库 —— 复用共享实现（原本在此重复定义了一整套）。
+import {
+  normCDF, normPDF,
+  bsDelta, bsGamma, bsVanna, bsCharm, bsVega, bsTheta, bsCall, bsPut,
+  fitAR1, forecastAR1, heatColor,
+} from './lib/bs-math';
+// WebSocket 管理器类 —— 复用 data/ws.ts 的实现（监控页自持实例见下方）。
+import { DeribitWS } from './data/ws';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Deribit data types
@@ -297,6 +192,7 @@ interface PollerEntry {
 
 const POLLERS = new Map<string, PollerEntry>();
 let _isHidden    = false;
+let _routeActive = false;                          // 监控页当前是否为活动路由（由 App 控制）
 let _focusLostAt: number | null = null;            // non-null when window has lost focus
 const UNFOCUS_PAUSE_MS = 90_000;                   // pause all polls 90s after losing focus
 
@@ -319,8 +215,7 @@ async function _pollOnce(key: string): Promise<void> {
   } catch {}
 }
 
-function _resumeAll(): void {
-  _isHidden = false;
+function _startMonitorTimers(): void {
   POLLERS.forEach((e, key) => {
     if (e.subscribers.size > 0 && e.timerId == null) {
       _pollOnce(key); // refresh stale data right away
@@ -330,19 +225,41 @@ function _resumeAll(): void {
   DERIBIT_WS.resume();
 }
 
-function _pauseAll(): void {
-  _isHidden = true;
+function _stopMonitorTimers(): void {
   POLLERS.forEach(e => {
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
   });
   DERIBIT_WS.pause();
 }
 
+// App 切到监控页时调用：标记路由活动，仅当标签页可见时才真正启动。
+export function resumeMonitorPolling(): void {
+  _routeActive = true;
+  if (typeof document !== 'undefined' && document.hidden) return; // 等 visibilitychange 再启动
+  _isHidden = false;
+  _startMonitorTimers();
+}
+
+// App 切走监控页时调用：标记路由非活动并暂停一切。
+export function pauseMonitorPolling(): void {
+  _routeActive = false;
+  _isHidden = true;
+  _stopMonitorTimers();
+}
+
 if (typeof document !== 'undefined') {
-  // Tab hidden / shown (switching tabs or minimising the browser window)
-  document.addEventListener('visibilitychange', () =>
-    document.hidden ? _pauseAll() : _resumeAll()
-  );
+  // 标签页隐藏/显示（切换浏览器标签或最小化窗口）。
+  // 隐藏：暂停但保留 _routeActive，以便恢复时能继续。
+  // 显示：仅当监控页仍是活动路由时才恢复 —— 否则会在其他页面错误重连监控 WS。
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      _isHidden = true;
+      _stopMonitorTimers();
+    } else if (_routeActive) {
+      _isHidden = false;
+      _startMonitorTimers();
+    }
+  });
 }
 
 if (typeof window !== 'undefined') {
@@ -356,7 +273,7 @@ if (typeof window !== 'undefined') {
     if (_focusLostAt === null) return;
     const wasLongAway = Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS;
     _focusLostAt = null;
-    if (wasLongAway && !_isHidden) {
+    if (wasLongAway && _routeActive && !_isHidden) {
       POLLERS.forEach((_, key) => _pollOnce(key));
       DERIBIT_WS.resume(); // reconnect WS and re-deliver fresh data
     }
@@ -421,108 +338,14 @@ function subscribeData<T>(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DeribitWS — singleton WebSocket manager
-// One connection shared by all widgets. Pauses automatically when the page is
-// hidden or the window loses focus for >UNFOCUS_PAUSE_MS.
+// DeribitWS — 复用 data/ws.ts 的实现（原本在此重复了一份较旧的简化版）。
+// 监控页仍持有自己的实例 DERIBIT_WS，以便 keep-alive 时能独立暂停/恢复连接，
+// 不影响顶栏行情与决策页所用的另一实例。
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class DeribitWS {
-  private ws: WebSocket | null = null;
-  private subs = new Map<string, Set<(data: unknown) => void>>();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private heartbeatId: ReturnType<typeof setInterval> | null = null;
-  private msgId = 0;
-  private backoff = 1_000;
-
-  connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN ||
-        this.ws?.readyState === WebSocket.CONNECTING) return;
-    const ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
-    this.ws = ws;
-    ws.onopen = () => {
-      this.backoff = 1_000;
-      this.startHeartbeat();
-      this.resubscribeAll();
-    };
-    ws.onmessage = (evt) => {
-      try {
-        const msg = JSON.parse(evt.data);
-        if (msg.method === 'subscription') {
-          const { channel, data } = msg.params;
-          this.subs.get(channel)?.forEach(fn => fn(data));
-        }
-      } catch { /* ignore */ }
-    };
-    ws.onclose = () => {
-      this.stopHeartbeat();
-      if (this.reconnectTimer === null) {
-        this.reconnectTimer = setTimeout(() => {
-          this.reconnectTimer = null;
-          this.backoff = Math.min(this.backoff * 2, 30_000);
-          this.connect();
-        }, this.backoff);
-      }
-    };
-    ws.onerror = () => ws.close();
-  }
-
-  disconnect(): void {
-    this.stopHeartbeat();
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.ws) {
-      this.ws.onclose = null; // prevent reconnect on intentional close
-      this.ws.onerror = null;
-      this.ws.onmessage = null;
-      this.ws.onopen = null;
-      this.ws.close();
-      this.ws = null;
-    }
-  }
-
-  pause(): void  { this.disconnect(); }
-  resume(): void { this.connect(); }
-
-  subscribe<T>(channel: string, cb: (data: T) => void): () => void {
-    if (!this.subs.has(channel)) {
-      this.subs.set(channel, new Set());
-      this.send({ method: 'public/subscribe', params: { channels: [channel] } });
-    }
-    this.subs.get(channel)!.add(cb as (data: unknown) => void);
-    return () => {
-      const set = this.subs.get(channel);
-      if (!set) return;
-      set.delete(cb as (data: unknown) => void);
-      if (set.size === 0) {
-        this.subs.delete(channel);
-        this.send({ method: 'public/unsubscribe', params: { channels: [channel] } });
-      }
-    };
-  }
-
-  private send(payload: object): void {
-    if (this.ws?.readyState === WebSocket.OPEN)
-      this.ws.send(JSON.stringify({ jsonrpc: '2.0', id: ++this.msgId, ...payload }));
-  }
-
-  private resubscribeAll(): void {
-    const channels = [...this.subs.keys()];
-    if (channels.length) this.send({ method: 'public/subscribe', params: { channels } });
-  }
-
-  private startHeartbeat(): void {
-    this.heartbeatId = setInterval(() => this.send({ method: 'public/test' }), 15_000);
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatId !== null) { clearInterval(this.heartbeatId); this.heartbeatId = null; }
-  }
-}
-
 const DERIBIT_WS = new DeribitWS();
-if (typeof document !== 'undefined' && !document.hidden) DERIBIT_WS.connect();
+// 不在模块加载时急连：hover 预加载监控页 chunk 不应在仍处于其他页面时就打开 WS。
+// 实际连接由 resumeMonitorPolling()（App 切到 /monitor 时调用）负责。
 
 /** Max UI update rate for WS-driven hooks: 2 Hz. Keeps React reconciliation cheap. */
 const WS_FLUSH_MS = 500;
@@ -830,19 +653,10 @@ function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : 
 
 // ── CoinTabs ──────────────────────────────────────────────────────────────────
 
-const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
-  <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)]">
-    {(['BTC', 'ETH'] as Coin[]).map(c => (
-      <button key={c} onClick={() => set(c)}
-        className={cn('text-[12px] font-bold px-2.5 py-0.5 rounded-[18px] transition-colors outline-none',
-          v === c
-            ? (c === 'BTC' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400')
-            : 'text-slate-600 hover:text-slate-400'
-        )}>
-        {c}
-      </button>
-    ))}
-  </div>
+const CoinTabs = ({ v }: { v: Coin; set: (c: Coin) => void }) => (
+  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/[0.06] text-white/50 uppercase tracking-wider">
+    {v}
+  </span>
 );
 
 // ── Live badge ────────────────────────────────────────────────────────────────
@@ -1083,10 +897,22 @@ const VolConeChart = React.memo(({
 type CoinControlProps = { coin?: Coin; onCoinChange?: (c: Coin) => void };
 
 function useCoinControl({ coin: coinProp, onCoinChange }: CoinControlProps) {
+  // coin 受控时直接跟随 prop（无需本地 state 同步 effect，少一次渲染）；
+  // 非受控时用本地 state。
+  const isControlled = coinProp !== undefined;
   const [localCoin, setLocalCoin] = useState<Coin>(coinProp ?? 'BTC');
-  useEffect(() => { if (coinProp !== undefined) setLocalCoin(coinProp); }, [coinProp]);
-  const coin = localCoin;
-  const setCoin = (c: Coin) => { setLocalCoin(c); onCoinChange?.(c); };
+  const coin = coinProp ?? localCoin;
+  // onCoinChange 用 ref 持有，setCoin 依赖恒为空 → 引用永久稳定。
+  // 否则父组件若传入内联箭头函数，setCoin 每次渲染都变 → WidgetShell 的
+  // useEffect 反复执行 setHeaderRight → 重渲染 → 死循环。
+  const onCoinChangeRef = useRef(onCoinChange);
+  useEffect(() => { onCoinChangeRef.current = onCoinChange; }, [onCoinChange]);
+  const isControlledRef = useRef(isControlled);
+  isControlledRef.current = isControlled;
+  const setCoin = useCallback((c: Coin) => {
+    if (!isControlledRef.current) setLocalCoin(c);
+    onCoinChangeRef.current?.(c);
+  }, []);
   return { coin, setCoin };
 }
 

@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 @import "tailwindcss";
 
 @theme {
@@ -15,98 +18,95 @@
   /* Brand — 薄荷绿，唯一品牌色 */
   --color-brand: #25e889;
   --color-brand-blue: #25e889;
-  --color-bg-base: rgba(26, 26, 30, 0.80);
-  --color-bg-dim: #1A1A1A;
-  --color-bg-deep: #1A1A1A;
-  --color-bg-card: rgba(255, 255, 255, 0.02);
-  --color-surface-1: rgba(255, 255, 255, 0.03);
-  --color-surface-2: rgba(255, 255, 255, 0.05);
-  --color-surface-3: rgba(255, 255, 255, 0.07);
-  --color-surface-4: rgba(255, 255, 255, 0.09);
-  --color-surface-5: rgba(255, 255, 255, 0.12);
-  --color-surface-6: rgba(255, 255, 255, 0.15);
-  --color-bg-hover: rgba(255, 255, 255, 0.06);
+
+  /* 中性暗灰色阶（v5.0 — 4级清晰层次，步长 ≥8） */
+  --color-bg-base:   #111111;  /* L1 页面底 */
+  --color-bg-dim:    #111111;  /* L1 */
+  --color-bg-deep:   #111111;  /* L1 */
+  --color-bg-card:   #1C1C1C;  /* L2 卡片 (+11) */
+  --color-card:      #1C1C1C;  /* L2 卡片 */
+  --color-surface-1: #111111;  /* L1 */
+  --color-surface-2: #242424;  /* L3 卡片内块 (+8) */
+  --color-surface-3: #1C1C1C;  /* L2 chrome/header */
+  --color-surface-4: #242424;  /* L3 */
+  --color-surface-5: #2E2E2E;  /* L4 hover (+10) */
+  --color-surface-6: #383838;  /* L4+ 高亮 */
+  --color-bg-hover:  #2E2E2E;  /* 全局 hover */
 
   /* Borders */
-  --color-border-subtle: #2a2a2a;
-  --color-border-strong: #3a3a3a;
+  --color-border-subtle: rgba(255,255,255,0.07);
+  --color-border-strong: #383838;
 
   /* Input / Form */
-  --color-input-bg: #1a1a1a;
-  --color-text-muted: #8B93A5;
+  --color-input-bg:  #1C1C1C;  /* L2 */
+  --color-text-muted: #888888;
 
-  /* Trade colors */
-  --color-trade-up: #25a750;
-  --color-trade-down: #ca3f64;
+  /* Trade colors — macOS traffic light */
+  --color-trade-up:   #28C840;
+  --color-trade-down: #FF5F57;
 
-  --radius-button: 8px;
-  --radius-modal: 12px;
+  /* 严重度 / 热力色阶 — macOS 红黄绿三色锚定 */
+  --color-sev-calm:    #28C840;  /* 低 / 利好 / 平静（traffic green） */
+  --color-sev-low:     #5DD879;  /* 略升（浅绿） */
+  --color-sev-mid:     #FEBC2E;  /* 中 / 警告（traffic yellow） */
+  --color-sev-high:    #FF8C57;  /* 高（橙，黄→红过渡） */
+  --color-sev-extreme: #FF5F57;  /* 极端 / 高危（traffic red） */
+
+  /* 圆角体系（DESIGN.md v4） */
+  --radius-md:  0.25rem;    /* 4px  — badge */
+  --radius-lg:  0.375rem;   /* 6px  — button */
+  --radius-xl:  0.5rem;     /* 8px  — card */
+  --radius-2xl: 0.625rem;   /* 10px — modal */
+  /* 兼容旧名 */
+  --radius-button: 0.5rem;
+  --radius-modal:  0.625rem;
+  --nexus-radius: 8px;
 }
 
-/* ===== 毛玻璃主题 ===== */
+/* ===== 暖灰主题（v3.0 — 纯色差，无毛玻璃） ===== */
 
 html {
-  background: #000;
+  background: #080808;  /* 最底层，滚动回弹露出 */
 }
 
 body {
   background: var(--color-bg-base);
 }
 
-/* EFFECT 1: 毛玻璃卡片 — 22px 模糊 macOS Widget 风格 */
+/* 通用卡片（替代原毛玻璃） */
 .glass {
   background: var(--widget-glass);
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 18px;
-  box-shadow:
-    0 8px 30px rgba(0, 0, 0, 0.40),
-    0 2px 8px rgba(0, 0, 0, 0.20);
+  border-radius: 8px;
 }
 
-/* EFFECT 2: 毛玻璃顶栏 — 30px 强模糊 + 更透底 */
+/* 顶栏面板 */
 .glass-header {
   background: var(--widget-glass-dim);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.40),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
 }
 
-/* 顶栏 & 底栏：纯黑背景 */
+/* 顶栏 & 底栏 */
 .glass-bar {
-  background: #000;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: none;
+  background: var(--color-surface-3);
   transform: translateZ(0);
   will-change: transform;
 }
 
-/* 毛玻璃导航栏变体：全宽无圆角 + 底部边框（用于 MonitorHeader / 次级顶栏） */
+/* 导航栏变体（全宽无圆角，用于 MonitorHeader） */
 .glass-nav {
   background: var(--widget-glass-dim);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: none;
 }
 
 .glass-bar-shadow {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.40);
 }
 
-/* 毛玻璃变体：更轻的卡片（用于下拉菜单等） */
+/* 轻浮层（用于下拉菜单等） */
 .glass-light {
-  background: rgba(30, 30, 34, 0.88);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  background: var(--color-bg-card);  /* #1C1C1C 纯色，无 blur */
+  border-radius: 10px;               /* --radius-2xl */
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 @layer base {
@@ -199,18 +199,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(37, 232, 137, 0);
+  background: rgba(255, 255, 255, 0);
   border-radius: 999px;
   will-change: background-color;
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb {
-  background: rgba(37, 232, 137, 0.65);
+  background: rgba(255, 255, 255, 0.22);
   will-change: auto;
 }
 
 html.is-scrolling ::-webkit-scrollbar-thumb:active {
-  background: rgba(37, 232, 137, 0.9);
+  background: rgba(255, 255, 255, 0.40);
 }
 
 /* Firefox */
@@ -220,7 +220,7 @@ html.is-scrolling ::-webkit-scrollbar-thumb:active {
 }
 
 html.is-scrolling * {
-  scrollbar-color: rgba(37, 232, 137, 0.65) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
 .hide-scrollbar {
@@ -238,30 +238,28 @@ html.is-scrolling * {
    ═══════════════════════════════════════════ */
 
 :root {
-  --nexus-accent: #25e889;
-  --nexus-green: #25a750;
-  --nexus-red: #ca3f64;
-  --nexus-yellow: #F59E0B;
-  --nexus-text-pri: rgba(255, 255, 255, 0.93);
-  --nexus-text-sec: rgba(255, 255, 255, 0.58);
-  --nexus-text-dim: rgba(255, 255, 255, 0.32);
-  --nexus-radius: 18px;
+  /* 品牌 & 语义（直接值，方便 JS 读取） */
+  --nexus-accent:    #25e889;
+  --nexus-green:     #28C840;
+  --nexus-red:       #FF5F57;
+  --nexus-yellow:    #FEBC2E;
 
-  /* ── 毛玻璃材质变量（深色主题默认值） ─── */
-  --widget-glass:     rgba(24, 24, 28, 0.76);   /* 卡片主背景 */
-  --widget-glass-dim: rgba(18, 18, 22, 0.68);   /* 次级面板/导航栏 */
+  /* 文字层级（DESIGN.md v4 — WCAG AA 全部达标） */
+  --nexus-text-pri:  #F0F0EE;                  /* white/90 等价，13.9:1 */
+  --nexus-text-sec:  rgba(255, 255, 255, 0.80); /* 11.3:1 */
+  --nexus-text-dim:  rgba(255, 255, 255, 0.55); /* 6.0:1 — 最低可用标签 */
 
-  /* ── 卡片层叠透明度系统 ─── */
-  --base:          rgba(26, 26, 30, 0.80);  /* 卡片主背景 */
-  --base-dim:      rgba(26, 26, 30, 0.70);  /* 顶栏/次要面板 */
-  --base-strong:   rgba(26, 26, 30, 0.88);  /* 状态栏/固定元素 */
-
-  /* ── 内层半透明白色叠加层（数值越高越亮） ─── */
-  --base-tint-1:   rgba(255, 255, 255, 0.02);  /* 最浅层背景 */
-  --base-tint-2:   rgba(255, 255, 255, 0.04);  /* 输入框/pill 背景 */
-  --base-tint-3:   rgba(255, 255, 255, 0.06);  /* hover/分割线 */
-  --base-tint-4:   rgba(255, 255, 255, 0.12);  /* 较亮 hover/选中 */
-  --base-border:   rgba(255, 255, 255, 0.06);  /* 卡片边框 */
+  /* 兼容别名 — 指向 @theme 权威变量（勿在新代码中直接使用） */
+  --widget-glass:     var(--color-bg-card);   /* #1C1C1C */
+  --widget-glass-dim: var(--color-surface-1); /* #111111 */
+  --base:             var(--color-bg-card);
+  --base-dim:         var(--color-surface-1);
+  --base-strong:      var(--color-surface-3); /* #1C1C1C */
+  --base-tint-1:      var(--color-surface-1);
+  --base-tint-2:      var(--color-surface-2);
+  --base-tint-3:      var(--color-surface-4);
+  --base-tint-4:      var(--color-surface-5);
+  --base-border:      var(--color-border-subtle);
 }
 
 /* ── Light mode ── */
@@ -287,34 +285,100 @@ html.is-scrolling * {
   --color-text-muted: #6B7280;
 }
 
-/* ── Widget 卡片容器（macOS 毛玻璃基底） ── */
+/* ── Widget 卡片容器（DESIGN.md v4 浮起范式） ── */
 .widget-card {
-  background: var(--widget-glass);
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  border-radius: var(--nexus-radius);
+  background: var(--color-card);           /* #1C1C1C L2 */
+  border-radius: 8px;                      /* --radius-xl */
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.45),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+    0 12px 34px -8px rgba(0,0,0,0.70),
+    0 2px 8px -2px rgba(0,0,0,0.50),
+    inset 0 0 0 1px rgba(255,255,255,0.07), /* 细描边 */
+    inset 0 1px 0 rgba(255,255,255,0.10);   /* 顶部高光 */
   padding: 8px;
-  color: rgba(255, 255, 255, 0.86);
-  transition: box-shadow var(--dur-card) var(--ease-emphasis);
-  /* flex 列布局：header → body(撑满) → footer */
+  color: var(--nexus-text-pri);
+  transition: box-shadow var(--dur-card) var(--ease-emphasis),
+              transform var(--dur-card) var(--ease-emphasis);
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
 }
 
+/* 顶部中性白发光带（hover 时渐显） */
+.widget-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8px; right: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.42) 50%, transparent 100%);
+  filter: blur(0.5px);
+  opacity: 0;
+  transition: opacity var(--dur-pop) var(--ease-emphasis);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Hover 浮起：1px 上移 + 投影加深 + 中性白高光 */
 .widget-card:not(.is-fullscreen):hover {
+  transform: translateY(-1px);
   box-shadow:
-    0 12px 42px rgba(0, 0, 0, 0.52),
-    0 4px 14px rgba(0, 0, 0, 0.30);
+    0 28px 68px -14px rgba(0,0,0,0.66),
+    0 8px 20px -4px rgba(0,0,0,0.50),
+    inset 0 0 0 1px rgba(255,255,255,0.07),
+    inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.widget-card:not(.is-fullscreen):hover::before {
+  opacity: 1;
+}
+
+/* Cursor spotlight — JS writes --mx/--my on mousemove */
+.widget-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(280px circle at var(--mx, -999px) var(--my, -999px), rgba(255,255,255,0.03) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--dur-card) var(--ease-emphasis);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+.widget-card:hover::after {
+  opacity: 1;
 }
 
 .widget-card.is-fullscreen {
   border-radius: 0;
+}
+
+/* 决策面板卡片（与 .widget-card 共用，无额外差异） */
+.dash-card {
+  padding: 14px 18px;
+}
+
+/* Tile 数据块 — L3 内块，纯色差无边框 */
+.dash-tile {
+  background: var(--color-surface-2);  /* #242424 L3 */
+  border-radius: 8px;
+  transition: transform var(--dur-fast) var(--ease-emphasis),
+              filter var(--dur-fast) var(--ease-emphasis),
+              box-shadow var(--dur-fast) var(--ease-emphasis);
+}
+.dash-tile:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.16);
+  box-shadow: 0 4px 12px -3px rgba(0,0,0,0.40);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-card,
+  .widget-card:hover {
+    transform: none;
+  }
+  .dash-tile,
+  .dash-tile:hover {
+    transform: none;
+  }
 }
 
 /* ── HIG 字体层次 ── */
@@ -333,7 +397,7 @@ html.is-scrolling * {
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55); /* 提升至 white/55，通过 WCAG AA */
 }
 
 /* ── 卡片头部 ── */
@@ -368,8 +432,7 @@ html.is-scrolling * {
   font-size: 11px;
   font-weight: 600;
   flex-shrink: 0;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* 无 backdrop-filter — 纯色差 */
 }
 
 .widget-icon.ico-brand {
@@ -403,7 +466,7 @@ html.is-scrolling * {
 .widget-meta {
   font-size: 9px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.55); /* 提升至 white/55 */
   letter-spacing: 0.01em;
   margin-top: 1px;
 }
@@ -469,14 +532,14 @@ html.is-scrolling * {
 
 .widget-foot-time {
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.45); /* 提升至 white/45 */
   font-weight: 400;
   letter-spacing: 0.02em;
 }
 
 .widget-foot-source {
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.45); /* 提升至 white/45 */
   font-weight: 400;
 }
 
@@ -525,10 +588,8 @@ html.is-scrolling * {
   align-items: baseline;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: 10px;
-  backdrop-filter: blur(12px) saturate(1.3);
-  -webkit-backdrop-filter: blur(12px) saturate(1.3);
-  background: rgba(37, 232, 137, 0.10);
+  border-radius: 8px;
+  background: rgba(37, 232, 137, 0.10);  /* 无 backdrop-filter */
   margin-bottom: 12px;
   position: relative;
   z-index: 1;
@@ -625,9 +686,7 @@ html.is-scrolling * {
   margin-top: 10px;
   padding: 7px 10px;
   border-radius: 8px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface-2);  /* #242424 L3，无 blur */
   font-size: 11px;
   position: relative;
   z-index: 1;
@@ -897,7 +956,7 @@ html.is-scrolling * {
 
 .widget-idle-text {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.45); /* 提升至 white/45 */
   letter-spacing: 0.02em;
 }
 
@@ -962,7 +1021,7 @@ html.is-scrolling * {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.55); /* 提升至 white/55 */
 }
 
 .kpi-value {

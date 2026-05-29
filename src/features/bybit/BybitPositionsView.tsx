@@ -107,44 +107,47 @@ export default function BybitPositionsView() {
 
   return (
     <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200">
-      {/* Header */}
-      <div className="sticky top-0 z-[120] h-[44px] flex items-center px-4 shrink-0 border-b border-white/[0.06]"
-           style={{ background: 'var(--base-dim)' }}>
+      {/* Header — L2 chrome */}
+      <div className="sticky top-0 z-[120] h-[44px] flex items-center px-4 shrink-0 border-b border-white/[0.07]"
+           style={{ background: 'var(--color-surface-3)' }}>
         <span className="text-[13px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#111111] mr-3">
+        {/* Tab 切换 pill */}
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07] mr-3">
           {([['positions', '当前持仓'], ['history', '历史记录']] as const).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
               className={cn(
                 'h-6 px-2.5 rounded-md text-[11px] font-medium transition-colors duration-[120ms]',
-                tab === key ? 'bg-[#242424] text-white/90' : 'text-white/55 hover:text-white/80',
+                tab === key
+                  ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
+                  : 'text-white/55 hover:text-white/80',
               )}
             >{label}</button>
           ))}
         </div>
         {demo && (
-          <span className="h-7 inline-flex items-center gap-1.5 px-2.5 text-[11px] rounded border border-amber-400/40 bg-amber-400/10 text-amber-300/90">
+          <span className="h-7 inline-flex items-center gap-1.5 px-2.5 text-[11px] rounded-lg border border-[var(--color-sev-mid)]/40 bg-[var(--color-sev-mid)]/10 text-[var(--color-sev-mid)]">
             示例数据
-            <button onClick={() => setDemo(false)} className="text-amber-200/70 hover:text-amber-100">✕</button>
+            <button onClick={() => setDemo(false)} className="opacity-70 hover:opacity-100">✕</button>
           </span>
         )}
         {unlocked && !demo && (
           <>
-            <span className="text-[10px] text-white/50">
+            <span className="text-[10px] text-white/55">
               {fetchedAt > 0 ? `更新于 ${new Date(fetchedAt).toLocaleTimeString()}` : '—'}
-              {stale && <span className="ml-1 text-amber-400/80">· 数据陈旧</span>}
+              {stale && <span className="ml-1 text-[var(--color-sev-mid)]">· 数据陈旧</span>}
             </span>
             <button
               onClick={refresh} disabled={loading}
-              className="ml-3 h-7 px-3 text-[11px] rounded border border-white/12 text-white/70 hover:bg-white/8 disabled:opacity-40"
+              className="ml-3 h-7 px-3 text-[11px] rounded-lg border border-white/[0.12] text-white/70 hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
             >{loading ? '刷新中…' : '刷新'}</button>
           </>
         )}
         {positions.length > 0 && (
           <button
             onClick={sendToStressTest}
-            className="ml-2 h-7 px-3 text-[11px] rounded border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20"
+            className="ml-2 h-7 px-3 text-[11px] rounded-lg border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 transition-colors"
             title="将当前仓位带入压力测试工具"
           >→ 压力测试</button>
         )}
@@ -152,10 +155,10 @@ export default function BybitPositionsView() {
         <button
           onClick={() => setSettingsOpen(o => !o)}
           className={cn(
-            'w-7 h-7 rounded-[7px] flex items-center justify-center border transition-colors',
+            'w-7 h-7 rounded-lg flex items-center justify-center border transition-colors duration-[120ms]',
             settingsOpen
-              ? 'bg-white/12 text-white border-white/30'
-              : 'border-transparent text-white/40 hover:text-white/85 hover:bg-white/[0.06] hover:border-white/[0.08]',
+              ? 'bg-white/[0.10] text-white border-white/[0.20]'
+              : 'border-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06] hover:border-white/[0.08]',
           )}
           title="API 设置"
           aria-label="API 设置"
@@ -182,8 +185,8 @@ export default function BybitPositionsView() {
 
           {tab === 'positions' && !unlocked && !demo && !settingsOpen && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-[13px] text-white/50 mb-1">暂无持仓</div>
-              <div className="text-[11px] text-white/35">连接 Bybit API 后自动显示实时持仓</div>
+              <div className="text-[13px] text-white/65 mb-1">暂无持仓</div>
+              <div className="text-[11px] text-white/55">连接 Bybit API 后自动显示实时持仓</div>
             </div>
           )}
 
@@ -221,15 +224,15 @@ export default function BybitPositionsView() {
 function TotalsBar({ totals, count }: { totals: { unrealized: number; delta: number; gamma: number; vega: number; theta: number }; count: number }) {
   const cell = (label: string, value: number, fmt: (v: number) => string, color?: string) => (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">{label}</span>
-      <span className={cn('text-[15px] font-mono font-bold tnum', color)}>{fmt(value)}</span>
+      <span className="text-[10px] text-white/55 font-semibold uppercase tracking-wider">{label}</span>
+      <span className={cn('text-[15px] font-mono font-bold tnum', color ?? 'text-white/90')}>{fmt(value)}</span>
     </div>
   );
   return (
     <div className="widget-card p-4 flex items-center gap-8 flex-wrap">
       <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">持仓</span>
-        <span className="text-[15px] font-mono font-bold tnum text-white/85">{count}</span>
+        <span className="text-[10px] text-white/55 font-semibold uppercase tracking-wider">持仓</span>
+        <span className="text-[15px] font-mono font-bold tnum text-white/90">{count}</span>
       </div>
       {cell('未实现 PnL', totals.unrealized,
         v => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
@@ -260,7 +263,7 @@ function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-[11px]">
           <thead>
-            <tr className="text-left text-[10px] text-white/50 uppercase tracking-wider border-b border-white/8">
+            <tr className="text-left text-[10px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
               <Th>合约</Th>
               <Th>到期</Th>
               <Th align="right">行权</Th>
@@ -281,18 +284,18 @@ function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
               const dte = parsed ? daysUntil(parsed.expiryTs) : 0;
               const sideSign = p.side === 'Sell' ? -1 : 1;
               return (
-                <tr key={p.symbol} className="border-b border-white/4 hover:bg-white/3 transition-colors">
+                <tr key={p.symbol} className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
                   <Td>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-white/85 font-mono">{p.symbol}</span>
-                      {parsed && <span className="text-[9px] text-white/50">{parsed.coin} {parsed.type === 'C' ? 'Call' : 'Put'}</span>}
+                      <span className="text-white/90 font-mono">{p.symbol}</span>
+                      {parsed && <span className="text-[9px] text-white/55">{parsed.coin} {parsed.type === 'C' ? 'Call' : 'Put'}</span>}
                     </div>
                   </Td>
                   <Td>
                     {parsed ? (
                       <div className="flex flex-col leading-tight">
-                        <span className="text-white/70">{parsed.expiry}</span>
-                        <span className="text-[9px] text-white/50">{dte.toFixed(1)} 天</span>
+                        <span className="text-white/80">{parsed.expiry}</span>
+                        <span className="text-[9px] text-white/55">{dte.toFixed(1)} 天</span>
                       </div>
                     ) : '—'}
                   </Td>
@@ -436,7 +439,7 @@ function TradeHistoryView() {
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
-              <tr className="text-left text-[10px] text-white/50 uppercase tracking-wider border-b border-white/8">
+              <tr className="text-left text-[10px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
                 <Th>合约</Th>
                 <Th>方向</Th>
                 <Th align="right">入场时间</Th>
@@ -455,11 +458,11 @@ function TradeHistoryView() {
                 const pnlPct = t.pnl_percent ?? 0;
                 const isWin = pnl > 0;
                 return (
-                  <tr key={t.id} className="border-b border-white/4 hover:bg-white/3 transition-colors">
+                  <tr key={t.id} className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
                     <Td>
                       <div className="flex flex-col leading-tight">
-                        <span className="text-white/85 font-mono">{t.instrument}</span>
-                        <span className="text-[9px] text-white/50">{t.exchange}</span>
+                        <span className="text-white/90 font-mono">{t.instrument}</span>
+                        <span className="text-[9px] text-white/55">{t.exchange}</span>
                       </div>
                     </Td>
                     <Td>

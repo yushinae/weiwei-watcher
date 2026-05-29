@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# tooling artifacts
+.claude/
+.reasonix/
+
+# local database / runtime data
+*.db

@@ -3,13 +3,14 @@
 
 .db-oc-root {
   /* Surfaces */
-  --db-bg-main: var(--color-bg-base, #131313);
-  --db-bg-header: #1a1a1a;
+  --db-bg-main: var(--color-bg-base, #131313);   /* L1 页面底 */
+  --db-bg-card: var(--color-card, #1F1F1F);       /* L2 卡片 */
+  --db-bg-header: #1F1F1F;                         /* L2 chrome/表头 */
   --db-bg-row-even: rgba(255, 255, 255, 0.012);
   --db-bg-row-odd: transparent;
-  --db-bg-strike: #1f1f1f;
+  --db-bg-strike: #262626;        /* L3 内块 — 中央执行价列 */
   --db-bg-hover: rgba(255, 255, 255, 0.05);
-  --db-bg-selected: rgba(37, 232, 137, 0.14);
+  --db-bg-selected: rgba(30, 144, 255, 0.14);
 
   /* Lines */
   --db-border: rgba(255, 255, 255, 0.07);
@@ -26,14 +27,14 @@
   --db-warn: #febc2e;
 
   /* Accent — mint brand (replaces Deribit blue) */
-  --db-accent: #25e889;
-  --db-accent-soft: rgba(37, 232, 137, 0.35);
-  --db-accent-weak: rgba(37, 232, 137, 0.12);
+  --db-accent: #1E90FF;
+  --db-accent-soft: rgba(30, 144, 255, 0.35);
+  --db-accent-weak: rgba(30, 144, 255, 0.12);
 
   /* Spot / strike marker — brand green (replaces Deribit purple) */
-  --db-spot: #25e889;
-  --db-spot-soft: rgba(37, 232, 137, 0.35);
-  --db-spot-weak: rgba(37, 232, 137, 0.16);
+  --db-spot: #1E90FF;
+  --db-spot-soft: rgba(30, 144, 255, 0.35);
+  --db-spot-weak: rgba(30, 144, 255, 0.16);
 
   /* Sizing rhythm */
   --db-row-h: 32px;
@@ -50,7 +51,7 @@
   /* subtle vignette */
   background:
     radial-gradient(1200px 600px at 30% 15%, rgba(255, 255, 255, 0.025), transparent 60%),
-    radial-gradient(900px 540px at 70% 35%, rgba(37, 232, 137, 0.03), transparent 62%),
+    radial-gradient(900px 540px at 70% 35%, rgba(30, 144, 255, 0.03), transparent 62%),
     var(--db-bg-main);
 }
 
@@ -58,7 +59,7 @@
 .db-oc-root .db-menu-btn {
   height: 26px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: 6px;            /* 按钮 6px（DESIGN v5） */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,9 +80,9 @@
 .db-oc-root .db-menu-btn:active { transform: translateY(0.5px); }
 
 .db-oc-root .db-menu-panel {
-  background: #1f1f1f;
+  background: var(--color-dropdown, #1F1F1F);    /* L2 下拉 */
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: 10px;                            /* 弹窗/下拉 10px */
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
@@ -166,7 +167,7 @@
 .db-oc-root ::-webkit-scrollbar { width: 8px; height: 8px; }
 .db-oc-root ::-webkit-scrollbar-track { background: transparent; }
 .db-oc-root ::-webkit-scrollbar-thumb {
-  background: rgba(37, 232, 137, 0.28);
+  background: rgba(30, 144, 255, 0.28);
   border-radius: 999px;
 }
-.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(37, 232, 137, 0.45); }
+.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(30, 144, 255, 0.45); }

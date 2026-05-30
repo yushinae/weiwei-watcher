@@ -229,18 +229,21 @@ function TotalsBar({ totals, count }: { totals: { unrealized: number; delta: num
     </div>
   );
   return (
-    <div className="widget-card p-4 flex items-center gap-8 flex-wrap">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">持仓</span>
-        <span className="text-[16px] font-mono font-bold tnum text-white/90">{count}</span>
+    // .widget-card forces flex-direction:column — keep the stats row in an inner div.
+    <div className="widget-card p-4">
+      <div className="flex items-center gap-x-10 gap-y-3 flex-wrap">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">持仓</span>
+          <span className="text-[16px] font-mono font-bold tnum text-white/90">{count}</span>
+        </div>
+        {cell('未实现 PnL', totals.unrealized,
+          v => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
+          totals.unrealized >= 0 ? 'text-trade-up' : 'text-trade-down')}
+        {cell('净 Δ', totals.delta, v => v.toFixed(3))}
+        {cell('净 Γ', totals.gamma, v => v.toFixed(4))}
+        {cell('净 ν', totals.vega, v => v.toFixed(2))}
+        {cell('净 Θ/日', totals.theta, v => v.toFixed(2))}
       </div>
-      {cell('未实现 PnL', totals.unrealized,
-        v => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
-        totals.unrealized >= 0 ? 'text-trade-up' : 'text-trade-down')}
-      {cell('净 Δ', totals.delta, v => v.toFixed(3))}
-      {cell('净 Γ', totals.gamma, v => v.toFixed(4))}
-      {cell('净 ν', totals.vega, v => v.toFixed(2))}
-      {cell('净 Θ/日', totals.theta, v => v.toFixed(2))}
     </div>
   );
 }

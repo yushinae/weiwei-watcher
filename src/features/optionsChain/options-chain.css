@@ -1,0 +1,172 @@
+/* Deribit-style options chain — recolored to the app's mint-green / dark theme.
+   Scope: only applies inside .db-oc-root */
+
+.db-oc-root {
+  /* Surfaces */
+  --db-bg-main: var(--color-bg-base, #131313);
+  --db-bg-header: #1a1a1a;
+  --db-bg-row-even: rgba(255, 255, 255, 0.012);
+  --db-bg-row-odd: transparent;
+  --db-bg-strike: #1f1f1f;
+  --db-bg-hover: rgba(255, 255, 255, 0.05);
+  --db-bg-selected: rgba(37, 232, 137, 0.14);
+
+  /* Lines */
+  --db-border: rgba(255, 255, 255, 0.07);
+  --db-border-strong: #383838;
+
+  /* Text */
+  --db-text: rgba(255, 255, 255, 0.92);
+  --db-muted: rgba(255, 255, 255, 0.55);
+  --db-dim: rgba(255, 255, 255, 0.22);
+
+  /* Trading colors — macOS traffic-light, matching the app */
+  --db-up: #28c840;
+  --db-down: #ff5f57;
+  --db-warn: #febc2e;
+
+  /* Accent — mint brand (replaces Deribit blue) */
+  --db-accent: #25e889;
+  --db-accent-soft: rgba(37, 232, 137, 0.35);
+  --db-accent-weak: rgba(37, 232, 137, 0.12);
+
+  /* Spot / strike marker — brand green (replaces Deribit purple) */
+  --db-spot: #25e889;
+  --db-spot-soft: rgba(37, 232, 137, 0.35);
+  --db-spot-weak: rgba(37, 232, 137, 0.16);
+
+  /* Sizing rhythm */
+  --db-row-h: 32px;
+  --db-cell-px: 7px;
+  --db-font-cell: 13px;
+  --db-font-sub: 11px;
+  --db-font-header: 13px;
+
+  color: var(--db-text);
+  background: var(--db-bg-main);
+}
+
+.db-oc-root {
+  /* subtle vignette */
+  background:
+    radial-gradient(1200px 600px at 30% 15%, rgba(255, 255, 255, 0.025), transparent 60%),
+    radial-gradient(900px 540px at 70% 35%, rgba(37, 232, 137, 0.03), transparent 62%),
+    var(--db-bg-main);
+}
+
+/* ── Menu buttons / dropdowns (Source / Columns / Filter) ── */
+.db-oc-root .db-menu-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+.db-oc-root .db-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.db-oc-root .db-menu-btn:active { transform: translateY(0.5px); }
+
+.db-oc-root .db-menu-panel {
+  background: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.db-oc-root .db-frame-iconbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.70);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+.db-oc-root .db-frame-iconbtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
+.db-oc-root .db-frame-iconbtn:active { transform: translateY(0.5px); }
+
+.db-oc-root .db-iv-trigger {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+.db-oc-root .db-iv-value {
+  color: var(--db-accent);
+  font-weight: 800;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--db-accent-soft);
+}
+.db-oc-root .db-iv-trigger:hover .db-iv-value { border-bottom-color: var(--db-accent); }
+
+.db-oc-root .db-menu-item {
+  height: 34px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: rgba(255, 255, 255, 0.80);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.db-oc-root .db-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.db-oc-root .db-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.db-oc-root .db-check.is-on {
+  background: var(--db-accent);
+  border-color: var(--db-accent);
+}
+
+.db-oc-root .db-oc-cell {
+  padding-inline: var(--db-cell-px);
+  font-size: var(--db-font-cell);
+}
+.db-oc-root .db-oc-strike { background: var(--db-bg-strike); }
+
+.db-oc-root .db-oc-row:hover > .db-oc-cell-wrap { filter: brightness(1.4); }
+
+/* Scrollbars */
+.db-oc-root ::-webkit-scrollbar { width: 8px; height: 8px; }
+.db-oc-root ::-webkit-scrollbar-track { background: transparent; }
+.db-oc-root ::-webkit-scrollbar-thumb {
+  background: rgba(37, 232, 137, 0.28);
+  border-radius: 999px;
+}
+.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(37, 232, 137, 0.45); }

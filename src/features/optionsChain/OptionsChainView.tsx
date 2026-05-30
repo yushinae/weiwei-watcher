@@ -851,8 +851,7 @@ export default function OptionsChainView() {
 
       {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
       <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{ backgroundColor: BG_MAIN }}>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[11px] font-bold text-white/35">期权</span>
+        <div className="flex items-center min-w-0">
           <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />}
         </div>

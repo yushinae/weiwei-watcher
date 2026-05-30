@@ -8,13 +8,13 @@ import type { Coin } from '../../features/monitor/types';
 
 // 币种切换 tab（BTC/ETH）
 export const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
-  <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)]">
+  <div className="flex gap-0.5 rounded-lg p-0.5 bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07]">
     {(['BTC', 'ETH'] as Coin[]).map(c => (
       <button key={c} onClick={() => set(c)}
-        className={cn('text-[12px] font-bold px-2.5 py-0.5 rounded-[18px] transition-colors outline-none',
+        className={cn('text-[12px] font-bold px-2.5 py-0.5 rounded-md transition-colors duration-[120ms] outline-none',
           v === c
-            ? (c === 'BTC' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400')
-            : 'text-slate-600 hover:text-slate-400'
+            ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
+            : 'text-white/55 hover:text-white/80'
         )}>
         {c}
       </button>
@@ -24,8 +24,8 @@ export const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
 
 // 「实时」徽章：绿点 + 文字
 export const LiveBadge = () => (
-  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/80 uppercase tracking-wider">
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]" />
     实时
   </span>
 );
@@ -56,7 +56,7 @@ export const HistLoadErr = () => (
       <circle cx="10" cy="10" r="9" stroke="#FF5F57" strokeWidth="1.5"/>
       <path d="M10 5.5v5M10 13.5v1" stroke="#FF5F57" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
-    <span className="text-[11px] text-slate-500">历史数据加载失败</span>
-    <span className="text-[10px] text-slate-600">Deribit 历史 API 无响应，请刷新重试</span>
+    <span className="text-[11px] text-white/55">历史数据加载失败</span>
+    <span className="text-[10px] text-white/55">Deribit 历史 API 无响应，请刷新重试</span>
   </div>
 );

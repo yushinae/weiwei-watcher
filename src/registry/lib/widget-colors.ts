@@ -4,9 +4,9 @@
 
 // 通用图表颜色 token（ECharts 配置常用）
 export const GRID   = 'rgba(255,255,255,0.07)';
-export const TXT    = 'rgba(255,255,255,0.32)';
+export const TXT    = 'rgba(255,255,255,0.5)';   // v4: 提升图表轴标签对比度（原 0.32 过低）
 export const BRAND  = 'rgba(37,232,137,0.92)';
-export const RED    = 'rgba(202,63,100,0.92)';
+export const RED    = 'rgba(255,95,87,0.92)';    // v4 macOS red #FF5F57（原 #ca3f64 已废）
 export const YELLOW = '#FEBC2E';
 export const BLUE   = '#4ea1ff';
 export const PURPLE = '#a78bfa';

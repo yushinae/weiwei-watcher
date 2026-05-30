@@ -600,7 +600,7 @@ const GRID   = 'rgba(255,255,255,0.07)';
 const TXT    = 'rgba(255,255,255,0.32)';
 const BRAND  = 'rgba(37,232,137,0.92)';
 const RED    = 'rgba(202,63,100,0.92)';
-const YELLOW = '#F59E0B';
+const YELLOW = '#FEBC2E';
 const BLUE   = '#4ea1ff';
 const PURPLE = '#a78bfa';
 
@@ -621,12 +621,12 @@ export function GlobalGradDefs() {
           <stop offset="100%" stopColor="#25e889" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-red" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ca3f64" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#ca3f64" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FF5F57" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#FF5F57" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-yellow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FEBC2E" stopOpacity="0.20" />
+          <stop offset="100%" stopColor="#FEBC2E" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-blue" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#4ea1ff" stopOpacity="0.20" />
@@ -638,17 +638,17 @@ export function GlobalGradDefs() {
         </linearGradient>
         {/* inverted (bottom → top) for short/negative fills */}
         <linearGradient id="wg-red-inv" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#ca3f64" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#ca3f64" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FF5F57" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#FF5F57" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
   );
 }
 
-function ivrColor(r: number) { return r <= 30 ? '#25a750' : r <= 70 ? '#F59E0B' : '#ca3f64'; }
+function ivrColor(r: number) { return r <= 30 ? '#28C840' : r <= 70 ? '#FEBC2E' : '#FF5F57'; }
 function ivrLabel(r: number) { return r <= 20 ? '极低' : r <= 40 ? '偏低' : r <= 60 ? '中性' : r <= 80 ? '偏高' : '极高'; }
-function pcrColor(p: number) { return p < 0.7 ? '#25a750' : p < 1.0 ? '#F59E0B' : '#ca3f64'; }
+function pcrColor(p: number) { return p < 0.7 ? '#28C840' : p < 1.0 ? '#FEBC2E' : '#FF5F57'; }
 function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : '偏空'; }
 
 // ── CoinTabs ──────────────────────────────────────────────────────────────────
@@ -662,8 +662,8 @@ const CoinTabs = ({ v }: { v: Coin; set: (c: Coin) => void }) => (
 // ── Live badge ────────────────────────────────────────────────────────────────
 
 const LiveBadge = () => (
-  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />
+  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider">
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />
     实时
   </span>
 );
@@ -693,11 +693,11 @@ const Skeleton = () => (
 const HistLoadErr = () => (
   <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-center px-4">
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="opacity-40">
-      <circle cx="10" cy="10" r="9" stroke="#f87171" strokeWidth="1.5"/>
-      <path d="M10 5.5v5M10 13.5v1" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="10" cy="10" r="9" stroke="#FF5F57" strokeWidth="1.5"/>
+      <path d="M10 5.5v5M10 13.5v1" stroke="#FF5F57" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
-    <span className="text-[11px] text-slate-500">历史数据加载失败</span>
-    <span className="text-[10px] text-slate-600">Deribit 历史 API 无响应，请刷新重试</span>
+    <span className="text-[11px] text-white/55">历史数据加载失败</span>
+    <span className="text-[10px] text-white/55">Deribit 历史 API 无响应，请刷新重试</span>
   </div>
 );
 
@@ -996,21 +996,21 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     <div className="w-full h-full flex flex-col min-h-0 overflow-y-auto">
       {loading && !data && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-          <span className="text-[11px] text-white/20 animate-pulse">正在加载实时数据…</span>
+          <span className="text-[11px] text-white/55 animate-pulse">正在加载实时数据…</span>
         </div>
       )}
       <div className="flex items-center px-3 pt-2.5 pb-1.5 shrink-0">
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">波动率概览</span>
+        <span className="text-[10px] font-bold text-white/55 uppercase tracking-wider">波动率概览</span>
       </div>
       <div className="mx-2 mb-2 rounded-[8px] bg-surface-1/40 border border-surface-4/50 overflow-hidden shrink-0">
         {/* DVOL row */}
         <div className="flex items-center justify-between px-3 pt-2.5 pb-2 border-b border-surface-2/80">
-          <span className="text-[13px] font-bold text-slate-100">{coin} {data ? 'ATM 30D' : 'DVOL'}</span>
+          <span className="text-[13px] font-bold text-white/90">{coin} {data ? 'ATM 30D' : 'DVOL'}</span>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[22px] font-mono font-bold tnum text-slate-100 leading-none">{dvol.toFixed(1)}</span>
-            <span className="text-[11px] text-slate-600">%</span>
+            <span className="text-[22px] font-mono font-bold tnum text-white/90 leading-none">{dvol.toFixed(1)}</span>
+            <span className="text-[11px] text-white/55">%</span>
             {histData && (
-              <span className={cn('text-[11px] font-mono tnum font-bold', dvolChg < 0 ? 'text-rose-400' : 'text-emerald-400')}>
+              <span className={cn('text-[11px] font-mono tnum font-bold', dvolChg < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
                 {dvolChg > 0 ? '+' : ''}{dvolChg.toFixed(1)}
               </span>
             )}
@@ -1021,8 +1021,8 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           {/* IV Rank */}
           <div className="py-2 px-3">
             <div className="flex items-center gap-1 mb-1">
-              <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase">IV Rank</div>
-              {histData ? <LiveBadge /> : <span className="text-[8px] text-slate-700">估</span>}
+              <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">IV Rank</div>
+              {histData ? <LiveBadge /> : <span className="text-[9px] text-white/55">估</span>}
             </div>
             <div className="text-[16px] font-mono font-bold tnum leading-none mb-1" style={{ color: ivrc }}>{ivRank.toFixed(0)}</div>
             <div className="h-1 rounded-full bg-surface-2/80 overflow-hidden">
@@ -1033,18 +1033,18 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           {/* VRP */}
           <div className="px-3 py-2">
             <div className="flex items-center gap-1 mb-1">
-              <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase">VRP</div>
-              {histData ? <LiveBadge /> : <span className="text-[8px] text-slate-700">估</span>}
+              <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">VRP</div>
+              {histData ? <LiveBadge /> : <span className="text-[9px] text-white/55">估</span>}
             </div>
-            <div className="text-[16px] font-mono font-bold tnum leading-none text-amber-400 mb-0.5">
-              {vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}<span className="text-[10px] text-slate-600 font-normal ml-0.5">pp</span>
+            <div className="text-[16px] font-mono font-bold tnum leading-none text-[var(--nexus-yellow)] mb-0.5">
+              {vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}<span className="text-[10px] text-white/55 font-normal ml-0.5">pp</span>
             </div>
-            <div className="text-[9px] font-mono text-slate-600">IV {iv30.toFixed(1)} − RV {rv30.toFixed(1)}</div>
+            <div className="text-[9px] font-mono text-white/55">IV {iv30.toFixed(1)} − RV {rv30.toFixed(1)}</div>
           </div>
           {/* PCR */}
           <div className="px-3 py-2">
             <div className="flex items-center gap-1 mb-1">
-              <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase">PCR</div>
+              <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">PCR</div>
               {data && <LiveBadge />}
             </div>
             <div className="text-[16px] font-mono font-bold tnum leading-none mb-0.5" style={{ color: pcrc }}>{pcr.toFixed(2)}</div>
@@ -1054,7 +1054,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
         {/* Term structure */}
         <div className="border-t border-surface-2/80 px-3 pt-2 pb-2.5">
           <div className="flex items-center gap-2 mb-2">
-            <div className="text-[9px] font-bold text-slate-600 tracking-wider uppercase">期限结构 ATM IV</div>
+            <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">期限结构 ATM IV</div>
             {data && <LiveBadge />}
           </div>
           <div className="flex gap-0.5 items-end h-[40px]">
@@ -1062,7 +1062,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
               const barH = Math.round(8 + ((t.iv - termMin) / termRange) * 26);
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                  <span className="text-[8px] font-mono tnum text-slate-600 leading-none">{t.iv.toFixed(0)}</span>
+                  <span className="text-[9px] font-mono tnum text-white/55 leading-none">{t.iv.toFixed(0)}</span>
                   <div className="w-full rounded-t-[2px]" style={{ height: barH, background: 'linear-gradient(to top,rgba(37,232,137,.55),rgba(37,232,137,.2))' }} />
                 </div>
               );
@@ -1071,7 +1071,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           <div className="flex gap-0.5 mt-0.5">
             {termItems.map((t, i) => (
               <div key={i} className="flex-1 flex justify-center">
-                <span className="text-[8px] text-slate-700">{t.t}</span>
+                <span className="text-[9px] text-white/55">{t.t}</span>
               </div>
             ))}
           </div>
@@ -1270,16 +1270,16 @@ export const IVSurfaceWidget = ({
         <table className="w-full text-[11px]">
           <thead>
             <tr>
-              <th className="text-left px-2 py-1.5 text-slate-600 font-bold">Δ / Exp</th>
+              <th className="text-left px-2 py-1.5 text-white/55 font-bold">Δ / Exp</th>
               {cols.map(e => (
-                <th key={e.label} className="px-2 py-1.5 text-slate-600 font-bold text-right">{e.label}</th>
+                <th key={e.label} className="px-2 py-1.5 text-white/55 font-bold text-right">{e.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {SURFACE_ROWS.map((row, ri) => (
               <tr key={row.label} className={ri === 2 ? 'border-t border-b border-border-subtle' : ''}>
-                <td className={cn('px-2 py-1.5 font-mono font-bold', ri === 2 ? 'text-slate-300' : 'text-slate-500')}>
+                <td className={cn('px-2 py-1.5 font-mono font-bold', ri === 2 ? 'text-white/80' : 'text-white/55')}>
                   {row.label}
                 </td>
                 {tableData[ri].map((v, ci) => (
@@ -1288,7 +1288,7 @@ export const IVSurfaceWidget = ({
                     role={onPickCell ? 'button' : undefined}
                     tabIndex={onPickCell ? 0 : undefined}
                     className={cn(
-                      'px-2 py-1.5 text-right font-mono tnum text-slate-200 font-bold',
+                      'px-2 py-1.5 text-right font-mono tnum text-white/85 font-bold',
                       onPickCell && 'cursor-pointer hover:brightness-110',
                     )}
                     style={{ backgroundColor: `rgba(37,232,137,${(0.05 + (v - lo) / (hi - lo + 0.01) * 0.35).toFixed(2)})` }}
@@ -1351,24 +1351,24 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
               <thead>
                 <tr className="border-b border-border-subtle">
                   {['到期', 'ATM', '25d RR', '25d BF', '10d RR', '10d BF'].map(h => (
-                    <th key={h} className="px-2 py-1.5 text-slate-600 font-bold text-right first:text-left">{h}</th>
+                    <th key={h} className="px-2 py-1.5 text-white/55 font-bold text-right first:text-left">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} className="border-b border-border-subtle last:border-0 hover:bg-surface-2 transition-colors">
-                    <td className="px-2 py-1.5 font-mono font-bold text-slate-400">{r.exp}</td>
-                    <td className="px-2 py-1.5 text-right font-mono tnum text-slate-200 font-bold">{r.atm.toFixed(1)}</td>
-                    <td className={cn('px-2 py-1.5 text-right font-mono tnum font-bold', r.rr25 < 0 ? 'text-rose-400' : 'text-emerald-400')}>{r.rr25.toFixed(1)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono tnum text-amber-400 font-bold">{r.bf25.toFixed(1)}</td>
-                    <td className={cn('px-2 py-1.5 text-right font-mono tnum font-bold', r.rr10 < 0 ? 'text-rose-400/70' : 'text-emerald-400/70')}>{r.rr10.toFixed(1)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono tnum text-amber-400/70 font-bold">{r.bf10.toFixed(1)}</td>
+                    <td className="px-2 py-1.5 font-mono font-bold text-white/65">{r.exp}</td>
+                    <td className="px-2 py-1.5 text-right font-mono tnum text-white/85 font-bold">{r.atm.toFixed(1)}</td>
+                    <td className={cn('px-2 py-1.5 text-right font-mono tnum font-bold', r.rr25 < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>{r.rr25.toFixed(1)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono tnum text-[var(--nexus-yellow)] font-bold">{r.bf25.toFixed(1)}</td>
+                    <td className={cn('px-2 py-1.5 text-right font-mono tnum font-bold', r.rr10 < 0 ? 'text-[var(--nexus-red)]/70' : 'text-[var(--nexus-green)]/70')}>{r.rr10.toFixed(1)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono tnum text-[var(--nexus-yellow)]/70 font-bold">{r.bf10.toFixed(1)}</td>
                   </tr>
                 ))}
                 {!rows.length && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-slate-600 text-[11px]">暂无数据</td>
+                    <td colSpan={6} className="px-3 py-6 text-center text-white/55 text-[11px]">暂无数据</td>
                   </tr>
                 )}
               </tbody>
@@ -1397,7 +1397,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -1407,7 +1407,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
   useEffect(() => { setSelectedExp(0); }, [coin]);
 
   if (loading && !data) return <Skeleton />;
-  if (!exp) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!exp) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   // Build merged strike table
   const callsByStrike = new Map<number, typeof exp.calls[0]>();
@@ -1440,7 +1440,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
               'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
               i === selectedExp
                 ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/30 hover:text-white/60 hover:bg-white/[0.04]',
+                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
             )}
           >
             {e.label}
@@ -1453,18 +1453,18 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
         <table className="w-full text-[11px]">
           <thead className="sticky top-0" style={{ background: 'var(--base-dim)' }}>
             <tr className="border-b border-white/[0.06]">
-              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">IV%</th>
-              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">Δ</th>
-              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">OI</th>
-              <th className="text-center px-3 py-1.5 text-[9px] uppercase tracking-wider text-white/40 font-semibold bg-white/[0.03]">行权价</th>
-              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">OI</th>
-              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">Δ</th>
-              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/25 font-normal">IV%</th>
+              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">IV%</th>
+              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">Δ</th>
+              <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">OI</th>
+              <th className="text-center px-3 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-semibold bg-white/[0.03]">行权价</th>
+              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">OI</th>
+              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">Δ</th>
+              <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">IV%</th>
             </tr>
             <tr className="border-b border-white/[0.03]">
-              <th colSpan={3} className="text-center py-0.5 text-[8px] text-emerald-400/40 font-normal">CALL</th>
+              <th colSpan={3} className="text-center py-0.5 text-[9px] text-[var(--nexus-green)]/40 font-normal">CALL</th>
               <th className="bg-white/[0.03]" />
-              <th colSpan={3} className="text-center py-0.5 text-[8px] text-rose-400/40 font-normal">PUT</th>
+              <th colSpan={3} className="text-center py-0.5 text-[9px] text-[var(--nexus-red)]/40 font-normal">PUT</th>
             </tr>
           </thead>
           <tbody>
@@ -1482,13 +1482,13 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
                   )}
                 >
                   {/* Call side */}
-                  <td className={cn('text-right px-2 py-1.5 font-mono tnum', aboveSpot ? 'text-white/30' : 'text-emerald-400/80')}>
+                  <td className={cn('text-right px-2 py-1.5 font-mono tnum', aboveSpot ? 'text-white/55' : 'text-[var(--nexus-green)]/80')}>
                     {call ? fmt(call.iv) : '—'}
                   </td>
-                  <td className="text-right px-2 py-1.5 font-mono tnum text-white/40">
+                  <td className="text-right px-2 py-1.5 font-mono tnum text-white/55">
                     {call ? call.delta.toFixed(2) : '—'}
                   </td>
-                  <td className="text-right px-2 py-1.5 font-mono tnum text-white/35">
+                  <td className="text-right px-2 py-1.5 font-mono tnum text-white/55">
                     {call ? fmtOI(call.oi) : '—'}
                   </td>
                   {/* Strike */}
@@ -1497,16 +1497,16 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
                     isAtm ? 'text-[var(--nexus-accent)]' : 'text-white/70',
                   )}>
                     {strike.toLocaleString()}
-                    {isAtm && <span className="ml-1 text-[8px] text-[var(--nexus-accent)]/60">ATM</span>}
+                    {isAtm && <span className="ml-1 text-[9px] text-[var(--nexus-accent)]/60">ATM</span>}
                   </td>
                   {/* Put side */}
-                  <td className="text-left px-2 py-1.5 font-mono tnum text-white/35">
+                  <td className="text-left px-2 py-1.5 font-mono tnum text-white/55">
                     {put ? fmtOI(put.oi) : '—'}
                   </td>
-                  <td className="text-left px-2 py-1.5 font-mono tnum text-white/40">
+                  <td className="text-left px-2 py-1.5 font-mono tnum text-white/55">
                     {put ? put.delta.toFixed(2) : '—'}
                   </td>
-                  <td className={cn('text-left px-2 py-1.5 font-mono tnum', aboveSpot ? 'text-rose-400/80' : 'text-white/30')}>
+                  <td className={cn('text-left px-2 py-1.5 font-mono tnum', aboveSpot ? 'text-[var(--nexus-red)]/80' : 'text-white/55')}>
                     {put ? fmt(put.iv) : '—'}
                   </td>
                 </tr>
@@ -1516,7 +1516,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
         </table>
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         现货 {spot > 0 ? spot.toLocaleString() : '—'} · {exp.label} 到期 · OI 单位：张
       </div>
     </div>
@@ -1555,7 +1555,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -1565,7 +1565,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
 
@@ -1626,7 +1626,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
             'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
             expFilter === 'all'
               ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-              : 'text-white/30 hover:text-white/60 hover:bg-white/[0.04]',
+              : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
           )}
         >全部</button>
         {expiries.map(e => (
@@ -1637,7 +1637,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
               'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
               expFilter === e.label
                 ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/30 hover:text-white/60 hover:bg-white/[0.04]',
+                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
             )}
           >
             {e.label}
@@ -1647,19 +1647,19 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
       {/* Stats row */}
       <div className="flex items-center gap-3 px-3 pb-2 text-[10px] shrink-0">
-        <span className="text-white/30">Call OI <span className="font-mono text-emerald-400/80">{fmtOI(totalCallOI)}</span></span>
-        <span className="text-white/20">·</span>
-        <span className="text-white/30">Put OI <span className="font-mono text-rose-400/80">{fmtOI(totalPutOI)}</span></span>
-        <span className="text-white/20">·</span>
-        <span className="text-white/30">PCR <span className="font-mono text-amber-400/80">{pcr.toFixed(2)}</span></span>
-        <span className="text-white/20">·</span>
-        <span className="text-white/30">最大痛点 <span className="font-mono text-[var(--nexus-accent)]/80">{maxPain.toLocaleString()}</span></span>
+        <span className="text-white/55">Call OI <span className="font-mono text-[var(--nexus-green)]/80">{fmtOI(totalCallOI)}</span></span>
+        <span className="text-white/55">·</span>
+        <span className="text-white/55">Put OI <span className="font-mono text-[var(--nexus-red)]/80">{fmtOI(totalPutOI)}</span></span>
+        <span className="text-white/55">·</span>
+        <span className="text-white/55">PCR <span className="font-mono text-[var(--nexus-yellow)]/80">{pcr.toFixed(2)}</span></span>
+        <span className="text-white/55">·</span>
+        <span className="text-white/55">最大痛点 <span className="font-mono text-[var(--nexus-accent)]/80">{maxPain.toLocaleString()}</span></span>
       </div>
 
       {/* Chart */}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
         {strikes.length === 0
-          ? <div className="py-8 text-center text-[11px] text-white/20">暂无持仓数据</div>
+          ? <div className="py-8 text-center text-[11px] text-white/55">暂无持仓数据</div>
           : (
             <svg
               viewBox={`0 0 ${TOTAL_W} ${CHART_H}`}
@@ -1675,7 +1675,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
                 const isSpot    = Math.abs(strike - spot)    < spot * 0.005;
                 const isMaxPain = Math.abs(strike - maxPain) < spot * 0.005;
                 const isAtm     = isSpot || Math.abs(strike - spot) === Math.min(...strikes.map(k => Math.abs(k - spot)));
-                const labelColor = isSpot ? '#F59E0B' : isMaxPain ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)';
+                const labelColor = isSpot ? '#FEBC2E' : isMaxPain ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)';
 
                 return (
                   <g key={strike}>
@@ -1732,7 +1732,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         }
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         ◆ 现货价  ★ 最大痛点  数据来源：Deribit · {expFilter === 'all' ? '全部到期日' : expFilter}
       </div>
     </div>
@@ -1955,7 +1955,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -1965,7 +1965,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
@@ -2024,7 +2024,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         {['all', ...expiries.map(e => e.label)].map(f => (
           <button key={f} onClick={() => setExpFilter(f as 'all' | string)}
             className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[6px] transition-colors',
-              expFilter === f ? 'bg-white/10 text-white/80' : 'text-white/25 hover:text-white/50'
+              expFilter === f ? 'bg-white/10 text-white/80' : 'text-white/55 hover:text-white/50'
             )}>
             {f === 'all' ? '全部' : f}
           </button>
@@ -2034,12 +2034,12 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       {/* Stats row */}
       <div className="flex gap-2 px-3 py-2 shrink-0">
         {[
-          { label: '净 GEX', val: fmtGex(totalNet), color: totalNet >= 0 ? '#25e889' : '#f87171' },
-          { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#F59E0B' },
+          { label: '净 GEX', val: fmtGex(totalNet), color: totalNet >= 0 ? '#25e889' : '#FF5F57' },
+          { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#FEBC2E' },
           { label: '现货', val: fmtPx(spot), color: 'rgba(255,255,255,0.6)' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[12px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2070,7 +2070,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
                   y={y + BAR_H / 2 + 3.5}
                   textAnchor="middle"
                   fontSize={9}
-                  fill={isSpot ? '#F59E0B' : isZero ? '#a78bfa' : 'rgba(255,255,255,0.35)'}
+                  fill={isSpot ? '#FEBC2E' : isZero ? '#a78bfa' : 'rgba(255,255,255,0.35)'}
                   fontWeight={isSpot || isZero ? 700 : 400}
                 >
                   {fmtPx(k)}{isSpot ? ' ◆' : isZero ? ' ○' : ''}
@@ -2094,7 +2094,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         </svg>
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         ◆ 现货  ○ 零Gamma  GEX = Γ × OI × S² / 100（每1%标的波动）· Deribit
       </div>
     </div>
@@ -2113,7 +2113,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {histData && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -2150,10 +2150,10 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         {[
           { label: 'DVOL 当前', val: `${currDvol.toFixed(1)}%`, color: BRAND },
           { label: 'RV30 当前', val: `${currRv.toFixed(1)}%`, color: BLUE },
-          { label: 'VRP', val: `${vrp >= 0 ? '+' : ''}${vrp.toFixed(1)}%`, color: vrp >= 0 ? '#25e889' : '#f87171' },
+          { label: 'VRP', val: `${vrp >= 0 ? '+' : ''}${vrp.toFixed(1)}%`, color: vrp >= 0 ? '#25e889' : '#FF5F57' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[13px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2186,7 +2186,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         {[{ c: BRAND, l: 'DVOL (Deribit)' }, { c: BLUE, l: 'RV 30D', dash: true }].map(({ c, l, dash }) => (
           <div key={l} className="flex items-center gap-1.5">
             <svg width={16} height={4}><line x1={0} y1={2} x2={16} y2={2} stroke={c} strokeWidth={1.5} strokeDasharray={dash ? '3,2' : undefined} /></svg>
-            <span className="text-[9px] text-white/30">{l}</span>
+            <span className="text-[9px] text-white/55">{l}</span>
           </div>
         ))}
       </div>
@@ -2206,7 +2206,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -2215,7 +2215,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
   if (loading && !data) return <Skeleton />;
   if (!data || !data.fundingHistory.length) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/20">暂无资金费率数据</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无资金费率数据</div>
   );
 
   const hist = data.fundingHistory;
@@ -2238,7 +2238,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const negArea = `M ${mapped[0][0].toFixed(1)} ${mid} ${mapped.map(([x, y]) => `L ${x.toFixed(1)} ${Math.max(y, mid).toFixed(1)}`).join(' ')} L ${mapped[mapped.length - 1][0].toFixed(1)} ${mid} Z`;
 
   const fmtRate = (r: number) => `${r >= 0 ? '+' : ''}${r.toFixed(4)}%`;
-  const fundColor = data.currentFunding8h >= 0 ? '#25e889' : '#f87171';
+  const fundColor = data.currentFunding8h >= 0 ? '#25e889' : '#FF5F57';
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -2249,7 +2249,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           { label: '年化费率', val: `${data.annFunding >= 0 ? '+' : ''}${data.annFunding.toFixed(1)}%`, color: fundColor },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[13px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2282,7 +2282,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
         </svg>
       </div>
 
-      <div className="px-3 pb-2 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-2 text-[9px] text-white/55 shrink-0">
         8小时资金费率（正值 = 多头付空头）· {coin}-PERPETUAL · Deribit
       </div>
     </div>
@@ -2301,7 +2301,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -2310,7 +2310,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
 
   if (loading && !data) return <Skeleton />;
   if (!data || !data.basis.length) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/20">暂无期货数据</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无期货数据</div>
   );
 
   const { basis } = data;
@@ -2320,7 +2320,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
       <div className="px-3 pt-2 pb-1 shrink-0">
-        <span className="text-[10px] font-bold text-white/25 uppercase tracking-wider">年化基差（期货 vs 现货）</span>
+        <span className="text-[10px] font-bold text-white/55 uppercase tracking-wider">年化基差（期货 vs 现货）</span>
       </div>
       <div className="flex-1 min-h-0 px-3 pb-2">
         {basis.map((b, i) => {
@@ -2331,7 +2331,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
             <div key={i} className="flex items-center gap-3 py-1 border-b border-white/[0.04] last:border-0">
               <div className="w-[72px] shrink-0">
                 <div className="text-[11px] font-mono font-semibold text-white/70">{b.label}</div>
-                <div className="text-[9px] text-white/25">{b.daysToExp}天 · ${px(b.futurePx)}</div>
+                <div className="text-[9px] text-white/55">{b.daysToExp}天 · ${px(b.futurePx)}</div>
               </div>
               <div className="flex-1 flex items-center gap-2">
                 <div className="flex-1 h-[8px] bg-white/[0.04] rounded-full overflow-hidden">
@@ -2348,7 +2348,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
           );
         })}
       </div>
-      <div className="px-3 pb-2 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-2 text-[9px] text-white/55 shrink-0">
         (期货价 / 现货价 − 1) × (365 / 剩余天数) · Deribit
       </div>
     </div>
@@ -2367,7 +2367,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -2375,7 +2375,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const callVol = data.callVol24h;
   const putVol  = data.putVol24h;
@@ -2386,8 +2386,8 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
   const fmtVol = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
   const sentiment = callPct > 55 ? { label: '看涨偏向', color: '#25e889' }
-                  : callPct < 45 ? { label: '看跌偏向', color: '#f87171' }
-                  : { label: '中性', color: '#F59E0B' };
+                  : callPct < 45 ? { label: '看跌偏向', color: '#FF5F57' }
+                  : { label: '中性', color: '#FEBC2E' };
 
   // Flow by expiry (top 6)
   const expVol = (data.expiries.slice(0, 6)).map(e => ({
@@ -2403,12 +2403,12 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       <div className="flex gap-2 px-3 pt-2 pb-2 shrink-0">
         {[
           { label: 'Call 成交量', val: fmtVol(callVol), color: '#25e889' },
-          { label: 'Put 成交量', val: fmtVol(putVol), color: '#f87171' },
-          { label: 'P/C 比', val: volRatio.toFixed(2), color: '#F59E0B' },
+          { label: 'Put 成交量', val: fmtVol(putVol), color: '#FF5F57' },
+          { label: 'P/C 比', val: volRatio.toFixed(2), color: '#FEBC2E' },
           { label: '方向', val: sentiment.label, color: sentiment.color },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[12px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -2416,37 +2416,37 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
       {/* Call/Put ratio bar */}
       <div className="px-3 pb-2 shrink-0">
-        <div className="flex items-center justify-between text-[9px] text-white/30 mb-1">
+        <div className="flex items-center justify-between text-[9px] text-white/55 mb-1">
           <span>Call {callPct.toFixed(0)}%</span>
           <span>Put {putPct.toFixed(0)}%</span>
         </div>
         <div className="flex h-[6px] rounded-full overflow-hidden bg-white/[0.05]">
           <div className="h-full bg-[#25e889]/70 transition-all" style={{ width: `${callPct}%` }} />
-          <div className="h-full bg-[#f87171]/70 flex-1" />
+          <div className="h-full bg-[#FF5F57]/70 flex-1" />
         </div>
       </div>
 
       {/* Per-expiry flow */}
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
-        <div className="text-[9px] text-white/25 uppercase tracking-wider mb-1.5">按到期日拆分</div>
+        <div className="text-[9px] text-white/55 uppercase tracking-wider mb-1.5">按到期日拆分</div>
         {expVol.map((e, i) => {
           const total = e.callV + e.putV;
           const cPct = total > 0 ? (e.callV / total) * 100 : 50;
           const barTotal = (total / maxExpVol) * 100;
           return (
             <div key={i} className="flex items-center gap-2 mb-1.5">
-              <div className="w-[32px] text-[10px] font-mono text-white/40 shrink-0">{e.label}</div>
+              <div className="w-[32px] text-[10px] font-mono text-white/55 shrink-0">{e.label}</div>
               <div className="flex-1 flex h-[12px] rounded-[3px] overflow-hidden bg-white/[0.04]" style={{ maxWidth: `${barTotal}%` }}>
                 <div className="h-full bg-[#25e889]/60" style={{ width: `${cPct}%` }} />
-                <div className="h-full bg-[#f87171]/60 flex-1" />
+                <div className="h-full bg-[#FF5F57]/60 flex-1" />
               </div>
-              <div className="text-[9px] text-white/25 font-mono shrink-0 w-[28px] text-right">{fmtVol(total)}</div>
+              <div className="text-[9px] text-white/55 font-mono shrink-0 w-[28px] text-right">{fmtVol(total)}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="px-3 pb-2 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-2 text-[9px] text-white/55 shrink-0">
         24H 期权成交量（合约数）· Deribit
       </div>
     </div>
@@ -2458,14 +2458,14 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const FG_ZONES = [
-  { min: 0,  max: 25,  label: '极度恐慌', color: '#ef4444' },
-  { min: 25, max: 45,  label: '恐慌',     color: '#f97316' },
-  { min: 45, max: 55,  label: '中性',     color: '#F59E0B' },
-  { min: 55, max: 75,  label: '贪婪',     color: '#84cc16' },
-  { min: 75, max: 100, label: '极度贪婪', color: '#22c55e' },
+  { min: 0,  max: 25,  label: '极度恐慌', color: '#FF5F57' },
+  { min: 25, max: 45,  label: '恐慌',     color: '#FF8C57' },
+  { min: 45, max: 55,  label: '中性',     color: '#FEBC2E' },
+  { min: 55, max: 75,  label: '贪婪',     color: '#5DD879' },
+  { min: 75, max: 100, label: '极度贪婪', color: '#28C840' },
 ];
 function fgColor(v: number) {
-  return FG_ZONES.find(z => v >= z.min && v <= z.max)?.color ?? '#F59E0B';
+  return FG_ZONES.find(z => v >= z.min && v <= z.max)?.color ?? '#FEBC2E';
 }
 
 export const FearGreedWidget = () => {
@@ -2473,13 +2473,13 @@ export const FearGreedWidget = () => {
   const { setHeaderRight } = useCardHeader();
 
   useEffect(() => {
-    setHeaderRight(data ? <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span> : null);
+    setHeaderRight(data ? <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span> : null);
     return () => setHeaderRight(null);
   }, [setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
   if (!data || !data.fearGreed.length) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/20">暂无数据</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>
   );
 
   const { fearGreed, currentFG, currentFGLabel } = data;
@@ -2535,8 +2535,8 @@ export const FearGreedWidget = () => {
           {FG_ZONES.slice().reverse().map(z => (
             <div key={z.label} className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: z.color }} />
-              <span className="text-[9px] text-white/30">{z.label}</span>
-              <span className="text-[9px] text-white/15 ml-auto">{z.min}–{z.max}</span>
+              <span className="text-[9px] text-white/55">{z.label}</span>
+              <span className="text-[9px] text-white/55 ml-auto">{z.min}–{z.max}</span>
             </div>
           ))}
         </div>
@@ -2563,7 +2563,7 @@ export const FearGreedWidget = () => {
         </svg>
       </div>
 
-      <div className="px-3 pb-2 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-2 text-[9px] text-white/55 shrink-0">
         数据来源：alternative.me · 30天历史
       </div>
     </div>
@@ -2588,14 +2588,14 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           {[50_000, 200_000, 500_000].map(v => (
             <button key={v} onClick={() => setMinUSD(v)}
               className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-[5px] transition-colors',
-                minUSD === v ? 'bg-white/10 text-white/80' : 'text-white/25 hover:text-white/50'
+                minUSD === v ? 'bg-white/10 text-white/80' : 'text-white/55 hover:text-white/50'
               )}>
               {v >= 1_000_000 ? `${v/1_000_000}M+` : `${v/1_000}K+`}
             </button>
           ))}
         </div>
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />10s
+        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />10s
         </span>
         <CoinTabs v={coin} set={setCoin} />
       </div>
@@ -2622,20 +2622,20 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       {/* Header row */}
       <div className="grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
         {['时间', '合约', '方向', 'IV', '规模', '名义金额'].map(h => (
-          <span key={h} className="text-[9px] uppercase tracking-[0.06em] text-white/20 font-bold">{h}</span>
+          <span key={h} className="text-[9px] uppercase tracking-[0.06em] text-white/55 font-bold">{h}</span>
         ))}
       </div>
 
       {loading && filtered.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-white/20">等待成交…</div>
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">等待成交…</div>
       ) : filtered.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-white/20">暂无达到阈值的大宗成交</div>
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">暂无达到阈值的大宗成交</div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
           {filtered.map((t, i) => {
             const isBuy = t.direction === 'buy';
-            const dirColor = isBuy ? '#25e889' : '#f87171';
-            const typeColor = t.optType === 'C' ? '#4ea1ff' : '#f59e0b';
+            const dirColor = isBuy ? '#25e889' : '#FF5F57';
+            const typeColor = t.optType === 'C' ? '#4ea1ff' : '#FEBC2E';
             const sizeEmphasis = t.notionalUSD >= 1_000_000;
             return (
               <div
@@ -2646,7 +2646,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
                 )}
               >
                 {/* Time */}
-                <span className="font-mono text-[10px] text-white/30">{relTime(t.ts)}</span>
+                <span className="font-mono text-[10px] text-white/55">{relTime(t.ts)}</span>
                 {/* Instrument */}
                 <div className="min-w-0">
                   <span className="font-mono text-[10px] font-semibold" style={{ color: typeColor }}>
@@ -2669,7 +2669,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
                   {t.amount >= 1000 ? `${(t.amount / 1000).toFixed(1)}K` : t.amount.toFixed(1)}
                 </span>
                 {/* Notional */}
-                <span className={cn('font-mono text-[10px] tnum font-bold', sizeEmphasis ? 'text-amber-400' : 'text-white/40')}>
+                <span className={cn('font-mono text-[10px] tnum font-bold', sizeEmphasis ? 'text-[var(--nexus-yellow)]' : 'text-white/55')}>
                   {fmtUSD(t.notionalUSD)}
                 </span>
               </div>
@@ -2678,7 +2678,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         </div>
       )}
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         名义金额 = 合约数 × 指数价格 · 仅显示 ≥ {fmtUSD(minUSD)} 的成交 · Deribit
       </div>
     </div>
@@ -2700,12 +2700,12 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <div className="flex gap-0.5 rounded-[18px] p-0.5 bg-[color:var(--widget-glass-dim)]">
           {(['vanna', 'charm'] as const).map(m => (
             <button key={m} onClick={() => setMode(m)}
               className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
-                mode === m ? 'bg-white/10 text-white/80' : 'text-white/25 hover:text-white/50'
+                mode === m ? 'bg-white/10 text-white/80' : 'text-white/55 hover:text-white/50'
               )}>
               {m === 'vanna' ? 'Vanna' : 'Charm'}
             </button>
@@ -2718,7 +2718,7 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   }, [coin, setCoin, setHeaderRight, data, mode]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   const expiries = pickExpiries(data.expiries, [7, 14, 30, 60, 90]).slice(0, 5);
@@ -2765,7 +2765,7 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Description */}
       <div className="px-3 pt-1.5 pb-1 shrink-0">
-        <p className="text-[9px] text-white/25 leading-relaxed">
+        <p className="text-[9px] text-white/55 leading-relaxed">
           {mode === 'vanna'
             ? 'Vanna = ∂Δ/∂σ · IV 每涨 1% 时 Delta 的变化 · 做市商 Vanna 对冲会推动行情沿高 Vanna 区加速'
             : 'Charm = ∂Δ/∂t · Delta 每日自然衰减量 · 近到期大 Charm 区是 Pin Risk 来源'}
@@ -2793,7 +2793,7 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
                 {/* Strike label */}
                 <text x={LABEL_W - 4} y={y + CELL_H / 2 + 3.5}
                   textAnchor="end" fontSize={9}
-                  fill={isSpot ? '#F59E0B' : 'rgba(255,255,255,0.35)'}
+                  fill={isSpot ? '#FEBC2E' : 'rgba(255,255,255,0.35)'}
                   fontWeight={isSpot ? 700 : 400}
                 >{fmtK(k)}{isSpot ? ' ◆' : ''}</text>
 
@@ -2828,7 +2828,7 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         </svg>
       </div>
 
-      <div className="px-3 pb-1.5 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-1.5 text-[9px] text-white/55 shrink-0">
         数值 = Σ({mode === 'vanna' ? 'Vanna' : 'Charm'} × OI) · 绿=正 红=负 · ◆现货 · Deribit
       </div>
     </div>
@@ -2851,8 +2851,8 @@ interface IVSignal {
 
 function severityColor(s: SignalSeverity): string {
   if (s === 'bullish')  return '#25e889';
-  if (s === 'bearish')  return '#f87171';
-  if (s === 'warning')  return '#F59E0B';
+  if (s === 'bearish')  return '#FF5F57';
+  if (s === 'warning')  return '#FEBC2E';
   return 'rgba(255,255,255,0.35)';
 }
 function severityBg(s: SignalSeverity): string {
@@ -2995,7 +2995,7 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -3003,7 +3003,7 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-3 text-[11px] text-white/20">暂无信号数据</div>;
+  if (!data) return <div className="p-3 text-[11px] text-white/55">暂无信号数据</div>;
 
   const signals = generateSignals(data, histData, flowData);
 
@@ -3019,7 +3019,7 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
           }}
         >
           <div className="flex items-center justify-between gap-1 mb-1">
-            <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/30 truncate">{sig.label}</span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55 truncate">{sig.label}</span>
             <span
               className="w-2 h-2 rounded-full shrink-0"
               style={{ background: severityColor(sig.severity), boxShadow: `0 0 5px ${severityColor(sig.severity)}88` }}
@@ -3028,7 +3028,7 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
           <div className="font-mono text-[15px] font-bold leading-none mb-1.5" style={{ color: severityColor(sig.severity) }}>
             {sig.value}
           </div>
-          <div className="text-[9px] text-white/30 leading-snug line-clamp-2">{sig.desc}</div>
+          <div className="text-[9px] text-white/55 leading-snug line-clamp-2">{sig.desc}</div>
         </div>
       ))}
     </div>
@@ -3065,7 +3065,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -3088,7 +3088,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   }, [data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data || !data.expiries.length || !calRows) return <div className="p-3 text-[11px] text-white/20">暂无到期日数据</div>;
+  if (!data || !data.expiries.length || !calRows) return <div className="p-3 text-[11px] text-white/55">暂无到期日数据</div>;
 
   const rows = calRows;
   const spot = data.spot;
@@ -3104,7 +3104,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       {/* Column headers */}
       <div className="grid grid-cols-[52px_1fr_60px_56px_60px_70px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
         {['到期日', 'OI 分布（Call ▶ ◀ Put）', 'PCR', 'ATM IV', 'Max Pain', '偏离现货'].map(h => (
-          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/20">{h}</span>
+          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
       </div>
 
@@ -3113,8 +3113,8 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
         {rows.map((r, i) => {
           const callBarW = maxOI > 0 ? (r.callOI / maxOI) * (BAR_MAX / 2) : 0;
           const putBarW  = maxOI > 0 ? (r.putOI  / maxOI) * (BAR_MAX / 2) : 0;
-          const pcrColor2 = r.pcr >= 1.2 ? '#f87171' : r.pcr <= 0.7 ? '#25e889' : '#F59E0B';
-          const mpColor   = r.mpPct >= 3 ? '#25e889' : r.mpPct <= -3 ? '#f87171' : 'rgba(255,255,255,0.4)';
+          const pcrColor2 = r.pcr >= 1.2 ? '#FF5F57' : r.pcr <= 0.7 ? '#25e889' : '#FEBC2E';
+          const mpColor   = r.mpPct >= 3 ? '#25e889' : r.mpPct <= -3 ? '#FF5F57' : 'rgba(255,255,255,0.4)';
           const isNear    = r.daysToExp <= 7;
 
           return (
@@ -3122,14 +3122,14 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
               key={i}
               className={cn(
                 'grid grid-cols-[52px_1fr_60px_56px_60px_70px] gap-x-2 px-3 items-center border-b border-white/[0.025] hover:bg-white/[0.015] transition-colors',
-                isNear && 'bg-amber-500/[0.04]',
+                isNear && 'bg-[var(--nexus-yellow)]/[0.04]',
               )}
               style={{ minHeight: ROW_H }}
             >
               {/* Label */}
               <div>
-                <div className={cn('text-[11px] font-mono font-bold', isNear ? 'text-amber-400' : 'text-white/60')}>{r.label}</div>
-                <div className="text-[9px] text-white/20">{r.daysToExp}天</div>
+                <div className={cn('text-[11px] font-mono font-bold', isNear ? 'text-[var(--nexus-yellow)]' : 'text-white/60')}>{r.label}</div>
+                <div className="text-[9px] text-white/55">{r.daysToExp}天</div>
               </div>
 
               {/* OI bar (call left, put right, centre-aligned) */}
@@ -3163,7 +3163,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
               </span>
 
               {/* Max Pain price */}
-              <span className="font-mono text-[11px] text-white/45">
+              <span className="font-mono text-[11px] text-white/55">
                 ${fmtPx(r.mp)}
               </span>
 
@@ -3178,17 +3178,17 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
 
       {/* Legend */}
       <div className="px-3 py-1.5 shrink-0 border-t border-white/[0.04] flex items-center gap-4">
-        <span className="text-[9px] text-white/15">
+        <span className="text-[9px] text-white/55">
           Max Pain = 期权卖方总损失最小的到期价
         </span>
         <div className="flex items-center gap-3 ml-auto">
           <div className="flex items-center gap-1">
             <div className="w-3 h-2 rounded-[2px] bg-[rgba(37,232,137,0.55)]" />
-            <span className="text-[9px] text-white/25">Call OI</span>
+            <span className="text-[9px] text-white/55">Call OI</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-2 rounded-[2px] bg-[rgba(248,113,113,0.55)]" />
-            <span className="text-[9px] text-white/25">Put OI</span>
+            <span className="text-[9px] text-white/55">Put OI</span>
           </div>
         </div>
       </div>
@@ -3213,7 +3213,7 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -3221,7 +3221,7 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   const BIN = spot > 10_000 ? 1_000 : 100;
@@ -3241,7 +3241,7 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   }
 
   const sorted = [...bins.entries()].sort((a, b) => a[0] - b[0]);
-  if (!sorted.length) return <div className="p-4 text-[11px] text-white/20">数据不足</div>;
+  if (!sorted.length) return <div className="p-4 text-[11px] text-white/55">数据不足</div>;
 
   const maxAbs = Math.max(...sorted.map(([, v]) => Math.abs(v)), 0.01);
   const BAR_MAX = 110; // half-width in px
@@ -3256,20 +3256,20 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
 
   // Net total DEX
   const netDEX = sorted.reduce((s, [, v]) => s + v, 0);
-  const netColor = netDEX < 0 ? '#25e889' : '#f87171';
+  const netColor = netDEX < 0 ? '#25e889' : '#FF5F57';
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Summary */}
       <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
         <div className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-          <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">净 DEX</div>
+          <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">净 DEX</div>
           <div className="font-mono text-[13px] font-bold" style={{ color: netColor }}>
             {netDEX >= 0 ? '+' : ''}{fmtM(netDEX)}
           </div>
         </div>
         <div className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
-          <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5">方向</div>
+          <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">方向</div>
           <div className="font-mono text-[12px] font-bold" style={{ color: netColor }}>
             {netDEX < 0 ? '做市商净空 → 助涨' : '做市商净多 → 阻涨'}
           </div>
@@ -3282,16 +3282,16 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
           const isSpot = Math.abs(strike - spot) / spot < (BIN / spot) * 0.6;
           const isPos  = dex >= 0;
           const barW   = (Math.abs(dex) / maxAbs) * BAR_MAX;
-          const color  = isPos ? '#f87171' : '#25e889'; // red=resistance / green=support
+          const color  = isPos ? '#FF5F57' : '#25e889'; // red=resistance / green=support
           return (
             <div
               key={strike}
-              className={cn('flex items-center gap-1 border-b border-white/[0.025]', isSpot && 'bg-amber-500/[0.06]')}
+              className={cn('flex items-center gap-1 border-b border-white/[0.025]', isSpot && 'bg-[var(--nexus-yellow)]/[0.06]')}
               style={{ height: ROW_H }}
             >
               {/* Strike label */}
               <div className="w-[58px] shrink-0 text-right pr-1">
-                <span className={cn('font-mono text-[9.5px]', isSpot ? 'text-amber-400 font-bold' : 'text-white/35')}>
+                <span className={cn('font-mono text-[9.5px]', isSpot ? 'text-[var(--nexus-yellow)] font-bold' : 'text-white/55')}>
                   {fmtK2(strike)}{isSpot ? '◆' : ''}
                 </span>
               </div>
@@ -3322,7 +3322,7 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         })}
       </div>
 
-      <div className="px-3 pb-1.5 text-[9px] text-white/15 shrink-0">
+      <div className="px-3 pb-1.5 text-[9px] text-white/55 shrink-0">
         绿=做市商净空δ（买盘支撑） 红=净多δ（卖压阻力） 单位$M · Deribit
       </div>
     </div>
@@ -3341,7 +3341,7 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>}
+        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
@@ -3349,7 +3349,7 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-3 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   const BIN  = spot > 10_000 ? 1_000 : 100;
@@ -3409,8 +3409,8 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
   };
 
   const levels: { label: string; price: number; color: string; desc: string }[] = [
-    { label: '现货', price: spot, color: '#F59E0B', desc: '当前指数价格' },
-    ...(gammaFlip ? [{ label: 'Gamma Flip', price: gammaFlip, color: gammaFlip < spot ? '#f87171' : '#25e889', desc: gammaFlip < spot ? '跌破此位 → 负 Gamma 区' : '站上此位 → 正 Gamma 区' }] : []),
+    { label: '现货', price: spot, color: '#FEBC2E', desc: '当前指数价格' },
+    ...(gammaFlip ? [{ label: 'Gamma Flip', price: gammaFlip, color: gammaFlip < spot ? '#FF5F57' : '#25e889', desc: gammaFlip < spot ? '跌破此位 → 负 Gamma 区' : '站上此位 → 正 Gamma 区' }] : []),
     ...(mpPrice !== null ? [{ label: `Max Pain (${nearestExp!.label})`, price: mpPrice, color: '#a78bfa', desc: '期权卖方总损失最小到期价' }] : []),
     { label: '最大 OI 行权价', price: biggestOI, color: '#4ea1ff', desc: '全部到期日合并最大持仓量行权价' },
   ].sort((a, b) => a.price - b.price); // ascending = leftmost card matches leftmost dot on ruler
@@ -3432,15 +3432,15 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
             className="flex-1 min-w-[100px] rounded-[8px] border px-2.5 py-1.5 flex flex-col justify-between"
             style={{ borderColor: `${lv.color}28`, background: `${lv.color}09` }}
           >
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] truncate">{lv.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] truncate">{lv.label}</div>
             <div className="font-mono text-[14px] font-bold leading-tight" style={{ color: lv.color }}>
               ${fmtPx2(lv.price)}
             </div>
             <div className="flex items-end justify-between gap-1">
-              <span className="text-[8.5px] text-white/20 leading-snug truncate">{lv.desc}</span>
+              <span className="text-[8.5px] text-white/55 leading-snug truncate">{lv.desc}</span>
               {lv.label !== '现货' && (
                 <span className="font-mono text-[9px] shrink-0 font-bold"
-                  style={{ color: lv.price >= spot ? '#25e889' : '#f87171' }}>
+                  style={{ color: lv.price >= spot ? '#25e889' : '#FF5F57' }}>
                   {pctFromSpot(lv.price)}
                 </span>
               )}
@@ -3498,7 +3498,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-3 text-[11px] text-white/55">暂无数据</div>;
 
   // Use up to 8 expiries
   const exps = data.expiries.slice(0, 8);
@@ -3518,7 +3518,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     <div className="w-full h-full flex items-stretch gap-1.5 px-3 py-2 overflow-x-auto">
       {rows.map(r => {
         const barFill = (r.movePct / maxMove) * 100;
-        const urgency = r.daysToExp <= 7 ? '#F59E0B' : r.daysToExp <= 30 ? '#25e889' : '#4ea1ff';
+        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#4ea1ff';
         return (
           <div key={r.label}
             className="flex-1 min-w-[96px] flex flex-col justify-between bg-white/[0.025] border border-white/[0.06] rounded-[10px] px-2.5 py-2 shrink-0"
@@ -3526,7 +3526,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             {/* Tenor label + IV */}
             <div className="flex items-center justify-between mb-1">
               <span className="font-mono text-[10px] font-bold" style={{ color: urgency }}>{r.label}</span>
-              <span className="text-[9px] text-white/25 font-mono">{r.atmIV.toFixed(1)}%</span>
+              <span className="text-[9px] text-white/55 font-mono">{r.atmIV.toFixed(1)}%</span>
             </div>
 
             {/* Move % — the headline number */}
@@ -3537,7 +3537,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             {/* Up / down targets */}
             <div className="flex justify-between text-[8.5px] font-mono mb-1.5">
               <span style={{ color: '#25e889' }}>↑${fmtPx(r.upTarget)}</span>
-              <span style={{ color: '#f87171' }}>↓${fmtPx(r.downTarget)}</span>
+              <span style={{ color: '#FF5F57' }}>↓${fmtPx(r.downTarget)}</span>
             </div>
 
             {/* Bar proportional to move size */}
@@ -3577,7 +3577,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-3 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   const allOpts = data.expiries.flatMap(e => [...e.calls, ...e.puts]);
@@ -3618,7 +3618,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: 'Net $Δ',
       val: `${sign(netDollarDelta)}${fmtM(netDollarDelta)}`,
       sub: netDollarDelta > 0 ? '市场净多头' : '市场净空头',
-      color: netDollarDelta >= 0 ? '#25e889' : '#f87171',
+      color: netDollarDelta >= 0 ? '#25e889' : '#FF5F57',
       tip: 'OI加权净Delta，>0市场整体偏多',
     },
     {
@@ -3632,14 +3632,14 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: '$Θ / 天',
       val: `${fmtM(dollarTheta)}`,
       sub: '每日时间价值消耗',
-      color: '#f87171',
+      color: '#FF5F57',
       tip: '每过一个自然日市场OI总时间价值衰减',
     },
     {
       label: '$Γ / 1% 现货',
       val: `${sign(dollarGamma)}${fmtM(dollarGamma)}`,
       sub: dollarGamma >= 0 ? '正Gamma — 稳定' : '负Gamma — 加速',
-      color: dollarGamma >= 0 ? '#25e889' : '#F59E0B',
+      color: dollarGamma >= 0 ? '#25e889' : '#FEBC2E',
       tip: '现货每涨1%时Delta变化引起的美元敞口',
     },
   ];
@@ -3651,12 +3651,12 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
           className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[10px] px-3 py-2 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/30">{s.label}</span>
+            <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{s.label}</span>
           </div>
           <div className="font-mono text-[15px] font-bold leading-tight" style={{ color: s.color }}>
             {s.val}
           </div>
-          <div className="text-[9px] text-white/25 mt-0.5 leading-snug">{s.sub}</div>
+          <div className="text-[9px] text-white/55 mt-0.5 leading-snug">{s.sub}</div>
         </div>
       ))}
     </div>
@@ -3730,10 +3730,10 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       <div className="flex gap-1.5 px-3 pt-2 pb-1 shrink-0 flex-wrap">
         {labels.map((lbl, i) => {
           const vrp = vrpByTenor[i];
-          const col = vrp >= 8 ? '#f87171' : vrp >= 3 ? '#F59E0B' : vrp <= 0 ? '#25e889' : 'rgba(255,255,255,0.4)';
+          const col = vrp >= 8 ? '#FF5F57' : vrp >= 3 ? '#FEBC2E' : vrp <= 0 ? '#25e889' : 'rgba(255,255,255,0.4)';
           return (
             <div key={lbl} className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.06] rounded-[6px] px-2 py-0.5">
-              <span className="text-[9px] text-white/35">{lbl}</span>
+              <span className="text-[9px] text-white/55">{lbl}</span>
               <span className="font-mono text-[10px] font-bold" style={{ color: col }}>
                 VRP {vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}
               </span>
@@ -3790,10 +3790,10 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
         {[{ c: BRAND, l: '隐含波动率 IV（当前）' }, { c: BLUE, l: '已实现波动率 RV（历史）' }].map(({ c, l }) => (
           <div key={l} className="flex items-center gap-1.5">
             <div className="w-3 h-2 rounded-[2px]" style={{ background: c, opacity: 0.7 }} />
-            <span className="text-[9px] text-white/30">{l}</span>
+            <span className="text-[9px] text-white/55">{l}</span>
           </div>
         ))}
-        <span className="ml-auto text-[9px] text-white/15">VRP = IV − RV · &gt;8pp 贵 · &lt;0 便宜</span>
+        <span className="ml-auto text-[9px] text-white/55">VRP = IV − RV · &gt;8pp 贵 · &lt;0 便宜</span>
       </div>
     </div>
   );
@@ -3816,7 +3816,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
           {(['oi', 'vol'] as const).map(m => (
             <button key={m} onClick={() => setSortBy(m)}
               className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[18px] transition-colors',
-                sortBy === m ? 'bg-white/10 text-white/80' : 'text-white/25 hover:text-white/50'
+                sortBy === m ? 'bg-white/10 text-white/80' : 'text-white/55 hover:text-white/50'
               )}>
               {m === 'oi' ? '持仓量' : '成交量'}
             </button>
@@ -3841,14 +3841,14 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
   }, [data, sortBy]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/20">暂无数据</div>;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   const fmtN = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
   const fmtK = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   const moneyness = (o: ParsedOption) => {
     const pct = ((o.strike - spot) / spot) * 100;
-    if (Math.abs(pct) < 1) return { label: 'ATM', color: '#F59E0B' };
+    if (Math.abs(pct) < 1) return { label: 'ATM', color: '#FEBC2E' };
     if (pct > 0) return { label: `OTM +${pct.toFixed(0)}%`, color: 'rgba(255,255,255,0.3)' };
     return { label: `OTM ${pct.toFixed(0)}%`, color: 'rgba(255,255,255,0.3)' };
   };
@@ -3858,7 +3858,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
       {/* Header */}
       <div className="grid grid-cols-[40px_60px_56px_48px_56px_56px_1fr] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
         {['#', '行权价', '到期', '类型', 'IV', 'Delta', sortBy === 'oi' ? '持仓量 OI' : '成交量 Vol'].map(h => (
-          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/20">{h}</span>
+          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
       </div>
 
@@ -3866,23 +3866,23 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         {sorted.map((o, i) => {
           const val = sortBy === 'oi' ? o.oi : o.volume;
           const barW = (val / maxVal) * 100;
-          const typeColor = o.type === 'C' ? '#4ea1ff' : '#f59e0b';
+          const typeColor = o.type === 'C' ? '#4ea1ff' : '#FEBC2E';
           const m = moneyness(o);
           return (
             <div key={i}
               className="grid grid-cols-[40px_60px_56px_48px_56px_56px_1fr] gap-x-2 px-3 py-1.5 border-b border-white/[0.025] hover:bg-white/[0.015] transition-colors items-center"
             >
-              <span className="text-[10px] text-white/20 font-mono">{i + 1}</span>
+              <span className="text-[10px] text-white/55 font-mono">{i + 1}</span>
               <div>
                 <span className="font-mono text-[11px] font-bold text-white/75">${fmtK(o.strike)}</span>
                 <div className="text-[8.5px] mt-0.5" style={{ color: m.color }}>{m.label}</div>
               </div>
-              <span className="font-mono text-[10px] text-white/45">{o.expLabel}</span>
+              <span className="font-mono text-[10px] text-white/55">{o.expLabel}</span>
               <span className="font-mono text-[11px] font-bold" style={{ color: typeColor }}>
                 {o.type === 'C' ? 'CALL' : 'PUT'}
               </span>
               <span className="font-mono text-[10px] text-white/50">{o.iv.toFixed(1)}%</span>
-              <span className="font-mono text-[10px] text-white/45">{o.delta.toFixed(2)}</span>
+              <span className="font-mono text-[10px] text-white/55">{o.delta.toFixed(2)}</span>
 
               {/* Bar + value */}
               <div className="flex items-center gap-2 min-w-0">
@@ -3896,7 +3896,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         })}
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         按{sortBy === 'oi' ? '持仓量' : '成交量'}排序 · 全到期日 · Deribit
       </div>
     </div>
@@ -3925,7 +3925,7 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   }, [coin, setCoin, setHeaderRight, data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data || !data.expiries.length) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+  if (!data || !data.expiries.length) return <div className="p-3 text-[11px] text-white/55">暂无数据</div>;
 
   const spot = data.spot;
   // Use up to 4 near-dated expiries
@@ -3970,28 +3970,28 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       {/* Column headers */}
       <div className="grid grid-cols-[48px_56px_72px_1fr_1fr_1fr_72px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
         {['到期', 'ATM IV', 'Straddle', '上行 BE', '下行 BE', '25δ Strangle', 'RR25'].map(h => (
-          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/20">{h}</span>
+          <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rows.map((r, i) => {
           const isNear = r.daysToExp <= 7;
-          const rrColor = r.rr25 < -3 ? '#f87171' : r.rr25 > 3 ? '#25e889' : 'rgba(255,255,255,0.4)';
+          const rrColor = r.rr25 < -3 ? '#FF5F57' : r.rr25 > 3 ? '#25e889' : 'rgba(255,255,255,0.4)';
           return (
             <div
               key={i}
               className={cn(
                 'grid grid-cols-[48px_56px_72px_1fr_1fr_1fr_72px] gap-x-2 px-3 py-2.5 border-b border-white/[0.025] hover:bg-white/[0.015] transition-colors items-center',
-                isNear && 'bg-amber-500/[0.03]',
+                isNear && 'bg-[var(--nexus-yellow)]/[0.03]',
               )}
             >
               {/* Expiry label */}
               <div>
-                <div className={cn('font-mono text-[11px] font-bold', isNear ? 'text-amber-400' : 'text-white/60')}>
+                <div className={cn('font-mono text-[11px] font-bold', isNear ? 'text-[var(--nexus-yellow)]' : 'text-white/60')}>
                   {r.label}
                 </div>
-                <div className="text-[8.5px] text-white/20">{r.daysToExp}天</div>
+                <div className="text-[8.5px] text-white/55">{r.daysToExp}天</div>
               </div>
 
               {/* ATM IV */}
@@ -4000,26 +4000,26 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
               {/* Straddle */}
               <div>
                 <div className="font-mono text-[11px] font-bold text-[#a78bfa]">{fmtPct(r.straddlePct)}</div>
-                <div className="text-[8.5px] text-white/20">{fmtUSD(r.straddleUSD)}</div>
+                <div className="text-[8.5px] text-white/55">{fmtUSD(r.straddleUSD)}</div>
               </div>
 
               {/* Up breakeven */}
               <div>
                 <div className="font-mono text-[10.5px] text-[#25e889]">{fmtUSD(r.upBE)}</div>
-                <div className="text-[8.5px] text-white/20">+{r.straddlePct.toFixed(2)}%</div>
+                <div className="text-[8.5px] text-white/55">+{r.straddlePct.toFixed(2)}%</div>
               </div>
 
               {/* Down breakeven */}
               <div>
-                <div className="font-mono text-[10.5px] text-[#f87171]">{fmtUSD(r.downBE)}</div>
-                <div className="text-[8.5px] text-white/20">-{r.straddlePct.toFixed(2)}%</div>
+                <div className="font-mono text-[10.5px] text-[#FF5F57]">{fmtUSD(r.downBE)}</div>
+                <div className="text-[8.5px] text-white/55">-{r.straddlePct.toFixed(2)}%</div>
               </div>
 
               {/* 25D Strangle */}
-              <span className="font-mono text-[11px] text-[#F59E0B]">
+              <span className="font-mono text-[11px] text-[#FEBC2E]">
                 {r.stranglePct !== null ? fmtPct(r.stranglePct) : '—'}
                 {r.strangleWidth !== null && (
-                  <span className="text-[8.5px] text-white/20 ml-1">±{r.strangleWidth.toFixed(0)}%</span>
+                  <span className="text-[8.5px] text-white/55 ml-1">±{r.strangleWidth.toFixed(0)}%</span>
                 )}
               </span>
 
@@ -4032,7 +4032,7 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
         })}
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/15 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
         Straddle = 2× ATM Call（BS，r=0）· 25δ Strangle = 25δCall + 25δPut · BE = 现货 ± Straddle% · Deribit
       </div>
     </div>
@@ -4069,7 +4069,7 @@ export const BTCETHSpreadWidget = () => {
 
   useEffect(() => {
     setHeaderRight(btc && eth
-      ? <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 animate-pulse" />实时</span>
+      ? <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>
       : null
     );
     return () => setHeaderRight(null);
@@ -4096,7 +4096,7 @@ export const BTCETHSpreadWidget = () => {
     ? (sorted.filter(v => v <= currentSpread).length / sorted.length) * 100
     : 50;
 
-  const spreadColor = currentSpread > 5 ? '#F59E0B' : currentSpread < -5 ? '#a78bfa' : 'rgba(255,255,255,0.5)';
+  const spreadColor = currentSpread > 5 ? '#FEBC2E' : currentSpread < -5 ? '#a78bfa' : 'rgba(255,255,255,0.5)';
   const spreadLabel = currentSpread > 10 ? 'BTC vol 大幅溢价'
     : currentSpread > 4  ? 'BTC vol 偏贵'
     : currentSpread < -10 ? 'ETH vol 大幅溢价'
@@ -4118,14 +4118,14 @@ export const BTCETHSpreadWidget = () => {
       {/* Stats row */}
       <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
         {[
-          { label: 'BTC DVOL', val: `${currentBTC.toFixed(1)}%`, color: '#F59E0B' },
+          { label: 'BTC DVOL', val: `${currentBTC.toFixed(1)}%`, color: '#FEBC2E' },
           { label: 'ETH DVOL', val: `${currentETH.toFixed(1)}%`, color: '#4ea1ff' },
           { label: 'Spread (BTC−ETH)', val: `${currentSpread >= 0 ? '+' : ''}${currentSpread.toFixed(1)}pp`, color: spreadColor },
           { label: '价差百分位', val: `${pctile.toFixed(0)}%ile`, color: spreadColor },
           { label: '解读', val: spreadLabel, color: spreadColor },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 min-w-0">
-            <div className="text-[9px] text-white/25 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
             <div className="font-mono text-[11px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -4135,14 +4135,14 @@ export const BTCETHSpreadWidget = () => {
       <div className="flex flex-1 min-h-0 gap-2 px-3 pb-2">
         {/* DVOL overlay */}
         <div className="flex-1 min-w-0">
-          <div className="text-[8.5px] text-white/20 mb-0.5 uppercase tracking-wider">DVOL 历史（90D）</div>
+          <div className="text-[8.5px] text-white/55 mb-0.5 uppercase tracking-wider">DVOL 历史（90D）</div>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
             <path d={area(ethPts, H, PY)} fill="url(#wg-blue)" />
             <polyline points={poly(ethPts)} fill="none" stroke="#4ea1ff" strokeWidth={1.2} opacity={0.7} />
             <path d={area(btcPts, H, PY)} fill="url(#wg-yellow)" />
-            <polyline points={poly(btcPts)} fill="none" stroke="#F59E0B" strokeWidth={1.4} opacity={0.85} />
+            <polyline points={poly(btcPts)} fill="none" stroke="#FEBC2E" strokeWidth={1.4} opacity={0.85} />
             {/* Legend */}
-            <line x1={PX} y1={8} x2={PX + 12} y2={8} stroke="#F59E0B" strokeWidth={1.4} />
+            <line x1={PX} y1={8} x2={PX + 12} y2={8} stroke="#FEBC2E" strokeWidth={1.4} />
             <text x={PX + 15} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">BTC</text>
             <line x1={PX + 36} y1={8} x2={PX + 48} y2={8} stroke="#4ea1ff" strokeWidth={1.2} />
             <text x={PX + 51} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">ETH</text>
@@ -4151,7 +4151,7 @@ export const BTCETHSpreadWidget = () => {
 
         {/* Spread chart */}
         <div className="flex-1 min-w-0">
-          <div className="text-[8.5px] text-white/20 mb-0.5 uppercase tracking-wider">价差（BTC − ETH，pp）</div>
+          <div className="text-[8.5px] text-white/55 mb-0.5 uppercase tracking-wider">价差（BTC − ETH，pp）</div>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
             {/* Zero line */}
             {yZero > PY && yZero < H - PY && (
@@ -4273,13 +4273,13 @@ function classifyRegime(
     },
     'vol-expansion': {
       label: '波动率扩张',
-      color: '#f87171',
+      color: '#FF5F57',
       description: `DVOL 24h +${dvolChange.toFixed(1)}pp，VRP 受压（+${vrpNow.toFixed(1)}pp），Skew ${skew30.toFixed(1)}%——空间正在打开。`,
       playbook: ['避免裸卖 vega；若已有 short vega 应收窄或对冲', '25D Put 或 OTM Put Spread 保护下行', '买入近端 Straddle 参与波动率重定价'],
     },
     'high-vol-fear': {
       label: '高波 / 恐慌区间',
-      color: '#ef4444',
+      color: '#FF5F57',
       description: `IV Rank ${ivr.toFixed(0)}%ile（极高），期限结构倒挂（${slope.toFixed(1)}pp），Skew 极度负偏——恐慌溢价高峰。`,
       playbook: ['逆向考虑：卖近端 Put（高保护溢价），用远端对冲', 'Ratio Put Spread 可低成本或零成本构建', '等待 IV Rank 回落至 60% 以下再考虑卖方策略'],
     },
@@ -4291,7 +4291,7 @@ function classifyRegime(
     },
     'mean-revert': {
       label: '均值回归区间',
-      color: '#F59E0B',
+      color: '#FEBC2E',
       description: `IV Rank ${ivr.toFixed(0)}%ile，VRP +${vrpNow.toFixed(1)}pp，结构平稳——无明显方向性信号。`,
       playbook: ['中性策略：Iron Condor 收取时间价值', '关注 Skew 偏向决定调整 Call/Put 比重', '保持仓位较小，等待更强方向信号'],
     },
@@ -4386,7 +4386,7 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
 
         {/* Description + factors */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <p className="text-[10px] text-white/45 leading-relaxed">{result.description}</p>
+          <p className="text-[10px] text-white/55 leading-relaxed">{result.description}</p>
 
           {/* Factor pills */}
           <div className="flex gap-1.5 flex-wrap">
@@ -4397,9 +4397,9 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
                   borderColor: f.ok ? 'rgba(37,232,137,0.2)' : 'rgba(248,113,113,0.2)',
                   background:  f.ok ? 'rgba(37,232,137,0.05)' : 'rgba(248,113,113,0.05)',
                 }}>
-                <span className="text-[8.5px] text-white/30">{f.label}</span>
+                <span className="text-[8.5px] text-white/55">{f.label}</span>
                 <span className="font-mono text-[9px] font-bold"
-                  style={{ color: f.ok ? '#25e889' : '#f87171' }}>{f.val}</span>
+                  style={{ color: f.ok ? '#25e889' : '#FF5F57' }}>{f.val}</span>
               </div>
             ))}
           </div>
@@ -4407,14 +4407,14 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
 
         {/* Playbook */}
         <div className="shrink-0 flex flex-col gap-1" style={{ width: 240 }}>
-          <div className="text-[9px] font-bold text-white/25 uppercase tracking-wider mb-0.5">策略建议</div>
+          <div className="text-[9px] font-bold text-white/55 uppercase tracking-wider mb-0.5">策略建议</div>
           {result.playbook.map((tip, i) => (
             <div key={i} className="flex items-start gap-1.5">
-              <span className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold mt-0.5"
+              <span className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold mt-0.5"
                 style={{ background: `${result.color}20`, color: result.color }}>
                 {i + 1}
               </span>
-              <span className="text-[9px] text-white/40 leading-snug">{tip}</span>
+              <span className="text-[9px] text-white/55 leading-snug">{tip}</span>
             </div>
           ))}
         </div>
@@ -4481,7 +4481,7 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   }, [data]);
 
   if (loading && !data) return <Skeleton />;
-  if (!data || !data.expiries.length || !computed) return <div className="p-3 text-[11px] text-white/20">暂无数据</div>;
+  if (!data || !data.expiries.length || !computed) return <div className="p-3 text-[11px] text-white/55">暂无数据</div>;
 
   const { spot, exps, strikes, probGrid } = computed;
 
@@ -4493,8 +4493,8 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   };
   const probTextColor = (p: number) => {
     if (p >= 70) return '#25e889';
-    if (p >= 45) return '#F59E0B';
-    return '#f87171';
+    if (p >= 45) return '#FEBC2E';
+    return '#FF5F57';
   };
 
   const fmtK = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
@@ -4504,7 +4504,7 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1.5 pb-1 text-[9px] text-white/25 shrink-0">
+      <div className="px-3 pt-1.5 pb-1 text-[9px] text-white/55 shrink-0">
         P(收盘 &gt; 行权价) = N(d₂)·100%，基于当前 ATM IV · 风险中性概率，非真实概率
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
@@ -4528,14 +4528,14 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
                 {/* Strike label */}
                 <text x={LABEL_W - 6} y={y + CELL_H / 2 + 4}
                   textAnchor="end" fontSize={9}
-                  fill={isAtm ? '#F59E0B' : 'rgba(255,255,255,0.35)'}
+                  fill={isAtm ? '#FEBC2E' : 'rgba(255,255,255,0.35)'}
                   fontWeight={isAtm ? 700 : 400}>
                   ${fmtK(k)}
                 </text>
                 {/* Offset % */}
                 <text x={LABEL_W - 6} y={y + CELL_H / 2 + 13}
                   textAnchor="end" fontSize={7}
-                  fill={isAtm ? '#F59E0B88' : 'rgba(255,255,255,0.15)'}>
+                  fill={isAtm ? '#FEBC2E88' : 'rgba(255,255,255,0.15)'}>
                   {pctFromSpot >= 0 ? '+' : ''}{pctFromSpot.toFixed(0)}%
                 </text>
                 {/* Cells */}
@@ -4609,8 +4609,8 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   const fmtColor = (f: number, m: number) => {
     const diff = f - m;
     if (diff < -3) return '#25e889';  // forecast < market → sell IV
-    if (diff > 3)  return '#f87171';  // forecast > market → buy IV
-    return '#F59E0B';
+    if (diff > 3)  return '#FF5F57';  // forecast > market → buy IV
+    return '#FEBC2E';
   };
 
   // Forecast path for chart
@@ -4642,10 +4642,10 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
           { label: '当前 DVOL', val: `${current.toFixed(1)}%`, color: BRAND },
           { label: '长期均值 μ', val: `${mu.toFixed(1)}%`, color: 'rgba(255,255,255,0.5)' },
           { label: '均值回归速度 β', val: beta.toFixed(3), color: BLUE },
-          { label: '偏差', val: `${(current - mu >= 0 ? '+' : '')}${(current - mu).toFixed(1)}pp`, color: current > mu ? '#f87171' : '#25e889' },
+          { label: '偏差', val: `${(current - mu >= 0 ? '+' : '')}${(current - mu).toFixed(1)}pp`, color: current > mu ? '#FF5F57' : '#25e889' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1">
-            <div className="text-[9px] text-white/20 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
             <div className="font-mono text-[11px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
@@ -4711,7 +4711,7 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
 
         {/* Forecast table */}
         <div className="shrink-0 flex flex-col gap-1.5" style={{ width: 170 }}>
-          <div className="text-[9px] font-bold text-white/20 uppercase tracking-wider mb-0.5">预测 vs 市场 IV</div>
+          <div className="text-[9px] font-bold text-white/55 uppercase tracking-wider mb-0.5">预测 vs 市场 IV</div>
           {forecasts.map(f => {
             const diff = f.forecast - f.marketIV;
             const col = fmtColor(f.forecast, f.marketIV);
@@ -4721,17 +4721,17 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
                 className="rounded-[7px] border px-2.5 py-1.5"
                 style={{ borderColor: `${col}25`, background: `${col}08` }}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[9px] text-white/30">+{f.horizon}D 预测</span>
+                  <span className="text-[9px] text-white/55">+{f.horizon}D 预测</span>
                   <span className="font-mono text-[9px] font-bold" style={{ color: col }}>{signal}</span>
                 </div>
                 <div className="flex items-end gap-2">
                   <div>
-                    <div className="text-[8px] text-white/20 mb-0">AR(1)</div>
+                    <div className="text-[9px] text-white/55 mb-0">AR(1)</div>
                     <div className="font-mono text-[11px] font-bold" style={{ color: col }}>{f.forecast.toFixed(1)}%</div>
                   </div>
-                  <div className="text-white/20 text-[8px] mb-0.5">vs</div>
+                  <div className="text-white/55 text-[9px] mb-0.5">vs</div>
                   <div>
-                    <div className="text-[8px] text-white/20 mb-0">市场 IV</div>
+                    <div className="text-[9px] text-white/55 mb-0">市场 IV</div>
                     <div className="font-mono text-[11px] text-white/50">{f.marketIV.toFixed(1)}%</div>
                   </div>
                   <div className="ml-auto">
@@ -4990,8 +4990,10 @@ function useOrderbookWS(coin: Coin): { bids: OBEntry[]; asks: OBEntry[]; mark: n
         if (!alive) return;
         if (data.type === 'snapshot') {
           bidsMap.current.clear(); asksMap.current.clear();
-          for (const [p, s] of (data.bids ?? [])) { if (s > 0) bidsMap.current.set(p, s); }
-          for (const [p, s] of (data.asks ?? [])) { if (s > 0) asksMap.current.set(p, s); }
+          // Deribit book levels are [action, price, amount] triples in BOTH snapshot
+          // and change frames — skip the action element (matches applyChange below).
+          for (const [, p, s] of (data.bids ?? [])) { if (s > 0) bidsMap.current.set(p, s); }
+          for (const [, p, s] of (data.asks ?? [])) { if (s > 0) asksMap.current.set(p, s); }
         } else {
           applyChange(bidsMap.current, data.bids ?? []);
           applyChange(asksMap.current, data.asks ?? []);
@@ -5049,7 +5051,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   }, [snap?.spot]);
 
   if (!snap) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>
   );
 
   const fmtPrice = (p: number) =>
@@ -5057,13 +5059,13 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
   const Stat = ({ label, value, color }: { label: string; value: string; color?: string }) => (
     <div className="flex flex-col items-center gap-0.5 min-w-[64px]">
-      <span className="text-[9px] text-slate-500 uppercase tracking-wider whitespace-nowrap">{label}</span>
+      <span className="text-[9px] text-white/55 uppercase tracking-wider whitespace-nowrap">{label}</span>
       <span className="text-[13px] font-mono font-bold tnum leading-none" style={{ color: color ?? 'var(--nexus-accent)' }}>{value}</span>
     </div>
   );
 
   const flashBg = flash === 'up' ? 'rgba(37,167,80,0.06)' : flash === 'down' ? 'rgba(244,63,94,0.06)' : 'transparent';
-  const priceColor = flash === 'up' ? 'var(--nexus-green)' : flash === 'down' ? 'var(--nexus-red)' : '#e2e8f0';
+  const priceColor = flash === 'up' ? 'var(--nexus-green)' : flash === 'down' ? 'var(--nexus-red)' : '#F0F0EE';
   const upColor = 'var(--nexus-green)';
   const dnColor = 'var(--nexus-red)';
 
@@ -5071,7 +5073,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     <div className="w-full h-full flex items-center justify-around px-6 transition-colors duration-500" style={{ background: flashBg }}>
       {/* Spot price + 24h change */}
       <div className="flex flex-col items-center">
-        <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">{coin} / USD</span>
+        <span className="text-[9px] text-white/55 uppercase tracking-wider mb-0.5">{coin} / USD</span>
         <span className="text-[28px] font-mono font-bold tnum leading-none transition-colors duration-300" style={{ color: priceColor }}>
           {fmtPrice(snap.spot)}
         </span>
@@ -5135,12 +5137,12 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   }, [coin]);
 
   if (loading || !ddata) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>
   );
 
   const expiries = ddata.expiries.filter(e => e.daysToExp >= 1 && e.atmIV > 0).slice(0, 6);
   if (!expiries.length) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">暂无数据</div>
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>
   );
 
   const safeIdx = Math.min(expIdx, expiries.length - 1);
@@ -5184,13 +5186,13 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
             className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors"
             style={{
               background: i === safeIdx ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.04)',
-              color: i === safeIdx ? 'var(--nexus-accent)' : '#64748b',
+              color: i === safeIdx ? 'var(--nexus-accent)' : '#6e6e6e',
               border: `1px solid ${i === safeIdx ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
             }}>
             {e.label}
           </button>
         ))}
-        <span className="ml-auto text-[9px] text-slate-600 font-mono">
+        <span className="ml-auto text-[9px] text-white/55 font-mono">
           K={K.toLocaleString()} · IV={(iv0 * 100).toFixed(1)}% · {exp.daysToExp}d
         </span>
       </div>
@@ -5204,10 +5206,10 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
           </colgroup>
           <thead>
             <tr>
-              <th className="text-left text-[9px] text-slate-600 pb-1 pr-2 font-normal">Spot↓/IV→</th>
+              <th className="text-left text-[9px] text-white/55 pb-1 pr-2 font-normal">Spot↓/IV→</th>
               {SCEN_IV.map(ds => (
                 <th key={ds} className="text-center text-[9px] font-mono pb-1 px-0.5"
-                  style={{ color: ds < 0 ? 'var(--nexus-red)' : ds > 0 ? 'var(--nexus-green)' : '#94a3b8' }}>
+                  style={{ color: ds < 0 ? 'var(--nexus-red)' : ds > 0 ? 'var(--nexus-green)' : '#9a9a9a' }}>
                   {ds > 0 ? '+' : ''}{ds}%
                 </th>
               ))}
@@ -5219,7 +5221,7 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
                 <td
                   className="pr-2 py-[3px] text-[9px] font-mono text-right"
                   style={{
-                    color: sp < 0 ? 'var(--nexus-red)' : sp > 0 ? 'var(--nexus-green)' : '#94a3b8',
+                    color: sp < 0 ? 'var(--nexus-red)' : sp > 0 ? 'var(--nexus-green)' : '#9a9a9a',
                     fontWeight: sp === 0 ? 700 : 400,
                     background: sp === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
                   }}>
@@ -5234,7 +5236,7 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
                       title={`Spot ${sp > 0 ? '+' : ''}${sp}%, IV ${SCEN_IV[ci] > 0 ? '+' : ''}${SCEN_IV[ci]}% → ${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}
                       style={{
                         background: cellColor(v),
-                        color: Math.abs(v) > maxAbs * 0.25 ? '#fff' : '#64748b',
+                        color: Math.abs(v) > maxAbs * 0.25 ? '#fff' : '#6e6e6e',
                         borderRadius: 3,
                       }}>
                       {v >= 0 ? '+' : ''}{v.toFixed(1)}
@@ -5337,7 +5339,7 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
         <select
           value={threshold}
           onChange={e => setThreshold(Number(e.target.value))}
-          className="text-[9px] bg-transparent border border-white/10 rounded px-1 text-slate-400">
+          className="text-[9px] bg-transparent border border-white/10 rounded px-1 text-white/65">
           {[100_000, 250_000, 500_000, 1_000_000, 2_000_000].map(v => (
             <option key={v} value={v}>${(v / 1e6).toFixed(v < 1e6 ? 1 : 0)}M+</option>
           ))}
@@ -5347,7 +5349,7 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
             className="px-1.5 py-0.5 rounded text-[9px] transition-colors"
             style={{
               background: filter === f ? 'rgba(255,255,255,0.1)' : 'transparent',
-              color: f === 'C' ? 'var(--nexus-green)' : f === 'P' ? 'var(--nexus-red)' : '#94a3b8',
+              color: f === 'C' ? 'var(--nexus-green)' : f === 'P' ? 'var(--nexus-red)' : '#9a9a9a',
             }}>{f}</button>
         ))}
       </div>
@@ -5367,16 +5369,16 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       <div className="flex items-center justify-between px-3 pt-1 pb-0.5 shrink-0">
-        <span className="text-[9px] text-slate-600">{visible.length} 条记录（会话内）</span>
+        <span className="text-[9px] text-white/55">{visible.length} 条记录（会话内）</span>
       </div>
       {visible.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">
           等待大单…
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
           {/* Header row */}
-          <div className="grid text-[8px] text-slate-600 uppercase tracking-wider pb-1 border-b border-white/6"
+          <div className="grid text-[9px] text-white/55 uppercase tracking-wider pb-1 border-b border-white/6"
             style={{ gridTemplateColumns: '50px 72px 60px 36px 36px 40px 70px 70px' }}>
             <span>时间</span><span>到期</span><span className="text-right">行权价</span>
             <span>类型</span><span>方向</span><span className="text-right">IV</span>
@@ -5390,18 +5392,18 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
               <div key={t.id}
                 className="grid items-center py-[3px] border-b border-white/4 hover:bg-white/2 transition-colors"
                 style={{ gridTemplateColumns: '50px 72px 60px 36px 36px 40px 70px 70px' }}>
-                <span className="text-[9px] font-mono text-slate-500">{time}</span>
-                <span className="text-[9px] font-mono text-slate-400">{t.expiry}</span>
-                <span className="text-[9px] font-mono text-slate-200 text-right">{t.strike.toLocaleString()}</span>
+                <span className="text-[9px] font-mono text-white/55">{time}</span>
+                <span className="text-[9px] font-mono text-white/65">{t.expiry}</span>
+                <span className="text-[9px] font-mono text-white/85 text-right">{t.strike.toLocaleString()}</span>
                 <span className="text-[9px] font-bold text-center" style={{ color: typeColor }}>{t.optType}</span>
                 <span className="text-[9px] font-bold text-center" style={{ color: dirColor }}>
                   {t.direction === 'buy' ? '买' : '卖'}
                 </span>
-                <span className="text-[9px] font-mono text-right text-slate-300">{t.iv.toFixed(1)}%</span>
+                <span className="text-[9px] font-mono text-right text-white/80">{t.iv.toFixed(1)}%</span>
                 <span className="text-[9px] font-mono text-right" style={{ color: dirColor }}>
                   ${(t.premiumUSD / 1e3).toFixed(0)}K
                 </span>
-                <span className="text-[9px] font-mono text-right text-slate-400">
+                <span className="text-[9px] font-mono text-right text-white/65">
                   ${(t.notionalUSD / 1e6).toFixed(2)}M
                 </span>
               </div>
@@ -5425,10 +5427,10 @@ export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
-  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const exps = ddata.expiries.filter(e => e.daysToExp >= 1 && e.atmIV > 0);
-  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">暂无数据</div>;
+  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>;
 
   interface SpreadRow { label: string; near: string; far: string; nearIV: number; farIV: number; spreadVol: number; spreadPct: number }
   const rows: SpreadRow[] = [];
@@ -5442,7 +5444,7 @@ export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinContr
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-slate-600">
+      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-white/55">
         ATM IV 日历价差（近端 → 远端，vol pts）
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2 flex flex-col gap-1.5">
@@ -5452,15 +5454,15 @@ export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinContr
           return (
             <div key={r.label} className="flex flex-col gap-0.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-slate-400">{r.label}</span>
+                <span className="text-[10px] font-mono text-white/65">{r.label}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-mono text-slate-500">{r.nearIV.toFixed(1)}% → {r.farIV.toFixed(1)}%</span>
+                  <span className="text-[9px] font-mono text-white/55">{r.nearIV.toFixed(1)}% → {r.farIV.toFixed(1)}%</span>
                   <span className="text-[11px] font-mono font-bold tnum w-[60px] text-right"
                     style={{ color }}>
                     {r.spreadVol >= 0 ? '+' : ''}{r.spreadVol.toFixed(1)}vp
                   </span>
                   <span className="text-[9px] font-mono w-[44px] text-right"
-                    style={{ color: r.spreadPct >= 0 ? '#64748b' : 'var(--nexus-red)' }}>
+                    style={{ color: r.spreadPct >= 0 ? '#6e6e6e' : 'var(--nexus-red)' }}>
                     {r.spreadPct >= 0 ? '+' : ''}{r.spreadPct.toFixed(1)}%
                   </span>
                 </div>
@@ -5489,10 +5491,10 @@ export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
-  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const exps = ddata.expiries.filter(e => e.daysToExp >= 1 && e.atmIV > 0);
-  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">暂无数据</div>;
+  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>;
 
   interface FwdRow { pair: string; T1d: number; T2d: number; iv1: number; iv2: number; fwdVol: number; premium: number }
   const rows: FwdRow[] = [];
@@ -5508,13 +5510,13 @@ export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-slate-600">
+      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-white/55">
         隐含远期波动率（σ_fwd）vs 即期 ATM IV
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
         <table className="w-full text-[10px] font-mono border-collapse">
           <thead>
-            <tr className="text-[8px] text-slate-600 uppercase tracking-wider">
+            <tr className="text-[9px] text-white/55 uppercase tracking-wider">
               <th className="text-left pb-1.5 font-normal">区间</th>
               <th className="text-right pb-1.5 font-normal">近端IV</th>
               <th className="text-right pb-1.5 font-normal">远端IV</th>
@@ -5524,13 +5526,13 @@ export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           </thead>
           <tbody>
             {rows.map(r => {
-              const premColor = r.premium > 2 ? 'var(--nexus-green)' : r.premium < -2 ? 'var(--nexus-red)' : '#94a3b8';
+              const premColor = r.premium > 2 ? 'var(--nexus-green)' : r.premium < -2 ? 'var(--nexus-red)' : '#9a9a9a';
               return (
                 <tr key={r.pair} className="border-t border-white/4">
-                  <td className="py-1.5 text-slate-400 text-[9px]">{r.pair}</td>
-                  <td className="py-1.5 text-right text-slate-400">{r.iv1.toFixed(1)}%</td>
-                  <td className="py-1.5 text-right text-slate-400">{r.iv2.toFixed(1)}%</td>
-                  <td className="py-1.5 text-right font-bold text-slate-200">{r.fwdVol.toFixed(1)}%</td>
+                  <td className="py-1.5 text-white/65 text-[9px]">{r.pair}</td>
+                  <td className="py-1.5 text-right text-white/65">{r.iv1.toFixed(1)}%</td>
+                  <td className="py-1.5 text-right text-white/65">{r.iv2.toFixed(1)}%</td>
+                  <td className="py-1.5 text-right font-bold text-white/85">{r.fwdVol.toFixed(1)}%</td>
                   <td className="py-1.5 text-right font-bold" style={{ color: premColor }}>
                     {r.premium >= 0 ? '+' : ''}{r.premium.toFixed(1)}vp
                   </td>
@@ -5556,7 +5558,7 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
-  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const S = ddata.spot;
   interface PinCandidate {
@@ -5597,8 +5599,8 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
 
   if (top.length === 0) return (
     <div className="w-full h-full flex items-center justify-center flex-col gap-1">
-      <span className="text-[13px] text-slate-600">✓</span>
-      <span className="text-[11px] text-slate-500">7日内无 Gamma 钉牢候选（无近期高OI集中）</span>
+      <span className="text-[13px] text-white/55">✓</span>
+      <span className="text-[11px] text-white/55">7日内无 Gamma 钉牢候选（无近期高OI集中）</span>
     </div>
   );
 
@@ -5606,7 +5608,7 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-slate-600">
+      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-white/55">
         ≤7日到期 · Spot 3% 范围内 · 高OI集中 → 钉牢候选
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2 flex flex-col gap-1.5">
@@ -5617,17 +5619,17 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
           const distColor = isBelowSpot ? 'var(--nexus-red)' : 'var(--nexus-green)';
           return (
             <div key={`${c.expiry}-${c.strike}`} className="flex items-center gap-2 py-1 border-b border-white/4">
-              <span className="text-[9px] text-slate-600 w-3 shrink-0">#{i + 1}</span>
-              <span className="text-[10px] font-mono font-bold text-slate-200 w-[72px] shrink-0">
+              <span className="text-[9px] text-white/55 w-3 shrink-0">#{i + 1}</span>
+              <span className="text-[10px] font-mono font-bold text-white/85 w-[72px] shrink-0">
                 {c.strike.toLocaleString()}
               </span>
-              <span className="text-[9px] font-mono text-slate-500 w-[52px] shrink-0">{c.expiry}</span>
+              <span className="text-[9px] font-mono text-white/55 w-[52px] shrink-0">{c.expiry}</span>
               <span className="text-[9px] font-mono w-[36px] shrink-0" style={{ color: distColor }}>{distLabel}</span>
-              <span className="text-[9px] font-mono text-slate-500 w-[28px] shrink-0">{c.daysToExp}d</span>
+              <span className="text-[9px] font-mono text-white/55 w-[28px] shrink-0">{c.daysToExp}d</span>
               <div className="flex-1 h-[6px] rounded-full overflow-hidden bg-white/4">
                 <div className="h-full rounded-full" style={{ width: `${barW}%`, background: 'var(--nexus-accent)', opacity: 0.7 }} />
               </div>
-              <span className="text-[9px] font-mono text-slate-500 w-[56px] shrink-0 text-right">
+              <span className="text-[9px] font-mono text-white/55 w-[56px] shrink-0 text-right">
                 OI {c.totalOI.toFixed(0)}
               </span>
             </div>
@@ -5680,13 +5682,13 @@ export const CorrelationWidget = () => {
   const current = corrSeries.length > 0 ? corrSeries[corrSeries.length - 1] : null;
   const loading = !btc || !eth;
 
-  if (loading) return timedOut ? <HistLoadErr /> : <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading) return timedOut ? <HistLoadErr /> : <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const W = 800; const H = 100;
   const lo = -1; const hi = 1;
   const zero = H - ((0 - lo) / (hi - lo)) * H;
   const pts = mapPts(corrSeries, W, H, lo, hi);
-  const corrColor = (v: number) => v > 0.7 ? 'var(--nexus-accent)' : v > 0.4 ? '#f59e0b' : v > 0 ? '#64748b' : 'var(--nexus-red)';
+  const corrColor = (v: number) => v > 0.7 ? 'var(--nexus-accent)' : v > 0.4 ? '#FEBC2E' : v > 0 ? '#6e6e6e' : 'var(--nexus-red)';
   const cur = current ?? 0;
   const regime = cur > 0.8 ? '高度同步' : cur > 0.6 ? '较强同步' : cur > 0.4 ? '中等相关' : cur > 0.2 ? '弱相关' : '背离走势';
 
@@ -5694,7 +5696,7 @@ export const CorrelationWidget = () => {
     <div className="w-full h-full flex flex-col min-h-0 px-3 pt-1 pb-2">
       {/* Header */}
       <div className="flex items-center gap-4 mb-1 shrink-0">
-        <span className="text-[10px] text-slate-500">BTC / ETH 已实现相关系数（30日滚动）</span>
+        <span className="text-[10px] text-white/55">BTC / ETH 已实现相关系数（30日滚动）</span>
         <span className="text-[18px] font-mono font-bold tnum ml-auto" style={{ color: corrColor(cur) }}>
           {cur.toFixed(3)}
         </span>
@@ -5720,8 +5722,8 @@ export const CorrelationWidget = () => {
         </svg>
       </div>
       <div className="flex items-center justify-between mt-1 shrink-0">
-        <span className="text-[9px] text-slate-700">← 90天前</span>
-        <span className="text-[9px] text-slate-700">今日 →</span>
+        <span className="text-[9px] text-white/55">← 90天前</span>
+        <span className="text-[9px] text-white/55">今日 →</span>
       </div>
     </div>
   );
@@ -5824,48 +5826,48 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
           onChange={e => { setInput(e.target.value); setError(''); }}
           onKeyDown={e => e.key === 'Enter' && addInstrument()}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-[10px] font-mono text-slate-200 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-slate-700"
+          className="flex-1 bg-transparent text-[10px] font-mono text-white/85 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-white/55"
         />
         <button onClick={addInstrument}
-          className="px-2 py-1 text-[10px] rounded border border-white/10 text-slate-300 hover:bg-white/8 transition-colors">
+          className="px-2 py-1 text-[10px] rounded border border-white/10 text-white/80 hover:bg-white/8 transition-colors">
           + 添加
         </button>
-        {error && <span className="text-[9px] text-rose-400">{error}</span>}
+        {error && <span className="text-[9px] text-[var(--nexus-red)]">{error}</span>}
       </div>
 
       {items.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">
           输入合约代码并回车添加…
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto pb-2">
           {/* Column header */}
-          <div className="grid px-3 py-1 text-[8px] text-slate-600 uppercase tracking-wider border-b border-white/4"
+          <div className="grid px-3 py-1 text-[9px] text-white/55 uppercase tracking-wider border-b border-white/4"
             style={{ gridTemplateColumns: '1fr 56px 56px 44px 44px 50px 50px 24px' }}>
             <span>合约</span><span className="text-right">Bid</span><span className="text-right">Ask</span>
             <span className="text-right">IV</span><span className="text-right">Δ</span>
             <span className="text-right">OI</span><span className="text-right">OIΔ</span><span />
           </div>
           {items.map(item => {
-            const oiColor = item.oiDelta > 0 ? 'var(--nexus-green)' : item.oiDelta < 0 ? 'var(--nexus-red)' : '#64748b';
+            const oiColor = item.oiDelta > 0 ? 'var(--nexus-green)' : item.oiDelta < 0 ? 'var(--nexus-red)' : '#6e6e6e';
             return (
               <div key={item.instrument}
                 className="grid items-center px-3 py-1.5 border-b border-white/4 hover:bg-white/2 transition-colors"
                 style={{ gridTemplateColumns: '1fr 56px 56px 44px 44px 50px 50px 24px' }}>
-                <span className="text-[9px] font-mono text-slate-300 truncate">{item.instrument}</span>
-                <span className="text-right text-[9px] font-mono text-slate-400">{item.bid.toFixed(4)}</span>
-                <span className="text-right text-[9px] font-mono text-slate-400">{item.ask.toFixed(4)}</span>
-                <span className="text-right text-[9px] font-mono text-slate-200">{item.iv.toFixed(1)}%</span>
+                <span className="text-[9px] font-mono text-white/80 truncate">{item.instrument}</span>
+                <span className="text-right text-[9px] font-mono text-white/65">{item.bid.toFixed(4)}</span>
+                <span className="text-right text-[9px] font-mono text-white/65">{item.ask.toFixed(4)}</span>
+                <span className="text-right text-[9px] font-mono text-white/85">{item.iv.toFixed(1)}%</span>
                 <span className="text-right text-[9px] font-mono"
                   style={{ color: item.delta > 0 ? 'var(--nexus-green)' : 'var(--nexus-red)' }}>
                   {item.delta.toFixed(2)}
                 </span>
-                <span className="text-right text-[9px] font-mono text-slate-400">{item.oi.toFixed(0)}</span>
+                <span className="text-right text-[9px] font-mono text-white/65">{item.oi.toFixed(0)}</span>
                 <span className="text-right text-[9px] font-mono font-bold" style={{ color: oiColor }}>
                   {item.oiDelta > 0 ? '+' : ''}{item.oiDelta.toFixed(0)}
                 </span>
                 <button onClick={() => removeInstrument(item.instrument)}
-                  className="text-[9px] text-slate-700 hover:text-rose-400 transition-colors text-right">✕</button>
+                  className="text-[9px] text-white/55 hover:text-[var(--nexus-red)] transition-colors text-right">✕</button>
               </div>
             );
           })}
@@ -5888,11 +5890,11 @@ export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
-  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const S = ddata.spot;
   const exps = ddata.expiries.filter(e => e.daysToExp >= 1 && e.atmIV > 0);
-  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">暂无数据</div>;
+  if (exps.length < 2) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>;
 
   // Compute ATM straddle for each expiry
   const straddlePrices = exps.map(exp => {
@@ -5919,13 +5921,13 @@ export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-slate-600">
+      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-white/55">
         ATM Straddle 展期成本（近 → 远）· 正=需要支付溢价
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
         <table className="w-full text-[10px] font-mono border-collapse">
           <thead>
-            <tr className="text-[8px] text-slate-600 uppercase tracking-wider">
+            <tr className="text-[9px] text-white/55 uppercase tracking-wider">
               <th className="text-left pb-1.5 font-normal">近端</th>
               <th className="text-left pb-1.5 font-normal">远端</th>
               <th className="text-right pb-1.5 font-normal">近端价格</th>
@@ -5939,14 +5941,14 @@ export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
               const rollColor = r.rollUSD > 0 ? 'var(--nexus-red)' : 'var(--nexus-green)';
               return (
                 <tr key={`${r.from}-${r.to}`} className="border-t border-white/4">
-                  <td className="py-1.5 text-slate-400 text-[9px]">{r.from}</td>
-                  <td className="py-1.5 text-slate-400 text-[9px]">{r.to}</td>
-                  <td className="py-1.5 text-right text-slate-300">${r.nearPriceUSD.toFixed(0)}</td>
-                  <td className="py-1.5 text-right text-slate-300">${r.farPriceUSD.toFixed(0)}</td>
+                  <td className="py-1.5 text-white/65 text-[9px]">{r.from}</td>
+                  <td className="py-1.5 text-white/65 text-[9px]">{r.to}</td>
+                  <td className="py-1.5 text-right text-white/80">${r.nearPriceUSD.toFixed(0)}</td>
+                  <td className="py-1.5 text-right text-white/80">${r.farPriceUSD.toFixed(0)}</td>
                   <td className="py-1.5 text-right font-bold" style={{ color: rollColor }}>
                     {r.rollUSD >= 0 ? '+' : ''}${r.rollUSD.toFixed(0)}
                   </td>
-                  <td className="py-1.5 text-right" style={{ color: r.rollVolPt >= 0 ? '#64748b' : 'var(--nexus-green)' }}>
+                  <td className="py-1.5 text-right" style={{ color: r.rollVolPt >= 0 ? '#6e6e6e' : 'var(--nexus-green)' }}>
                     {r.rollVolPt >= 0 ? '+' : ''}{r.rollVolPt.toFixed(1)}vp
                   </td>
                 </tr>
@@ -6035,11 +6037,11 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
     return () => { alive = false; unsub(); };
   }, [coin]);
 
-  if (loading || !result) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !result) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const { composite, factors } = result;
   const label  = composite >= 70 ? '极度乐观' : composite >= 55 ? '偏多'   : composite >= 45 ? '中性' : composite >= 30 ? '偏空' : '极度悲观';
-  const color  = composite >= 70 ? '#25a750'  : composite >= 55 ? '#86efac' : composite >= 45 ? '#94a3b8' : composite >= 30 ? '#fca5a5' : '#f43f5e';
+  const color  = composite >= 70 ? '#28C840'  : composite >= 55 ? '#28C840' : composite >= 45 ? '#9a9a9a' : composite >= 30 ? '#FF5F57' : '#FF5F57';
 
   // SVG arc gauge (180°)
   const R = 56; const CX = 80; const CY = 72;
@@ -6057,7 +6059,7 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
   const ny = CY + (R - 6) * Math.sin(toRad(needleAngle));
 
   const factorColor = (s: number) =>
-    s >= 65 ? '#25a750' : s >= 45 ? '#94a3b8' : '#f43f5e';
+    s >= 65 ? '#28C840' : s >= 45 ? '#9a9a9a' : '#FF5F57';
 
   return (
     <div className="w-full h-full flex items-center gap-6 px-4">
@@ -6075,8 +6077,8 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
           <line x1={CX} y1={CY} x2={nx} y2={ny} stroke={color} strokeWidth="2" strokeLinecap="round" />
           <circle cx={CX} cy={CY} r="4" fill={color} />
           {/* Labels */}
-          <text x="18" y="86" fill="#64748b" fontSize="8" textAnchor="middle">熊</text>
-          <text x="142" y="86" fill="#64748b" fontSize="8" textAnchor="middle">牛</text>
+          <text x="18" y="86" fill="#6e6e6e" fontSize="8" textAnchor="middle">熊</text>
+          <text x="142" y="86" fill="#6e6e6e" fontSize="8" textAnchor="middle">牛</text>
           {/* Score */}
           <text x={CX} y={CY - 10} fill={color} fontSize="20" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
             {composite.toFixed(0)}
@@ -6092,7 +6094,7 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg border"
             style={{ borderColor: `${factorColor(f.score)}30`, background: `${factorColor(f.score)}0a` }}>
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-[9px] text-slate-500 uppercase tracking-wider">{f.label}</span>
+              <span className="text-[9px] text-white/55 uppercase tracking-wider">{f.label}</span>
               <span className="text-[10px] font-mono font-bold tnum" style={{ color: factorColor(f.score) }}>
                 {f.raw}
               </span>
@@ -6122,7 +6124,7 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
-  if (!ob) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (!ob) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const ROWS = Math.min(ob.bids.length, ob.asks.length, 12);
   // Cumulative sizes for bar width normalisation
@@ -6137,20 +6139,20 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Header: mark price + spread */}
       <div className="flex items-center justify-between px-3 pt-1 pb-0.5 shrink-0 border-b border-white/6">
-        <span className="text-[10px] font-mono text-slate-400">
-          Mark <span className="text-slate-200 font-bold">{fmtPrice(ob.mark)}</span>
+        <span className="text-[10px] font-mono text-white/65">
+          Mark <span className="text-white/85 font-bold">{fmtPrice(ob.mark)}</span>
         </span>
-        <span className="text-[9px] font-mono text-slate-500">
+        <span className="text-[9px] font-mono text-white/55">
           Spread {fmtPrice(ob.spread)} ({ob.mark > 0 ? (ob.spread / ob.mark * 100).toFixed(3) : '—'}%)
         </span>
       </div>
       {/* Column labels */}
       <div className="grid px-3 py-0.5 shrink-0" style={{ gridTemplateColumns: '1fr 60px 8px 60px 1fr' }}>
-        <span className="text-[8px] text-slate-600 text-left">深度</span>
-        <span className="text-[8px] text-slate-600 text-right">买价</span>
+        <span className="text-[9px] text-white/55 text-left">深度</span>
+        <span className="text-[9px] text-white/55 text-right">买价</span>
         <span />
-        <span className="text-[8px] text-slate-600 text-left">卖价</span>
-        <span className="text-[8px] text-slate-600 text-right">深度</span>
+        <span className="text-[9px] text-white/55 text-left">卖价</span>
+        <span className="text-[9px] text-white/55 text-right">深度</span>
       </div>
       {/* Rows */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col justify-start px-3 pb-1 gap-[1px]">
@@ -6164,7 +6166,7 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
               <div className="relative h-[10px] rounded-sm overflow-hidden bg-transparent">
                 <div className="absolute right-0 top-0 h-full rounded-sm"
                   style={{ width: `${bBarW}%`, background: 'rgba(37,167,80,0.25)' }} />
-                {bid && <span className="absolute left-0 text-[8px] font-mono text-slate-600">{fmtSize(bid.s)}</span>}
+                {bid && <span className="absolute left-0 text-[9px] font-mono text-white/55">{fmtSize(bid.s)}</span>}
               </div>
               {/* Bid price */}
               {bid
@@ -6179,7 +6181,7 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
               <div className="relative h-[10px] rounded-sm overflow-hidden bg-transparent">
                 <div className="absolute left-0 top-0 h-full rounded-sm"
                   style={{ width: `${aBarW}%`, background: 'rgba(244,63,94,0.25)' }} />
-                {ask && <span className="absolute right-0 text-[8px] font-mono text-slate-600">{fmtSize(ask.s)}</span>}
+                {ask && <span className="absolute right-0 text-[9px] font-mono text-white/55">{fmtSize(ask.s)}</span>}
               </div>
             </div>
           );
@@ -6306,7 +6308,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   const pnlDn5   = netDelta * (-0.05) + 0.5 * netGamma * (spotForPnL * 0.05) * (spotForPnL * 0.05) / spotForPnL;
 
   const fmtK = (v: number) => `${v >= 0 ? '+' : ''}$${Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'K' : v.toFixed(0)}`;
-  const gColor = (v: number) => v > 0 ? 'var(--nexus-green)' : v < 0 ? 'var(--nexus-red)' : '#64748b';
+  const gColor = (v: number) => v > 0 ? 'var(--nexus-green)' : v < 0 ? 'var(--nexus-red)' : '#6e6e6e';
 
   const placeholder = coin === 'BTC' ? 'BTC-27JUN25-100000-C' : 'ETH-27JUN25-3000-P';
 
@@ -6319,19 +6321,19 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
           onChange={e => { setInput(e.target.value); setAddError(''); }}
           onKeyDown={e => e.key === 'Enter' && addPosition()}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-[10px] font-mono text-slate-200 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-slate-700"
+          className="flex-1 bg-transparent text-[10px] font-mono text-white/85 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-white/55"
         />
         <input
           value={qtyInput}
           onChange={e => setQtyInput(e.target.value)}
           placeholder="qty"
-          className="w-[52px] bg-transparent text-[10px] font-mono text-center text-slate-200 border border-white/10 rounded px-1 py-1 outline-none focus:border-white/30"
+          className="w-[52px] bg-transparent text-[10px] font-mono text-center text-white/85 border border-white/10 rounded px-1 py-1 outline-none focus:border-white/30"
         />
         <button onClick={addPosition} disabled={loading}
-          className="px-2 py-1 text-[10px] rounded border border-white/10 text-slate-300 hover:bg-white/8 transition-colors disabled:opacity-40">
+          className="px-2 py-1 text-[10px] rounded border border-white/10 text-white/80 hover:bg-white/8 transition-colors disabled:opacity-40">
           + 加仓
         </button>
-        {addError && <span className="text-[9px] text-rose-400">{addError}</span>}
+        {addError && <span className="text-[9px] text-[var(--nexus-red)]">{addError}</span>}
       </div>
 
       {/* Aggregate Greeks bar */}
@@ -6344,7 +6346,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
             { label: '$Θ/d', val: netTheta, title: '净Dollar Theta per day' },
           ].map(g => (
             <div key={g.label} className="flex flex-col items-center" title={g.title}>
-              <span className="text-[8px] text-slate-600">{g.label}</span>
+              <span className="text-[9px] text-white/55">{g.label}</span>
               <span className="text-[11px] font-mono font-bold tnum" style={{ color: gColor(g.val) }}>
                 {fmtK(g.val)}
               </span>
@@ -6352,11 +6354,11 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
           ))}
           <div className="h-8 w-px bg-white/8 mx-1" />
           <div className="flex flex-col items-center" title="Spot +5% P&L估算">
-            <span className="text-[8px] text-slate-600">+5% P&L</span>
+            <span className="text-[9px] text-white/55">+5% P&L</span>
             <span className="text-[11px] font-mono font-bold tnum" style={{ color: gColor(pnlUp5) }}>{fmtK(pnlUp5)}</span>
           </div>
           <div className="flex flex-col items-center" title="Spot -5% P&L估算">
-            <span className="text-[8px] text-slate-600">-5% P&L</span>
+            <span className="text-[9px] text-white/55">-5% P&L</span>
             <span className="text-[11px] font-mono font-bold tnum" style={{ color: gColor(pnlDn5) }}>{fmtK(pnlDn5)}</span>
           </div>
         </div>
@@ -6364,12 +6366,12 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
 
       {/* Position rows */}
       {positions.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">
           输入合约代码和数量（负数=做空）…
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto pb-2">
-          <div className="grid px-3 py-1 text-[8px] text-slate-600 uppercase tracking-wider border-b border-white/4"
+          <div className="grid px-3 py-1 text-[9px] text-white/55 uppercase tracking-wider border-b border-white/4"
             style={{ gridTemplateColumns: '1fr 40px 52px 44px 44px 44px 44px 20px' }}>
             <span>合约</span><span className="text-right">数量</span><span className="text-right">Mark</span>
             <span className="text-right">$Δ</span><span className="text-right">$Γ</span>
@@ -6379,20 +6381,20 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
             <div key={p.id}
               className="grid items-center px-3 py-1.5 border-b border-white/4 hover:bg-white/2 transition-colors"
               style={{ gridTemplateColumns: '1fr 40px 52px 44px 44px 44px 44px 20px' }}>
-              <span className="text-[9px] font-mono text-slate-300 truncate" title={p.instrument}>{p.instrument}</span>
+              <span className="text-[9px] font-mono text-white/80 truncate" title={p.instrument}>{p.instrument}</span>
               <span className="text-right text-[9px] font-mono"
                 style={{ color: p.qty > 0 ? 'var(--nexus-green)' : 'var(--nexus-red)' }}>
                 {p.qty > 0 ? '+' : ''}{p.qty}
               </span>
-              <span className="text-right text-[9px] font-mono text-slate-300">
-                {p.error ? <span className="text-rose-400 text-[8px]">{p.error}</span> : p.mark.toFixed(4)}
+              <span className="text-right text-[9px] font-mono text-white/80">
+                {p.error ? <span className="text-[var(--nexus-red)] text-[9px]">{p.error}</span> : p.mark.toFixed(4)}
               </span>
               <span className="text-right text-[9px] font-mono tnum" style={{ color: gColor(p.dollarDelta) }}>{fmtK(p.dollarDelta)}</span>
               <span className="text-right text-[9px] font-mono tnum" style={{ color: gColor(p.dollarGamma) }}>{fmtK(p.dollarGamma)}</span>
               <span className="text-right text-[9px] font-mono tnum" style={{ color: gColor(p.dollarVega)  }}>{fmtK(p.dollarVega)}</span>
               <span className="text-right text-[9px] font-mono tnum" style={{ color: gColor(p.dollarTheta) }}>{fmtK(p.dollarTheta)}</span>
               <button onClick={() => removePosition(p.id)}
-                className="text-[9px] text-slate-700 hover:text-rose-400 transition-colors text-right">✕</button>
+                className="text-[9px] text-white/55 hover:text-[var(--nexus-red)] transition-colors text-right">✕</button>
             </div>
           ))}
         </div>
@@ -6540,13 +6542,13 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
       {/* Add form */}
       <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 shrink-0 border-b border-white/6 flex-wrap">
         <select value={metric} onChange={e => { setMetric(e.target.value as AlertMetric); setThresh(String(METRIC_META[e.target.value as AlertMetric].defaultVal)); }}
-          className="text-[10px] bg-transparent border border-white/10 rounded px-1.5 py-1 text-slate-300 outline-none">
+          className="text-[10px] bg-transparent border border-white/10 rounded px-1.5 py-1 text-white/80 outline-none">
           {(Object.keys(METRIC_META) as AlertMetric[]).map(m => (
             <option key={m} value={m}>{METRIC_META[m].label}</option>
           ))}
         </select>
         <select value={op} onChange={e => setOp(e.target.value as AlertOp)}
-          className="w-[44px] text-[10px] bg-transparent border border-white/10 rounded px-1 py-1 text-slate-300 outline-none">
+          className="w-[44px] text-[10px] bg-transparent border border-white/10 rounded px-1 py-1 text-white/80 outline-none">
           <option value=">">{'>'}</option>
           <option value="<">{'<'}</option>
         </select>
@@ -6555,16 +6557,16 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
           onChange={e => setThresh(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addAlert()}
           placeholder={`${meta.defaultVal} ${meta.unit}`}
-          className="w-[88px] bg-transparent text-[10px] font-mono text-slate-200 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-slate-700"
+          className="w-[88px] bg-transparent text-[10px] font-mono text-white/85 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 placeholder:text-white/55"
         />
         <button onClick={addAlert}
-          className="px-2 py-1 text-[10px] rounded border border-white/10 text-slate-300 hover:bg-white/8 transition-colors">
+          className="px-2 py-1 text-[10px] rounded border border-white/10 text-white/80 hover:bg-white/8 transition-colors">
           + 添加
         </button>
       </div>
 
       {alerts.filter(a => a.coin === coin).length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">
           暂无警报规则
         </div>
       ) : (
@@ -6580,27 +6582,27 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
                 {/* Status LED */}
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: a.active ? (a.triggered ? ringColor : 'rgba(255,255,255,0.2)') : 'rgba(255,255,255,0.06)' }} />
                 {/* Description */}
-                <span className="flex-1 text-[10px] font-mono text-slate-300">
-                  {m.label} {a.op} <span className="font-bold text-slate-100">{fmtVal(a.threshold)}</span> {m.unit}
+                <span className="flex-1 text-[10px] font-mono text-white/80">
+                  {m.label} {a.op} <span className="font-bold text-white/90">{fmtVal(a.threshold)}</span> {m.unit}
                 </span>
                 {/* Current value */}
-                <span className="text-[10px] font-mono text-slate-500">
-                  现值 <span style={{ color: a.triggered ? ringColor : '#94a3b8' }}>{fmtVal(a.lastValue)}</span>
+                <span className="text-[10px] font-mono text-white/55">
+                  现值 <span style={{ color: a.triggered ? ringColor : '#9a9a9a' }}>{fmtVal(a.lastValue)}</span>
                 </span>
                 {/* Triggered time */}
                 {a.triggeredAt && (
-                  <span className="text-[9px] text-slate-600">
+                  <span className="text-[9px] text-white/55">
                     {new Date(a.triggeredAt).toLocaleTimeString('zh', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
                 {/* Toggle + remove */}
                 <button onClick={() => toggleAlert(a.id)}
                   className="text-[9px] px-1.5 py-0.5 rounded border border-white/8 transition-colors"
-                  style={{ color: a.active ? '#94a3b8' : '#475569' }}>
+                  style={{ color: a.active ? '#9a9a9a' : '#555555' }}>
                   {a.active ? '启用' : '暂停'}
                 </button>
                 <button onClick={() => removeAlert(a.id)}
-                  className="text-[9px] text-slate-700 hover:text-rose-400 transition-colors">✕</button>
+                  className="text-[9px] text-white/55 hover:text-[var(--nexus-red)] transition-colors">✕</button>
               </div>
             );
           })}
@@ -6628,7 +6630,7 @@ export const PayoffProfileWidget = () => {
   const [posCount, setPosCount] = useState(POS_STORE.length);
 
   useEffect(() => {
-    setHeaderRight(<span className="text-[9px] text-slate-600">基于当前 mark 价格，到期日盈亏</span>);
+    setHeaderRight(<span className="text-[9px] text-white/55">基于当前 mark 价格，到期日盈亏</span>);
     return () => setHeaderRight(null);
   }, [setHeaderRight]);
 
@@ -6656,14 +6658,14 @@ export const PayoffProfileWidget = () => {
   }, []);
 
   if (posCount === 0) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">
       请先在「持仓追踪」中添加合约
     </div>
   );
 
   const spot = live[0]?.spot ?? 0;
   if (!spot || live.length === 0) return (
-    <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">
+    <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">
       加载中…
     </div>
   );
@@ -6719,7 +6721,7 @@ export const PayoffProfileWidget = () => {
     <div className="w-full h-full flex flex-col min-h-0 px-3 pt-1 pb-2">
       {/* Stats row */}
       <div className="flex items-center gap-4 mb-1 shrink-0">
-        <span className="text-[9px] text-slate-600">{positions.length} 个持仓</span>
+        <span className="text-[9px] text-white/55">{positions.length} 个持仓</span>
         <span className="text-[10px] font-mono" style={{ color: 'var(--nexus-green)' }}>
           最大盈利 ${maxProfit >= 1000 ? (maxProfit / 1000).toFixed(1) + 'K' : maxProfit.toFixed(0)}
         </span>
@@ -6727,7 +6729,7 @@ export const PayoffProfileWidget = () => {
           最大亏损 ${Math.abs(maxLoss) >= 1000 ? (maxLoss / 1000).toFixed(1) + 'K' : maxLoss.toFixed(0)}
         </span>
         {breakevens.map((be, i) => (
-          <span key={i} className="text-[10px] font-mono text-slate-400">
+          <span key={i} className="text-[10px] font-mono text-white/65">
             BE{i + 1} {be >= 10000 ? be.toLocaleString('en-US', { maximumFractionDigits: 0 }) : be.toFixed(1)}
           </span>
         ))}
@@ -6755,9 +6757,9 @@ export const PayoffProfileWidget = () => {
         </svg>
       </div>
       <div className="flex items-center justify-between mt-0.5 shrink-0">
-        <span className="text-[9px] text-slate-700">${(lo / 1000).toFixed(0)}K</span>
-        <span className="text-[9px] text-slate-500">当前 Spot {spot >= 10000 ? spot.toLocaleString('en-US', { maximumFractionDigits: 0 }) : spot.toFixed(1)}</span>
-        <span className="text-[9px] text-slate-700">${(hi / 1000).toFixed(0)}K</span>
+        <span className="text-[9px] text-white/55">${(lo / 1000).toFixed(0)}K</span>
+        <span className="text-[9px] text-white/55">当前 Spot {spot >= 10000 ? spot.toLocaleString('en-US', { maximumFractionDigits: 0 }) : spot.toFixed(1)}</span>
+        <span className="text-[9px] text-white/55">${(hi / 1000).toFixed(0)}K</span>
       </div>
     </div>
   );
@@ -6804,7 +6806,7 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
   if (loading || !opt || !hist) return timedOut
     ? <HistLoadErr />
-    : <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+    : <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const cone = hist.volCone;
   const rvByTenor = hist.rvByTenor; // [7,14,30,60,90,180,365]D RV
@@ -6855,22 +6857,22 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   }).filter(r => r.iv > 0);
 
   const verdictStyle = (v: RowData['verdict']) => ({
-    'very-cheap':     { bg: 'rgba(37,167,80,0.25)',   text: '#4ade80', label: '极便宜' },
-    'cheap':          { bg: 'rgba(37,167,80,0.12)',   text: '#86efac', label: '便宜'   },
-    'fair':           { bg: 'rgba(255,255,255,0.04)', text: '#94a3b8', label: '合理'   },
-    'expensive':      { bg: 'rgba(244,63,94,0.12)',   text: '#fca5a5', label: '偏贵'   },
-    'very-expensive': { bg: 'rgba(244,63,94,0.25)',   text: '#f43f5e', label: '极贵'   },
+    'very-cheap':     { bg: 'rgba(37,167,80,0.25)',   text: '#28C840', label: '极便宜' },
+    'cheap':          { bg: 'rgba(37,167,80,0.12)',   text: '#28C840', label: '便宜'   },
+    'fair':           { bg: 'rgba(255,255,255,0.04)', text: '#9a9a9a', label: '合理'   },
+    'expensive':      { bg: 'rgba(244,63,94,0.12)',   text: '#FF5F57', label: '偏贵'   },
+    'very-expensive': { bg: 'rgba(244,63,94,0.25)',   text: '#FF5F57', label: '极贵'   },
   }[v]);
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
-      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-slate-600">
+      <div className="px-3 pt-1 pb-0.5 shrink-0 text-[9px] text-white/55">
         当前 IV 对比历史 RV 分位锥 — 颜色=便宜/贵评级，VRP=溢价
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
         <table className="w-full text-[10px] font-mono border-collapse">
           <thead>
-            <tr className="text-[8px] text-slate-600 uppercase tracking-wider">
+            <tr className="text-[9px] text-white/55 uppercase tracking-wider">
               <th className="text-left pb-1.5 font-normal w-[36px]">期限</th>
               <th className="text-right pb-1.5 font-normal">当前IV</th>
               <th className="text-right pb-1.5 font-normal">当前RV</th>
@@ -6882,12 +6884,12 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           <tbody>
             {rows.map(r => {
               const vs = verdictStyle(r.verdict);
-              const vrpColor = r.vrp > 3 ? 'var(--nexus-red)' : r.vrp < -3 ? 'var(--nexus-green)' : '#94a3b8';
+              const vrpColor = r.vrp > 3 ? 'var(--nexus-red)' : r.vrp < -3 ? 'var(--nexus-green)' : '#9a9a9a';
               return (
                 <tr key={r.tenor} className="border-t border-white/4" style={{ background: vs.bg }}>
-                  <td className="py-1.5 text-slate-400 font-bold">{r.label}</td>
-                  <td className="py-1.5 text-right text-slate-200 font-bold">{r.iv.toFixed(1)}%</td>
-                  <td className="py-1.5 text-right text-slate-400">{r.rv.toFixed(1)}%</td>
+                  <td className="py-1.5 text-white/65 font-bold">{r.label}</td>
+                  <td className="py-1.5 text-right text-white/85 font-bold">{r.iv.toFixed(1)}%</td>
+                  <td className="py-1.5 text-right text-white/65">{r.rv.toFixed(1)}%</td>
                   <td className="py-1.5 text-right font-bold" style={{ color: vrpColor }}>
                     {r.vrp >= 0 ? '+' : ''}{r.vrp.toFixed(1)}vp
                   </td>
@@ -6951,11 +6953,11 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
   // Reset strikes when expiry or type changes
   useEffect(() => { setBuyStrike(null); setSellStrike(null); }, [expIdx, spreadType]);
 
-  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">加载中…</div>;
+  if (loading || !ddata) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>;
 
   const S = ddata.spot;
   const exps = ddata.expiries.filter(e => e.daysToExp >= 1 && e.atmIV > 0);
-  if (!exps.length) return <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">暂无数据</div>;
+  if (!exps.length) return <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">暂无数据</div>;
 
   const safeIdx = Math.min(expIdx, exps.length - 1);
   const exp = exps[safeIdx];
@@ -7040,7 +7042,7 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
             className="px-2 py-0.5 rounded text-[10px] transition-colors"
             style={{
               background: spreadType === t ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
-              color: spreadType === t ? 'var(--nexus-accent)' : '#64748b',
+              color: spreadType === t ? 'var(--nexus-accent)' : '#6e6e6e',
               border: `1px solid ${spreadType === t ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
             }}>{spreadLabels[t].split('（')[0]}</button>
         ))}
@@ -7050,7 +7052,7 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
             className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors"
             style={{
               background: i === safeIdx ? 'rgba(255,255,255,0.08)' : 'transparent',
-              color: i === safeIdx ? '#e2e8f0' : '#475569',
+              color: i === safeIdx ? '#F0F0EE' : '#555555',
             }}>{e.label}</button>
         ))}
       </div>
@@ -7058,27 +7060,27 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
       {/* Strike selectors */}
       <div className="flex items-center gap-3 px-3 py-1.5 shrink-0 border-b border-white/6">
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-slate-500 w-[44px]">{buyLegLabel}</span>
+          <span className="text-[9px] text-white/55 w-[44px]">{buyLegLabel}</span>
           <select value={buyStrike ?? ''} onChange={e => setBuyStrike(Number(e.target.value))}
-            className="text-[10px] font-mono bg-transparent border border-white/10 rounded px-1.5 py-0.5 text-slate-300 outline-none">
+            className="text-[10px] font-mono bg-transparent border border-white/10 rounded px-1.5 py-0.5 text-white/80 outline-none">
             <option value="">选择行权价</option>
             {buyStrikes.map(k => <option key={k} value={k}>{k.toLocaleString()}{k === (buyStrikes as number[]).reduce((b: number, s: number) => Math.abs(s - S) < Math.abs(b - S) ? s : b, buyStrikes[0]) ? ' ★' : ''}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-slate-500 w-[44px]">{sellLegLabel}</span>
+          <span className="text-[9px] text-white/55 w-[44px]">{sellLegLabel}</span>
           <select value={sellStrike ?? ''} onChange={e => setSellStrike(Number(e.target.value))}
-            className="text-[10px] font-mono bg-transparent border border-white/10 rounded px-1.5 py-0.5 text-slate-300 outline-none">
+            className="text-[10px] font-mono bg-transparent border border-white/10 rounded px-1.5 py-0.5 text-white/80 outline-none">
             <option value="">选择行权价</option>
             {sellStrikes.map(k => <option key={k} value={k}>{k.toLocaleString()}{k === (sellStrikes as number[]).reduce((b: number, s: number) => Math.abs(s - S) < Math.abs(b - S) ? s : b, sellStrikes[0]) ? ' ★' : ''}</option>)}
           </select>
         </div>
-        <span className="text-[9px] text-slate-600 ml-auto">★ = 最近ATM</span>
+        <span className="text-[9px] text-white/55 ml-auto">★ = 最近ATM</span>
       </div>
 
       {/* Results */}
       {!result ? (
-        <div className="flex-1 flex items-center justify-center text-[11px] text-slate-500">
+        <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">
           选择买腿和卖腿行权价
         </div>
       ) : (
@@ -7091,7 +7093,7 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
               { label: '最大亏损', val: isFinite(result.maxLoss) ? fmtUSD(-result.maxLoss) : '无限', color: 'var(--nexus-red)' },
             ].map(s => (
               <div key={s.label} className="flex flex-col items-center py-1.5 rounded-lg bg-white/3 border border-white/6">
-                <span className="text-[8px] text-slate-600 uppercase tracking-wider">{s.label}</span>
+                <span className="text-[9px] text-white/55 uppercase tracking-wider">{s.label}</span>
                 <span className="text-[15px] font-mono font-bold tnum mt-0.5" style={{ color: s.color }}>{s.val}</span>
               </div>
             ))}
@@ -7099,8 +7101,8 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
           {/* Breakevens + Greeks */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1 px-2 py-1.5 rounded-lg bg-white/3 border border-white/6">
-              <span className="text-[8px] text-slate-600 uppercase tracking-wider">盈亏平衡</span>
-              <span className="text-[11px] font-mono text-slate-200">
+              <span className="text-[9px] text-white/55 uppercase tracking-wider">盈亏平衡</span>
+              <span className="text-[11px] font-mono text-white/85">
                 {result.beLower.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 {result.beUpper !== null && ` / ${result.beUpper.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
               </span>
@@ -7113,8 +7115,8 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
                 { label: 'Θ/d', val: `$${(result.netTheta * S).toFixed(0)}` },
               ].map(g => (
                 <div key={g.label} className="flex flex-col items-center">
-                  <span className="text-[8px] text-slate-600">{g.label}</span>
-                  <span className="text-[10px] font-mono text-slate-300">{g.val}</span>
+                  <span className="text-[9px] text-white/55">{g.label}</span>
+                  <span className="text-[10px] font-mono text-white/80">{g.val}</span>
                 </div>
               ))}
             </div>
@@ -7127,8 +7129,8 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
             ].map(leg => (
               <div key={leg.label} className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/3 border border-white/6">
                 <span className="text-[9px] font-bold" style={{ color: leg.color }}>{leg.label}</span>
-                <span className="text-[10px] font-mono text-slate-300">{leg.strike.toLocaleString()}</span>
-                <span className="text-[10px] font-mono text-slate-400">{fmtUSD(leg.price)}</span>
+                <span className="text-[10px] font-mono text-white/80">{leg.strike.toLocaleString()}</span>
+                <span className="text-[10px] font-mono text-white/65">{fmtUSD(leg.price)}</span>
               </div>
             ))}
           </div>

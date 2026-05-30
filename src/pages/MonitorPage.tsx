@@ -65,7 +65,7 @@ export default function MonitorPage() {
 
   return (
     <div
-      className="absolute inset-0 monitor-scope flex flex-col text-slate-200"
+      className="absolute inset-0 monitor-scope flex flex-col font-medium text-white/85"
     >
       {/* Global SVG gradient defs — referenced by all inline chart SVGs */}
       <GlobalGradDefs />

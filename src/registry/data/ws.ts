@@ -397,7 +397,7 @@ export function useOrderbookWS(coin: Coin): { bids: OBEntry[]; asks: OBEntry[]; 
       }
     };
 
-    type BookSnapshot = { type: 'snapshot'; bids: [number, number][]; asks: [number, number][]; mark_price?: number };
+    type BookSnapshot = { type: 'snapshot'; bids: [string, number, number][]; asks: [string, number, number][]; mark_price?: number };
     type BookChange   = { type: 'change';   bids: [string, number, number][]; asks: [string, number, number][]; mark_price?: number };
     const unsub = DERIBIT_WS.subscribe<BookSnapshot | BookChange>(
       `book.${inst}.100ms`,
@@ -405,8 +405,10 @@ export function useOrderbookWS(coin: Coin): { bids: OBEntry[]; asks: OBEntry[]; 
         if (!alive) return;
         if (data.type === 'snapshot') {
           bidsMap.current.clear(); asksMap.current.clear();
-          for (const [p, s] of (data.bids ?? [])) { if (s > 0) bidsMap.current.set(p, s); }
-          for (const [p, s] of (data.asks ?? [])) { if (s > 0) asksMap.current.set(p, s); }
+          // Deribit book levels are [action, price, amount] triples in BOTH snapshot
+          // and change frames — skip the action element (matches applyChange below).
+          for (const [, p, s] of (data.bids ?? [])) { if (s > 0) bidsMap.current.set(p, s); }
+          for (const [, p, s] of (data.asks ?? [])) { if (s > 0) asksMap.current.set(p, s); }
         } else {
           applyChange(bidsMap.current, data.bids ?? []);
           applyChange(asksMap.current, data.asks ?? []);

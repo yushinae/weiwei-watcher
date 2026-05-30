@@ -106,11 +106,11 @@ export default function BybitPositionsView() {
   const stale = fetchedAt > 0 && Date.now() - fetchedAt > 60_000;
 
   return (
-    <div className="absolute inset-0 monitor-scope flex flex-col text-slate-200">
+    <div className="absolute inset-0 monitor-scope flex flex-col font-medium text-slate-200">
       {/* Header — L2 chrome */}
       <div className="sticky top-0 z-[120] h-[44px] flex items-center px-4 shrink-0 border-b border-white/[0.07]"
            style={{ background: 'var(--color-surface-3)' }}>
-        <span className="text-[13px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
+        <span className="text-[14px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
         {/* Tab 切换 pill */}
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07] mr-3">
           {([['positions', '当前持仓'], ['history', '历史记录']] as const).map(([key, label]) => (
@@ -118,7 +118,7 @@ export default function BybitPositionsView() {
               key={key}
               onClick={() => setTab(key)}
               className={cn(
-                'h-6 px-2.5 rounded-md text-[11px] font-medium transition-colors duration-[120ms]',
+                'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
                 tab === key
                   ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
                   : 'text-white/55 hover:text-white/80',
@@ -127,27 +127,27 @@ export default function BybitPositionsView() {
           ))}
         </div>
         {demo && (
-          <span className="h-7 inline-flex items-center gap-1.5 px-2.5 text-[11px] rounded-lg border border-[var(--color-sev-mid)]/40 bg-[var(--color-sev-mid)]/10 text-[var(--color-sev-mid)]">
+          <span className="h-7 inline-flex items-center gap-1.5 px-2.5 text-[12px] rounded-lg border border-[var(--color-sev-mid)]/40 bg-[var(--color-sev-mid)]/10 text-[var(--color-sev-mid)]">
             示例数据
             <button onClick={() => setDemo(false)} className="opacity-70 hover:opacity-100">✕</button>
           </span>
         )}
         {unlocked && !demo && (
           <>
-            <span className="text-[10px] text-white/55">
+            <span className="text-[11px] text-white/55">
               {fetchedAt > 0 ? `更新于 ${new Date(fetchedAt).toLocaleTimeString()}` : '—'}
               {stale && <span className="ml-1 text-[var(--color-sev-mid)]">· 数据陈旧</span>}
             </span>
             <button
               onClick={refresh} disabled={loading}
-              className="ml-3 h-7 px-3 text-[11px] rounded-lg border border-white/[0.12] text-white/70 hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+              className="ml-3 h-7 px-3 text-[12px] rounded-lg border border-white/[0.12] text-white/70 hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
             >{loading ? '刷新中…' : '刷新'}</button>
           </>
         )}
         {positions.length > 0 && (
           <button
             onClick={sendToStressTest}
-            className="ml-2 h-7 px-3 text-[11px] rounded-lg border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 transition-colors"
+            className="ml-2 h-7 px-3 text-[12px] rounded-lg border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 transition-colors"
             title="将当前仓位带入压力测试工具"
           >→ 压力测试</button>
         )}
@@ -170,13 +170,13 @@ export default function BybitPositionsView() {
         <div className="max-w-[1500px] mx-auto w-full flex flex-col gap-3">
           {settingsOpen && (
             <div className="widget-card p-4">
-              <div className="text-[12px] text-white/55 mb-3">Bybit API 凭据</div>
+              <div className="text-[13px] text-white/55 mb-3">Bybit API 凭据</div>
               <BybitSettingsPanel onClose={() => setSettingsOpen(false)} />
               {!unlocked && (
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">
                   <button
                     onClick={() => { setDemo(true); setSettingsOpen(false); }}
-                    className="h-8 px-4 rounded-lg text-[11px] font-semibold border border-white/12 text-white/70 hover:bg-white/8"
+                    className="h-8 px-4 rounded-lg text-[12px] font-semibold border border-white/12 text-white/70 hover:bg-white/8"
                   >使用示例数据</button>
                 </div>
               )}
@@ -185,8 +185,8 @@ export default function BybitPositionsView() {
 
           {tab === 'positions' && !unlocked && !demo && !settingsOpen && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-[13px] text-white/65 mb-1">暂无持仓</div>
-              <div className="text-[11px] text-white/55">连接 Bybit API 后自动显示实时持仓</div>
+              <div className="text-[14px] text-white/65 mb-1">暂无持仓</div>
+              <div className="text-[12px] text-white/55">连接 Bybit API 后自动显示实时持仓</div>
             </div>
           )}
 
@@ -194,12 +194,12 @@ export default function BybitPositionsView() {
             <>
               <TotalsBar totals={totals} count={positions.length} />
               {error && !demo && (
-                <div className="widget-card p-3 text-[11px] text-rose-400 border-rose-400/30 bg-rose-400/[0.04]">
+                <div className="widget-card p-3 text-[12px] text-[var(--nexus-red)] ring-1 ring-inset ring-[var(--nexus-red)]/30 bg-[var(--nexus-red)]/[0.06]">
                   {error}
                 </div>
               )}
               {!error && positions.length === 0 && !loading && !demo && (
-                <div className="widget-card p-8 text-center text-[12px] text-white/50">
+                <div className="widget-card p-8 text-center text-[13px] text-white/50">
                   当前没有期权持仓
                 </div>
               )}
@@ -224,15 +224,15 @@ export default function BybitPositionsView() {
 function TotalsBar({ totals, count }: { totals: { unrealized: number; delta: number; gamma: number; vega: number; theta: number }; count: number }) {
   const cell = (label: string, value: number, fmt: (v: number) => string, color?: string) => (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] text-white/55 font-semibold uppercase tracking-wider">{label}</span>
-      <span className={cn('text-[15px] font-mono font-bold tnum', color ?? 'text-white/90')}>{fmt(value)}</span>
+      <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">{label}</span>
+      <span className={cn('text-[16px] font-mono font-bold tnum', color ?? 'text-white/90')}>{fmt(value)}</span>
     </div>
   );
   return (
     <div className="widget-card p-4 flex items-center gap-8 flex-wrap">
       <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] text-white/55 font-semibold uppercase tracking-wider">持仓</span>
-        <span className="text-[15px] font-mono font-bold tnum text-white/90">{count}</span>
+        <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">持仓</span>
+        <span className="text-[16px] font-mono font-bold tnum text-white/90">{count}</span>
       </div>
       {cell('未实现 PnL', totals.unrealized,
         v => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
@@ -261,9 +261,9 @@ function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
   return (
     <div className="widget-card p-0 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
+        <table className="w-full text-[12px]">
           <thead>
-            <tr className="text-left text-[10px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
+            <tr className="text-left text-[11px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
               <Th>合约</Th>
               <Th>到期</Th>
               <Th align="right">行权</Th>
@@ -288,14 +288,14 @@ function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
                   <Td>
                     <div className="flex flex-col leading-tight">
                       <span className="text-white/90 font-mono">{p.symbol}</span>
-                      {parsed && <span className="text-[9px] text-white/55">{parsed.coin} {parsed.type === 'C' ? 'Call' : 'Put'}</span>}
+                      {parsed && <span className="text-[10px] text-white/55">{parsed.coin} {parsed.type === 'C' ? 'Call' : 'Put'}</span>}
                     </div>
                   </Td>
                   <Td>
                     {parsed ? (
                       <div className="flex flex-col leading-tight">
                         <span className="text-white/80">{parsed.expiry}</span>
-                        <span className="text-[9px] text-white/55">{dte.toFixed(1)} 天</span>
+                        <span className="text-[10px] text-white/55">{dte.toFixed(1)} 天</span>
                       </div>
                     ) : '—'}
                   </Td>
@@ -389,14 +389,14 @@ function TradeHistoryView() {
   if (loading) {
     return (
       <div className="widget-card p-8 flex items-center justify-center">
-        <div className="text-[12px] text-white/50">加载交易记录…</div>
+        <div className="text-[13px] text-white/50">加载交易记录…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="widget-card p-3 text-[11px] text-rose-400 border-rose-400/30 bg-rose-400/[0.04]">
+      <div className="widget-card p-3 text-[12px] text-[var(--nexus-red)] ring-1 ring-inset ring-[var(--nexus-red)]/30 bg-[var(--nexus-red)]/[0.06]">
         {error}
       </div>
     );
@@ -405,8 +405,8 @@ function TradeHistoryView() {
   if (trades.length === 0) {
     return (
       <div className="widget-card p-8 text-center">
-        <div className="text-[12px] text-white/50 mb-2">暂无历史交易记录</div>
-        <div className="text-[10px] text-white/35">平仓后的交易会在这里展示</div>
+        <div className="text-[13px] text-white/50 mb-2">暂无历史交易记录</div>
+        <div className="text-[11px] text-white/55">平仓后的交易会在这里展示</div>
       </div>
     );
   }
@@ -428,8 +428,8 @@ function TradeHistoryView() {
             transition={{ delay: i * 0.06, duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="widget-card !p-3 flex flex-col gap-1"
           >
-            <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">{card.label}</span>
-            <span className={cn('text-[15px] font-mono font-bold tnum', card.color)}>{card.value}</span>
+            <span className="text-[11px] text-white/50 font-semibold uppercase tracking-wider">{card.label}</span>
+            <span className={cn('text-[16px] font-mono font-bold tnum', card.color)}>{card.value}</span>
           </motion.div>
         ))}
       </div>
@@ -437,9 +437,9 @@ function TradeHistoryView() {
       {/* History table */}
       <div className="widget-card p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-[12px]">
             <thead>
-              <tr className="text-left text-[10px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
+              <tr className="text-left text-[11px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
                 <Th>合约</Th>
                 <Th>方向</Th>
                 <Th align="right">入场时间</Th>
@@ -462,7 +462,7 @@ function TradeHistoryView() {
                     <Td>
                       <div className="flex flex-col leading-tight">
                         <span className="text-white/90 font-mono">{t.instrument}</span>
-                        <span className="text-[9px] text-white/55">{t.exchange}</span>
+                        <span className="text-[10px] text-white/55">{t.exchange}</span>
                       </div>
                     </Td>
                     <Td>
@@ -482,7 +482,7 @@ function TradeHistoryView() {
                       {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%
                     </Td>
                     <Td className="max-w-[200px]">
-                      <span className="text-white/70 line-clamp-2 text-[10px] leading-snug">{t.thesis || '—'}</span>
+                      <span className="text-white/70 line-clamp-2 text-[11px] leading-snug">{t.thesis || '—'}</span>
                     </Td>
                   </tr>
                 );

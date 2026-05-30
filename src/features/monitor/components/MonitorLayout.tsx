@@ -4,19 +4,17 @@ import { MONITOR_TABS, type MonitorTabId, type Coin } from '../types';
 
 function CoinSeg({ value, onChange }: { value: Coin; onChange: (c: Coin) => void }) {
   return (
-    <div className="inline-flex gap-0.5 rounded-[8px] bg-white/[0.04] p-0.5 border border-white/[0.07]">
+    <div className="inline-flex gap-0.5 rounded-lg bg-[var(--color-bg-base)] p-0.5 ring-1 ring-inset ring-white/[0.07]">
       {(['BTC', 'ETH'] as Coin[]).map(c => (
         <button
           key={c}
           type="button"
           onClick={() => onChange(c)}
           className={cn(
-            'rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
+            'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors duration-[120ms]',
             value === c
-              ? c === 'BTC'
-                ? 'bg-amber-500/15 text-amber-300'
-                : 'bg-blue-500/15 text-blue-300'
-              : 'text-white/35 hover:text-white/60',
+              ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
+              : 'text-white/55 hover:text-white/80',
           )}
         >
           {c}
@@ -40,10 +38,10 @@ export function MonitorLayout({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className="sticky top-0 z-[120] h-[44px] flex items-center px-4 gap-1 shrink-0 border-b border-white/[0.06]"
-        style={{ background: 'var(--base-dim)' }}
+        className="sticky top-0 z-[120] h-[44px] flex items-center px-4 gap-1 shrink-0 border-b border-white/[0.07]"
+        style={{ background: 'var(--color-surface-3)' }}
       >
-        <span className="text-[13px] font-semibold text-white/60 shrink-0 mr-2">监控</span>
+        <span className="text-[13px] font-semibold text-white/80 shrink-0 mr-2">监控</span>
         <div className="w-px h-4 bg-white/[0.08] mr-2 shrink-0" />
 
         {/* Tabs */}
@@ -55,7 +53,7 @@ export function MonitorLayout({
               onClick={() => onTabChange(t.id)}
               className={cn(
                 'relative h-full px-3.5 text-[12px] font-semibold tracking-[-0.01em] transition-colors select-none',
-                tab === t.id ? 'text-white/90' : 'text-white/35 hover:text-white/60',
+                tab === t.id ? 'text-white/90' : 'text-white/55 hover:text-white/80',
               )}
             >
               {t.label}

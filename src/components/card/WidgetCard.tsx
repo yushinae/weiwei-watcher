@@ -48,14 +48,14 @@ function StatusPane({
 
   return (
     <div className="h-full w-full p-4">
-      <div className="h-full w-full rounded-[14px] border border-white/6 bg-white/[0.03] p-4 flex flex-col justify-between">
+      <div className="h-full w-full rounded-xl bg-surface-2 p-4 flex flex-col justify-between">
         <div className="flex items-start gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-[12px] bg-rose-500/10 text-rose-400">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--nexus-red)]/12 text-[var(--nexus-red)]">
             <AlertTriangle size={16} />
           </div>
           <div className="min-w-0">
-            <div className="text-[12px] font-bold text-slate-100">{title}</div>
-            <div className="mt-1 text-[11px] text-white/30 leading-snug">{desc}</div>
+            <div className="text-[12px] font-bold text-white/90">{title}</div>
+            <div className="mt-1 text-[11px] text-white/55 leading-snug">{desc}</div>
           </div>
         </div>
 
@@ -64,8 +64,8 @@ function StatusPane({
             type="button"
             onClick={status.action.onClick}
             className={cn(
-              'mt-4 inline-flex items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[12px] font-bold',
-              'bg-brand-blue/15 text-brand-blue hover:bg-brand-blue/20 transition-colors',
+              'mt-4 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] font-bold',
+              'bg-[var(--color-brand)]/15 text-[var(--color-brand)] hover:bg-[var(--color-brand)]/25 transition-colors',
             )}
           >
             <RefreshCcw size={14} />
@@ -117,7 +117,7 @@ export function WidgetCard({
   return (
     <CardContext.Provider value={{ setHeaderRight: setHeaderRightCb }}>
       <div className={cn(
-        'w-full h-full @container relative rounded-[18px] overflow-hidden group/card',
+        'w-full h-full @container relative rounded-xl overflow-hidden group/card',
         'widget-card',
         status.type === 'stale' && 'opacity-80',
         className
@@ -131,7 +131,7 @@ export function WidgetCard({
             </div>
             {status.type === 'stale' && (
               <span
-                className="ml-1 rounded-[6px] px-1.5 py-0.5 text-[9px] font-medium text-amber-300 bg-amber-500/10 ring-1 ring-inset ring-amber-500/20"
+                className="ml-1 rounded-[6px] px-1.5 py-0.5 text-[9px] font-medium text-[var(--nexus-yellow)] bg-[var(--nexus-yellow)]/12 ring-1 ring-inset ring-[var(--nexus-yellow)]/25"
                 title="实时数据可能已过期（连接中断或更新延迟）"
               >
                 STALE
@@ -161,7 +161,7 @@ export function WidgetCard({
                       className={cn(
                         'btn',
                         a.tone === 'danger'
-                          ? 'hover:bg-rose-500/15 hover:text-rose-400'
+                          ? 'hover:bg-[var(--nexus-red)]/15 hover:text-[var(--nexus-red)]'
                           : '',
                         a.disabled && 'opacity-40 pointer-events-none',
                       )}

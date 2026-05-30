@@ -12,6 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import type { EChartsOption } from 'echarts';
 import EChart from '../../components/echart/EChart';
 import { DERIBIT_WS } from '../../registry/data/ws';
@@ -234,7 +235,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-white/50">视图</span>
+        <span className="text-[12px] text-white/50">视图</span>
         <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-[#111111]">
           {([['combined', '合并'], ['expiry', '按到期']] as const).map(([key, label]) => {
             const active = (key === 'expiry') === byExpiry;
@@ -243,7 +244,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
                 key={key}
                 onClick={() => setByExpiry(key === 'expiry')}
                 className={cn(
-                  'h-6 px-2.5 rounded-md text-[11px] font-medium transition-colors duration-[120ms]',
+                  'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
                   active ? 'bg-[#242424] text-white/90' : 'text-white/55 hover:text-white/80',
                 )}
               >{label}</button>
@@ -260,14 +261,19 @@ function CoinCard({ m, liveSpot }: { m: CoinModel; liveSpot: number | undefined;
   const spot = liveSpot && liveSpot > 0 ? liveSpot : m.center;
 
   return (
-    <div className="widget-card p-0 overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      className="widget-card p-0 overflow-hidden"
+    >
       {/* Stats header */}
       <div className="flex items-center flex-wrap gap-x-7 gap-y-3 px-[18px] pt-[14px] pb-[12px]">
         <div className="flex items-center gap-2.5 mr-1">
-          <span className="h-7 inline-flex items-center px-2 rounded-md bg-white/[0.06] text-[12px] font-bold text-white/80 gap-1.5">
+          <span className="h-7 inline-flex items-center px-2 rounded-md bg-white/[0.06] text-[13px] font-bold text-white/80 gap-1.5">
             {m.coin}
             {m.expiryLabel && (
-              <span className="text-[11px] font-semibold text-brand/90">{m.expiryLabel}</span>
+              <span className="text-[12px] font-semibold text-brand/90">{m.expiryLabel}</span>
             )}
           </span>
           {m.dte !== undefined && (
@@ -288,7 +294,7 @@ function CoinCard({ m, liveSpot }: { m: CoinModel; liveSpot: number | undefined;
 
       {/* Expiry payoff diagram */}
       <div className="px-3 pb-1">
-        <div className="text-[11px] text-white/50 px-[6px] pb-1">到期损益图</div>
+        <div className="text-[12px] text-white/50 px-[6px] pb-1">到期损益图</div>
         <div className="h-[300px]">
           <EChart option={payoffOption(m, spot)} />
         </div>
@@ -301,15 +307,15 @@ function CoinCard({ m, liveSpot }: { m: CoinModel; liveSpot: number | undefined;
         <GreekBars title="Vega"  sub="每 1% IV" legs={m.legs} pick={l => l.vega}  net={m.net.vega}  digits={1} accent={YELLOW} />
         <GreekBars title="Theta" sub="每日衰减" legs={m.legs} pick={l => l.theta} net={m.net.theta} digits={1} accent={RED} />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] text-white/50 font-medium tracking-wide whitespace-nowrap">{label}</span>
-      <span className={cn('text-[14px] font-bold font-mono tnum', className ?? 'text-white/80')}>{value}</span>
+      <span className="text-[11px] text-white/50 font-medium tracking-wide whitespace-nowrap">{label}</span>
+      <span className={cn('text-[15px] font-bold font-mono tnum', className ?? 'text-white/80')}>{value}</span>
     </div>
   );
 }
@@ -424,12 +430,12 @@ function GreekBars({ title, sub, legs, pick, net, digits, accent }:
     }],
   };
   return (
-    <div className="rounded-[8px] bg-[#111111] p-2 flex flex-col">
+    <div className="dash-tile rounded-lg bg-surface-2 p-2 flex flex-col">
       <div className="flex items-baseline justify-between px-1 pb-1">
-        <span className="text-[11px] font-semibold" style={{ color: accent }}>{title}</span>
-        <span className={cn('text-[11px] font-mono font-bold tnum', upDown(net))}>{net.toFixed(digits)}</span>
+        <span className="text-[12px] font-semibold" style={{ color: accent }}>{title}</span>
+        <span className={cn('text-[12px] font-mono font-bold tnum', upDown(net))}>{net.toFixed(digits)}</span>
       </div>
-      <div className="text-[9px] text-white/50 px-1 pb-1">{sub}</div>
+      <div className="text-[10px] text-white/50 px-1 pb-1">{sub}</div>
       <div style={{ height: Math.max(96, legs.length * 26) }}>
         <EChart option={option} />
       </div>

@@ -1147,7 +1147,7 @@ export default function OptionsChainView() {
         </div>
 
         {/* ── Positions card — sticky-left so it stays put during horizontal scroll ── */}
-        <div className="sticky left-0 mt-3" style={{ width: vpWidth || '100%' }}>
+        <div className="sticky left-0 mt-1" style={{ width: vpWidth || '100%' }}>
           <PositionsPanel book={book} embedded />
         </div>
       </div>

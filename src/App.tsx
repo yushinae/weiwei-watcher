@@ -4,6 +4,7 @@ import {
   Calculator,
   Eye,
   LayoutDashboard,
+  ListOrdered,
 } from 'lucide-react';
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
@@ -15,6 +16,7 @@ const MonitorPage = lazy(() => import('./pages/MonitorPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const PositionBuilderPage = lazy(() => import('./pages/PositionBuilderPage'));
 const BybitPositionsPage = lazy(() => import('./pages/BybitPositionsPage'));
+const OptionsChainPage = lazy(() => import('./pages/OptionsChainPage'));
 
 // 预加载函数 — 悬停导航按钮时提前拉取 chunk，消除首次切换延迟
 const preload = {
@@ -22,6 +24,7 @@ const preload = {
   monitor: () => import('./pages/MonitorPage'),
   positionBuilder: () => import('./pages/PositionBuilderPage'),
   bybitPositions: () => import('./pages/BybitPositionsPage'),
+  optionsChain: () => import('./pages/OptionsChainPage'),
 };
 
 // Lightweight import: only the WebSocket singleton + cache GC, not the full widget registry
@@ -221,6 +224,7 @@ const AppNavigationDropdown = () => {
     { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
     { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
     { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
+    { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
   ];
 
   return (
@@ -398,6 +402,13 @@ function AppRoutes() {
             <div className="absolute inset-0">
               <Suspense fallback={<PageFallback />}>
                 <BybitPositionsPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/options-chain" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <OptionsChainPage />
               </Suspense>
             </div>
           } />

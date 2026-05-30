@@ -41,6 +41,11 @@ export default defineConfig(({mode}) => {
           ws: true,
           changeOrigin: true,
         },
+        '/bybit-api': {
+          target: 'https://api.bybit.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/bybit-api/, ''),
+        },
         '/deribit-ws': {
           target: 'wss://www.deribit.com',
           ws: true,

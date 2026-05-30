@@ -9,6 +9,7 @@ import {
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
 import { cn } from './lib/utils';
+import { OptionsHoverMenu } from './features/optionsChain/OptionsHoverMenu';
 import DigitalClock from './components/DigitalClock';
 import WsConnectionIndicator from './components/WsConnectionIndicator';
 
@@ -219,6 +220,17 @@ const AppNavigationDropdown = () => {
   };
   const closeNav = () => {
     navTimer.current = setTimeout(() => setNavOpen(false), 300);
+  };
+
+  // 期权 — hover 弹出标的 + 到期日选择菜单
+  const [optOpen, setOptOpen] = useState(false);
+  const optTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openOpt = () => {
+    if (optTimer.current) { clearTimeout(optTimer.current); optTimer.current = null; }
+    setOptOpen(true);
+  };
+  const closeOpt = () => {
+    optTimer.current = setTimeout(() => setOptOpen(false), 300);
   };
 
   const navItems = [

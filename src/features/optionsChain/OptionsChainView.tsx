@@ -871,6 +871,8 @@ export default function OptionsChainView() {
         </div>
       </div>
 
+      <div className="shrink-0" style={{ height: 2, backgroundColor: '#1E90FF' }} />
+
       {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_MAIN }}>
         {/* 到期日 dropdown */}

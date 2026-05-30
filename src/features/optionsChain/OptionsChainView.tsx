@@ -850,14 +850,17 @@ export default function OptionsChainView() {
       style={{ backgroundColor: BG_MAIN, color: 'var(--db-text)', fontVariantNumeric: 'tabular-nums' }}>
 
       {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{ backgroundColor: BG_MAIN }}>
-        <div className="flex items-center min-w-0">
-          <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
-          {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />}
+      <div className="flex items-end justify-between px-3 pt-1.5 shrink-0" style={{ backgroundColor: BG_MAIN }}>
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center">
+            <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30 ml-1.5" />}
+          </div>
+          <div className="shrink-0 mt-0.5" style={{ height: 2, backgroundColor: '#1E90FF' }} />
         </div>
 
         {/* Data source toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-1">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">数据源</span>
           <div className="flex rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--color-bg-base)', border: '1px solid var(--db-border)' }}>
             {SOURCES.map(s => (
@@ -870,8 +873,6 @@ export default function OptionsChainView() {
           </div>
         </div>
       </div>
-
-      <div className="shrink-0" style={{ height: 2, backgroundColor: '#1E90FF' }} />
 
       {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_MAIN }}>

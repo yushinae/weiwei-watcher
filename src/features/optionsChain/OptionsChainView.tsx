@@ -853,7 +853,7 @@ export default function OptionsChainView() {
       <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{ backgroundColor: BG_MAIN }}>
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-[11px] font-bold text-white/35">期权</span>
-          <span className="text-[16px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
+          <span className="text-[20px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />}
         </div>
 

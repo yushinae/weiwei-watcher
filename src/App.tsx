@@ -5,6 +5,7 @@ import {
   Eye,
   LayoutDashboard,
   ListOrdered,
+  Settings,
 } from 'lucide-react';
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
@@ -12,6 +13,7 @@ import { cn } from './lib/utils';
 import { OptionsHoverMenu } from './features/optionsChain/OptionsHoverMenu';
 import DigitalClock from './components/DigitalClock';
 import WsConnectionIndicator from './components/WsConnectionIndicator';
+import { UISettings, useTheme } from './features/settings/UISettings';
 
 const MonitorPage = lazy(() => import('./pages/MonitorPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -469,6 +471,10 @@ const TickerBar = () => {
 
 
 export default function App() {
+  useTheme();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     let lastScrollTs = 0;
@@ -525,6 +531,45 @@ export default function App() {
           <div className="flex items-center gap-4">
             <DigitalClock />
             <WsConnectionIndicator />
+          </div>
+          <div className="relative flex items-center ml-2">
+            <button
+              onClick={() => setSettingsOpen(o => !o)}
+              className={cn(
+                'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                settingsOpen
+                  ? 'bg-white/[0.10] text-white'
+                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+              )}
+              title="UI 设置"
+              aria-label="UI 设置"
+            >
+              <Settings size={16} />
+            </button>
+
+            {settingsOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-[190]"
+                  onClick={() => setSettingsOpen(false)}
+                />
+                <div
+                  className="absolute top-full right-0 mt-2 w-[300px] p-4 bg-[var(--color-dropdown)] rounded-xl z-[200] ring-1 ring-white/[0.08]
+                             shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[13px] font-semibold text-white/80">UI 设置</span>
+                    <button
+                      onClick={() => setSettingsOpen(false)}
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                    >
+                      <span className="text-[14px] leading-none">✕</span>
+                    </button>
+                  </div>
+                  <UISettings onClose={() => setSettingsOpen(false)} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>

@@ -250,7 +250,7 @@ const AppNavigationDropdown = () => {
           <div
             onMouseEnter={openNav}
             onMouseLeave={closeNav}
-            className="absolute top-full left-0 mt-1 w-[150px] bg-[#141414] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
+            className="absolute top-full left-0 mt-1 w-[150px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
                        shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
           >
             {navItems.map((it) => {
@@ -324,7 +324,7 @@ const AppNavigationDropdown = () => {
           <div
             onMouseEnter={openPos}
             onMouseLeave={closePos}
-            className="absolute top-full left-0 mt-1 w-[150px] bg-[#141414] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
+            className="absolute top-full left-0 mt-1 w-[150px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
                        shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
           >
             {([

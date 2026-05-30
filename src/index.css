@@ -19,26 +19,27 @@
   --color-brand: #25e889;
   --color-brand-blue: #25e889;
 
-  /* 中性暗灰色阶（v5.0 — 4级清晰层次，步长 ≥8） */
-  --color-bg-base:   #111111;  /* L1 页面底 */
-  --color-bg-dim:    #111111;  /* L1 */
-  --color-bg-deep:   #111111;  /* L1 */
-  --color-bg-card:   #1C1C1C;  /* L2 卡片 (+11) */
-  --color-card:      #1C1C1C;  /* L2 卡片 */
-  --color-surface-1: #111111;  /* L1 */
-  --color-surface-2: #242424;  /* L3 卡片内块 (+8) */
-  --color-surface-3: #1C1C1C;  /* L2 chrome/header */
-  --color-surface-4: #242424;  /* L3 */
-  --color-surface-5: #2E2E2E;  /* L4 hover (+10) */
-  --color-surface-6: #383838;  /* L4+ 高亮 */
+  /* 中性暗灰色阶（v5 — 4级清晰层次，步长 ≥7，L1/L2 色差提升至 +12 肉眼可辨） */
+  --color-bg-base:   #131313;  /* L1 页面底 (v5: +2 lift，给暗色投影呼吸空间) */
+  --color-bg-card:   #1F1F1F;  /* L2 卡片 (+12 from L1, 任何屏幕可见) */
+  --color-card:      #1F1F1F;  /* L2 widget-card */
+  --color-surface-1: #131313;  /* L1 页面底 */
+  --color-surface-2: #262626;  /* L3 卡片内块 tile (+7) */
+  --color-surface-3: #1F1F1F;  /* L2 chrome/header */
+  --color-surface-4: #262626;  /* L3 tile（surface-2 别名） */
+  --color-surface-5: #2E2E2E;  /* L4 hover (+8) */
+  --color-surface-6: #383838;  /* L4+ 高亮 (+10) */
   --color-bg-hover:  #2E2E2E;  /* 全局 hover */
+
+  /* 下拉菜单 / 浮层面板（v5 新增，统一替换硬编码 #141414） */
+  --color-dropdown:  #1F1F1F;  /* 与卡片同层 L2 */
 
   /* Borders */
   --color-border-subtle: rgba(255,255,255,0.07);
   --color-border-strong: #383838;
 
   /* Input / Form */
-  --color-input-bg:  #1C1C1C;  /* L2 */
+  --color-input-bg:  #1F1F1F;  /* L2 */
   --color-text-muted: #888888;
 
   /* Trade colors — macOS traffic light */
@@ -63,10 +64,10 @@
   --nexus-radius: 8px;
 }
 
-/* ===== 暖灰主题（v3.0 — 纯色差，无毛玻璃） ===== */
+/* ===== 中性暗灰色阶（v5 — 纯色差，无毛玻璃） ===== */
 
 html {
-  background: #080808;  /* 最底层，滚动回弹露出 */
+  background: #0A0A0A;  /* L0 最底层，滚动回弹露出（v5: 比纯黑亮10，有“边界感”） */
 }
 
 body {
@@ -103,7 +104,7 @@ body {
 
 /* 轻浮层（用于下拉菜单等） */
 .glass-light {
-  background: var(--color-bg-card);  /* #1C1C1C 纯色，无 blur */
+  background: var(--color-bg-card);  /* #1F1F1F 纯色，无 blur */
   border-radius: 10px;               /* --radius-2xl */
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -244,17 +245,17 @@ html.is-scrolling * {
   --nexus-red:       #FF5F57;
   --nexus-yellow:    #FEBC2E;
 
-  /* 文字层级（DESIGN.md v4 — WCAG AA 全部达标） */
+  /* 文字层级（WCAG AA 全部达标） */
   --nexus-text-pri:  #F0F0EE;                  /* white/90 等价，13.9:1 */
   --nexus-text-sec:  rgba(255, 255, 255, 0.80); /* 11.3:1 */
   --nexus-text-dim:  rgba(255, 255, 255, 0.55); /* 6.0:1 — 最低可用标签 */
 
   /* 兼容别名 — 指向 @theme 权威变量（勿在新代码中直接使用） */
-  --widget-glass:     var(--color-bg-card);   /* #1C1C1C */
-  --widget-glass-dim: var(--color-surface-1); /* #111111 */
+  --widget-glass:     var(--color-bg-card);   /* #1F1F1F L2 */
+  --widget-glass-dim: var(--color-surface-1); /* #131313 L1 */
   --base:             var(--color-bg-card);
   --base-dim:         var(--color-surface-1);
-  --base-strong:      var(--color-surface-3); /* #1C1C1C */
+  --base-strong:      var(--color-surface-3); /* #1F1F1F L2 */
   --base-tint-1:      var(--color-surface-1);
   --base-tint-2:      var(--color-surface-2);
   --base-tint-3:      var(--color-surface-4);
@@ -271,8 +272,6 @@ html.is-scrolling * {
   --widget-glass: rgba(255, 255, 255, 0.85);
   --widget-glass-dim: rgba(255, 255, 255, 0.75);
   --color-bg-base: #f5f5f5;
-  --color-bg-dim: #f0f0f0;
-  --color-bg-deep: #eaeaea;
   --color-bg-card: rgba(0, 0, 0, 0.03);
   --color-surface-1: rgba(0, 0, 0, 0.03);
   --color-surface-2: rgba(0, 0, 0, 0.05);
@@ -285,9 +284,9 @@ html.is-scrolling * {
   --color-text-muted: #6B7280;
 }
 
-/* ── Widget 卡片容器（DESIGN.md v4 浮起范式） ── */
+/* ── Widget 卡片容器（v5 浮起范式） ── */
 .widget-card {
-  background: var(--color-card);           /* #1C1C1C L2 */
+  background: var(--color-card);           /* #1F1F1F L2 */
   border-radius: 8px;                      /* --radius-xl */
   box-shadow:
     0 12px 34px -8px rgba(0,0,0,0.70),
@@ -358,7 +357,7 @@ html.is-scrolling * {
 
 /* Tile 数据块 — L3 内块，纯色差无边框 */
 .dash-tile {
-  background: var(--color-surface-2);  /* #242424 L3 */
+  background: var(--color-surface-2);  /* #262626 L3 */
   border-radius: 8px;
   transition: transform var(--dur-fast) var(--ease-emphasis),
               filter var(--dur-fast) var(--ease-emphasis),
@@ -686,7 +685,7 @@ html.is-scrolling * {
   margin-top: 10px;
   padding: 7px 10px;
   border-radius: 8px;
-  background: var(--color-surface-2);  /* #242424 L3，无 blur */
+  background: var(--color-surface-2);  /* #262626 L3，无 blur */
   font-size: 11px;
   position: relative;
   z-index: 1;

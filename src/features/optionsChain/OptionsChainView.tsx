@@ -1080,7 +1080,7 @@ export default function OptionsChainView() {
 
       {/* ── Single scroll area (both axes). Headers are sticky to THIS scroller, so
             rows pass underneath them on vertical scroll instead of covering them. ── */}
-      <div ref={parentRef} className="flex-1 min-h-0 overflow-auto p-3">
+      <div ref={parentRef} className="flex-1 min-h-0 overflow-auto px-3 pb-3">
         {/* Chain card — overflow:clip rounds corners WITHOUT becoming a scroll
             container (which would trap the sticky header inside the card). */}
         <div className="rounded-xl border" style={{ overflow: 'clip', borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, minWidth: totalWidth }}>

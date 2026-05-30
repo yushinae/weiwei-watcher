@@ -199,6 +199,7 @@ const AppNavigationDropdown = () => {
   const isDashboard = location.pathname === '/dashboard';
   const isMonitor = location.pathname === '/monitor';
   const isPositionBuilder = location.pathname === '/position-builder';
+  const isOptionsChain = location.pathname === '/options-chain';
 
   const [posOpen, setPosOpen] = useState(false);
   const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -291,6 +292,18 @@ const AppNavigationDropdown = () => {
         )}>
         监控
       </button>
+
+      <button
+        onClick={() => navigate('/options-chain')}
+        onMouseEnter={preload.optionsChain}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isOptionsChain ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+        )}
+      >
+        期权
+      </button>
+
       <div
         className="relative"
         onMouseEnter={openPos}

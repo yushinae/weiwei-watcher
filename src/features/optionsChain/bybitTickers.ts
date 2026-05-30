@@ -21,6 +21,7 @@ export interface BybitOptionTicker {
   type: 'C' | 'P';
   bidPrice: number | null;
   askPrice: number | null;
+  lastPrice: number;
   markPrice: number;
   indexPrice: number;
   underlyingPrice: number;
@@ -122,6 +123,7 @@ export async function fetchBybitTickers(coin: 'BTC' | 'ETH'): Promise<BybitOptio
       type: parsed.type,
       bidPrice: parseNum(raw.bid1Price),
       askPrice: parseNum(raw.ask1Price),
+      lastPrice: parseNum(raw.lastPrice, 0)!,
       markPrice: parseNum(raw.markPrice, 0)!,
       indexPrice: parseNum(raw.indexPrice, 0)!,
       underlyingPrice: parseNum(raw.underlyingPrice, 0)!,

@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, {
-  useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect, memo,
+  useState, useMemo, useCallback, useRef, useEffect, useReducer, memo,
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -22,7 +22,7 @@ import {
   buildBybitExpiry, buildDeribitExpiry, genBook, seedFor, dteLabel,
 } from './chainModel';
 import type { ChainExpiry, ChainRow, Side, Coin, DataSource } from './chainModel';
-import { useOCStore, ocStore, coinOf, sourceOf, underlyingFor, tagColor, UNDERLYINGS } from './store';
+import { useOCStore, ocStore, coinOf, sourceOf, underlyingFor } from './store';
 import './options-chain.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,10 +52,13 @@ const SIDE_COLS: ViewCol[] = ([
 const STRIKE_W = 76;
 const ROW_H = 32;
 
-const BG_MAIN = 'var(--db-bg-main)';
-const BG_HEADER = 'var(--db-bg-header)';
+const BG_MAIN = 'var(--db-bg-main)';     // L1 页面底
+const BG_HEADER = 'var(--db-bg-header)'; // L2 chrome/表头
+const BG_CARD = 'var(--color-card)';     // L2 卡片 #1F1F1F
 const BORDER_C = 'var(--db-border)';
 const BORDER_STRONG = 'var(--db-border-strong)';
+// 卡片浮起阴影（DESIGN v5 浮起范式）
+const CARD_SHADOW = '0 12px 34px -10px rgba(0,0,0,0.55), 0 2px 8px -3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)';
 const GLOW_C = 'var(--db-accent)';
 
 const TABNUM: React.CSSProperties = {
@@ -361,54 +364,221 @@ const SectionRow = memo(({ spot, dateLabel, atmIV, spotDp, dte, callSideWidth, e
 ));
 SectionRow.displayName = 'SectionRow';
 
+// Canonical option symbol — must match between the ticket and the live-marks feed.
+const optionSymbol = (coin: string, dateLabel: string, strike: number, type: 'C' | 'P') =>
+  `${coin}-${dateLabel.replace(/\s+/g, '')}-${strike}-${type}`;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Local order book / positions (no global store — demo state per mount)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
+interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
 interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number }
 interface SimFill { id: string; symbol: string; side: 'buy' | 'sell'; qty: number; price: number; fee: number; timestamp: number }
 
 interface PlaceArgs { side: 'buy' | 'sell'; type: 'limit' | 'market' | 'stop'; symbol: string; qty: number; price: number; mark: number; delta: number }
 
-function useLocalBook() {
-  const [positions, setPositions] = useState<SimPosition[]>([]);
-  const [openOrders, setOpenOrders] = useState<SimOrder[]>([]);
-  const [orderHistory, setOrderHistory] = useState<SimOrder[]>([]);
-  const [fills, setFills] = useState<SimFill[]>([]);
+interface BookState { positions: SimPosition[]; openOrders: SimOrder[]; orderHistory: SimOrder[]; fills: SimFill[] }
 
-  const placeOrder = useCallback((a: PlaceArgs) => {
-    const id = Math.random().toString(36).slice(2, 9);
-    const now = Date.now();
-    if (a.type === 'market') {
-      const px = a.mark;
-      setFills(f => [...f, { id, symbol: a.symbol, side: a.side, qty: a.qty, price: px, fee: px * a.qty * 0.0005, timestamp: now }]);
-      setOrderHistory(h => [...h, { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: px, status: 'filled', createdAt: now, filledPrice: px }]);
-      setPositions(ps => {
-        const signed = a.side === 'buy' ? a.qty : -a.qty;
-        const ex = ps.find(p => p.symbol === a.symbol);
-        if (!ex) {
-          return [...ps, { id, symbol: a.symbol, side: signed > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: a.mark, unrealizedPnL: 0, delta: a.delta * signed }];
-        }
-        const cur = ex.side === 'long' ? ex.qty : -ex.qty;
-        const next = cur + signed;
-        if (next === 0) return ps.filter(p => p.symbol !== a.symbol);
-        return ps.map(p => p.symbol === a.symbol ? { ...p, side: next > 0 ? 'long' : 'short', qty: Math.abs(next), markPrice: a.mark, delta: a.delta * next } : p);
-      });
-    } else {
-      setOpenOrders(o => [...o, { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, status: 'pending', createdAt: now }]);
-      setOrderHistory(h => [...h, { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, status: 'pending', createdAt: now }]);
+const rid = () => Math.random().toString(36).slice(2, 9);
+
+/** Apply a fill to the positions list — proper average price + realized close. */
+function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell', qty: number, px: number, optDelta: number): SimPosition[] {
+  const signed = side === 'buy' ? qty : -qty;
+  const ex = ps.find(p => p.symbol === symbol);
+  if (!ex) {
+    const sign = signed > 0 ? 1 : -1;
+    return [...ps, { id: rid(), symbol, side: sign > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: px, unrealizedPnL: 0, delta: optDelta * sign }];
+  }
+  const cur = ex.side === 'long' ? ex.qty : -ex.qty;
+  const next = cur + signed;
+  if (Math.abs(next) < 1e-9) return ps.filter(p => p.symbol !== symbol);
+  const growing = Math.sign(next) === Math.sign(cur) && Math.abs(next) > Math.abs(cur);
+  const flipped = Math.sign(next) !== Math.sign(cur);
+  let avg = ex.avgEntryPrice;
+  if (cur === 0 || growing) avg = (ex.avgEntryPrice * Math.abs(cur) + px * Math.abs(signed)) / Math.abs(next);
+  else if (flipped) avg = px; // remaining qty opens fresh at fill price
+  const sign = next > 0 ? 1 : -1;
+  return ps.map(p => p.symbol === symbol
+    ? { ...p, side: sign > 0 ? 'long' : 'short', qty: Math.abs(next), avgEntryPrice: avg, markPrice: px, unrealizedPnL: (px - avg) * Math.abs(next) * sign, delta: optDelta * sign }
+    : p);
+}
+
+type BookAction =
+  | { t: 'place'; a: PlaceArgs }
+  | { t: 'cancel'; id: string }
+  | { t: 'marks'; marks: Record<string, number> };
+
+function bookReducer(s: BookState, action: BookAction): BookState {
+  switch (action.t) {
+    case 'place': {
+      const a = action.a;
+      const id = rid();
+      const now = Date.now();
+      if (a.type === 'market') {
+        return {
+          ...s,
+          positions: applyFill(s.positions, a.symbol, a.side, a.qty, a.mark, a.delta),
+          fills: [...s.fills, { id, symbol: a.symbol, side: a.side, qty: a.qty, price: a.mark, fee: a.mark * a.qty * 0.0005, timestamp: now }],
+          orderHistory: [...s.orderHistory, { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.mark, optDelta: a.delta, status: 'filled', createdAt: now, filledPrice: a.mark }],
+        };
+      }
+      const order: SimOrder = { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, optDelta: a.delta, status: 'pending', createdAt: now };
+      return { ...s, openOrders: [...s.openOrders, order], orderHistory: [...s.orderHistory, order] };
     }
-  }, []);
+    case 'cancel': {
+      return {
+        ...s,
+        openOrders: s.openOrders.filter(o => o.id !== action.id),
+        orderHistory: s.orderHistory.map(o => o.id === action.id ? { ...o, status: 'cancelled' } : o),
+      };
+    }
+    case 'marks': {
+      const { marks } = action;
+      // Fill any marketable resting orders (buy: mark ≤ limit, sell: mark ≥ limit).
+      const stillOpen: SimOrder[] = [];
+      const filled: SimOrder[] = [];
+      for (const o of s.openOrders) {
+        const m = marks[o.symbol];
+        if (m != null && ((o.side === 'buy' && m <= o.price) || (o.side === 'sell' && m >= o.price))) filled.push(o);
+        else stillOpen.push(o);
+      }
+      let positions = s.positions;
+      for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, o.optDelta);
+      // Mark-to-market the open positions.
+      positions = positions.map(p => {
+        const m = marks[p.symbol];
+        if (m == null) return p;
+        const sign = p.side === 'long' ? 1 : -1;
+        return { ...p, markPrice: m, unrealizedPnL: (m - p.avgEntryPrice) * p.qty * sign };
+      });
+      if (filled.length === 0 && positions === s.positions) return s;
+      const now = Date.now();
+      return {
+        positions,
+        openOrders: stillOpen,
+        fills: filled.length ? [...s.fills, ...filled.map(o => ({ id: o.id, symbol: o.symbol, side: o.side, qty: o.qty, price: o.price, fee: o.price * o.qty * 0.0005, timestamp: now }))] : s.fills,
+        orderHistory: filled.length ? s.orderHistory.map(e => filled.find(o => o.id === e.id) ? { ...e, status: 'filled' as const, filledPrice: e.price } : e) : s.orderHistory,
+      };
+    }
+    default:
+      return s;
+  }
+}
 
-  return { positions, openOrders, orderHistory, fills, placeOrder };
+function useLocalBook() {
+  const [state, dispatch] = useReducer(bookReducer, { positions: [], openOrders: [], orderHistory: [], fills: [] });
+  const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
+  const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
+  const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
+  return { ...state, placeOrder, cancelOrder, updateMarks };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Positions panel — 仓位 / 未结订单 / 订单历史 / 交易历史 (shared: page + trade modal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BORDER = `1px solid ${BORDER_C}`;
+const POS_GRID = 'grid grid-cols-[minmax(150px,1.6fr)_90px_110px_110px_110px_110px_90px]';
+const POS_MIN_W = 780;
+
+function PositionsPanel({ book, style, className, embedded }: {
+  book: ReturnType<typeof useLocalBook>; style?: React.CSSProperties; className?: string; embedded?: boolean;
+}) {
+  const [btab, setBtab] = useState<'position' | 'open' | 'history' | 'trades'>('position');
+  const { positions, openOrders, orderHistory, fills, cancelOrder } = book;
+
+  // Themed segmented tab buttons.
+  const tabBar = (
+    <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-max" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--db-border)' }}>
+      {([
+        { k: 'position' as const, l: '仓位', c: positions.length },
+        { k: 'open' as const, l: '未结订单', c: openOrders.length },
+        { k: 'history' as const, l: '订单历史记录', c: orderHistory.length },
+        { k: 'trades' as const, l: '交易历史记录', c: fills.length },
+      ]).map(t => {
+        const on = btab === t.k;
+        return (
+          <button key={t.k} onClick={() => setBtab(t.k)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors whitespace-nowrap"
+            style={{ background: on ? 'var(--color-surface-5, #2E2E2E)' : 'transparent', color: on ? '#EAECEF' : 'rgba(255,255,255,0.55)' }}>
+            {t.l}<span className="text-[11px]" style={{ color: on ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)' }}>{t.c}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const table = (
+    <div style={{ minWidth: POS_MIN_W }}>
+      <div className={cn(POS_GRID, 'px-3 py-2 text-[11px] border-b sticky top-0')} style={{ borderColor: BORDER_C, color: 'rgba(255,255,255,0.35)', backgroundColor: BG_HEADER }}>
+        <div>产品</div><div className="text-right">数量</div><div className="text-right">值</div><div className="text-right">平均价格</div><div className="text-right">标记价格</div><div className="text-right">损益</div><div className="text-right">Δ</div>
+      </div>
+      {btab === 'position' && positions.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无持仓</div>}
+      {btab === 'position' && positions.map(p => (
+        <div key={p.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? 'var(--db-up)' : 'var(--db-down)' }}>{p.symbol}</div>
+          <div className="text-right font-mono">{p.qty.toFixed(2)}</div>
+          <div className="text-right font-mono">{(p.markPrice * p.qty).toFixed(2)}</div>
+          <div className="text-right font-mono">{p.avgEntryPrice.toFixed(2)}</div>
+          <div className="text-right font-mono">{p.markPrice.toFixed(2)}</div>
+          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--db-up)' : 'var(--db-down)' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
+          <div className="text-right font-mono">{p.delta.toFixed(3)}</div>
+        </div>
+      ))}
+      {btab === 'open' && openOrders.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无未结订单</div>}
+      {btab === 'open' && openOrders.map(o => (
+        <div key={o.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="font-mono font-bold truncate">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">{o.type === 'limit' ? '限价' : o.type === 'stop' ? '止损' : '市价'}</div>
+          <div className="text-right font-mono">{o.price.toFixed(2)}</div><div className="text-right font-mono">—</div>
+          <div className="text-right font-mono" style={{ color: o.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
+          <div className="text-right">
+            <button onClick={() => cancelOrder(o.id)} className="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.08]" style={{ color: 'var(--db-down)' }}>取消</button>
+          </div>
+        </div>
+      ))}
+      {btab === 'history' && orderHistory.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无历史订单</div>}
+      {btab === 'history' && orderHistory.slice(-30).reverse().map(o => (
+        <div key={o.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="font-mono font-bold truncate">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">—</div>
+          <div className="text-right font-mono">{(o.filledPrice ?? o.price).toFixed(2)}</div><div className="text-right font-mono">—</div>
+          <div className="text-right font-mono" style={{ color: o.status === 'filled' ? 'var(--db-up)' : o.status === 'cancelled' ? '#888888' : 'var(--db-warn)' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
+          <div className="text-right font-mono">{new Date(o.createdAt).toLocaleTimeString()}</div>
+        </div>
+      ))}
+      {btab === 'trades' && fills.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无成交记录</div>}
+      {btab === 'trades' && fills.slice(-30).reverse().map(f => (
+        <div key={f.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="font-mono font-bold truncate">{f.symbol}</div><div className="text-right font-mono">{f.qty.toFixed(2)}</div><div className="text-right font-mono">{(f.price * f.qty).toFixed(2)}</div>
+          <div className="text-right font-mono">{f.price.toFixed(2)}</div><div className="text-right font-mono">{f.fee.toFixed(4)}</div>
+          <div className="text-right font-mono" style={{ color: f.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
+          <div className="text-right font-mono">{new Date(f.timestamp).toLocaleTimeString()}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (embedded) {
+    // Page card — own horizontal scroll, grows vertically (page scrolls).
+    return (
+      <div className={cn('rounded-xl border overflow-hidden shrink-0', className)} style={{ borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, ...style }}>
+        <div className="px-3 py-2 border-b" style={{ borderColor: BORDER_C }}>{tabBar}</div>
+        <div className="overflow-x-auto">{table}</div>
+      </div>
+    );
+  }
+  // Trade-modal version — fixed height, internal vertical scroll.
+  return (
+    <div className={cn('border-t flex flex-col shrink-0 min-h-0', className)} style={{ borderTop: BORDER, backgroundColor: BG_HEADER, ...style }}>
+      <div className="px-3 py-2 shrink-0">{tabBar}</div>
+      <div className="flex-1 min-h-0 overflow-auto">{table}</div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Trading panel (ticket + order book + greeks + positions)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const BORDER = `1px solid ${BORDER_C}`;
 
 const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, onClose }: {
   selected: SelectedCell; coin: Coin; spot: number; dateLabel: string; dec: number; seed: number;
@@ -417,7 +587,7 @@ const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, o
   const { row, side } = selected;
   const opt = side === 'call' ? row.call : row.put;
   const contractName = `${coin}-${row.strike}-${side === 'call' ? 'C' : 'P'}`;
-  const symbol = `${coin}-${dateLabel.replace(/\s+/g, '')}-${row.strike}-${side === 'call' ? 'C' : 'P'}`;
+  const symbol = optionSymbol(coin, dateLabel, row.strike, side === 'call' ? 'C' : 'P');
 
   const [orderType, setOrderType] = useState<'limit' | 'market' | 'stop'>('limit');
   const [quoteMode, setQuoteMode] = useState<'price' | 'iv'>('price');
@@ -429,9 +599,8 @@ const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, o
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
-  const [btab, setBtab] = useState<'position' | 'open' | 'history' | 'trades'>('position');
 
-  const { positions, openOrders, orderHistory, fills, placeOrder } = book;
+  const { placeOrder } = book;
 
   const { asks, bids } = useMemo(() => {
     if (opt.bid === null && opt.ask === null) return { asks: [], bids: [] };
@@ -656,67 +825,7 @@ const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, o
           </div>
 
           {/* BOTTOM: position / orders / history / trades */}
-          <div className="shrink-0 border-t flex flex-col" style={{ borderTop: BORDER, backgroundColor: '#171717', maxHeight: 220 }}>
-            <div className="flex items-center gap-3 px-3 h-9 shrink-0">
-              {([
-                { k: 'position' as const, l: '仓位', c: positions.length },
-                { k: 'open' as const, l: '未结订单', c: openOrders.length },
-                { k: 'history' as const, l: '订单历史记录', c: orderHistory.length },
-                { k: 'trades' as const, l: '交易历史记录', c: fills.length },
-              ]).map(t => {
-                const on = btab === t.k;
-                return (
-                  <button key={t.k} onClick={() => setBtab(t.k)} className="text-[12px] font-semibold" style={{ color: on ? '#EAECEF' : 'rgba(255,255,255,0.45)' }}>
-                    {t.l} <span style={{ color: on ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.30)' }}>{t.c}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[11px] border-t shrink-0" style={{ borderTop: BORDER, color: 'rgba(255,255,255,0.35)' }}>
-              <div>产品</div><div className="text-right">数量</div><div className="text-right">值</div><div className="text-right">平均价格</div><div className="text-right">标记价格</div><div className="text-right">损益</div><div className="text-right">Δ</div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {btab === 'position' && positions.length === 0 && <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无持仓</div>}
-              {btab === 'position' && positions.map(p => (
-                <div key={p.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="font-mono font-bold" style={{ color: p.side === 'long' ? 'var(--db-up)' : 'var(--db-down)' }}>{p.symbol}</div>
-                  <div className="text-right font-mono">{p.qty.toFixed(2)}</div>
-                  <div className="text-right font-mono">{(p.markPrice * p.qty).toFixed(2)}</div>
-                  <div className="text-right font-mono">{p.avgEntryPrice.toFixed(2)}</div>
-                  <div className="text-right font-mono">{p.markPrice.toFixed(2)}</div>
-                  <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--db-up)' : 'var(--db-down)' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
-                  <div className="text-right font-mono">{p.delta.toFixed(3)}</div>
-                </div>
-              ))}
-              {btab === 'open' && openOrders.length === 0 && <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无未结订单</div>}
-              {btab === 'open' && openOrders.map(o => (
-                <div key={o.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="font-mono font-bold">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">—</div>
-                  <div className="text-right font-mono">{o.price.toFixed(2)}</div><div className="text-right font-mono">—</div>
-                  <div className="text-right font-mono" style={{ color: o.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
-                  <div className="text-right font-mono">{o.type}</div>
-                </div>
-              ))}
-              {btab === 'history' && orderHistory.length === 0 && <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无历史订单</div>}
-              {btab === 'history' && orderHistory.slice(-20).reverse().map(o => (
-                <div key={o.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="font-mono font-bold">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">—</div>
-                  <div className="text-right font-mono">{(o.filledPrice ?? o.price).toFixed(2)}</div><div className="text-right font-mono">—</div>
-                  <div className="text-right font-mono" style={{ color: o.status === 'filled' ? 'var(--db-up)' : o.status === 'cancelled' ? '#888888' : 'var(--db-warn)' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
-                  <div className="text-right font-mono">{new Date(o.createdAt).toLocaleTimeString()}</div>
-                </div>
-              ))}
-              {btab === 'trades' && fills.length === 0 && <div className="h-[140px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无成交记录</div>}
-              {btab === 'trades' && fills.slice(-20).reverse().map(f => (
-                <div key={f.id} className="grid grid-cols-[140px_1fr_1fr_1fr_1fr_1fr_1fr] px-3 py-2 text-[12px] border-t" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="font-mono font-bold">{f.symbol}</div><div className="text-right font-mono">{f.qty.toFixed(2)}</div><div className="text-right font-mono">{(f.price * f.qty).toFixed(2)}</div>
-                  <div className="text-right font-mono">{f.price.toFixed(2)}</div><div className="text-right font-mono">{f.fee.toFixed(4)}</div>
-                  <div className="text-right font-mono" style={{ color: f.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
-                  <div className="text-right font-mono">{new Date(f.timestamp).toLocaleTimeString()}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PositionsPanel book={book} style={{ maxHeight: 220 }} />
         </div>
       </div>
     </div>
@@ -729,10 +838,6 @@ TradingPanel.displayName = 'TradingPanel';
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FilterKey = 'all' | 'atm5' | 'atm10';
-const SOURCES: { key: DataSource; label: string }[] = [
-  { key: 'deribit', label: 'Deribit' },
-  { key: 'bybit', label: 'Bybit' },
-];
 
 export default function OptionsChainView() {
   // Selection lives in a shared store so the global nav menu stays in sync.
@@ -788,6 +893,18 @@ export default function OptionsChainView() {
   const dte = expiry ? dteLabel(expiry.daysToExp) : '—';
   const seed = useMemo(() => seedFor(source + coin + (expiry?.label ?? '')), [source, coin, expiry?.label]);
 
+  // Feed live marks → positions mark-to-market + fill marketable resting orders.
+  const updateMarks = book.updateMarks;
+  useEffect(() => {
+    if (!expiry) return;
+    const marks: Record<string, number> = {};
+    for (const r of expiry.rows) {
+      if (r.call.mark > 0) marks[optionSymbol(coin, expiry.dateLabel, r.strike, 'C')] = r.call.mark;
+      if (r.put.mark > 0) marks[optionSymbol(coin, expiry.dateLabel, r.strike, 'P')] = r.put.mark;
+    }
+    updateMarks(marks);
+  }, [expiry, coin, updateMarks]);
+
   // ±1σ expected-move band
   const { emLower, emUpper } = useMemo(() => {
     const days = expiry?.daysToExp ?? 0;
@@ -826,13 +943,21 @@ export default function OptionsChainView() {
   // Reset selection when underlying changes (store already resets expiryIdx)
   useEffect(() => { setSelectedCell(null); }, [underlying]);
 
-  // Publish expiry list to the shared store so the global nav menu can show it.
-  useEffect(() => {
-    ocStore.setExpiries(expiries.map(e => ({ key: e.key, label: e.label, daysToExp: e.daysToExp })));
-  }, [expiries]);
-
   // Auto-scroll: center the strike column horizontally + ATM row vertically
   const parentRef = useRef<HTMLDivElement>(null);
+
+  // Viewport width so the positions card can pin to it (not drift on horizontal scroll).
+  const [vpWidth, setVpWidth] = useState(0);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    const update = () => setVpWidth(el.clientWidth - 24); // minus p-3 padding
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     const el = parentRef.current;
     if (!el) return;
@@ -850,7 +975,7 @@ export default function OptionsChainView() {
       style={{ backgroundColor: BG_MAIN, color: 'var(--db-text)', fontVariantNumeric: 'tabular-nums' }}>
 
       {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
-      <div className="flex items-end justify-between px-3 pt-1.5 shrink-0" style={{ backgroundColor: BG_MAIN }}>
+      <div className="flex items-end justify-between px-3 pt-1.5 shrink-0" style={{ backgroundColor: BG_HEADER }}>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center">
             <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
@@ -859,23 +984,27 @@ export default function OptionsChainView() {
           <div className="shrink-0 mt-0.5" style={{ height: 2, backgroundColor: '#1E90FF' }} />
         </div>
 
-        {/* Data source toggle */}
-        <div className="flex items-center gap-2 pb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">数据源</span>
-          <div className="flex rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--color-bg-base)', border: '1px solid var(--db-border)' }}>
-            {SOURCES.map(s => (
-              <button key={s.key} onClick={() => { if (s.key !== source) ocStore.setUnderlying(underlyingFor(coin, s.key)); }}
-                className="px-3 py-1 rounded-md text-xs font-bold transition-colors"
-                style={{ background: source === s.key ? 'var(--db-accent)' : 'transparent', color: source === s.key ? '#0b0b0b' : 'rgba(255,255,255,0.55)' }}>
-                {s.label}
+        {/* Data source badge — small indicator (click to toggle) */}
+        <div className="pb-1">
+          {(() => {
+            const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
+            return (
+              <button
+                onClick={() => ocStore.setUnderlying(underlyingFor(coin, source === 'bybit' ? 'deribit' : 'bybit'))}
+                className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125"
+                style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
+                title="切换数据源"
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+                <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
               </button>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
       {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_MAIN }}>
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
         {/* 到期日 dropdown */}
         <div className="relative">
           <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
@@ -949,10 +1078,14 @@ export default function OptionsChainView() {
         <div className="flex-1" />
       </div>
 
-      {/* ── Table viewport ── */}
-      <div ref={parentRef} className="flex-1 min-h-0 overflow-auto" style={{ width: '100%' }}>
-        <div style={{ minWidth: totalWidth, position: 'relative' }}>
-          {/* Sticky header */}
+      {/* ── Single scroll area (both axes). Headers are sticky to THIS scroller, so
+            rows pass underneath them on vertical scroll instead of covering them. ── */}
+      <div ref={parentRef} className="flex-1 min-h-0 overflow-auto p-3">
+        {/* Chain card — overflow:clip rounds corners WITHOUT becoming a scroll
+            container (which would trap the sticky header inside the card). */}
+        <div className="rounded-xl border" style={{ overflow: 'clip', borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, minWidth: totalWidth }}>
+            <div style={{ position: 'relative' }}>
+          {/* Sticky header — pins at the top of the scroll area; rows scroll beneath */}
           <div className="sticky top-0 z-30" style={{ backgroundColor: BG_HEADER }}>
             <SectionRow spot={spot} dateLabel={expiry?.dateLabel ?? '—'} atmIV={atmIV} spotDp={spotDp} dte={dte}
               callSideWidth={colsWidth} emLower={emLower} emUpper={emUpper} />
@@ -979,7 +1112,7 @@ export default function OptionsChainView() {
                 <div className="absolute left-0 w-full pointer-events-none flex justify-center z-0" style={{ top: emBandTop, height: emBandHeight }}>
                   <div className="relative h-full" style={{ width: STRIKE_W }}>
                     <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-[8px]"
-                      style={{ background: 'rgba(37,232,137,0.10)', borderLeft: '1px solid var(--db-accent-soft)', borderRight: '1px solid var(--db-accent-soft)', boxShadow: 'inset 0 0 10px rgba(37,232,137,0.12)' }} />
+                      style={{ background: 'rgba(30,144,255,0.10)', borderLeft: '1px solid var(--db-accent-soft)', borderRight: '1px solid var(--db-accent-soft)', boxShadow: 'inset 0 0 10px rgba(30,144,255,0.12)' }} />
                   </div>
                 </div>
               )}
@@ -1000,16 +1133,22 @@ export default function OptionsChainView() {
 
               {/* Spot line */}
               <div className="absolute left-0 w-full pointer-events-none z-[5]" style={{ top: `${spotY}px`, height: '0px' }}>
-                <div className="absolute left-0 w-full h-[1px] -translate-y-1/2" style={{ background: 'var(--db-spot)', boxShadow: '0 0 6px rgba(37,232,137,0.85)' }} />
+                <div className="absolute left-0 w-full h-[1px] -translate-y-1/2" style={{ background: 'var(--db-spot)', boxShadow: '0 0 6px rgba(30,144,255,0.85)' }} />
               </div>
               <div className="absolute left-0 w-full pointer-events-none z-20" style={{ top: `${spotY}px`, height: '0px' }}>
                 <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 h-[20px] flex items-center justify-center leading-none rounded-sm text-[13px] font-bold"
-                  style={{ background: 'var(--db-spot)', color: '#0b0b0b', boxShadow: '0 2px 6px rgba(0,0,0,0.6)', border: '1px solid rgba(37,232,137,0.6)' }}>
+                  style={{ background: 'var(--db-spot)', color: '#0b0b0b', boxShadow: '0 2px 6px rgba(0,0,0,0.6)', border: '1px solid rgba(30,144,255,0.6)' }}>
                   {spot.toLocaleString('en-US', { maximumFractionDigits: dec })}
                 </div>
               </div>
             </div>
           )}
+            </div>
+        </div>
+
+        {/* ── Positions card — sticky-left so it stays put during horizontal scroll ── */}
+        <div className="sticky left-0 mt-3" style={{ width: vpWidth || '100%' }}>
+          <PositionsPanel book={book} embedded />
         </div>
       </div>
 

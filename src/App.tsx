@@ -234,8 +234,8 @@ const AppNavigationDropdown = () => {
   };
 
   const navItems = [
-    { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
     { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
+    { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
     { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
     { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
   ];
@@ -285,17 +285,6 @@ const AppNavigationDropdown = () => {
       </div>
 
       <button
-        onClick={() => navigate('/dashboard')}
-        onMouseEnter={preload.dashboard}
-        className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isDashboard ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
-        )}
-      >
-        决策
-      </button>
-
-      <button
         onClick={() => navigate('/monitor')}
         onMouseEnter={preload.monitor}
         className={cn(
@@ -306,15 +295,36 @@ const AppNavigationDropdown = () => {
       </button>
 
       <button
-        onClick={() => navigate('/options-chain')}
-        onMouseEnter={preload.optionsChain}
+        onClick={() => navigate('/dashboard')}
+        onMouseEnter={preload.dashboard}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isOptionsChain ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          isDashboard ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
         )}
       >
-        期权
+        决策
       </button>
+
+      <div className="relative" onMouseEnter={() => { openOpt(); preload.optionsChain(); }} onMouseLeave={closeOpt}>
+        <button
+          onClick={() => navigate('/options-chain')}
+          className={cn(
+            "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+            isOptionsChain || optOpen ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          )}
+        >
+          期权
+        </button>
+        {optOpen && (
+          <div className="absolute top-full left-0 mt-1 z-[200]">
+            <OptionsHoverMenu
+              onMouseEnter={openOpt}
+              onMouseLeave={closeOpt}
+              onPick={() => { setOptOpen(false); navigate('/options-chain'); }}
+            />
+          </div>
+        )}
+      </div>
 
       <div
         className="relative"

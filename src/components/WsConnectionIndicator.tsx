@@ -92,7 +92,7 @@ export default function WsConnectionIndicator() {
         <div
           onMouseEnter={open}
           onMouseLeave={close}
-          className="absolute right-0 top-full mt-1.5 z-[300] min-w-[150px] bg-[#141414] rounded-xl p-3 ring-1 ring-white/[0.08] shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+          className="absolute right-0 top-full mt-1.5 z-[300] min-w-[150px] bg-[var(--color-dropdown)] rounded-xl p-3 ring-1 ring-white/[0.08] shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
         >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">

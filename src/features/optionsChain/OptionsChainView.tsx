@@ -280,7 +280,7 @@ export default function OptionsChainView() {
 
         <div className="flex items-center gap-2">
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />}
-          <div className="flex rounded-lg bg-[#111] p-0.5 gap-0.5">
+          <div className="flex rounded-lg bg-[var(--color-bg-base)] p-0.5 gap-0.5">
             {COINS.map(c => (
               <button
                 key={c}

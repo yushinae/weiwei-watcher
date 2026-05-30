@@ -978,109 +978,109 @@ export default function OptionsChainView() {
     <div className="db-oc-root deribit relative flex flex-col overflow-hidden select-none h-full"
       style={{ backgroundColor: BG_MAIN, color: 'var(--db-text)', fontVariantNumeric: 'tabular-nums' }}>
 
-      {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
-      <div className="flex items-end justify-between px-3 pt-1.5 shrink-0" style={{ backgroundColor: BG_HEADER }}>
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center">
-            <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
-            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30 ml-1.5" />}
-          </div>
-          <div className="shrink-0 mt-0.5" style={{ height: 2, backgroundColor: '#1E90FF' }} />
-        </div>
-        <div className="pb-1">
-          {(() => {
-            const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
-            return (
-              <button
-                onClick={() => ocStore.setUnderlying(underlyingFor(coin, source === 'bybit' ? 'deribit' : 'bybit'))}
-                className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125"
-                style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
-                title="切换数据源"
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-                <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
-              </button>
-            );
-          })()}
-        </div>
-      </div>
-
-      {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
-        <div className="relative">
-          <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
-            到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.label}</span>}
-            <ChevronDown size={14} className="text-white/50" />
-          </button>
-          <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
-            <div className="py-2 max-h-[360px] overflow-auto">
-              {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
-              {expiries.map((e, i) => {
-                const on = i === expiryIdx;
-                return (
-                  <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); ocStore.setExpiryIdx(i); setSelectedCell(null); }}>
-                    <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                    <span className="flex-1 font-semibold">{e.dateLabel}</span>
-                    <span className="text-white/35 font-mono text-[11px]">{dteLabel(e.daysToExp)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Popover>
-        </div>
-
-        <div className="w-px h-4" style={{ background: BORDER_C }} />
-
-        <div className="relative">
-          <button className="db-menu-btn" onClick={() => { setColumnsOpen(v => !v); setFilterOpen(false); setExpiryMenuOpen(false); }}>
-            <SlidersHorizontal size={13} /> 列
-          </button>
-          <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[260px]">
-            <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.08]">
-              <button className="text-[12px] font-semibold" style={{ color: 'var(--db-accent)' }} onClick={() => setVisibleColIds(new Set(SIDE_COLS.map(c => c.id)))}>全选</button>
-              <span className="text-white/25">·</span>
-              <button className="text-[12px] font-semibold text-white/55 hover:text-white/80" onClick={() => setVisibleColIds(new Set(['mark', 'bid', 'ask', 'ivBid', 'ivAsk', 'delta', 'size', 'pos']))}>精简</button>
-              <div className="ml-auto text-[12px] text-white/45">{visibleColIds.size}/{SIDE_COLS.length}</div>
-            </div>
-            <div className="py-2 max-h-[420px] overflow-auto">
-              {SIDE_COLS.map(c => {
-                const on = visibleColIds.has(c.id);
-                return (
-                  <button key={c.id} className="db-menu-item text-left" onClick={() => setVisibleColIds(prev => {
-                    const next = new Set(prev); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next;
-                  })}>
-                    <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                    <span className="flex-1">{c.label}<span className="ml-2 text-white/35 font-mono text-[12px]">{c.subLabel}</span></span>
-                    <span className="text-white/30 font-mono text-[12px]">{c.w}px</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Popover>
-        </div>
-
-        <div className="relative">
-          <button className="db-menu-btn" onClick={() => { setFilterOpen(v => !v); setColumnsOpen(false); }}>
-            <Filter size={12} /> 过滤{filterKey !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--db-accent)' }} />}
-          </button>
-          <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
-            {([{ k: 'all' as const, l: '全部行权价' }, { k: 'atm5' as const, l: 'ATM ±5 档' }, { k: 'atm10' as const, l: 'ATM ±10 档' }]).map(({ k, l }) => (
-              <button key={k} className="db-menu-item text-left" onClick={() => { setFilterOpen(false); setFilterKey(k); }}>
-                <span className={cn('db-check', filterKey === k && 'is-on')}>{filterKey === k && <Check size={12} className="text-black" strokeWidth={3} />}</span>{l}
-              </button>
-            ))}
-          </Popover>
-        </div>
-
-        <button className="db-menu-btn" onClick={() => setShowDist(v => !v)}>
-          <span className={cn('db-check', showDist && 'is-on')}>{showDist && <Check size={12} className="text-black" strokeWidth={3} />}</span>Dist
-        </button>
-
-        <div className="flex-1" />
-      </div>
-
       {/* ── Container 2: vertical-only scroll area for card + positions ── */}
       <div ref={parentRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden px-3 pb-1">
+
+        {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
+        <div className="flex items-end justify-between pt-1.5" style={{ backgroundColor: BG_HEADER }}>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center">
+              <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30 ml-1.5" />}
+            </div>
+            <div className="shrink-0 mt-0.5" style={{ height: 2, backgroundColor: '#1E90FF' }} />
+          </div>
+          <div className="pb-1">
+            {(() => {
+              const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
+              return (
+                <button
+                  onClick={() => ocStore.setUnderlying(underlyingFor(coin, source === 'bybit' ? 'deribit' : 'bybit'))}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125"
+                  style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
+                  title="切换数据源"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+                  <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
+                </button>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
+        <div className="flex items-center gap-2 py-1.5 border-b" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
+          <div className="relative">
+            <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
+              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.label}</span>}
+              <ChevronDown size={14} className="text-white/50" />
+            </button>
+            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
+              <div className="py-2 max-h-[360px] overflow-auto">
+                {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
+                {expiries.map((e, i) => {
+                  const on = i === expiryIdx;
+                  return (
+                    <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); ocStore.setExpiryIdx(i); setSelectedCell(null); }}>
+                      <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
+                      <span className="flex-1 font-semibold">{e.dateLabel}</span>
+                      <span className="text-white/35 font-mono text-[11px]">{dteLabel(e.daysToExp)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Popover>
+          </div>
+
+          <div className="w-px h-4" style={{ background: BORDER_C }} />
+
+          <div className="relative">
+            <button className="db-menu-btn" onClick={() => { setColumnsOpen(v => !v); setFilterOpen(false); setExpiryMenuOpen(false); }}>
+              <SlidersHorizontal size={13} /> 列
+            </button>
+            <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[260px]">
+              <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.08]">
+                <button className="text-[12px] font-semibold" style={{ color: 'var(--db-accent)' }} onClick={() => setVisibleColIds(new Set(SIDE_COLS.map(c => c.id)))}>全选</button>
+                <span className="text-white/25">·</span>
+                <button className="text-[12px] font-semibold text-white/55 hover:text-white/80" onClick={() => setVisibleColIds(new Set(['mark', 'bid', 'ask', 'ivBid', 'ivAsk', 'delta', 'size', 'pos']))}>精简</button>
+                <div className="ml-auto text-[12px] text-white/45">{visibleColIds.size}/{SIDE_COLS.length}</div>
+              </div>
+              <div className="py-2 max-h-[420px] overflow-auto">
+                {SIDE_COLS.map(c => {
+                  const on = visibleColIds.has(c.id);
+                  return (
+                    <button key={c.id} className="db-menu-item text-left" onClick={() => setVisibleColIds(prev => {
+                      const next = new Set(prev); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next;
+                    })}>
+                      <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
+                      <span className="flex-1">{c.label}<span className="ml-2 text-white/35 font-mono text-[12px]">{c.subLabel}</span></span>
+                      <span className="text-white/30 font-mono text-[12px]">{c.w}px</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Popover>
+          </div>
+
+          <div className="relative">
+            <button className="db-menu-btn" onClick={() => { setFilterOpen(v => !v); setColumnsOpen(false); }}>
+              <Filter size={12} /> 过滤{filterKey !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--db-accent)' }} />}
+            </button>
+            <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
+              {([{ k: 'all' as const, l: '全部行权价' }, { k: 'atm5' as const, l: 'ATM ±5 档' }, { k: 'atm10' as const, l: 'ATM ±10 档' }]).map(({ k, l }) => (
+                <button key={k} className="db-menu-item text-left" onClick={() => { setFilterOpen(false); setFilterKey(k); }}>
+                  <span className={cn('db-check', filterKey === k && 'is-on')}>{filterKey === k && <Check size={12} className="text-black" strokeWidth={3} />}</span>{l}
+                </button>
+              ))}
+            </Popover>
+          </div>
+
+          <button className="db-menu-btn" onClick={() => setShowDist(v => !v)}>
+            <span className={cn('db-check', showDist && 'is-on')}>{showDist && <Check size={12} className="text-black" strokeWidth={3} />}</span>Dist
+          </button>
+
+          <div className="flex-1" />
+        </div>
         {/* Chain card — flex-1 so data area fills remaining height, has own bi‑directional scroll */}
         <div className="flex flex-col rounded-xl border min-h-[200px]" style={{ overflow: 'hidden', borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, minWidth: totalWidth }}>
           <SectionRow spot={spot} dateLabel={expiry?.dateLabel ?? '—'} atmIV={atmIV} spotDp={spotDp} dte={dte}

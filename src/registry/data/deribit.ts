@@ -17,6 +17,7 @@ export interface ParsedOption {
   delta: number;
   oi: number;
   volume: number;
+  instrument: string; // Deribit instrument_name, e.g. "BTC-27JUN25-100000-C" (for WS ticker subscribe)
 }
 
 export interface ExpiryGroup {
@@ -117,6 +118,7 @@ export function processDeribitResponse(results: any[]): DeribitData {
       delta,
       oi: (item.open_interest ?? 0) as number,
       volume: (item.volume ?? 0) as number,
+      instrument: item.instrument_name as string,
     });
   }
 

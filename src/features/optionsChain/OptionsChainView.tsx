@@ -12,11 +12,12 @@ import React, {
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ChevronDown, X, Check, Loader2, Download, SlidersHorizontal, Filter,
+  ChevronDown, X, Check, Loader2, Download, SlidersHorizontal, Filter, Maximize2, ChevronsUpDown, Plus,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { HoverPopover } from '../../components/popup/Popup';
 import { useOptionChain } from './bybitTickers';
+import { useLiveSpot, useChainStream } from './liveData';
 import { useDeribitOptions } from '../../registry/data/deribit';
 import {
   buildBybitExpiry, buildDeribitExpiry, genBook, seedFor, dteLabel,
@@ -482,6 +483,18 @@ const BORDER = `1px solid ${BORDER_C}`;
 const POS_GRID = 'grid grid-cols-[minmax(150px,1.6fr)_90px_110px_110px_110px_110px_90px]';
 const POS_MIN_W = 780;
 
+// Window-frame controls (放大 / 拉伸 / 关闭) — top-right of each component card.
+// Visual placeholders for the future widget framework.
+function FrameControls() {
+  return (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <button type="button" className="db-frame-iconbtn" title="最大化"><Maximize2 size={15} /></button>
+      <button type="button" className="db-frame-iconbtn" title="展开 / 收起"><ChevronsUpDown size={15} /></button>
+      <button type="button" className="db-frame-iconbtn" title="关闭"><X size={16} /></button>
+    </div>
+  );
+}
+
 function PositionsPanel({ book, style, className, embedded }: {
   book: ReturnType<typeof useLocalBook>; style?: React.CSSProperties; className?: string; embedded?: boolean;
 }) {
@@ -562,7 +575,11 @@ function PositionsPanel({ book, style, className, embedded }: {
     // Page card — own horizontal scroll, grows vertically (page scrolls).
     return (
       <div className={cn('rounded-xl border overflow-hidden shrink-0', className)} style={{ borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, ...style }}>
-        <div className="px-3 py-2 border-b" style={{ borderColor: BORDER_C }}>{tabBar}</div>
+        <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: BORDER_C }}>
+          {tabBar}
+          <div className="flex-1" />
+          <FrameControls />
+        </div>
         <div className="overflow-x-auto">{table}</div>
       </div>
     );
@@ -575,6 +592,35 @@ function PositionsPanel({ book, style, className, embedded }: {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FlashValue — briefly highlights (green up / red down) when its value changes,
+// so live WS ticks are visible at a glance.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FlashValue = memo(({ text, className, style }: { text: string; className?: string; style?: React.CSSProperties }) => {
+  const prev = useRef(text);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  useEffect(() => {
+    if (text === prev.current) return;
+    const a = parseFloat(text.replace(/[^0-9.-]/g, ''));
+    const b = parseFloat(prev.current.replace(/[^0-9.-]/g, ''));
+    prev.current = text;
+    setFlash(Number.isFinite(a) && Number.isFinite(b) ? (a > b ? 'up' : a < b ? 'down' : null) : null);
+    const t = setTimeout(() => setFlash(null), 480);
+    return () => clearTimeout(t);
+  }, [text]);
+  return (
+    <span className={className} style={{
+      ...style,
+      borderRadius: 3,
+      transition: 'background-color 90ms ease',
+      backgroundColor: flash === 'up' ? 'rgba(40,200,64,0.30)' : flash === 'down' ? 'rgba(255,95,87,0.30)' : 'transparent',
+      boxShadow: flash ? '0 0 0 2px ' + (flash === 'up' ? 'rgba(40,200,64,0.30)' : 'rgba(255,95,87,0.30)') : 'none',
+    }}>{text}</span>
+  );
+});
+FlashValue.displayName = 'FlashValue';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Trading panel (ticket + order book + greeks + positions)
@@ -646,7 +692,7 @@ const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, o
             ].map(item => (
               <div key={item.label} className="flex items-center gap-1.5">
                 <span className="text-white/35 font-semibold">{item.label}</span>
-                <span className="font-mono font-bold" style={{ color: item.color }}>{item.value}</span>
+                <FlashValue text={item.value} className="font-mono font-bold" style={{ color: item.color }} />
               </div>
             ))}
           </div>
@@ -872,7 +918,9 @@ export default function OptionsChainView() {
   }, [source, bybit.data, deribit.data]);
 
   const expiry = expiries[Math.min(expiryIdx, Math.max(0, expiries.length - 1))];
-  const spot = expiry?.spot ?? 0;
+  // Live spot from Deribit index WS (1 Hz); falls back to the REST snapshot's spot.
+  const liveSpot = useLiveSpot(coin);
+  const spot = liveSpot ?? expiry?.spot ?? 0;
 
   const cols = useMemo(() => SIDE_COLS.filter(c => visibleColIds.has(c.id)), [visibleColIds]);
   const colsWidth = cols.reduce((s, c) => s + c.w, 0);
@@ -886,6 +934,26 @@ export default function OptionsChainView() {
     const n = filterKey === 'atm5' ? 5 : 10;
     return allRows.slice(Math.max(0, ai - n), ai + n + 1);
   }, [allRows, filterKey]);
+
+  // ── Live WebSocket overlay: merge per-strike ticks onto the REST rows (1 Hz) ──
+  const liveTicks = useChainStream(source, expiry);
+  const liveRows = useMemo(() => {
+    if (Object.keys(liveTicks).length === 0) return rows;
+    return rows.map(r => {
+      const c = liveTicks[`C-${r.strike}`];
+      const p = liveTicks[`P-${r.strike}`];
+      if (!c && !p) return r;
+      return { ...r, call: c ? { ...r.call, ...c } : r.call, put: p ? { ...r.put, ...p } : r.put };
+    });
+  }, [rows, liveTicks]);
+
+  // Re-resolve the open trade ticket's row from live data so its header / greeks /
+  // order book track the WS stream instead of a click-time snapshot.
+  const liveSelected = useMemo<SelectedCell | null>(() => {
+    if (!selectedCell) return null;
+    const liveRow = liveRows.find(r => r.strike === selectedCell.row.strike) ?? selectedCell.row;
+    return { row: liveRow, side: selectedCell.side };
+  }, [selectedCell, liveRows]);
 
   const atmIV = expiry?.atmIV ?? 0;
   const dec = spot < 1 ? 6 : spot < 100 ? 4 : 2;
@@ -947,30 +1015,16 @@ export default function OptionsChainView() {
   const parentRef = useRef<HTMLDivElement>(null);
   const dataRef = useRef<HTMLDivElement>(null);
 
-  // Viewport width so the positions card can pin to it (not drift on horizontal scroll).
-  const [vpWidth, setVpWidth] = useState(0);
   useEffect(() => {
-    const el = parentRef.current;
+    // Single chain scroller (both axes): center the strike column + ATM row.
+    const el = dataRef.current;
     if (!el) return;
-    const update = () => setVpWidth(el.clientWidth - 24); // minus px-3 (12px × 2)
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const vertEl = parentRef.current;
-    const horizEl = dataRef.current;
-    if (!vertEl) return;
-    if (horizEl) {
-      const left = colsWidth + STRIKE_W / 2 - horizEl.clientWidth / 2;
-      horizEl.scrollTo({ left: Math.max(0, left) });
-    }
+    const left = colsWidth + STRIKE_W / 2 - el.clientWidth / 2;
+    el.scrollTo({ left: Math.max(0, left) });
     const ai = rows.findIndex(r => r.isATM);
     if (ai >= 0) {
-      const top = ai * ROW_H + 70 - vertEl.clientHeight / 2;
-      vertEl.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      const top = ai * ROW_H + 70 - el.clientHeight / 2; // +70 ≈ sticky header height
+      el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
   }, [expiry?.key, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -979,10 +1033,11 @@ export default function OptionsChainView() {
       style={{ backgroundColor: BG_MAIN, color: 'var(--db-text)', fontVariantNumeric: 'tabular-nums' }}>
 
       {/* ── Container 2: vertical-only scroll area for card + positions ── */}
-      <div ref={parentRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden px-3 pb-1">
+      <div ref={parentRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden pb-1">
 
-        {/* ── Title bar: 标的 label (左) + 数据源切换 (右上角) ── */}
-        <div className="flex items-end justify-between pt-1.5" style={{ backgroundColor: BG_HEADER }}>
+        {/* ── Title bar: 标的 + tab 控件（左） + 窗口控件（右上） ── */}
+        <div className="flex items-center gap-1 pt-1.5" style={{ backgroundColor: BG_HEADER }}>
+          {/* 标的标题 */}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center">
               <span className="text-[14px] font-extrabold text-white/90 tracking-tight font-mono">{underlying}</span>
@@ -990,22 +1045,11 @@ export default function OptionsChainView() {
             </div>
             <div className="shrink-0 mt-0.5" style={{ height: 2, backgroundColor: '#1E90FF' }} />
           </div>
-          <div className="pb-1">
-            {(() => {
-              const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
-              return (
-                <button
-                  onClick={() => ocStore.setUnderlying(underlyingFor(coin, source === 'bybit' ? 'deribit' : 'bybit'))}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125"
-                  style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
-                  title="切换数据源"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-                  <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
-                </button>
-              );
-            })()}
-          </div>
+          <button type="button" className="db-frame-iconbtn ml-0.5" title="关闭"><X size={14} /></button>
+          <button type="button" className="db-frame-iconbtn" title="添加期权链"><Plus size={15} /></button>
+          <div className="flex-1" />
+          {/* 窗口控件（右上）：放大 / 拉伸 / 关闭 */}
+          <FrameControls />
         </div>
 
         {/* ── Toolbar: 到期日 / Columns / Filter / Dist ── */}
@@ -1080,15 +1124,35 @@ export default function OptionsChainView() {
           </button>
 
           <div className="flex-1" />
+
+          {/* 数据源标识（点击切换）— 后续随卡片做成组件样式 */}
+          {(() => {
+            const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
+            return (
+              <button
+                onClick={() => ocStore.setUnderlying(underlyingFor(coin, source === 'bybit' ? 'deribit' : 'bybit'))}
+                className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125 shrink-0"
+                style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
+                title="切换数据源"
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+                <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
+              </button>
+            );
+          })()}
         </div>
         {/* Chain card — flex-1 so data area fills remaining height, has own bi‑directional scroll */}
-        <div className="flex flex-col rounded-xl border min-h-[200px]" style={{ overflow: 'hidden', borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, minWidth: totalWidth }}>
-          <SectionRow spot={spot} dateLabel={expiry?.dateLabel ?? '—'} atmIV={atmIV} spotDp={spotDp} dte={dte}
-            callSideWidth={colsWidth} emLower={emLower} emUpper={emUpper} />
-          <ColHeaderRow cols={cols} />
-
-          {/* Container 3: bi‑directional scroll for data rows */}
-          <div ref={dataRef} className="flex-1 min-h-0 overflow-auto" style={{ position: 'relative' }}>
+        <div className="flex flex-col shrink-0 rounded-xl border" style={{ overflow: 'hidden', borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW }}>
+          {/* Single bi-directional scroller: headers + rows share one scroll context, so
+              horizontal scroll keeps them aligned and vertical scroll pins the header. */}
+          <div ref={dataRef} className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <div style={{ minWidth: totalWidth, position: 'relative' }}>
+              {/* Sticky header — pinned on vertical scroll, moves with columns on horizontal scroll */}
+              <div className="sticky top-0 z-30" style={{ backgroundColor: BG_HEADER }}>
+                <SectionRow spot={spot} dateLabel={expiry?.dateLabel ?? '—'} atmIV={atmIV} spotDp={spotDp} dte={dte}
+                  callSideWidth={colsWidth} emLower={emLower} emUpper={emUpper} />
+                <ColHeaderRow cols={cols} />
+              </div>
 
           {allRows.length === 0 ? (
             <div className="flex items-center justify-center" style={{ height: 400 }}>
@@ -1117,7 +1181,7 @@ export default function OptionsChainView() {
 
               {/* Rows */}
               <div className="relative z-10" style={{ height: rows.length * ROW_H }}>
-                {rows.map((row, idx) => {
+                {liveRows.map((row, idx) => {
                   const isSelected = selectedCell?.row.strike === row.strike;
                   return (
                     <div key={row.strike} style={{ position: 'absolute', top: idx * ROW_H, left: 0, width: '100%', height: ROW_H }}>
@@ -1143,9 +1207,10 @@ export default function OptionsChainView() {
           )}
             </div>
           </div>
+        </div>
 
         {/* ── Positions card — independent bi-directional scroll ── */}
-        <div className="mt-1 overflow-auto shrink-0" style={{ width: vpWidth || '100%' }}>
+        <div className="mt-1 overflow-auto shrink-0 w-full">
           <PositionsPanel book={book} embedded />
         </div>
       </div>
@@ -1161,7 +1226,7 @@ export default function OptionsChainView() {
               <motion.div key="tp-modal" initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={selectedCell} coin={coin} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
               </motion.div>
             </div>
           </>

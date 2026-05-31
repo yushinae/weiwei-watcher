@@ -69,6 +69,7 @@ export interface Side {
   dOI: number | null;
   size: number | null;
   pos: number | null;
+  instrument?: string; // venue instrument/symbol — used to subscribe the live WS ticker
 }
 
 export interface ChainRow {
@@ -134,6 +135,7 @@ function bybitSide(t: BybitOptionTicker | undefined): Side {
     dOI: null,
     size: t.volume24h,
     pos: null,
+    instrument: t.symbol,
   };
 }
 
@@ -165,7 +167,7 @@ export function buildBybitExpiry(g: BybitExpiryGroup, spot: number): ChainExpiry
   };
 }
 
-function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi: number, vol: number, call: boolean): Side {
+function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi: number, vol: number, call: boolean, instrument?: string): Side {
   const sig = ivPct / 100;
   const mark = bsPrice(spot, strike, T, sig, call);
   const spread = Math.max(mark * 0.012, 0.5);
@@ -184,11 +186,12 @@ function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi:
     dOI: null,
     size: vol,
     pos: null,
+    instrument,
   };
 }
 
 export function buildDeribitExpiry(g: DeribitExpiryGroup, spot: number): ChainExpiry {
-  type P = { strike: number; iv: number; oi: number; volume: number; T: number };
+  type P = { strike: number; iv: number; oi: number; volume: number; T: number; instrument: string };
   const callByK = new Map<number, P>();
   const putByK = new Map<number, P>();
   for (const c of g.calls) callByK.set(c.strike, c);
@@ -206,8 +209,8 @@ export function buildDeribitExpiry(g: DeribitExpiryGroup, spot: number): ChainEx
       strike: K,
       isATM: K === atmStrike,
       isITM: K < spot,
-      call: c ? deribitSide(K, c.T, c.iv, spot, c.oi, c.volume, true) : emptySide(),
-      put: p ? deribitSide(K, p.T, p.iv, spot, p.oi, p.volume, false) : emptySide(),
+      call: c ? deribitSide(K, c.T, c.iv, spot, c.oi, c.volume, true, c.instrument) : emptySide(),
+      put: p ? deribitSide(K, p.T, p.iv, spot, p.oi, p.volume, false, p.instrument) : emptySide(),
     };
   });
 

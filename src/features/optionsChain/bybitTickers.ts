@@ -193,7 +193,7 @@ export function organizeChain(coin: 'BTC' | 'ETH', tickers: BybitOptionTicker[])
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 const CHAIN_CACHE = new Map<string, { data: OptionChainData; ts: number }>();
-const CHAIN_TTL = 30_000; // 30 seconds — options prices move fast
+const CHAIN_TTL = 12_000; // 12s — options prices move fast (spot itself is live via WS)
 
 export async function fetchOptionChain(coin: 'BTC' | 'ETH'): Promise<OptionChainData> {
   const cached = CHAIN_CACHE.get(coin);

@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { UNDERLYING_GROUPS, sourceOf, tagColor, useOCStore, useUnderlyingExpiries, ocStore } from './store';
+import type { ExpiryMeta } from './store';
 import type { DataSource } from './chainModel';
 
 const SOURCES: { key: DataSource; label: string }[] = [
@@ -26,13 +27,11 @@ const PANEL_STYLE: React.CSSProperties = {
 
 const COIN_GLYPH: Record<string, string> = { BTC: '₿', ETH: 'Ξ' };
 
-interface ExpiryColumnProps { value: string; coin: string; tag: string; onPick?: () => void }
+interface ExpiryColumnProps { value: string; coin: string; tag: string; expiries: ExpiryMeta[]; onPick?: () => void }
 
-function ExpiryColumn({ value, coin, tag, onPick }: ExpiryColumnProps) {
+function ExpiryColumn({ value, coin, tag, expiries, onPick }: ExpiryColumnProps) {
   const underlying = useOCStore(s => s.underlying);
   const expiryIdx = useOCStore(s => s.expiryIdx);
-  const map = useUnderlyingExpiries();
-  const expiries = map[value] ?? [];
   const isActiveCol = underlying === value;
 
   return (
@@ -93,6 +92,7 @@ export function OptionsHoverMenu({
   React.useEffect(() => { setSrc(sourceOf(current)); }, [current]);
 
   const groups = UNDERLYING_GROUPS.filter(g => g.source === src);
+  const expiryMap = useUnderlyingExpiries(); // fetched once for the whole menu
 
   return (
     <div className={className} style={PANEL_STYLE} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -118,7 +118,7 @@ export function OptionsHoverMenu({
               <div className="flex gap-2">
                 {g.items.map(it => (
                   <React.Fragment key={it.value}>
-                    <ExpiryColumn value={it.value} coin={it.coin} tag={g.tag} onPick={onPick} />
+                    <ExpiryColumn value={it.value} coin={it.coin} tag={g.tag} expiries={expiryMap[it.value] ?? []} onPick={onPick} />
                   </React.Fragment>
                 ))}
               </div>

@@ -38,7 +38,7 @@ export function useTheme() {
   return { theme, toggleTheme } as const;
 }
 
-export function UISettings({ onClose }: { onClose?: () => void }) {
+export function UISettings(_props: { onClose?: () => void }) {
   const { theme, toggleTheme } = useTheme();
 
   return (

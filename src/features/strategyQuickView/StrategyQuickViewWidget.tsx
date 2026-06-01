@@ -11,8 +11,6 @@ import { useDeribitOptions, useTickerSnapshotWS } from '../../registry/monitorWi
 import {
   calculateStrategy,
   type StrategyType,
-  type StrategyResult,
-  type ParamDef,
   STRATEGY_METAS,
   getStrategyMeta,
   getStrategyParams,
@@ -277,9 +275,11 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
           {meta?.isBullish === null ? '～' : meta?.isBullish ? '↑' : '↓'}
         </span>
         {paramDefs.map((p, i) => (
-          <Stepper key={p.id} label={p.shortLabel} value={strikes[i] || 0}
-            onChange={(v) => setStrike(i, v)} step={p.step ?? 1000}
-          />
+          <React.Fragment key={p.id}>
+            <Stepper label={p.shortLabel} value={strikes[i] || 0}
+              onChange={(v) => setStrike(i, v)} step={p.step ?? 1000}
+            />
+          </React.Fragment>
         ))}
         <QtyStepper value={qty} onChange={setQty} />
         {result && (

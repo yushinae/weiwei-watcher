@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { BybitSettingsPanel } from './BybitSettingsPanel';
+import { isEnvConfigured } from './auth';
 import { useBybitAuthState, useBybitPositions } from './usePositions';
 import type { BybitOptionPosition } from './rest';
 import { bybitToImport } from './convert';
@@ -171,6 +172,12 @@ export default function BybitPositionsView() {
           {settingsOpen && (
             <div className="widget-card p-4">
               <div className="text-[13px] text-white/55 mb-3">Bybit API 凭据</div>
+              {isEnvConfigured() && (
+                <div className="mb-3 text-[12px] rounded-lg px-3 py-2 border"
+                  style={{ borderColor: 'rgba(40,200,64,0.30)', background: 'rgba(40,200,64,0.08)', color: 'var(--color-trade-up)' }}>
+                  已通过 <span className="font-mono">.env</span>（<span className="font-mono">VITE_BYBIT_API_KEY</span>）配置 —— 下方手动输入会被忽略。
+                </div>
+              )}
               <BybitSettingsPanel onClose={() => setSettingsOpen(false)} />
               {!unlocked && (
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">

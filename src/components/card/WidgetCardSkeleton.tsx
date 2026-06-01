@@ -3,7 +3,6 @@ import { cn } from '../../lib/utils';
 
 export function WidgetCardSkeleton({
   className,
-  tone = 'blue',
 }: {
   className?: string;
   tone?: 'blue' | 'red' | 'accent';

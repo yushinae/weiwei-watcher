@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
 import {
-  hasCredentials, isUnlocked,
+  hasCredentials,
   saveCredentials, clearCredentials,
   getApiKey,
 } from './auth';
@@ -12,7 +12,7 @@ import { useBybitAuthState } from './usePositions';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function BybitSettingsPanel({ onClose }: { onClose?: () => void }) {
-  const unlocked = useBybitAuthState();
+  useBybitAuthState(); // subscribe so the panel re-renders when credentials change
   const stored = hasCredentials();
 
   if (!stored) return <SetupForm onSaved={onClose} />;

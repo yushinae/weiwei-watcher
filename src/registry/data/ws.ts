@@ -1,95 +1,26 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Coin } from '../../features/monitor/types';
 import { subscribeData, _shouldSkip, _registerWSPauseResume } from './poller';
 import { DERIBIT_CACHE, fetchDeribitHistory, HIST_TTL, type HistoryData } from './deribit';
 import { processPremiumFlow, processLargeTrades } from './store';
+import { BaseWS } from '../../lib/baseWs';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DeribitWS — singleton WebSocket manager
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type WsStatus = 'disconnected' | 'connecting' | 'connected';
+export type { WsStatus } from '../../lib/baseWs';
 
-export class DeribitWS {
-  private ws: WebSocket | null = null;
-  private subs = new Map<string, Set<(data: unknown) => void>>();
+export class DeribitWS extends BaseWS {
   private rpcPending = new Map<number, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private heartbeatId: ReturnType<typeof setInterval> | null = null;
   private msgId = 0;
-  private backoff = 1_000;
-  private _status: WsStatus = 'disconnected';
-  private _statusListeners = new Set<(s: WsStatus) => void>();
 
-  subscribeStatus(cb: (s: WsStatus) => void): () => void {
-    this._statusListeners.add(cb);
-    // immediately call with current status
-    cb(this._status);
-    return () => { this._statusListeners.delete(cb); };
+  constructor() {
+    super({ pingMs: 15_000 }); // Deribit heartbeat (public/test) every 15s
   }
 
-  private _setStatus(s: WsStatus): void {
-    this._status = s;
-    this._statusListeners.forEach(fn => fn(s));
-  }
-
-  connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN ||
-        this.ws?.readyState === WebSocket.CONNECTING) return;
-    this._setStatus('connecting');
-    const ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
-    this.ws = ws;
-    ws.onopen = () => {
-      this._setStatus('connected');
-      this.backoff = 1_000;
-      this.startHeartbeat();
-      this.resubscribeAll();
-    };
-    ws.onmessage = (evt) => {
-      try {
-        const msg = JSON.parse(evt.data);
-        if (msg.method === 'subscription') {
-          const { channel, data } = msg.params;
-          this.subs.get(channel)?.forEach(fn => fn(data));
-        } else if (typeof msg.id === 'number' && this.rpcPending.has(msg.id)) {
-          const p = this.rpcPending.get(msg.id)!;
-          this.rpcPending.delete(msg.id);
-          if (msg.error) p.reject(new Error(msg.error.message || 'rpc error'));
-          else p.resolve(msg.result);
-        }
-      } catch { /* ignore */ }
-    };
-    ws.onclose = () => {
-      this._setStatus('disconnected');
-      this.stopHeartbeat();
-      if (this.reconnectTimer === null) {
-        this.reconnectTimer = setTimeout(() => {
-          this.reconnectTimer = null;
-          this.backoff = Math.min(this.backoff * 2, 30_000);
-          this.connect();
-        }, this.backoff);
-      }
-    };
-    ws.onerror = () => ws.close();
-  }
-
-  disconnect(): void {
-    this._setStatus('disconnected');
-    this.stopHeartbeat();
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.ws) {
-      this.ws.onclose = null;
-      this.ws.onerror = null;
-      this.ws.onmessage = null;
-      this.ws.onopen = null;
-      this.ws.close();
-      this.ws = null;
-    }
-  }
-
+  connect(): void { this.openSocket(); }
+  disconnect(): void { this.closeSocket(); }
   pause(): void  { this.disconnect(); }
   resume(): void { this.connect(); }
 
@@ -117,40 +48,43 @@ export class DeribitWS {
     return promise;
   }
 
-  subscribe<T>(channel: string, cb: (data: T) => void): () => void {
-    if (!this.subs.has(channel)) {
-      this.subs.set(channel, new Set());
-      this.send({ method: 'public/subscribe', params: { channels: [channel] } });
-    }
-    this.subs.get(channel)!.add(cb as (data: unknown) => void);
-    return () => {
-      const set = this.subs.get(channel);
-      if (!set) return;
-      set.delete(cb as (data: unknown) => void);
-      if (set.size === 0) {
-        this.subs.delete(channel);
-        this.send({ method: 'public/unsubscribe', params: { channels: [channel] } });
-      }
+  // ── template hooks ──────────────────────────────────────────────────────────
+
+  protected url(): string { return 'wss://www.deribit.com/ws/api/v2'; }
+
+  protected handleOpen(): void {
+    this.setStatus('connected');
+    this.startPing();
+    this.resubscribeAll();
+  }
+
+  protected handleMessage(raw: string): void {
+    let msg: {
+      method?: string; params?: { channel: string; data: unknown };
+      id?: number; error?: { message?: string }; result?: unknown;
     };
-  }
-
-  private send(payload: object): void {
-    if (this.ws?.readyState === WebSocket.OPEN)
-      this.ws.send(JSON.stringify({ jsonrpc: '2.0', id: ++this.msgId, ...payload }));
-  }
-
-  private resubscribeAll(): void {
-    for (const channel of this.subs.keys()) {
-      this.send({ method: 'public/subscribe', params: { channels: [channel] } });
+    try { msg = JSON.parse(raw); } catch { return; }
+    if (msg.method === 'subscription' && msg.params) {
+      this.dispatch(msg.params.channel, msg.params.data);
+    } else if (typeof msg.id === 'number' && this.rpcPending.has(msg.id)) {
+      const p = this.rpcPending.get(msg.id)!;
+      this.rpcPending.delete(msg.id);
+      if (msg.error) p.reject(new Error(msg.error.message || 'rpc error'));
+      else p.resolve(msg.result);
     }
   }
 
-  private startHeartbeat(): void {
-    this.heartbeatId = setInterval(() => this.send({ method: 'public/test' }), 15_000);
+  protected sendSubscribe(channel: string): void {
+    this.send({ method: 'public/subscribe', params: { channels: [channel] } });
   }
+  protected sendUnsubscribe(channel: string): void {
+    this.send({ method: 'public/unsubscribe', params: { channels: [channel] } });
+  }
+  protected sendPing(): void { this.send({ method: 'public/test' }); }
 
-  private stopHeartbeat(): void {
-    if (this.heartbeatId !== null) { clearInterval(this.heartbeatId); this.heartbeatId = null; }
+  // Deribit frames are JSON-RPC: wrap every outgoing message with id + jsonrpc.
+  private send(payload: object): void {
+    this.rawSend({ jsonrpc: '2.0', id: ++this.msgId, ...payload });
   }
 }
 

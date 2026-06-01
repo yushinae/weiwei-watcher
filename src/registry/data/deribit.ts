@@ -18,6 +18,9 @@ export interface ParsedOption {
   oi: number;
   volume: number;
   instrument: string; // Deribit instrument_name, e.g. "BTC-27JUN25-100000-C" (for WS ticker subscribe)
+  mark: number;       // USD mark (book_summary mark_price × underlying); real, not BS-derived
+  bid: number | null; // USD bid (null when no quote)
+  ask: number | null; // USD ask (null when no quote)
 }
 
 export interface ExpiryGroup {
@@ -111,6 +114,9 @@ export function processDeribitResponse(results: any[]): DeribitData {
     const delta = bsDelta(spot, strike, T, item.mark_iv, type);
     if (Math.abs(delta) < 0.04 || Math.abs(delta) > 0.96) continue;
 
+    // Real USD prices — Deribit inverse options quote in coin, so ×underlying (forward).
+    const toUsd = (c: unknown) => { const n = c as number; return Number.isFinite(n) && n > 0 ? n * spot : null; };
+
     parsed.push({
       strike, type, daysToExp, T,
       iv: item.mark_iv as number,
@@ -119,6 +125,9 @@ export function processDeribitResponse(results: any[]): DeribitData {
       oi: (item.open_interest ?? 0) as number,
       volume: (item.volume ?? 0) as number,
       instrument: item.instrument_name as string,
+      mark: toUsd(item.mark_price) ?? 0,
+      bid: toUsd(item.bid_price),
+      ask: toUsd(item.ask_price),
     });
   }
 

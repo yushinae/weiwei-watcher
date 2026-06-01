@@ -10,7 +10,7 @@ import {
 
 // Black-Scholes + AR(1) 数学库 —— 复用共享实现（原本在此重复定义了一整套）。
 import {
-  normCDF, normPDF,
+  normCDF,
   bsDelta, bsGamma, bsVanna, bsCharm, bsVega, bsTheta, bsCall, bsPut,
   fitAR1, forecastAR1, heatColor,
 } from './lib/bs-math';
@@ -599,10 +599,8 @@ function area(pts: [number, number][], H: number, padY = 0) {
 const GRID   = 'rgba(255,255,255,0.07)';
 const TXT    = 'rgba(255,255,255,0.32)';
 const BRAND  = 'rgba(37,232,137,0.92)';
-const RED    = 'rgba(202,63,100,0.92)';
 const YELLOW = '#FEBC2E';
 const BLUE   = '#4ea1ff';
-const PURPLE = '#a78bfa';
 
 // ── Global SVG gradient defs (render once in MonitorPage) ─────────────────────
 // Chromium / Electron: cross-SVG url() references work within the same document.
@@ -707,7 +705,6 @@ const HistLoadErr = () => (
 
 // Delta "grid" for display: [10P, 25P, ATM, 25C, 10C] → target abs-deltas [.10, .25, .50, .25, .10]
 // We plot call 25/10 and put 25/10 separately, ATM from calls
-const SMILE_GRID = [0.10, 0.25, 0.50, 0.75, 0.90] as const;
 const SMILE_LABELS_LIVE = ['10P', '25P', 'ATM', '25C', '10C'] as const;
 
 interface SmileRow { label: string; values: number[] /* per expiry line */ }
@@ -718,7 +715,7 @@ function buildSmileRows(expiries: ExpiryGroup[]): { rows: SmileRow[]; lines: { l
     label: e.label,
     color: [BRAND, YELLOW, BLUE][i] ?? TXT,
   }));
-  const rows: SmileRow[] = SMILE_LABELS_LIVE.map((lbl, gi) => {
+  const rows: SmileRow[] = SMILE_LABELS_LIVE.map((lbl) => {
     const values = expiries.map(e => {
       if (lbl === 'ATM') return e.atmIV;
       const isCall = lbl.endsWith('C');
@@ -803,7 +800,6 @@ const VRPChart = React.memo(({ data: d }: { data: { iv: number; rv: number }[] }
   const hi = Math.ceil(Math.max(...allV) / 5) * 5;
   const ivPts  = mapPts(d.map(r => r.iv), W, H, lo, hi, px, py);
   const rvPts  = mapPts(d.map(r => r.rv), W, H, lo, hi, px, py);
-  const vrpPts = mapPts(d.map(r => r.iv - r.rv), W, H, 0, Math.ceil(Math.max(...d.map(r => r.iv - r.rv)) / 5) * 5, px, py);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       {[lo, lo + (hi - lo) / 2, hi].map(v => {
@@ -1674,7 +1670,6 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
                 const putBarW  = (pOI / maxOI) * LEFT_W;
                 const isSpot    = Math.abs(strike - spot)    < spot * 0.005;
                 const isMaxPain = Math.abs(strike - maxPain) < spot * 0.005;
-                const isAtm     = isSpot || Math.abs(strike - spot) === Math.min(...strikes.map(k => Math.abs(k - spot)));
                 const labelColor = isSpot ? '#FEBC2E' : isMaxPain ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)';
 
                 return (
@@ -2315,7 +2310,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
 
   const { basis } = data;
   const maxBasis = Math.max(...basis.map(b => Math.abs(b.annBasis)), 1);
-  const BAR_MAX = 180, ROW_H = 36, PAD_X = 12;
+  const BAR_MAX = 180;
 
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-auto">
@@ -2723,8 +2718,7 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const spot = data.spot;
   const expiries = pickExpiries(data.expiries, [7, 14, 30, 60, 90]).slice(0, 5);
 
-  // Collect strikes ±15% of spot (binned to nearest round number)
-  const BIN = spot > 10000 ? 1000 : 100;
+  // Collect strikes ±15% of spot
   const strikesRaw = new Set<number>();
   expiries.forEach(e => [...e.calls, ...e.puts].forEach(o => {
     if (o.strike >= spot * 0.85 && o.strike <= spot * 1.15) strikesRaw.add(o.strike);
@@ -3091,9 +3085,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   if (!data || !data.expiries.length || !calRows) return <div className="p-3 text-[11px] text-white/55">暂无到期日数据</div>;
 
   const rows = calRows;
-  const spot = data.spot;
   const maxOI = Math.max(...rows.map(r => r.totalOI), 1);
-  const fmtK  = (v: number) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toFixed(0);
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   const BAR_MAX = 220; // max bar width in px
@@ -4764,52 +4756,6 @@ interface TickerSnapshot {
   optVol24h_M: number; // USD millions
 }
 const TICKER_CACHE2 = new Map<string, { data: TickerSnapshot; ts: number }>();
-const TICKER_TTL2 = 15_000; // 15s — spot price display doesn't need 8s refresh
-
-async function fetchTickerSnapshot(coin: Coin): Promise<TickerSnapshot> {
-  const key = coin;
-  const hit = TICKER_CACHE2.get(key);
-  if (hit && Date.now() - hit.ts < TICKER_TTL2) return hit.data;
-
-  const cur = coin === 'BTC' ? 'BTC' : 'ETH';
-  const idx = coin === 'BTC' ? 'btc_usd' : 'eth_usd';
-
-  // Fetch spot + perp concurrently; reuse cached options chain — no extra book download
-  const [spotRes, perpRes, optChain] = await Promise.all([
-    fetch(`https://www.deribit.com/api/v2/public/get_index_price?index_name=${idx}`).then(r => r.json()),
-    fetch(`https://www.deribit.com/api/v2/public/ticker?instrument_name=${cur}-PERPETUAL`).then(r => r.json()),
-    fetchDeribitOptions(coin).catch(() => null),
-  ]);
-
-  const spot: number = spotRes.result?.index_price ?? 0;
-  const perp = perpRes.result ?? {};
-  const stats = perp.stats ?? {};
-  const high24h: number = stats.high ?? spot * 1.01;
-  const low24h: number = stats.low ?? spot * 0.99;
-  const change24hPct: number = stats.price_change ?? 0;
-  const funding8h: number = perp.current_funding ?? 0;
-  const fundingAnn: number = funding8h * 3 * 365 * 100;
-
-  // OI and volume from the cached options chain (totalOptOI/totalOptVol24hUSD set by fetchDeribitOptions)
-  const optOI     = optChain?.totalOptOI        ?? 0;
-  const optVol24h = optChain?.totalOptVol24hUSD ?? 0;
-
-  // DVOL: use ATM 30D IV from options chain (get_index_price?index_name=btc_dvol returns 400)
-  const dvol: number = optChain?.dvol30 ?? 0;
-
-  const data: TickerSnapshot = {
-    spot,
-    change24hPct,
-    high24h,
-    low24h,
-    dvol,
-    fundingAnn,
-    optOI_M: (optOI * spot) / 1e6,
-    optVol24h_M: optVol24h / 1e6,
-  };
-  TICKER_CACHE2.set(key, { data, ts: Date.now() });
-  return data;
-}
 
 // ── useTickerSnapshotWS ───────────────────────────────────────────────────────
 // Assembles TickerSnapshot from 3 WS channels (spot · DVOL · perp ticker).
@@ -5686,7 +5632,6 @@ export const CorrelationWidget = () => {
 
   const W = 800; const H = 100;
   const lo = -1; const hi = 1;
-  const zero = H - ((0 - lo) / (hi - lo)) * H;
   const pts = mapPts(corrSeries, W, H, lo, hi);
   const corrColor = (v: number) => v > 0.7 ? 'var(--nexus-accent)' : v > 0.4 ? '#FEBC2E' : v > 0 ? '#6e6e6e' : 'var(--nexus-red)';
   const cur = current ?? 0;

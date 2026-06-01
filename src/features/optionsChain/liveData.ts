@@ -106,22 +106,38 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
     if (targets.length === 0) { setTicks({}); return; }
     const buf: LiveTicks = {};
     let dirty = false;
-    const unsubs: Array<() => void> = [];
+    let unsubs: Array<() => void> = [];
 
-    for (const { instrument, key } of targets) {
-      if (source === 'bybit') {
-        unsubs.push(BYBIT_OPTION_WS.subscribe(`tickers.${instrument}`, d => {
-          const s = normalizeBybit(d); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
-        }));
-      } else {
-        unsubs.push(DERIBIT_WS.subscribe<Record<string, any>>(`ticker.${instrument}.100ms`, d => {
-          const s = normalizeDeribit(d); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
-        }));
+    // Subscribe / unsubscribe the per-option ticker channels. Paused while the tab
+    // is hidden — those subs are the heavy part (Deribit .100ms × dozens of strikes),
+    // so dropping them while not visible saves CPU / battery.
+    const subscribe = () => {
+      if (unsubs.length) return;
+      for (const { instrument, key } of targets) {
+        if (source === 'bybit') {
+          unsubs.push(BYBIT_OPTION_WS.subscribe<Record<string, unknown>>(`tickers.${instrument}`, d => {
+            const s = normalizeBybit(d); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
+          }));
+        } else {
+          unsubs.push(DERIBIT_WS.subscribe<Record<string, any>>(`ticker.${instrument}.100ms`, d => {
+            const s = normalizeDeribit(d); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
+          }));
+        }
       }
-    }
+    };
+    const unsubscribe = () => { unsubs.forEach(u => u()); unsubs = []; };
+    const onVisibility = () => { if (document.hidden) unsubscribe(); else subscribe(); };
 
-    const flush = setInterval(() => { if (dirty) { dirty = false; setTicks({ ...buf }); } }, 1000);
-    return () => { unsubs.forEach(u => u()); clearInterval(flush); setTicks({}); };
+    if (!document.hidden) subscribe();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const flush = setInterval(() => { if (!document.hidden && dirty) { dirty = false; setTicks({ ...buf }); } }, 1000);
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(flush);
+      setTicks({});
+    };
   }, [source, targets]);
 
   return ticks;

@@ -1,77 +1,78 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Public Bybit OPTION WebSocket — no auth needed.
 //
-// Endpoint: wss://stream.bybit.com/v5/public/option
+// Connects via the /bybit-ws-option Vite proxy → wss://stream.bybit.com/v5/public/option
+// (consistent with the Deribit WS). Falls back to a direct connection if the proxy
+// isn't reachable (e.g. a build without a reverse proxy), so it works everywhere.
+//
 // Subscribe: { op: 'subscribe', args: ['tickers.BTC-26DEC25-100000-C-USDT', ...] }
 // Push:      { topic: 'tickers.{symbol}', type: 'snapshot'|'delta', data: {...} }
 //
 // (The app's other Bybit WS, BYBIT_PRIVATE_WS, is auth-gated for positions — this
 //  is a separate public client for live option tickers.)
+//
+// Shared plumbing (status / subs ref-counting / reconnect / ping) lives in BaseWS;
+// this file only adds the public-option protocol + lazy connect + proxy→direct fallback.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-type Listener = (data: Record<string, unknown>) => void;
+import { BaseWS } from '../../lib/baseWs';
 
-const URL = 'wss://stream.bybit.com/v5/public/option';
-const PING_MS = 20_000;
+const PROXY_PATH = '/bybit-ws-option';
+const DIRECT_URL = 'wss://stream.bybit.com/v5/public/option';
 const RECONNECT_MS = 3_000;
 const BATCH = 10; // Bybit caps args per subscribe frame
 
-class BybitOptionWS {
-  private ws: WebSocket | null = null;
-  private subs = new Map<string, Set<Listener>>();
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private open = false;
+class BybitOptionWS extends BaseWS {
+  private useDirect = false;       // flip to direct after a failed proxy attempt
+  private attemptOpened = false;   // did the current socket ever open?
 
-  private send(obj: unknown) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(obj));
+  constructor() {
+    super({ backoffMin: RECONNECT_MS, backoffMax: RECONNECT_MS, pingMs: 20_000 });
   }
 
-  private batch(op: 'subscribe' | 'unsubscribe', topics: string[]) {
-    for (let i = 0; i < topics.length; i += BATCH) this.send({ op, args: topics.slice(i, i + BATCH) });
+  protected url(): string {
+    if (this.useDirect) return DIRECT_URL;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${proto}://${location.host}${PROXY_PATH}`;
   }
 
-  private ensure() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
-    const ws = new WebSocket(URL);
-    this.ws = ws;
-    ws.onopen = () => {
-      this.open = true;
-      this.batch('subscribe', [...this.subs.keys()]);
-      this.pingTimer = setInterval(() => this.send({ op: 'ping' }), PING_MS);
-    };
-    ws.onmessage = (ev) => {
-      let msg: { topic?: string; data?: Record<string, unknown>; op?: string };
-      try { msg = JSON.parse(ev.data as string); } catch { return; }
-      if (msg.op) return; // pong / subscribe ack
-      if (msg.topic && msg.data) this.subs.get(msg.topic)?.forEach(fn => fn(msg.data!));
-    };
-    ws.onclose = () => {
-      this.open = false;
-      if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
-      if (this.subs.size > 0 && !this.reconnectTimer) {
-        this.reconnectTimer = setTimeout(() => { this.reconnectTimer = null; this.ensure(); }, RECONNECT_MS);
-      }
-    };
-    ws.onerror = () => { try { ws.close(); } catch { /* noop */ } };
+  private batchOp(op: 'subscribe' | 'unsubscribe', topics: string[]) {
+    for (let i = 0; i < topics.length; i += BATCH) this.rawSend({ op, args: topics.slice(i, i + BATCH) });
   }
 
-  subscribe(topic: string, cb: Listener): () => void {
-    if (!this.subs.has(topic)) {
-      this.subs.set(topic, new Set());
-      this.ensure();
-      if (this.open) this.send({ op: 'subscribe', args: [topic] });
-    }
-    this.subs.get(topic)!.add(cb);
-    return () => {
-      const set = this.subs.get(topic);
-      if (!set) return;
-      set.delete(cb);
-      if (set.size === 0) {
-        this.subs.delete(topic);
-        if (this.open) this.send({ op: 'unsubscribe', args: [topic] });
-      }
-    };
+  protected onConnecting(): void {
+    this.attemptOpened = false;
+  }
+
+  protected handleOpen(): void {
+    this.attemptOpened = true;
+    this.setStatus('connected');
+    this.batchOp('subscribe', [...this.subs.keys()]);
+    this.startPing();
+  }
+
+  protected handleMessage(raw: string): void {
+    let msg: { topic?: string; data?: Record<string, unknown>; op?: string };
+    try { msg = JSON.parse(raw); } catch { return; }
+    if (msg.op) return; // pong / subscribe ack
+    if (msg.topic && msg.data) this.dispatch(msg.topic, msg.data);
+  }
+
+  // Lazy connect: the first listener for a topic opens the socket.
+  protected onFirstSubscribe(topic: string): void {
+    this.openSocket();
+    this.sendSubscribe(topic);
+  }
+
+  protected sendSubscribe(topic: string): void { this.rawSend({ op: 'subscribe', args: [topic] }); }
+  protected sendUnsubscribe(topic: string): void { this.rawSend({ op: 'unsubscribe', args: [topic] }); }
+
+  // Only keep reconnecting while something is still listening.
+  protected shouldReconnect(): boolean { return this.subs.size > 0; }
+
+  // If the proxy attempt never opened, fall back to a direct connection.
+  protected handleClose(): void {
+    if (!this.attemptOpened && !this.useDirect) this.useDirect = true;
   }
 }
 

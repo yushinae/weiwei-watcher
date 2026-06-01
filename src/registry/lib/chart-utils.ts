@@ -1,4 +1,4 @@
-import type { ExpiryGroup, ParsedOption } from '../data/deribit';
+import type { ExpiryGroup } from '../data/deribit';
 import { closestDeltaIV } from '../data/deribit';
 import { TXT, BRAND, YELLOW, BLUE } from './widget-colors';
 
@@ -16,7 +16,7 @@ export function buildSmileRows(expiries: ExpiryGroup[]): { rows: SmileRow[]; lin
     label: e.label,
     color: [BRAND, YELLOW, BLUE][i] ?? TXT,
   }));
-  const rows: SmileRow[] = SMILE_LABELS_LIVE.map((lbl, gi) => {
+  const rows: SmileRow[] = SMILE_LABELS_LIVE.map((lbl) => {
     const values = expiries.map(e => {
       if (lbl === 'ATM') return e.atmIV;
       const isCall = lbl.endsWith('C');

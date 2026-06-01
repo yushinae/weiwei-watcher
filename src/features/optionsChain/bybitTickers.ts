@@ -160,9 +160,9 @@ export function organizeChain(coin: 'BTC' | 'ETH', tickers: BybitOptionTicker[])
 
   const expiries: ExpiryGroup[] = [];
 
-  for (const [key, opts] of [...groups.entries()].sort((a, b) => {
-    const tsA = a[1][0].expiryTs;
-    const tsB = b[1][0].expiryTs;
+  for (const opts of [...groups.values()].sort((a, b) => {
+    const tsA = a[0].expiryTs;
+    const tsB = b[0].expiryTs;
     return tsA - tsB;
   })) {
     const daysToExp = (opts[0].expiryTs - now) / 86_400_000;

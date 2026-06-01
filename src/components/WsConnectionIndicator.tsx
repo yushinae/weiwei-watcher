@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DERIBIT_WS } from '../registry/data/ws';
 import { BYBIT_PRIVATE_WS } from '../features/bybit/ws';
+import { BYBIT_OPTION_WS } from '../features/optionsChain/bybitOptionWs';
 
 type WsStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -18,21 +19,24 @@ const STATUS_LABELS: Record<WsStatus, string> = {
 
 export default function WsConnectionIndicator() {
   const [deribit, setDeribit] = useState<WsStatus>('disconnected');
-  const [bybit, setBybit]     = useState<WsStatus>('disconnected');
+  const [bybitOpt, setBybitOpt] = useState<WsStatus>('disconnected'); // 期权行情（公有）
+  const [bybitAcct, setBybitAcct] = useState<WsStatus>('disconnected'); // 账户/持仓（私有，需 API key）
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const u1 = DERIBIT_WS.subscribeStatus(setDeribit);
-    const u2 = BYBIT_PRIVATE_WS.subscribeStatus(setBybit);
-    return () => { u1(); u2(); };
+    const u2 = BYBIT_OPTION_WS.subscribeStatus(setBybitOpt);
+    const u3 = BYBIT_PRIVATE_WS.subscribeStatus(s => setBybitAcct(s === 'auth' ? 'connected' : (s as WsStatus)));
+    return () => { u1(); u2(); u3(); };
   }, []);
 
-  // Overall status: if both connected → green, one connecting → amber, any disconnected → red
+  // Overall reflects the live DATA feeds (Deribit + Bybit 期权). The private account
+  // WS is optional (only when API keys are set) so it's informational, not in overall.
   const overall: WsStatus =
-    deribit === 'connected' && bybit === 'connected'
+    deribit === 'connected' && bybitOpt === 'connected'
       ? 'connected'
-      : deribit === 'connecting' || bybit === 'connecting'
+      : deribit === 'connecting' || bybitOpt === 'connecting'
         ? 'connecting'
         : 'disconnected';
 
@@ -103,10 +107,17 @@ export default function WsConnectionIndicator() {
               </div>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[12px] text-white/60">Bybit</span>
+              <span className="text-[12px] text-white/60">Bybit 期权</span>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[bybit] }} />
-                <span className="text-[11px] font-semibold text-white/80">{STATUS_LABELS[bybit]}</span>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[bybitOpt] }} />
+                <span className="text-[11px] font-semibold text-white/80">{STATUS_LABELS[bybitOpt]}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[12px] text-white/60">Bybit 账户</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[bybitAcct] }} />
+                <span className="text-[11px] font-semibold text-white/80">{STATUS_LABELS[bybitAcct]}</span>
               </div>
             </div>
           </div>

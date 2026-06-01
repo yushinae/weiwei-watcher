@@ -1450,8 +1450,6 @@ export function PositionBuilder() {
                           })()}
                           {(() => {
                             const legGrk = bsGreeks(currentS, leg.K, T, legSig, leg.type);
-                            const va = leg.side * leg.qty * legGrk.vanna;
-                            const vo = leg.side * leg.qty * legGrk.volga;
                             return (
                               <>
                                 <div className="flex gap-3 text-[12px] pt-2 border-t border-white/[0.05]">

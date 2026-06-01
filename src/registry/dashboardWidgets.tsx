@@ -348,7 +348,7 @@ export const EventCalendarStrip = React.memo(() => {
 // 5. PositionsSummaryMini
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const PositionsSummaryMini = React.memo(({ coin }: { coin: Coin }) => {
+export const PositionsSummaryMini = React.memo((_props: { coin: Coin }) => {
   const [live, setLive] = useState<LivePosition[]>([]);
   const dirtyRef = React.useRef(false);
   const flushRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);

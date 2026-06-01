@@ -53,6 +53,14 @@ export default defineConfig(({mode}) => {
           secure: false,
           rewrite: (path) => path.replace(/^\/deribit-ws/, '/ws/api/v2'),
         },
+        // Public Bybit OPTION ticker stream (no auth) — routed for dev/prod consistency.
+        '/bybit-ws-option': {
+          target: 'wss://stream.bybit.com',
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/bybit-ws-option/, '/v5/public/option'),
+        },
       },
     },
   };

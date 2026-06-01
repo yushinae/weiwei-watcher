@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { cn } from '../lib/utils';
 import { useCardHeader } from '../components/card/WidgetCard';
 import { EChart } from '../components/echart/EChart';
 import type { Coin } from '../features/monitor/types';
@@ -169,9 +168,9 @@ export function useCoinControl({ coin: coinProp, onCoinChange }: CoinControlProp
 }
 
 import {
-  SMILE_GRID, SMILE_LABELS_LIVE, buildSmileRows,
+  SMILE_LABELS_LIVE, buildSmileRows,
 } from './lib/chart-utils';
-import { TXT, BRAND, YELLOW, BLUE } from './lib/widget-colors';
+import { BRAND, YELLOW } from './lib/widget-colors';
 
 export const WidgetShell = ({ children, coin, setCoin }: { children: React.ReactNode; coin: Coin; setCoin: (c: Coin) => void }) => {
   const { setHeaderRight } = useCardHeader();
@@ -192,7 +191,7 @@ export const WidgetShell = ({ children, coin, setCoin }: { children: React.React
   );
 };
 
-import { CoinTabs, Skeleton } from './components/widget-atoms';
+import { Skeleton } from './components/widget-atoms';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Chart components
@@ -449,7 +448,7 @@ export const VolConeChart = React.memo(({
         const lines = params.map(p => {
           if (p.seriesType === 'boxplot') {
             const v = p.data as [unknown, number, number, number, number, number];
-            const [, lo, q1, mid, q3, hi] = v;
+            const [, lo, , mid, , hi] = v;
             return `<span style="color:${p.color}">●</span> ${p.seriesName}: <b>${lo.toFixed(0)}–${hi.toFixed(0)}</b> (中位 ${mid.toFixed(0)})`;
           }
           const v = (p.data as number) ?? 0;

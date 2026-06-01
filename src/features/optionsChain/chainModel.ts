@@ -42,7 +42,6 @@ export function bsVega(S: number, K: number, T: number, sig: number) {
 export function bsTheta(S: number, K: number, T: number, sig: number, call: boolean) {
   if (T <= 0 || sig <= 0 || S <= 0) return 0;
   const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  const d2 = d1 - sig * Math.sqrt(T);
   const term = -(S * 0.3989422804 * Math.exp(-0.5 * d1 * d1) * sig) / (2 * Math.sqrt(T));
   return (call
     ? term
@@ -167,13 +166,14 @@ export function buildBybitExpiry(g: BybitExpiryGroup, spot: number): ChainExpiry
   };
 }
 
-function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi: number, vol: number, call: boolean, instrument?: string): Side {
+function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi: number, vol: number, call: boolean, instrument?: string, real?: { mark: number; bid: number | null; ask: number | null }): Side {
   const sig = ivPct / 100;
-  const mark = bsPrice(spot, strike, T, sig, call);
+  // Prefer real book-summary prices; fall back to Black-Scholes only if missing.
+  const mark = real && real.mark > 0 ? real.mark : bsPrice(spot, strike, T, sig, call);
   const spread = Math.max(mark * 0.012, 0.5);
   return {
-    bid: Math.max(mark - spread / 2, 0),
-    ask: mark + spread / 2,
+    bid: real ? real.bid : Math.max(mark - spread / 2, 0),
+    ask: real ? real.ask : mark + spread / 2,
     mark,
     iv: ivPct,
     ivBid: ivPct - 0.4,
@@ -191,7 +191,7 @@ function deribitSide(strike: number, T: number, ivPct: number, spot: number, oi:
 }
 
 export function buildDeribitExpiry(g: DeribitExpiryGroup, spot: number): ChainExpiry {
-  type P = { strike: number; iv: number; oi: number; volume: number; T: number; instrument: string };
+  type P = { strike: number; iv: number; oi: number; volume: number; T: number; instrument: string; mark: number; bid: number | null; ask: number | null };
   const callByK = new Map<number, P>();
   const putByK = new Map<number, P>();
   for (const c of g.calls) callByK.set(c.strike, c);
@@ -209,8 +209,8 @@ export function buildDeribitExpiry(g: DeribitExpiryGroup, spot: number): ChainEx
       strike: K,
       isATM: K === atmStrike,
       isITM: K < spot,
-      call: c ? deribitSide(K, c.T, c.iv, spot, c.oi, c.volume, true, c.instrument) : emptySide(),
-      put: p ? deribitSide(K, p.T, p.iv, spot, p.oi, p.volume, false, p.instrument) : emptySide(),
+      call: c ? deribitSide(K, c.T, c.iv, spot, c.oi, c.volume, true, c.instrument, { mark: c.mark, bid: c.bid, ask: c.ask }) : emptySide(),
+      put: p ? deribitSide(K, p.T, p.iv, spot, p.oi, p.volume, false, p.instrument, { mark: p.mark, bid: p.bid, ask: p.ask }) : emptySide(),
     };
   });
 

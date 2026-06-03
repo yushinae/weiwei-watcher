@@ -42,6 +42,7 @@ interface DbPosition {
   instrument_name: string; size: number; direction: string;
   average_price: number; mark_price: number; index_price: number;
   floating_profit_loss: number; kind: string;
+  delta?: number; gamma?: number; vega?: number; theta?: number;
 }
 interface DbTrade {
   trade_id: string; instrument_name: string; direction: 'buy' | 'sell';
@@ -77,6 +78,9 @@ export const deribitAdapter: VenueAdapter = {
           notionalUsd: Math.abs(p.size) * idx,   // |张| × 标的现价
           unrealizedPnl: (p.floating_profit_loss || 0) * mult,
           leverage: null, liqPx: null,
+          // Deribit 报仓位级希腊：delta 币本位；反向(BTC/ETH) vega/theta 以币计→greeksUsd=false，USDC 已是 USD
+          delta: p.delta ?? 0, gamma: p.gamma ?? 0, vega: p.vega ?? 0, theta: p.theta ?? 0,
+          greeksUsd: linear,
         });
       }
 

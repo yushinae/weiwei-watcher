@@ -8,8 +8,10 @@ import {
   type UserPosition, type LivePosition,
 } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
+import { fetchAllPositions } from '../accounts/sync';
+import type { UnifiedPosition } from '../accounts/types';
 import {
-  fromDeribit, buildBooks, totals, portfolioScenarioPnL, samplePositions,
+  fromDeribit, fromAccounts, buildBooks, totals, portfolioScenarioPnL, samplePositions,
   type RiskPosition,
 } from './aggregate';
 
@@ -79,15 +81,29 @@ export const PortfolioRiskView = () => {
   const btcSpot = useLiveSpot('BTC');
   const ethSpot = useLiveSpot('ETH');
 
+  // 真实账户持仓（HL/Bybit/Deribit，跨所），进页同步一次
+  const [acctPositions, setAcctPositions] = useState<UnifiedPosition[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void fetchAllPositions().then(p => { if (alive) setAcctPositions(p); });
+    return () => { alive = false; };
+  }, []);
+  const acctRisk = useMemo(
+    () => fromAccounts(acctPositions, { BTC: btcSpot ?? 0, ETH: ethSpot ?? 0 }),
+    [acctPositions, btcSpot, ethSpot],
+  );
+
   const liveRisk = useMemo(() => fromDeribit(live), [live]);
-  const hasLive = liveRisk.length > 0;
+  // 真实book = 账户实盘 + Deribit 手动录入（旧路径）
+  const realRisk = useMemo(() => [...acctRisk, ...liveRisk], [acctRisk, liveRisk]);
+  const hasLive = realRisk.length > 0;
 
   const [forceSample, setForceSample] = useState(false);
   const usingSample = forceSample || !hasLive;
 
   const positions: RiskPosition[] = useMemo(
-    () => (usingSample ? samplePositions(btcSpot ?? 67000, ethSpot ?? 3500) : liveRisk),
-    [usingSample, liveRisk, btcSpot, ethSpot],
+    () => (usingSample ? samplePositions(btcSpot ?? 67000, ethSpot ?? 3500) : realRisk),
+    [usingSample, realRisk, btcSpot, ethSpot],
   );
 
   const books = useMemo(() => buildBooks(positions), [positions]);
@@ -205,7 +221,7 @@ export const PortfolioRiskView = () => {
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--nexus-green,#28C840)]/[0.12] ring-1 ring-inset ring-[#28C840]/30 text-[#28C840] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#28C840] animate-pulse" /> Deribit 实时 · {tot.count} 持仓
+              <span className="w-1.5 h-1.5 rounded-full bg-[#28C840] animate-pulse" /> 实盘账户 · {tot.count} 持仓
             </span>
           )}
           {hasLive && (
@@ -214,7 +230,7 @@ export const PortfolioRiskView = () => {
               {forceSample ? '切回实时持仓' : '查看示例'}
             </button>
           )}
-          <span className="ml-auto text-white/35">净希腊 = Deribit ticker（USD 口径）· Bybit 合并待单位核对后接入</span>
+          <span className="ml-auto text-white/35">净希腊 = 各所实盘持仓（HL/Bybit/Deribit，1张=1币、$Δ=delta×现价）· 请对照交易所核对</span>
         </div>
 
         {/* ── 净美元希腊（总 + 分币种）── */}

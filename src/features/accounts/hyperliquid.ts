@@ -55,6 +55,7 @@ export const hyperliquidAdapter: VenueAdapter = {
         unrealizedPnl: Number(p.unrealizedPnl),
         leverage: p.leverage?.value ?? null,
         liqPx: p.liquidationPx != null ? Number(p.liquidationPx) : null,
+        delta: szi, gamma: 0, vega: 0, theta: 0, greeksUsd: true, // 永续 delta = 仓位币数
       };
     });
 

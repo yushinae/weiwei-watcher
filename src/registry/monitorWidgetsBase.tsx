@@ -97,7 +97,7 @@ export type {
   PFlowAcc,
   WatchItem,
   UserPosition, LivePosition,
-  AlertMetric, AlertOp, UserAlert,
+  AlertMetric, AlertOp, UserAlert, AlertTriggerEvent,
 } from './data/store';
 export {
   PFLOW_ACC, PFLOW_SERIES, PFLOW_LAST, processPremiumFlow,
@@ -106,6 +106,8 @@ export {
   loadPositions, savePositions, POS_STORE, POS_TICKER_CACHE, buildLiveFromCache,
   subscribePositions, addPosition, removePositionById,
   loadAlerts, saveAlerts, ALERTS_STORE, METRIC_META, evalAlerts,
+  addAlert, removeAlert, toggleAlert, subscribeAlerts,
+  subscribeAlertTriggers, emitAlertTrigger,
 } from './data/store';
 
 // ═══════════════════════════════════════════════════════════════════════════════

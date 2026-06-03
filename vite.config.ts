@@ -46,6 +46,19 @@ export default defineConfig(({mode}) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/bybit-api/, ''),
         },
+        // Binance 公开行情端点（klines）—— data-api.binance.vision 无需 key、不受交易 API 地域限制
+        '/binance-api': {
+          target: 'https://data-api.binance.vision',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/binance-api/, ''),
+        },
+        // Hyperliquid 链上账户读取（info 端点，按钱包地址只读，无需密钥）
+        '/hyperliquid-api': {
+          target: 'https://api.hyperliquid.xyz',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/hyperliquid-api/, ''),
+        },
         '/deribit-ws': {
           target: 'wss://www.deribit.com',
           ws: true,

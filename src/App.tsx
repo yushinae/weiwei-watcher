@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import {
   Activity,
+  BookOpen,
   Calculator,
+  CandlestickChart,
   Eye,
   LayoutDashboard,
+  Bell,
   ListOrdered,
   Settings,
+  ShieldAlert,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
@@ -20,6 +26,12 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const PositionBuilderPage = lazy(() => import('./pages/PositionBuilderPage'));
 const BybitPositionsPage = lazy(() => import('./pages/BybitPositionsPage'));
 const OptionsChainPage = lazy(() => import('./pages/OptionsChainPage'));
+const PriceChartPage = lazy(() => import('./pages/PriceChartPage'));
+const JournalPage = lazy(() => import('./pages/JournalPage'));
+const PortfolioRiskPage = lazy(() => import('./pages/PortfolioRiskPage'));
+const VolHistoryPage = lazy(() => import('./pages/VolHistoryPage'));
+const AlertsPage = lazy(() => import('./pages/AlertsPage'));
+const AccountsPage = lazy(() => import('./pages/AccountsPage'));
 
 // 预加载函数 — 悬停导航按钮时提前拉取 chunk，消除首次切换延迟
 const preload = {
@@ -28,7 +40,16 @@ const preload = {
   positionBuilder: () => import('./pages/PositionBuilderPage'),
   bybitPositions: () => import('./pages/BybitPositionsPage'),
   optionsChain: () => import('./pages/OptionsChainPage'),
+  priceChart: () => import('./pages/PriceChartPage'),
+  journal: () => import('./pages/JournalPage'),
+  portfolioRisk: () => import('./pages/PortfolioRiskPage'),
+  volHistory: () => import('./pages/VolHistoryPage'),
+  alerts: () => import('./pages/AlertsPage'),
+  accounts: () => import('./pages/AccountsPage'),
 };
+
+// 全局告警引擎 + 应用内 Toast（始终挂载，不随页面卸载）
+import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
 // Lightweight import: only the WebSocket singleton + cache GC, not the full widget registry
 import { DERIBIT_WS, startCacheCleanup } from './registry/monitorWidgetsBase';
@@ -203,6 +224,9 @@ const AppNavigationDropdown = () => {
   const isMonitor = location.pathname === '/monitor';
   const isPositionBuilder = location.pathname === '/position-builder';
   const isOptionsChain = location.pathname === '/options-chain';
+  const isPriceChart = location.pathname === '/price-chart';
+  const isJournal = location.pathname === '/journal';
+  const isAccounts = location.pathname === '/accounts';
 
   const [posOpen, setPosOpen] = useState(false);
   const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -238,6 +262,12 @@ const AppNavigationDropdown = () => {
   const navItems = [
     { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
     { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
+    { label: '图表', icon: CandlestickChart, to: '/price-chart', preload: preload.priceChart },
+    { label: '曲面历史', icon: TrendingUp, to: '/vol-history', preload: preload.volHistory },
+    { label: '账户', icon: Wallet, to: '/accounts', preload: preload.accounts },
+    { label: '告警', icon: Bell, to: '/alerts', preload: preload.alerts },
+    { label: '日志', icon: BookOpen, to: '/journal', preload: preload.journal },
+    { label: '组合风险', icon: ShieldAlert, to: '/portfolio-risk', preload: preload.portfolioRisk },
     { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
     { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
   ];
@@ -307,6 +337,39 @@ const AppNavigationDropdown = () => {
         决策
       </button>
 
+      <button
+        onClick={() => navigate('/price-chart')}
+        onMouseEnter={preload.priceChart}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isPriceChart ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+        )}
+      >
+        图表
+      </button>
+
+      <button
+        onClick={() => navigate('/journal')}
+        onMouseEnter={preload.journal}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isJournal ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+        )}
+      >
+        日志
+      </button>
+
+      <button
+        onClick={() => navigate('/accounts')}
+        onMouseEnter={preload.accounts}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isAccounts ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+        )}
+      >
+        账户
+      </button>
+
       <div className="relative" onMouseEnter={() => { openOpt(); preload.optionsChain(); }} onMouseLeave={closeOpt}>
         <button
           onClick={() => navigate('/options-chain')}
@@ -352,6 +415,7 @@ const AppNavigationDropdown = () => {
                        shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
           >
             {([
+              { label: '组合风险', icon: ShieldAlert, to: '/portfolio-risk' },
               { label: '头寸可视化', icon: Eye, to: '/bybit/positions' },
               { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
             ]).map(it => {
@@ -449,6 +513,48 @@ function AppRoutes() {
               </Suspense>
             </div>
           } />
+          <Route path="/price-chart" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <PriceChartPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/journal" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <JournalPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/portfolio-risk" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <PortfolioRiskPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/vol-history" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <VolHistoryPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/alerts" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <AlertsPage />
+              </Suspense>
+            </div>
+          } />
+          <Route path="/accounts" element={
+            <div className="absolute inset-0">
+              <Suspense fallback={<PageFallback />}>
+                <AccountsPage />
+              </Suspense>
+            </div>
+          } />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
@@ -472,6 +578,7 @@ const TickerBar = () => {
 
 export default function App() {
   useTheme();
+  useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -579,6 +686,9 @@ export default function App() {
       </main>
 
       <footer className="h-[34px] glass-bar flex items-center px-1.5 shrink-0 z-10 w-full relative" />
+
+      {/* 全局告警 Toast（应用内，独立于系统通知）*/}
+      <AlertToastHost />
     </div>
   );
 }

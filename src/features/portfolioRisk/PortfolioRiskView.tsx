@@ -14,6 +14,7 @@ import {
   fromDeribit, fromAccounts, buildBooks, totals, portfolioScenarioPnL, samplePositions,
   type RiskPosition,
 } from './aggregate';
+import { captureSnapshot, loadSnapshots, buildAttribution, sampleAttribution } from './snapshot';
 
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -108,6 +109,47 @@ export const PortfolioRiskView = () => {
 
   const books = useMemo(() => buildBooks(positions), [positions]);
   const tot = useMemo(() => totals(books), [books]);
+
+  // ── 每日希腊快照 → P&L 归因 ──
+  const dvolRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const u1 = DERIBIT_WS.subscribe<{ volatility: number }>('deribit_volatility_index.btc_usd', d => { dvolRef.current.BTC = d.volatility; });
+    const u2 = DERIBIT_WS.subscribe<{ volatility: number }>('deribit_volatility_index.eth_usd', d => { dvolRef.current.ETH = d.volatility; });
+    return () => { u1(); u2(); };
+  }, []);
+  const [snaps, setSnaps] = useState(() => loadSnapshots());
+  // 实盘 + 有持仓时，每天存一条（覆盖今天）
+  useEffect(() => {
+    if (usingSample || !books.length) return;
+    const t = setTimeout(() => setSnaps(captureSnapshot(books, dvolRef.current)), 1500); // 等 DVOL 到
+    return () => clearTimeout(t);
+  }, [usingSample, books]);
+  const realAttrib = useMemo(() => buildAttribution(snaps), [snaps]);
+  const attrib = realAttrib.length >= 1 ? realAttrib : sampleAttribution();
+  const attribIsSample = realAttrib.length < 1;
+  const attribCum = useMemo(() => {
+    let c = 0; return attrib.map(a => ({ ...a, cum: (c += a.total) }));
+  }, [attrib]);
+
+  const attribOption = useMemo<EChartsOption>(() => {
+    const comps = [
+      { name: 'Delta（方向）', key: 'delta' as const, color: '#4ea1ff' },
+      { name: 'Gamma（凸性）', key: 'gamma' as const, color: '#25e889' },
+      { name: 'Vega（波动）', key: 'vega' as const, color: '#a78bfa' },
+      { name: 'Theta（时间）', key: 'theta' as const, color: '#FEBC2E' },
+    ];
+    return {
+      grid: { left: 8, right: 12, top: 28, bottom: 22, containLabel: true },
+      legend: { data: comps.map(c => c.name), textStyle: { color: 'rgba(255,255,255,0.55)', fontSize: 10 }, top: 0 },
+      xAxis: { type: 'category', data: attribCum.map(a => a.date.slice(5)), axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } }, axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, hideOverlap: true }, axisTick: { show: false } },
+      yAxis: { type: 'value', axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, formatter: (v: number) => fmtUsd(v) }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+      tooltip: { trigger: 'axis', valueFormatter: (v: number | string) => (typeof v === 'number' ? fmtUsd(v) : String(v)) },
+      series: [
+        ...comps.map(c => ({ name: c.name, type: 'bar' as const, stack: 'attr', data: attribCum.map(a => +a[c.key].toFixed(0)), itemStyle: { color: c.color } })),
+        { name: '累计', type: 'line' as const, data: attribCum.map(a => +a.cum.toFixed(0)), lineStyle: { color: 'rgba(255,255,255,0.8)', width: 2 }, symbol: 'none', z: 5 },
+      ],
+    };
+  }, [attribCum]);
 
   // ── 压力测试矩阵（visualMap diverging）──
   const matrix = useMemo(() => {
@@ -293,6 +335,18 @@ export const PortfolioRiskView = () => {
               <span className="text-[16px] font-bold tabular-nums" style={{ color: sgnColor(worstPnl) }}>{fmtUsd(worstPnl)}</span>
             </div>
           </div>
+        </div>
+
+        {/* ── P&L 归因（按希腊，每日累积）── */}
+        <Card title="P&L 归因（按希腊字母，每日累积）" className="shrink-0 h-[300px]"
+          right={attribIsSample
+            ? <span className="text-[10px] text-[#FEBC2E] font-semibold">示例形态 · 真实归因从明天起逐日累积</span>
+            : <span className="text-[10px] text-[#28C840] font-semibold">本地累积 · {snaps.length} 天</span>}>
+          <EChart option={attribOption} notMerge />
+        </Card>
+        <div className="text-[10px] text-white/35 leading-relaxed shrink-0 -mt-1">
+          每天把组合 P&L 拆成 4 个来源：Delta=方向、Gamma=凸性、Vega=波动、Theta=时间（用前一日希腊 × 当日 spot/IV 变动估算）。
+          需每天打开本页各存一条快照（每年约 70KB），越用越长；今天先记下第一条。
         </div>
 
         {/* ── 持仓明细 ── */}

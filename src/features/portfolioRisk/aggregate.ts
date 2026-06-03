@@ -10,8 +10,9 @@
 // 以免给出"看似精确实则错误"的风险数字（venue 字段已为后续接入预留）。
 
 import type { LivePosition } from '../../registry/monitorWidgetsBase';
+import type { UnifiedPosition } from '../accounts/types';
 
-export type Venue = 'Deribit' | 'Bybit';
+export type Venue = 'Deribit' | 'Bybit' | 'Hyperliquid' | 'Binance';
 
 export interface RiskPosition {
   id: string;
@@ -58,6 +59,34 @@ export function fromDeribit(live: LivePosition[]): RiskPosition[] {
       dollarVega: p.dollarVega,
       dollarTheta: p.dollarTheta,
     }));
+}
+
+// 「账户」页真实持仓 → 统一风险模型。各所统一约定：1 张=1 币、delta 仓位级币本位 → $Δ = delta × 现价。
+// vega/theta：USDT/USDC 线性(greeksUsd=true)已是 USD；Deribit 反向(BTC/ETH)以币计 → ×现价。
+export function fromAccounts(positions: UnifiedPosition[], spotByCoin: Record<string, number>): RiskPosition[] {
+  return positions
+    .filter(p => (p.delta ?? 0) !== 0 || p.size !== 0)
+    .map(p => {
+      const spot = spotByCoin[p.coin] || (Math.abs(p.size) ? p.notionalUsd / Math.abs(p.size) : 0) || 0;
+      const delta = p.delta ?? (p.kind === 'perp' ? p.size : 0);
+      const gamma = p.gamma ?? 0, vega = p.vega ?? 0, theta = p.theta ?? 0;
+      const usd = p.greeksUsd ?? true;
+      const kindLabel = p.kind === 'perp' ? '永续' : p.kind === 'option' ? '期权' : '现货';
+      return {
+        id: `acct-${p.venue}-${p.coin}-${p.kind}-${p.size}`,
+        venue: p.venue,
+        coin: p.coin,
+        instrument: `${p.venue} ${p.coin} ${kindLabel}`,
+        qty: p.size,
+        spot,
+        mark: p.markPx ?? 0,
+        iv: 0,
+        dollarDelta: delta * spot,
+        dollarGamma: gamma * spot * spot / 100,
+        dollarVega: usd ? vega : vega * spot,
+        dollarTheta: usd ? theta : theta * spot,
+      };
+    });
 }
 
 // 按币种聚合净希腊

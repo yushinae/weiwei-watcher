@@ -16,6 +16,12 @@ export interface UnifiedPosition {
   unrealizedPnl: number | null;
   leverage: number | null;
   liqPx: number | null;
+  // 希腊（可选，adapter 能拿到就填；约定：整个仓位级、delta 为币本位。组合风险实盘净希腊用）
+  delta?: number;               // 仓位 delta（币）；$Δ = delta × 现价
+  gamma?: number;               // d(delta)/d(spot)
+  vega?: number;                // 每 1% IV
+  theta?: number;               // 每日
+  greeksUsd?: boolean;          // vega/theta 是否已是 USD（Bybit/USDC 线性=true；Deribit 反向 BTC/ETH=false）
 }
 
 // 统一成交（一笔历史成交）

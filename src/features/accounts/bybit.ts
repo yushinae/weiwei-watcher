@@ -9,6 +9,7 @@ interface BybitLinearPosition {
   symbol: string; side: 'Buy' | 'Sell' | ''; size: string; avgPrice: string; markPrice: string;
   unrealisedPnl: string; positionValue: string; liqPrice?: string; leverage?: string;
 }
+interface BybitOptGreeks { delta?: string; gamma?: string; vega?: string; theta?: string }
 interface BybitListResult<T> { list: T[]; nextPageCursor?: string }
 interface ClosedPnl {
   symbol: string; side: 'Buy' | 'Sell'; qty: string; avgExitPrice: string;
@@ -31,11 +32,15 @@ export const bybitAdapter: VenueAdapter = {
       const opts = await fetchBybitOptionPositions();
       for (const p of opts) {
         const sz = Number(p.size) * (p.side === 'Sell' ? -1 : 1);
+        const g = p as BybitOptGreeks; // Bybit 报每张希腊；× 带符号张数 = 仓位级
         positions.push({
           venue: 'Bybit', accountId: acct.id, coin: p.symbol.split('-')[0], kind: 'option',
           size: sz, entryPx: Number(p.avgPrice) || null, markPx: Number(p.markPrice) || null,
           notionalUsd: Math.abs(Number(p.positionValue)), unrealizedPnl: Number(p.unrealisedPnl),
           leverage: null, liqPx: null,
+          delta: (Number(g.delta) || 0) * sz, gamma: (Number(g.gamma) || 0) * sz,
+          vega: (Number(g.vega) || 0) * sz, theta: (Number(g.theta) || 0) * sz,
+          greeksUsd: true, // USDT 结算，vega/theta 已是 USD
         });
       }
 
@@ -49,6 +54,7 @@ export const bybitAdapter: VenueAdapter = {
           size: sz, entryPx: Number(p.avgPrice) || null, markPx: Number(p.markPrice) || null,
           notionalUsd: Math.abs(Number(p.positionValue)), unrealizedPnl: Number(p.unrealisedPnl),
           leverage: p.leverage ? Number(p.leverage) : null, liqPx: p.liqPrice ? Number(p.liqPrice) : null,
+          delta: sz, gamma: 0, vega: 0, theta: 0, greeksUsd: true, // 永续 delta = 仓位币数
         });
       }
 

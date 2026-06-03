@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-import { Plus, Trash2, FlaskConical } from 'lucide-react';
+import { Plus, Trash2, FlaskConical, Wallet } from 'lucide-react';
 import { EChart } from '../../components/echart/EChart';
 import { STRATEGIES, JOURNAL_COINS, type JournalTrade, type TradeStatus } from './types';
 import {
   loadTrades, saveTrades, newId, computeStats, buildEquityCurve, sampleTrades,
+  type EquityPoint,
 } from './store';
+import { accountRealizedEvents, equityFromEvents, breakdownBy } from './realized';
 
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -22,7 +24,7 @@ const pnlColor = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : MUTE);
 
 // ── 小组件 ───────────────────────────────────────────────────────────────────
 
-const StatCard = ({ label, children, sub }: { label: string; children: React.ReactNode; sub?: React.ReactNode }) => (
+const StatCard: React.FC<{ label: string; children: React.ReactNode; sub?: React.ReactNode }> = ({ label, children, sub }) => (
   <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
     <span className="text-[10px] uppercase tracking-wider text-white/45">{label}</span>
     <span className="text-[22px] font-bold tabular-nums leading-none">{children}</span>
@@ -52,6 +54,14 @@ export const JournalView = () => {
 
   const stats = useMemo(() => computeStats(trades), [trades]);
   const equity = useMemo(() => buildEquityCurve(trades), [trades]);
+
+  // ── 实盘：来自「账户」页同步的真实成交（闭环）──
+  const acctEvents = useMemo(() => accountRealizedEvents(), []);
+  const acctEquity = useMemo(() => equityFromEvents(acctEvents), [acctEvents]);
+  const acctNet = useMemo(() => acctEvents.reduce((s, e) => s + e.pnl, 0), [acctEvents]);
+  const byVenue = useMemo(() => breakdownBy(acctEvents, 'venue'), [acctEvents]);
+  const byMonth = useMemo(() => breakdownBy(acctEvents, 'month'), [acctEvents]);
+  const hasAcct = acctEvents.length > 0;
 
   // 新增交易草稿
   const [draft, setDraft] = useState({
@@ -162,6 +172,55 @@ export const JournalView = () => {
     };
   }, [stats.byStrategy]);
 
+  // 实盘净值曲线
+  const acctEquityOption = useMemo<EChartsOption>(() => {
+    if (acctEquity.length < 2) return {};
+    const last = acctEquity[acctEquity.length - 1].cum;
+    const col = last >= 0 ? UP : DOWN;
+    return {
+      grid: { left: 8, right: 16, top: 16, bottom: 24, containLabel: true },
+      xAxis: { type: 'category', data: acctEquity.map((p: EquityPoint) => p.date), boundaryGap: false,
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, hideOverlap: true }, axisTick: { show: false } },
+      yAxis: { type: 'value', scale: true,
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, formatter: (v: number) => fmtUsd(v) },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+      series: [{
+        type: 'line', smooth: 0.2, showSymbol: false, data: acctEquity.map((p: EquityPoint) => +p.cum.toFixed(2)),
+        lineStyle: { color: col, width: 2 },
+        areaStyle: { color: last >= 0 ? 'rgba(40,200,64,0.12)' : 'rgba(255,95,87,0.12)' },
+        markLine: { symbol: 'none', silent: true, lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed', width: 1 }, data: [{ yAxis: 0 }] },
+      }],
+      tooltip: { trigger: 'axis', formatter: (params: unknown) => {
+        const i = (params as Array<{ dataIndex: number }>)[0]?.dataIndex ?? 0;
+        const p = acctEquity[i]; if (!p) return '';
+        return `<div style="font-weight:bold;margin-bottom:3px">${p.date}</div>` +
+          `<div>当日 <b style="color:${pnlColor(p.day)}">${fmtUsd(p.day)}</b></div>` +
+          `<div>累计 <b style="color:${pnlColor(p.cum)}">${fmtUsd(p.cum)}</b></div>`;
+      } },
+    };
+  }, [acctEquity]);
+
+  // 按月已实现盈亏（柱）
+  const monthOption = useMemo<EChartsOption>(() => {
+    if (!byMonth.length) return {};
+    return {
+      grid: { left: 8, right: 14, top: 12, bottom: 22, containLabel: true },
+      xAxis: { type: 'category', data: byMonth.map(m => m.label),
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9 }, axisTick: { show: false } },
+      yAxis: { type: 'value',
+        axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, formatter: (v: number) => fmtUsd(v) },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+      tooltip: { trigger: 'item', formatter: (p: unknown) => {
+        const m = byMonth[(p as { dataIndex: number }).dataIndex];
+        return `<b>${m.label}</b><br/>盈亏 <b style="color:${pnlColor(m.pnl)}">${fmtUsd(m.pnl)}</b> · ${m.count} 笔`;
+      } },
+      series: [{ type: 'bar', barWidth: '55%',
+        data: byMonth.map(m => ({ value: +m.pnl.toFixed(0), itemStyle: { color: m.pnl >= 0 ? 'rgba(40,200,64,0.6)' : 'rgba(255,95,87,0.6)', borderRadius: [3, 3, 0, 0] } })) }],
+    };
+  }, [byMonth]);
+
   const empty = trades.length === 0;
   const pf = stats.profitFactor;
 
@@ -169,7 +228,48 @@ export const JournalView = () => {
     <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
-        {/* ── 统计卡 ── */}
+        {/* ══ 实盘（来自「账户」页真实成交，闭环）══ */}
+        {hasAcct && (
+          <>
+            <div className="flex items-center gap-2 shrink-0">
+              <Wallet size={15} className="text-[#28C840]" />
+              <span className="text-[13px] font-semibold text-white/75">实盘盈亏 · 来自账户真实成交</span>
+              <span className="text-[11px] text-white/35">{acctEvents.length} 笔 · 已扣手续费</span>
+            </div>
+            <div className="flex gap-2.5 flex-wrap shrink-0">
+              <StatCard label="实盘净已实现盈亏" sub="HL / Bybit / Deribit 合计（扣费）">
+                <span style={{ color: pnlColor(acctNet) }}>{fmtUsd(acctNet)}</span>
+              </StatCard>
+              {byVenue.map(v => (
+                <StatCard key={v.label} label={v.label} sub={`${v.count} 笔`}>
+                  <span className="text-[18px]" style={{ color: pnlColor(v.pnl) }}>{fmtUsd(v.pnl)}</span>
+                </StatCard>
+              ))}
+            </div>
+            <div className="grid grid-cols-12 gap-3 shrink-0">
+              <Card title="实盘净值曲线（真实已实现盈亏）" className="col-span-12 lg:col-span-7 h-[280px]">
+                {acctEquity.length >= 2
+                  ? <EChart option={acctEquityOption} notMerge />
+                  : <div className="h-full flex items-center justify-center text-[12px] text-white/40">实盘成交 ≥2 天后显示</div>}
+              </Card>
+              <Card title="按月已实现盈亏" className="col-span-12 lg:col-span-5 h-[280px]">
+                {byMonth.length
+                  ? <EChart option={monthOption} notMerge />
+                  : <div className="h-full flex items-center justify-center text-[12px] text-white/40">暂无</div>}
+              </Card>
+            </div>
+            <div className="text-[10px] text-white/35 leading-relaxed shrink-0">
+              实盘数据来自「账户」页同步的真实成交（closedPnl 扣费）。下方「手动记录」用于补充策略标签 / 复盘备注。
+              注：严格的 Δ/Vega/Theta 归因需逐日希腊快照，历史成交无法回溯，后续可从现在起累积。
+            </div>
+            <div className="h-px bg-white/[0.06] my-1 shrink-0" />
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[13px] font-semibold text-white/55">手动记录 · 策略标注 / 复盘</span>
+            </div>
+          </>
+        )}
+
+        {/* ── 统计卡（手动记录）── */}
         <div className="flex gap-2.5 flex-wrap shrink-0">
           <StatCard label="累计已实现盈亏" sub={`${stats.closedCount} 笔已平仓 · ${stats.openCount} 持仓中`}>
             <span style={{ color: pnlColor(stats.totalPnl) }}>{fmtUsd(stats.totalPnl)}</span>

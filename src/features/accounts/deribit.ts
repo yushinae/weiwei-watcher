@@ -6,7 +6,16 @@
 import type { VenueAdapter, VenueAccount, SyncResult, UnifiedPosition, UnifiedFill } from './types';
 import { DERIBIT_WS } from '../../registry/monitorWidgetsBase';
 
-const CCYS = ['BTC', 'ETH'] as const;
+// BTC/ETH = 反向（币本位），价格/盈亏以币计 → ×index 折 USD。
+// USDC = 线性，价格/盈亏已是 USD → ×1。
+const CCY_LIST: { ccy: string; linear: boolean }[] = [
+  { ccy: 'BTC', linear: false },
+  { ccy: 'ETH', linear: false },
+  { ccy: 'USDC', linear: true },
+];
+// 'BTC-…' → BTC；'BTC_USDC-…' → BTC
+const coinOf = (inst: string) => (inst || '').split(/[-_]/)[0] || '—';
+const isUsd = (cur: string) => cur === 'USDC' || cur === 'USD' || cur === 'USDT';
 
 let authedUntil = 0;
 let accessToken = '';
@@ -53,19 +62,20 @@ export const deribitAdapter: VenueAdapter = {
 
     try {
     await ensureAuth();
-    for (const ccy of CCYS) {
+    for (const { ccy, linear } of CCY_LIST) {
       // ── 当前持仓（期权）──
       const pos = await priv<DbPosition[]>('private/get_positions', { currency: ccy, kind: 'option' });
       for (const p of pos ?? []) {
         if (!p.size) continue;
         const idx = p.index_price || 0;
+        const mult = linear ? 1 : idx;   // USDC 已是 USD；BTC/ETH 反向 ×index
         positions.push({
-          venue: 'Deribit', accountId: acct.id, coin: ccy, kind: 'option',
+          venue: 'Deribit', accountId: acct.id, coin: coinOf(p.instrument_name), kind: 'option',
           size: p.size,
-          entryPx: p.average_price && idx ? p.average_price * idx : null,
-          markPx: p.mark_price && idx ? p.mark_price * idx : null,
-          notionalUsd: Math.abs(p.size) * idx,
-          unrealizedPnl: (p.floating_profit_loss || 0) * idx,
+          entryPx: p.average_price ? p.average_price * mult : null,
+          markPx: p.mark_price ? p.mark_price * mult : null,
+          notionalUsd: Math.abs(p.size) * idx,   // |张| × 标的现价
+          unrealizedPnl: (p.floating_profit_loss || 0) * mult,
           leverage: null, liqPx: null,
         });
       }
@@ -81,12 +91,13 @@ export const deribitAdapter: VenueAdapter = {
         const trades = r?.trades ?? [];
         for (const t of trades) {
           const idx = t.index_price || 0;
+          const mult = linear ? 1 : idx;
           fills.push({
             venue: 'Deribit', accountId: acct.id, id: `tr-${t.trade_id}`,
-            coin: ccy, side: t.direction === 'buy' ? 'buy' : 'sell',
-            px: t.price * idx, size: t.amount, notionalUsd: t.amount * idx,
+            coin: coinOf(t.instrument_name), side: t.direction === 'buy' ? 'buy' : 'sell',
+            px: t.price * mult, size: t.amount, notionalUsd: t.amount * idx,
             time: t.timestamp, closedPnl: 0,
-            fee: Math.abs(t.fee) * (t.fee_currency === ccy ? idx : 1),
+            fee: Math.abs(t.fee) * (isUsd(t.fee_currency) ? 1 : idx),
             dir: `${t.direction === 'buy' ? '买' : '卖'} ${t.instrument_name}`,
           });
         }
@@ -102,12 +113,12 @@ export const deribitAdapter: VenueAdapter = {
         );
         for (const s of sh?.settlements ?? []) {
           if (s.timestamp < sinceMs || !s.profit_loss) continue;
-          const idx = s.index_price || 0;
+          const mult = linear ? 1 : (s.index_price || 0);
           fills.push({
             venue: 'Deribit', accountId: acct.id,
             id: `set-${s.instrument_name ?? ccy}-${s.timestamp}`,
-            coin: ccy, side: 'sell', px: 0, size: 0, notionalUsd: 0,
-            time: s.timestamp, closedPnl: s.profit_loss * (idx || 1), fee: 0,
+            coin: coinOf(s.instrument_name ?? ccy), side: 'sell', px: 0, size: 0, notionalUsd: 0,
+            time: s.timestamp, closedPnl: s.profit_loss * (mult || 1), fee: 0,
             dir: `${s.type === 'delivery' ? '交割' : '结算'} ${s.instrument_name ?? ''}`.trim(),
           });
         }

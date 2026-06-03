@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, RefreshCw, Download, Wallet } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Trash2, RefreshCw, Download, Wallet, Upload, X } from 'lucide-react';
 import {
   getAccounts, subscribeAccounts, addAccount, removeAccount, ensureEnvAccounts,
 } from './store';
@@ -7,7 +7,11 @@ import {
   loadAllFills, mergeFills, getLastSync, setLastSync, clearAccountData, exportFillsJson,
 } from './fillStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
+import { parseFile, rowsToFills, type CsvParsed, type Field } from './csvImport';
 import type { Venue, VenueAccount, UnifiedPosition, UnifiedFill } from './types';
+
+const ALL_VENUES: Venue[] = ['Hyperliquid', 'Bybit', 'Deribit', 'Binance'];
+const FIELD_LABEL: Record<Field, string> = { time: '时间', symbol: '合约', side: '方向', price: '价格', qty: '数量', fee: '手续费', pnl: '已实现盈亏' };
 
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -127,6 +131,32 @@ export const AccountsHub = () => {
   const recentFills = useMemo(() => [...fills].sort((a, b) => b.time - a.time).slice(0, 60), [fills]);
   const noAccounts = accounts.length === 0;
 
+  // ── CSV 导入 ──
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [csv, setCsv] = useState<(CsvParsed & { venue: Venue }) | null>(null);
+
+  const onCsvFile = async (file: File | undefined) => {
+    if (!file) return;
+    const parsed = parseFile(await file.text());
+    const fn = file.name.toLowerCase();
+    const guess: Venue = fn.includes('bybit') ? 'Bybit' : fn.includes('deribit') ? 'Deribit'
+      : fn.includes('binance') ? 'Binance' : fn.includes('hyper') ? 'Hyperliquid' : 'Bybit';
+    setCsv({ ...parsed, venue: guess });
+  };
+
+  const csvFills = useMemo(() => (csv ? rowsToFills(csv.dataRows, csv.mapping, csv.venue) : []), [csv]);
+  const csvPnl = useMemo(() => csvFills.reduce((s, f) => s + f.closedPnl - f.fee, 0), [csvFills]);
+
+  const confirmImport = () => {
+    if (!csvFills.length) return;
+    const added = mergeFills(csvFills);
+    setFills(loadAllFills());
+    setCsv(null);
+    if (fileRef.current) fileRef.current.value = '';
+    alert(`已导入 ${added} 笔（去重后）`);
+  };
+  const cancelImport = () => { setCsv(null); if (fileRef.current) fileRef.current.value = ''; };
+
   return (
     <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
@@ -142,10 +172,71 @@ export const AccountsHub = () => {
             className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors disabled:opacity-40">
             <Download size={13} /> 导出备份
           </button>
+          <button onClick={() => fileRef.current?.click()}
+            className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors">
+            <Upload size={13} /> 导入 CSV
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
+            onChange={e => void onCsvFile(e.target.files?.[0])} />
           <span className="ml-auto text-[11px] text-white/35">
             {lastSyncAt ? `上次同步 ${fmtTime(lastSyncAt)}` : '进入即自动同步'} · 数据来自各所，本地存一份
           </span>
         </div>
+
+        {/* CSV 导入预览 */}
+        {csv && (
+          <div className="flex flex-col gap-2.5 px-4 py-3 rounded-xl bg-[#4ea1ff]/[0.06] ring-1 ring-inset ring-[#4ea1ff]/25 shrink-0">
+            <div className="flex items-center gap-2">
+              <Upload size={14} className="text-[#4ea1ff]" />
+              <span className="text-[12px] font-semibold text-white/80">CSV 导入预览</span>
+              <span className="text-[11px] text-white/40">解析 {csv.dataRows.length} 行 · 识别有效成交 {csvFills.length} 笔</span>
+              <button onClick={cancelImport} className="ml-auto text-white/35 hover:text-white/70"><X size={15} /></button>
+            </div>
+
+            <div className="flex items-end gap-2 flex-wrap">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] text-white/40">归属交易所</span>
+                <select className={inputCls} value={csv.venue} onChange={e => setCsv({ ...csv, venue: e.target.value as Venue })}>
+                  {ALL_VENUES.map(v => <option key={v} value={v}>{v}</option>)}
+                  <option value="Binance">其它</option>
+                </select>
+              </label>
+              {(Object.keys(FIELD_LABEL) as Field[]).map(f => (
+                <label key={f} className="flex flex-col gap-1">
+                  <span className="text-[10px] text-white/40">{FIELD_LABEL[f]}{csv.mapping[f] < 0 && f !== 'fee' && f !== 'pnl' ? ' ⚠️' : ''}</span>
+                  <select className={`${inputCls} max-w-[130px]`} value={csv.mapping[f]}
+                    onChange={e => setCsv({ ...csv, mapping: { ...csv.mapping, [f]: Number(e.target.value) } })}>
+                    <option value={-1}>—（无）</option>
+                    {csv.header.map((h, i) => <option key={i} value={i}>{h || `列${i + 1}`}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            {/* 样本预览 */}
+            {csvFills.length > 0 && (
+              <div className="text-[11px] text-white/55 font-mono tabular-nums overflow-x-auto">
+                <div className="text-white/35 mb-0.5">前 3 笔预览：</div>
+                {csvFills.slice(0, 3).map((f, i) => (
+                  <div key={i} className="whitespace-nowrap">
+                    {fmtTime(f.time)} · {f.coin} · {f.side === 'buy' ? '买' : '卖'} · @{f.px} × {f.size} · 盈亏 <span style={{ color: sgn(f.closedPnl) }}>{fmtUsd(f.closedPnl)}</span></div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <span className="text-[12px]">识别已实现盈亏合计 <b style={{ color: sgn(csvPnl) }}>{fmtUsd(csvPnl)}</b></span>
+              <button onClick={confirmImport} disabled={!csvFills.length}
+                className="ml-auto h-[30px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold hover:bg-[#25e889]/25 transition-colors disabled:opacity-40">
+                确认导入 {csvFills.length} 笔
+              </button>
+              <button onClick={cancelImport} className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold text-white/65 hover:bg-white/[0.1]">取消</button>
+            </div>
+            <div className="text-[10px] text-white/35 leading-relaxed">
+              用于补齐 API 够不到的更早历史。⚠️ 与「全部同步」已拉到的同期数据可能重复计入（两者去重 id 不同），建议只导入 API 窗口之外的时段；同一文件重复导入会自动去重。
+            </div>
+          </div>
+        )}
 
         {/* 账户配置 */}
         <Card title="我的账户">

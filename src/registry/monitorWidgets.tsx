@@ -666,6 +666,30 @@ const LiveBadge = () => (
   </span>
 );
 
+// ── Sample-data badge ───────────────────────────────────────────────────────────
+// 当实时数据未到（加载中）或拉取失败时，widget 会退回写死的示例数据。以下两个组件
+// 明确标注「这不是实时数据」，避免交易者拿一条假曲线下单。
+//  · StaleBadge：表头小徽标（与 LiveBadge 同位，互斥显示）
+//  · StaleRibbon：拉取超时失败后，图表角落的醒目角标
+
+const StaleBadge = ({ failed }: { failed?: boolean }) => (
+  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-yellow)]/90 uppercase tracking-wider">
+    <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-yellow)]/80" />
+    {failed ? '示例·无实时' : '示例数据'}
+  </span>
+);
+
+const StaleRibbon = () => (
+  <div className="absolute top-1.5 right-2 z-10 pointer-events-none flex items-center gap-1 px-1.5 py-0.5 rounded-md
+                  bg-[var(--nexus-yellow)]/[0.12] ring-1 ring-inset ring-[var(--nexus-yellow)]/[0.35]">
+    <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+      <path d="M10 2 1.5 17h17L10 2Z" stroke="var(--nexus-yellow)" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M10 8v4M10 14v.4" stroke="var(--nexus-yellow)" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+    <span className="text-[9px] font-bold text-[var(--nexus-yellow)] uppercase tracking-wide">示例数据 · Deribit 历史无响应</span>
+  </div>
+);
+
 // ── Loading skeleton ───────────────────────────────────────────────────────────
 
 const Skeleton = () => (
@@ -1112,21 +1136,22 @@ export const VolSmileWidget = ({
 
 export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: histData } = useDeribitHistory(coin);
+  const { data: histData, timedOut } = useDeribitHistory(coin);
   const vrpData = histData?.vrp ?? VRP_HIST[coin];
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData && <LiveBadge />}
+        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, histData]);
+  }, [coin, setCoin, setHeaderRight, histData, timedOut]);
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-3 pb-2">
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {!histData && timedOut && <StaleRibbon />}
         <VRPChart data={vrpData} />
       </div>
     </div>
@@ -1135,21 +1160,22 @@ export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
 export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: histData } = useDeribitHistory(coin);
+  const { data: histData, timedOut } = useDeribitHistory(coin);
   const ivrData = histData?.ivr ?? IVR_HIST[coin];
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData && <LiveBadge />}
+        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, histData]);
+  }, [coin, setCoin, setHeaderRight, histData, timedOut]);
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-3 pb-2">
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {!histData && timedOut && <StaleRibbon />}
         <IVRankChart data={ivrData} />
       </div>
     </div>
@@ -1160,7 +1186,7 @@ const CONE_TENOR_TARGETS = [7, 14, 30, 60, 90, 180];
 
 export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
-  const { data: histData } = useDeribitHistory(coin);
+  const { data: histData, timedOut } = useDeribitHistory(coin);
   const { data: optData } = useDeribitOptions(coin);
   const mockCone = VOL_CONE[coin];
   const { setHeaderRight } = useCardHeader();
@@ -1168,12 +1194,12 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData && <LiveBadge />}
+        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
         <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
-  }, [coin, setCoin, setHeaderRight, histData]);
+  }, [coin, setCoin, setHeaderRight, histData, timedOut]);
 
   // Current IV line: match each CONE_TENOR_TARGETS day to nearest options expiry
   const currIVs: number[] = CONE_TENOR_TARGETS.map(t => {
@@ -1197,7 +1223,8 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
 
   return (
     <div className="w-full h-full flex flex-col min-h-0 overflow-hidden px-2 pb-1">
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        {!histData && timedOut && <StaleRibbon />}
         {histData
           ? <VolConeChart cone={cone} currIVs={currIVs} tenorLabels={labels} />
           : <VolConeChart

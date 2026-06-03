@@ -199,7 +199,9 @@ export const METRIC_META: Record<AlertMetric, { label: string; unit: string; def
   putflow:   { label: 'Put 净流向',   unit: 'K$',   defaultVal: -500  },
 };
 
-export function evalAlerts(coin: Coin): void {
+// liveOverrides：全局引擎传入的 WS 实时值（spot/dvol），覆盖可能已过期的缓存值，
+// 使告警在离开监控页时仍能基于实时行情触发。
+export function evalAlerts(coin: Coin, liveOverrides?: Partial<Record<AlertMetric, number>>): void {
   const optC  = DERIBIT_CACHE.get(coin);
   const histC = HIST_CACHE.get(coin);
   const flowC = FLOW_CACHE.get(coin);
@@ -212,6 +214,12 @@ export function evalAlerts(coin: Coin): void {
   if (histC)  vals.ivrank = histC.data.ivRankCurrent;
   if (flowC)  vals.funding = flowC.data.annFunding;
   if (pflAc)  { vals.callflow = pflAc.cumCallNet / 1000; vals.putflow = pflAc.cumPutNet / 1000; }
+  if (liveOverrides) {
+    for (const k of Object.keys(liveOverrides) as AlertMetric[]) {
+      const ov = liveOverrides[k];
+      if (typeof ov === 'number' && !Number.isNaN(ov)) vals[k] = ov;
+    }
+  }
 
   for (const a of ALERTS_STORE) {
     if (!a.active || a.coin !== coin) continue;
@@ -222,6 +230,7 @@ export function evalAlerts(coin: Coin): void {
     a.triggered = a.op === '>' ? v > a.threshold : v < a.threshold;
     if (a.triggered && !prev) {
       a.triggeredAt = Date.now();
+      emitAlertTrigger({ id: a.id, coin: a.coin, metric: a.metric, op: a.op, threshold: a.threshold, value: v, at: a.triggeredAt });
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const meta = METRIC_META[a.metric];
         new Notification(`${a.coin} 警报触发`, {
@@ -233,3 +242,38 @@ export function evalAlerts(coin: Coin): void {
     }
   }
 }
+
+// ── Alert CRUD + pub/sub（「告警中心」页与全局引擎共用 canonical store）──────────
+const _alertListeners = new Set<() => void>();
+export function subscribeAlerts(fn: () => void): () => void {
+  _alertListeners.add(fn);
+  return () => { _alertListeners.delete(fn); };
+}
+function _notifyAlerts(): void { _alertListeners.forEach(f => f()); }
+
+export function addAlert(a: Pick<UserAlert, 'coin' | 'metric' | 'op' | 'threshold'>): void {
+  ALERTS_STORE.push({
+    ...a, id: `al_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    active: true, triggered: false, lastValue: null, triggeredAt: null,
+  });
+  saveAlerts(); _notifyAlerts();
+}
+export function removeAlert(id: string): void {
+  const i = ALERTS_STORE.findIndex(a => a.id === id);
+  if (i >= 0) { ALERTS_STORE.splice(i, 1); saveAlerts(); _notifyAlerts(); }
+}
+export function toggleAlert(id: string): void {
+  const a = ALERTS_STORE.find(x => x.id === id);
+  if (a) { a.active = !a.active; if (!a.active) a.triggered = false; saveAlerts(); _notifyAlerts(); }
+}
+
+// ── 触发事件总线（供 UI toast 订阅）──────────────────────────────────────────
+export interface AlertTriggerEvent {
+  id: string; coin: Coin; metric: AlertMetric; op: AlertOp; threshold: number; value: number; at: number;
+}
+const _triggerListeners = new Set<(e: AlertTriggerEvent) => void>();
+export function subscribeAlertTriggers(fn: (e: AlertTriggerEvent) => void): () => void {
+  _triggerListeners.add(fn);
+  return () => { _triggerListeners.delete(fn); };
+}
+export function emitAlertTrigger(e: AlertTriggerEvent): void { _triggerListeners.forEach(f => f(e)); }

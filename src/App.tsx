@@ -222,21 +222,9 @@ const AppNavigationDropdown = () => {
   const location = useLocation();
   const isDashboard = location.pathname === '/dashboard';
   const isMonitor = location.pathname === '/monitor';
-  const isPositionBuilder = location.pathname === '/position-builder';
   const isOptionsChain = location.pathname === '/options-chain';
   const isPriceChart = location.pathname === '/price-chart';
-  const isJournal = location.pathname === '/journal';
   const isAccounts = location.pathname === '/accounts';
-
-  const [posOpen, setPosOpen] = useState(false);
-  const posTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openPos = () => {
-    if (posTimer.current) { clearTimeout(posTimer.current); posTimer.current = null; }
-    setPosOpen(true);
-  };
-  const closePos = () => {
-    posTimer.current = setTimeout(() => setPosOpen(false), 300);
-  };
 
   const [navOpen, setNavOpen] = useState(false);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -259,17 +247,23 @@ const AppNavigationDropdown = () => {
     optTimer.current = setTimeout(() => setOptOpen(false), 300);
   };
 
-  const navItems = [
-    { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
-    { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
-    { label: '图表', icon: CandlestickChart, to: '/price-chart', preload: preload.priceChart },
-    { label: '曲面历史', icon: TrendingUp, to: '/vol-history', preload: preload.volHistory },
-    { label: '账户', icon: Wallet, to: '/accounts', preload: preload.accounts },
-    { label: '告警', icon: Bell, to: '/alerts', preload: preload.alerts },
-    { label: '日志', icon: BookOpen, to: '/journal', preload: preload.journal },
-    { label: '组合风险', icon: ShieldAlert, to: '/portfolio-risk', preload: preload.portfolioRisk },
-    { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
-    { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
+  // 九宫格 = 唯一完整菜单，按「我的 / 市场」分组
+  const navGroups = [
+    { title: '我的', items: [
+      { label: '账户', icon: Wallet, to: '/accounts', preload: preload.accounts },
+      { label: '组合风险', icon: ShieldAlert, to: '/portfolio-risk', preload: preload.portfolioRisk },
+      { label: '日志', icon: BookOpen, to: '/journal', preload: preload.journal },
+      { label: '告警', icon: Bell, to: '/alerts', preload: preload.alerts },
+      { label: '头寸可视化', icon: Eye, to: '/bybit/positions', preload: preload.bybitPositions },
+      { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
+    ] },
+    { title: '市场', items: [
+      { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
+      { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
+      { label: '图表', icon: CandlestickChart, to: '/price-chart', preload: preload.priceChart },
+      { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
+      { label: '曲面历史', icon: TrendingUp, to: '/vol-history', preload: preload.volHistory },
+    ] },
   ];
 
   return (
@@ -294,24 +288,32 @@ const AppNavigationDropdown = () => {
           <div
             onMouseEnter={openNav}
             onMouseLeave={closeNav}
-            className="absolute top-full left-0 mt-1 w-[150px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
+            className="absolute top-full left-0 mt-1 w-[160px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
                        shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
           >
-            {navItems.map((it) => {
-              const Icon = it.icon;
-              return (
-                <button
-                  key={it.label}
-                  onClick={() => { navigate(it.to); setNavOpen(false); }}
-                  onMouseEnter={it.preload}
-                  className="flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left
-                             hover:bg-white/[0.07] transition-colors"
-                >
-                  <Icon size={16} className="text-white/55 shrink-0" />
-                  <span className="text-[13px] font-semibold text-white/80">{it.label}</span>
-                </button>
-              );
-            })}
+            {navGroups.map((group, gi) => (
+              <div key={group.title} className={gi > 0 ? 'mt-1 pt-1 border-t border-white/[0.06]' : ''}>
+                <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/35">{group.title}</div>
+                {group.items.map((it) => {
+                  const Icon = it.icon;
+                  const active = location.pathname === it.to;
+                  return (
+                    <button
+                      key={it.label}
+                      onClick={() => { navigate(it.to); setNavOpen(false); }}
+                      onMouseEnter={it.preload}
+                      className={cn(
+                        'flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left transition-colors',
+                        active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.07]',
+                      )}
+                    >
+                      <Icon size={16} className={cn('shrink-0', active ? 'text-white/85' : 'text-white/55')} />
+                      <span className={cn('text-[13px] font-semibold', active ? 'text-white' : 'text-white/80')}>{it.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -349,17 +351,6 @@ const AppNavigationDropdown = () => {
       </button>
 
       <button
-        onClick={() => navigate('/journal')}
-        onMouseEnter={preload.journal}
-        className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isJournal ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
-        )}
-      >
-        日志
-      </button>
-
-      <button
         onClick={() => navigate('/accounts')}
         onMouseEnter={preload.accounts}
         className={cn(
@@ -391,50 +382,6 @@ const AppNavigationDropdown = () => {
         )}
       </div>
 
-      <div
-        className="relative"
-        onMouseEnter={openPos}
-        onMouseLeave={closePos}
-      >
-        <button
-          onClick={() => navigate('/position-builder')}
-          onMouseEnter={preload.positionBuilder}
-          className={cn(
-            "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-            isPositionBuilder || posOpen ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
-          )}
-        >
-          头寸
-        </button>
-
-        {posOpen && (
-          <div
-            onMouseEnter={openPos}
-            onMouseLeave={closePos}
-            className="absolute top-full left-0 mt-1 w-[150px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
-                       shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
-          >
-            {([
-              { label: '组合风险', icon: ShieldAlert, to: '/portfolio-risk' },
-              { label: '头寸可视化', icon: Eye, to: '/bybit/positions' },
-              { label: '头寸压力测试', icon: Calculator, to: '/position-builder' },
-            ]).map(it => {
-              const Icon = it.icon;
-              return (
-                <button
-                  key={it.label}
-                  onClick={() => { navigate(it.to); setPosOpen(false); }}
-                  className="flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left
-                             hover:bg-white/[0.07] transition-colors"
-                >
-                  <Icon size={16} className="text-white/55 shrink-0" />
-                  <span className="text-[13px] font-semibold text-white/80">{it.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

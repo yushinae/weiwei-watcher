@@ -4,12 +4,16 @@ import {
   DERIBIT_WS, evalAlerts, METRIC_META, subscribeAlertTriggers,
   type AlertTriggerEvent,
 } from '../../registry/monitorWidgetsBase';
+import { getBook } from '../accounts/bookStore';
+import { fromAccounts, buildBooks } from '../portfolioRisk/aggregate';
 import type { Coin } from '../monitor/types';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 
 // 始终在线、永远只评估实时可得指标（spot/dvol）的两个；其余在监控数据新鲜时顺带评估。
 export const ALWAYS_ON_METRICS = new Set(['spot', 'dvol']);
+// 盯持仓指标：基于「账户」页同步的真实持仓 + 实时现价（净 Delta 随价格实时变）。
+export const BOOK_METRICS = new Set(['netDelta', 'netVega']);
 
 // ── 全局告警引擎 ──────────────────────────────────────────────────────────────
 // 挂在 App 顶层一次。直接订阅 DERIBIT_WS 的 spot + DVOL（全局常驻连接，不受
@@ -28,9 +32,14 @@ export function useGlobalAlertEngine(): void {
     }
     // 不 gate document.hidden：Notification 的价值恰恰是 tab 在后台时也提醒（WS 后台仍收消息）。
     const tick = setInterval(() => {
+      // 盯持仓告警：用缓存的真实持仓 + 实时现价算每币净 $Delta/$Vega（随价格实时变）
+      const book = getBook();
+      const spots = { BTC: live.current.BTC.spot ?? 0, ETH: live.current.ETH.spot ?? 0 };
+      const coinBooks = book.length ? buildBooks(fromAccounts(book, spots)) : [];
       for (const c of COINS) {
         const lv = live.current[c];
-        evalAlerts(c, { spot: lv.spot, dvol: lv.dvol });
+        const cb = coinBooks.find(b => b.coin === c);
+        evalAlerts(c, { spot: lv.spot, dvol: lv.dvol, netDelta: cb?.netDelta, netVega: cb?.netVega });
       }
     }, 4000);
     return () => { unsubs.forEach(u => u()); clearInterval(tick); };

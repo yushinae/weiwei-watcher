@@ -159,7 +159,8 @@ export function buildLiveFromCache(positions: UserPosition[]): LivePosition[] {
 // Alerts system
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type AlertMetric = 'spot' | 'dvol' | 'ivrank' | 'funding' | 'sentiment' | 'callflow' | 'putflow';
+export type AlertMetric = 'spot' | 'dvol' | 'ivrank' | 'funding' | 'sentiment' | 'callflow' | 'putflow'
+  | 'netDelta' | 'netVega';
 export type AlertOp     = '>' | '<';
 
 export interface UserAlert {
@@ -197,6 +198,8 @@ export const METRIC_META: Record<AlertMetric, { label: string; unit: string; def
   sentiment: { label: '情绪评分',     unit: 'pts',  defaultVal: 30    },
   callflow:  { label: 'Call 净流向',  unit: 'K$',   defaultVal: 1000  },
   putflow:   { label: 'Put 净流向',   unit: 'K$',   defaultVal: -500  },
+  netDelta:  { label: '持仓净$Delta',  unit: '$',    defaultVal: 50000 },
+  netVega:   { label: '持仓净$Vega/1%', unit: '$',   defaultVal: -2000 },
 };
 
 // liveOverrides：全局引擎传入的 WS 实时值（spot/dvol），覆盖可能已过期的缓存值，

@@ -13,7 +13,6 @@ import {
   OptionsSkewWidget,
   IVSurfaceWidget,
   VolConeWidget,
-  VolOverviewWidget,
   DVOLSeriesWidget,
   FundingRateWidget,
   FuturesBasisWidget,
@@ -75,14 +74,11 @@ export default function MonitorPage() {
                 <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[160px]">
                   <ImpliedMoveWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="实时期权链" headerDensity="compact" className="col-span-5 h-[440px]">
+                <WidgetCard title="实时期权链" headerDensity="compact" className="col-span-6 h-[440px]">
                   <LiveOptionsChainWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="大宗成交流" headerDensity="compact" className="col-span-4 h-[440px]">
+                <WidgetCard title="大宗成交流" headerDensity="compact" className="col-span-6 h-[440px]">
                   <BlockTradeWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="波动率期限结构" headerDensity="compact" className="col-span-3 h-[440px]">
-                  <VolOverviewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>
             )}

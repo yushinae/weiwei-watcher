@@ -2,13 +2,13 @@ import React, { useMemo } from 'react';
 import { motion, MotionConfig } from 'motion/react';
 import { Thermometer, BarChart3, Target, Calendar, Briefcase, Sigma } from 'lucide-react';
 import type { Coin } from '../../features/monitor/types';
+import { AccountSummaryCard } from '../../features/accounts/AccountSummaryCard';
 import {
   DashCard,
   EnvironmentThermometer,
   TermStructureSkewStrip,
   GEXKeyLevels,
   EventCalendarStrip,
-  PositionsSummaryMini,
   StrategyBottom,
 } from '../../registry/dashboardWidgets';
 import { useTickerSnapshotWS } from '../../registry/monitorWidgetsBase';
@@ -145,11 +145,11 @@ export default function DashboardPage({ coin, setCoin }: Props) {
           <div className="flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
             <div className="flex items-center gap-2.5">
               <span className="w-7 h-7 flex items-center justify-center rounded-md bg-white/[0.04] text-white/55"><Briefcase size={15} /></span>
-              <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">当前持仓</span>
+              <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">我的账户 · 实盘</span>
             </div>
           </div>
           <div className="px-[18px] pb-[14px]">
-            <E name="持仓"><PositionsSummaryMini coin={coin} /></E>
+            <E name="账户概览"><AccountSummaryCard /></E>
           </div>
         </motion.div>
 

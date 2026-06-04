@@ -3,6 +3,7 @@
 import { getAccounts } from './store';
 import { ADAPTERS } from './adapters';
 import { getLastSync, setLastSync, mergeFills } from './fillStore';
+import { setBook } from './bookStore';
 import type { UnifiedPosition } from './types';
 
 const BACKFILL_MS = 365 * 86_400_000;
@@ -22,5 +23,6 @@ export async function fetchAllPositions(): Promise<UnifiedPosition[]> {
       /* 单账户失败不影响其它 */
     }
   }
+  setBook(out); // 供全局告警引擎评估盯持仓告警
   return out;
 }

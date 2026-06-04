@@ -6,6 +6,7 @@ import {
 import {
   loadAllFills, mergeFills, getLastSync, setLastSync, clearAccountData, exportFillsJson,
 } from './fillStore';
+import { setBook } from './bookStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
 import { parseFile, rowsToFills, type CsvParsed, type Field } from './csvImport';
 import type { Venue, VenueAccount, UnifiedPosition, UnifiedFill } from './types';
@@ -87,6 +88,7 @@ export const AccountsHub = () => {
       }
     }
     setPositions(allPos);
+    setBook(allPos); // 供全局告警引擎评估盯持仓告警
     setFills(loadAllFills());
     setStatus(stat);
     setLastSyncAt(Date.now());

@@ -5,7 +5,7 @@ import {
   type UserAlert, type AlertMetric, type AlertOp,
 } from '../../registry/monitorWidgetsBase';
 import type { Coin } from '../monitor/types';
-import { ALWAYS_ON_METRICS } from './engine';
+import { ALWAYS_ON_METRICS, BOOK_METRICS } from './engine';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 const METRICS = Object.keys(METRIC_META) as AlertMetric[];
@@ -86,7 +86,7 @@ export const AlertsManager = () => {
               <span className="text-[10px] text-white/40">指标</span>
               <select className={inputCls} value={metric} onChange={e => onMetric(e.target.value as AlertMetric)}>
                 {METRICS.map(m => (
-                  <option key={m} value={m}>{METRIC_META[m].label}{ALWAYS_ON_METRICS.has(m) ? ' ·常驻' : ''}</option>
+                  <option key={m} value={m}>{METRIC_META[m].label}{ALWAYS_ON_METRICS.has(m) ? ' ·常驻' : BOOK_METRICS.has(m) ? ' ·持仓' : ''}</option>
                 ))}
               </select>
             </label>
@@ -145,6 +145,7 @@ export const AlertsManager = () => {
                         <td className="py-1.5 px-2 text-white/75 whitespace-nowrap">
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
                           {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#4ea1ff]">常驻</span>}
+                          {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#a78bfa]">持仓</span>}
                         </td>
                         <td className="py-1.5 px-2 text-right tabular-nums text-white/65">
                           {a.lastValue != null ? `${a.lastValue.toFixed(2)}${meta.unit}` : '—'}
@@ -169,7 +170,8 @@ export const AlertsManager = () => {
           </div>
           <div className="px-4 pb-3 text-[10px] text-white/35 leading-relaxed">
             <b className="text-white/45">常驻</b> 指标（Spot / DVOL）经全局 WebSocket 实时评估，**离开本页、切到其它标签页时也持续判定并推送**。
-            其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，仅在近期访问过监控页、缓存新鲜时评估。
+            <b className="text-[#a78bfa]">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变）——需先到「账户」页同步过一次。
+            其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，缓存新鲜时评估。
             纯前端无后端：**应用完全关闭时无法后台推送**（需服务端推送，后续可加）。
           </div>
         </div>

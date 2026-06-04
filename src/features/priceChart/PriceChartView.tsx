@@ -11,6 +11,7 @@ import {
   useCandles, computeChainLevels, RESOLUTION_LABEL, COIN_SYMBOL,
   type Resolution,
 } from './candles';
+import { TradingViewChart } from './TradingViewChart';
 
 // 颜色（与 index.css token 对齐）
 const UP = '#28C840';
@@ -64,6 +65,7 @@ export const PriceChartView = () => {
   const [expirySel, setExpirySel] = useState<string | 'ALL'>('NEAREST');
   const [showLevels, setShowLevels] = useState(true);
   const [showEM, setShowEM] = useState(true);
+  const [mode, setMode] = useState<'levels' | 'tv'>('levels');
 
   const { candles, loading, error } = useCandles(coin, res);
   const { data: opt } = useDeribitOptions(coin);
@@ -224,34 +226,45 @@ export const PriceChartView = () => {
         <div className="flex items-center gap-1 p-0.5 rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/[0.05]">
           {COINS.map(c => <Pill key={c} active={coin === c} onClick={() => setCoin(c)}>{c}</Pill>)}
         </div>
+
+        {/* 模式切换 */}
         <div className="flex items-center gap-1 p-0.5 rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/[0.05]">
-          {RESOLUTIONS.map(r => <Pill key={r} active={res === r} onClick={() => setRes(r)}>{RESOLUTION_LABEL[r]}</Pill>)}
+          <Pill active={mode === 'levels'} onClick={() => setMode('levels')}>关键位叠加</Pill>
+          <Pill active={mode === 'tv'} onClick={() => setMode('tv')}>TradingView</Pill>
         </div>
 
-        <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
+        {mode === 'levels' && (
+          <>
+            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-white/[0.04] ring-1 ring-inset ring-white/[0.05]">
+              {RESOLUTIONS.map(r => <Pill key={r} active={res === r} onClick={() => setRes(r)}>{RESOLUTION_LABEL[r]}</Pill>)}
+            </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-white/40">到期</span>
-          <select
-            value={expirySel}
-            onChange={e => setExpirySel(e.target.value)}
-            className="h-[26px] px-2 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.08] text-[12px] font-semibold text-white/80 outline-none cursor-pointer hover:bg-white/[0.09]"
-          >
-            <option value="NEAREST">最近 ({nearest || '—'})</option>
-            <option value="ALL">全部聚合</option>
-            {expiries.map(e => (
-              <option key={e.label} value={e.label}>{e.label} · {Math.round(e.daysToExp)}d</option>
-            ))}
-          </select>
-        </div>
+            <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
 
-        <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-white/40">到期</span>
+              <select
+                value={expirySel}
+                onChange={e => setExpirySel(e.target.value)}
+                className="h-[26px] px-2 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.08] text-[12px] font-semibold text-white/80 outline-none cursor-pointer hover:bg-white/[0.09]"
+              >
+                <option value="NEAREST">最近 ({nearest || '—'})</option>
+                <option value="ALL">全部聚合</option>
+                {expiries.map(e => (
+                  <option key={e.label} value={e.label}>{e.label} · {Math.round(e.daysToExp)}d</option>
+                ))}
+              </select>
+            </div>
 
-        <Pill active={showLevels} onClick={() => setShowLevels(v => !v)}>关键位</Pill>
-        <Pill active={showEM} onClick={() => setShowEM(v => !v)}>预期波动</Pill>
+            <div className="w-px h-5 bg-white/[0.08] mx-0.5" />
+
+            <Pill active={showLevels} onClick={() => setShowLevels(v => !v)}>关键位</Pill>
+            <Pill active={showEM} onClick={() => setShowEM(v => !v)}>预期波动</Pill>
+          </>
+        )}
 
         <div className="ml-auto text-[11px] text-white/35">
-          价格 Binance · {COIN_SYMBOL[coin]} ｜ 关键位 Deribit
+          {mode === 'tv' ? `TradingView · BINANCE:${COIN_SYMBOL[coin]}` : `价格 Binance · ${COIN_SYMBOL[coin]} ｜ 关键位 Deribit`}
         </div>
       </div>
 
@@ -270,25 +283,31 @@ export const PriceChartView = () => {
       </div>
 
       {/* ── 图表 ── */}
-      <div className="flex-1 min-h-0 rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.05] p-1.5 relative">
-        <div ref={containerRef} className="absolute inset-1.5" />
+      <div className="flex-1 min-h-0 rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.05] p-1.5 relative overflow-hidden">
+        {mode === 'tv' ? (
+          <TradingViewChart coin={coin} />
+        ) : (
+          <>
+            <div ref={containerRef} className="absolute inset-1.5" />
 
-        {/* 悬停 OHLC 读数 */}
-        {readout && (
-          <div className="absolute top-2.5 left-3 z-10 flex items-center gap-2.5 text-[11px] font-mono tabular-nums pointer-events-none">
-            <span className="font-bold text-white/70">{coin}</span>
-            <span className="text-white/45">开 <span className="text-white/75">{fmtPx(readout.o)}</span></span>
-            <span className="text-white/45">高 <span className="text-white/75">{fmtPx(readout.h)}</span></span>
-            <span className="text-white/45">低 <span className="text-white/75">{fmtPx(readout.l)}</span></span>
-            <span className="text-white/45">收 <span style={{ color: readoutUp ? UP : DOWN }}>{fmtPx(readout.c)}</span></span>
-            <span style={{ color: readoutUp ? UP : DOWN }}>{readoutChg >= 0 ? '+' : ''}{readoutChg.toFixed(2)}%</span>
-          </div>
-        )}
+            {/* 悬停 OHLC 读数 */}
+            {readout && (
+              <div className="absolute top-2.5 left-3 z-10 flex items-center gap-2.5 text-[11px] font-mono tabular-nums pointer-events-none">
+                <span className="font-bold text-white/70">{coin}</span>
+                <span className="text-white/45">开 <span className="text-white/75">{fmtPx(readout.o)}</span></span>
+                <span className="text-white/45">高 <span className="text-white/75">{fmtPx(readout.h)}</span></span>
+                <span className="text-white/45">低 <span className="text-white/75">{fmtPx(readout.l)}</span></span>
+                <span className="text-white/45">收 <span style={{ color: readoutUp ? UP : DOWN }}>{fmtPx(readout.c)}</span></span>
+                <span style={{ color: readoutUp ? UP : DOWN }}>{readoutChg >= 0 ? '+' : ''}{readoutChg.toFixed(2)}%</span>
+              </div>
+            )}
 
-        {candles.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-[12px] text-white/40 pointer-events-none">
-            {error ? '数据加载失败，重试中…' : loading ? '加载 K 线中…' : '暂无数据'}
-          </div>
+            {candles.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-[12px] text-white/40 pointer-events-none">
+                {error ? '数据加载失败，重试中…' : loading ? '加载 K 线中…' : '暂无数据'}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

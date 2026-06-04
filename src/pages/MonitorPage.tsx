@@ -39,6 +39,7 @@ import {
   IVCheapnessWidget,
   GlobalGradDefs,
 } from '../registry/monitorWidgets';
+import { VolHeadlineWidget, VolSmileCurveWidget, VolTermWidget } from '../features/monitor/VolRead';
 
 export default function MonitorPage() {
   const { tab, setTab, coin, setCoin } = useMonitorQueryState();
@@ -89,26 +90,38 @@ export default function MonitorPage() {
             {/* ── 波动率 ────────────────────────────────────────────────────── */}
             {tab === 'vol' && (
               <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-12 h-[210px]">
-                  <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
+                {/* 分层阅读：① 结论条 */}
+                <WidgetCard title="波动率速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                  <VolHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="IV 曲面偏斜表" headerDensity="compact" className="col-span-6 self-start">
+                {/* ② 形态曲线（先看形状）*/}
+                <WidgetCard title="波动率微笑（按 Δ）" headerDensity="compact" className="col-span-6 h-[300px]">
+                  <VolSmileCurveWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
+                <WidgetCard title="期限结构 + 偏斜（ATM IV · 25Δ RR）" headerDensity="compact" className="col-span-6 h-[300px]">
+                  <VolTermWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
+                {/* ③ 明细：精确值表 + 历史时间序列 */}
+                <WidgetCard title="IV 曲面偏斜表（精确值）" headerDensity="compact" className="col-span-6 self-start">
                   <IVSurfaceWidget
                     coin={coin}
                     onCoinChange={setCoin}
                     onPickCell={p => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="期权偏斜（25δ / 10δ）" headerDensity="compact" className="col-span-6 h-[300px]">
+                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-6 h-[280px]">
+                  <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
+                <WidgetCard title="波动率锥" headerDensity="compact" className="col-span-6 h-[300px]">
+                  <VolConeWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
+                <WidgetCard title="期权偏斜（25δ / 10δ 明细）" headerDensity="compact" className="col-span-6 h-[300px]">
                   <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="Vanna / Charm 热力图" headerDensity="compact" className="col-span-7 h-[320px]">
                   <VannaCharmWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="波动率锥" headerDensity="compact" className="col-span-5 h-[320px]">
-                  <VolConeWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[240px]">
+                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-5 h-[320px]">
                   <DollarGreeksWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="ATM IV 日历价差" headerDensity="compact" className="col-span-6 h-[280px]">

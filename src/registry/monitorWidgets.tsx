@@ -3524,7 +3524,8 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const SQRT_2_PI = Math.sqrt(2 / Math.PI); // ≈ 0.7979
 
   const rows = exps.map(e => {
-    const movePct = (e.atmIV / 100) * Math.sqrt(e.T) * SQRT_2_PI * 100;
+    // T(年) = daysToExp/365；ExpiryGroup 没有 T 字段（之前用 e.T → undefined → NaN）
+    const movePct = (e.atmIV / 100) * Math.sqrt(e.daysToExp / 365) * SQRT_2_PI * 100;
     const upTarget   = data.spot * (1 + movePct / 100);
     const downTarget = data.spot * (1 - movePct / 100);
     return { label: e.label, movePct, atmIV: e.atmIV, upTarget, downTarget, daysToExp: e.daysToExp };

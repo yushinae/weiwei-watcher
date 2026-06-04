@@ -15,6 +15,71 @@ interface ClosedPnl {
   symbol: string; side: 'Buy' | 'Sell'; qty: string; avgExitPrice: string;
   closedPnl: string; createdTime: string; updatedTime: string; orderId: string; cumExitValue?: string;
 }
+interface BybitExecution {
+  symbol: string; side: 'Buy' | 'Sell'; execPrice: string; execQty: string;
+  execFee: string; execTime: string; execId?: string;
+}
+
+// 拉期权成交（7 天窗口分页，回拉约 1 年）
+async function fetchOptionExecutions(sinceMs: number): Promise<BybitExecution[]> {
+  const out: BybitExecution[] = [];
+  const now = Date.now();
+  let start = Math.max(sinceMs, now - MAX_WINDOWS * WEEK);
+  let windows = 0;
+  while (start < now && windows < MAX_WINDOWS) {
+    const end = Math.min(start + WEEK, now);
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      const res = await bybitGet<BybitListResult<BybitExecution>>('/v5/execution/list', {
+        category: 'option', startTime: start, endTime: end, limit: 100, cursor,
+      });
+      out.push(...(res.list ?? []));
+      cursor = res.nextPageCursor || undefined;
+    } while (cursor && ++pages < MAX_PAGES);
+    start = end;
+    windows++;
+  }
+  return out;
+}
+
+// FIFO 开平配对算期权实现盈亏。期权 premium 以 USDT 计、1 张=1 币 → 盈亏 = (平价−开价)×张数（USD）。
+function fifoRealized(execs: BybitExecution[], acctId: string): UnifiedFill[] {
+  const sorted = [...execs].sort((a, b) => Number(a.execTime) - Number(b.execTime));
+  const lots = new Map<string, { price: number; qty: number }[]>(); // qty 带符号：+多 / −空
+  const fills: UnifiedFill[] = [];
+  for (const e of sorted) {
+    const price = Number(e.execPrice) || 0;
+    const qty = Number(e.execQty) || 0;
+    if (!qty) continue;
+    const fee = Math.abs(Number(e.execFee) || 0);
+    const time = Number(e.execTime) || 0;
+    const fillSign = e.side === 'Buy' ? 1 : -1;
+    const coin = e.symbol.split('-')[0];
+    const q = lots.get(e.symbol) ?? [];
+    let remaining = qty;
+    let realized = 0;
+    // 先和反向持仓配对平仓
+    while (remaining > 1e-12 && q.length && Math.sign(q[0].qty) === -fillSign) {
+      const lot = q[0];
+      const m = Math.min(remaining, Math.abs(lot.qty));
+      realized += (price - lot.price) * m * Math.sign(lot.qty);
+      lot.qty -= m * Math.sign(lot.qty);
+      if (Math.abs(lot.qty) < 1e-9) q.shift();
+      remaining -= m;
+    }
+    if (remaining > 1e-12) q.push({ price, qty: remaining * fillSign }); // 剩余为开仓
+    lots.set(e.symbol, q);
+    fills.push({
+      venue: 'Bybit', accountId: acctId,
+      id: `exec-${e.execId ?? `${e.symbol}-${time}-${e.side}-${qty}-${price}`}`,
+      coin, side: fillSign > 0 ? 'buy' : 'sell', px: price, size: qty, notionalUsd: price * qty,
+      time, closedPnl: realized, fee,
+      dir: `${fillSign > 0 ? '买' : '卖'} ${e.symbol}`,
+    });
+  }
+  return fills;
+}
 
 const coinOf = (sym: string) => sym.replace(/USDT$|USDC$|PERP$/i, '');
 const WEEK = 7 * 86_400_000;
@@ -88,6 +153,10 @@ export const bybitAdapter: VenueAdapter = {
         start = end;
         windows++;
       }
+
+      // ── 期权已实现盈亏（无 closed-pnl 接口 → 拉成交 FIFO 配对）──
+      const optExecs = await fetchOptionExecutions(sinceMs);
+      fills.push(...fifoRealized(optExecs, acct.id));
 
       const newestFillMs = fills.reduce((m, f) => Math.max(m, f.time), sinceMs);
       return { positions, fills, newestFillMs };

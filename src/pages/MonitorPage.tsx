@@ -7,7 +7,6 @@ import { useMonitorQueryState } from '../features/monitor/hooks/useMonitorQueryS
 import { useMonitorSelection } from '../features/monitor/hooks/useMonitorSelection';
 import type { MonitorSelection } from '../features/monitor/types';
 import {
-  LiveOptionsChainWidget,
   OIByStrikeWidget,
   GEXWidget,
   OptionsSkewWidget,
@@ -19,26 +18,24 @@ import {
   OptionsFlowWidget,
   BlockTradeWidget,
   VannaCharmWidget,
-  IVSignalWidget,
   ExpiryCalendarWidget,
   KeyLevelsWidget,
   ImpliedMoveWidget,
   DollarGreeksWidget,
   TopOIWidget,
   VolRegimeWidget,
-  SpotTickerWidget,
   GreeksScenarioWidget,
   LargeTradeAlertWidget,
   CalendarSpreadWidget,
   ForwardVolWidget,
   WatchlistWidget,
-  OrderbookDepthWidget,
   PositionTrackerWidget,
   PayoffProfileWidget,
   IVCheapnessWidget,
   GlobalGradDefs,
 } from '../registry/monitorWidgets';
 import { VolHeadlineWidget, VolSmileCurveWidget, VolTermWidget } from '../features/monitor/VolRead';
+import { MarketHeadlineWidget, MarketSignalsWidget } from '../features/monitor/MarketRead';
 
 export default function MonitorPage() {
   const { tab, setTab, coin, setCoin } = useMonitorQueryState();
@@ -62,22 +59,20 @@ export default function MonitorPage() {
             {/* ── 行情 ─────────────────────────────────────────────────────── */}
             {tab === 'market' && (
               <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="实时行情" headerDensity="compact" className="col-span-12 h-[90px]">
-                  <SpotTickerWidget coin={coin} onCoinChange={setCoin} />
+                {/* ① 行情头条：在哪 + 怎么动 */}
+                <WidgetCard title="实时行情" headerDensity="compact" className="col-span-12 h-[104px]">
+                  <MarketHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="买卖盘深度" headerDensity="compact" className="col-span-12 h-[130px]">
-                  <OrderbookDepthWidget coin={coin} onCoinChange={setCoin} />
+                {/* ② 市场信号：综合倾向 + 四读数 */}
+                <WidgetCard title="市场信号" headerDensity="compact" className="col-span-12 h-[156px]">
+                  <MarketSignalsWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="实时信号" headerDensity="compact" className="col-span-12 h-[136px]">
-                  <IVSignalWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
+                {/* ③ 市场定价的波动幅度 */}
                 <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[160px]">
                   <ImpliedMoveWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="实时期权链" headerDensity="compact" className="col-span-6 h-[440px]">
-                  <LiveOptionsChainWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="大宗成交流" headerDensity="compact" className="col-span-6 h-[440px]">
+                {/* ④ 大单在做什么 */}
+                <WidgetCard title="大宗成交流" headerDensity="compact" className="col-span-12 h-[440px]">
                   <BlockTradeWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>

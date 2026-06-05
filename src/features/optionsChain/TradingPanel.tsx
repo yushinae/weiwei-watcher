@@ -11,7 +11,8 @@
 import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { genBook } from './chainModel';
+import { useOrderBook } from './liveData';
+import type { DataSource } from './chainModel';
 import type { Coin } from './chainModel';
 import { useLocalBook } from './simBook';
 import { Popover } from './chainCells';
@@ -186,8 +187,8 @@ FlashValue.displayName = 'FlashValue';
 // Trading panel (ticket + order book + greeks + positions)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, onClose }: {
-  selected: SelectedCell; coin: Coin; spot: number; dateLabel: string; dec: number; seed: number;
+export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose }: {
+  selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number; seed?: number;
   book: ReturnType<typeof useLocalBook>; onClose: () => void;
 }) => {
   const { row, side } = selected;
@@ -208,10 +209,10 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
 
   const { placeOrder } = book;
 
-  const { asks, bids } = useMemo(() => {
-    if (opt.bid === null && opt.ask === null) return { asks: [], bids: [] };
-    return genBook(opt.bid, opt.ask, opt.iv, dec, seed ^ row.strike);
-  }, [opt.bid, opt.ask, opt.iv, dec, seed, row.strike]);
+  // 真实多档盘口（替代旧的 genBook 示意盘口）。每档补上合约的标记 IV（盘口本身不带逐档 IV）。
+  const rb = useOrderBook(opt.instrument, source, spot);
+  const asks = useMemo(() => rb.asks.map(l => ({ ...l, iv: opt.iv })), [rb.asks, opt.iv]);
+  const bids = useMemo(() => rb.bids.map(l => ({ ...l, iv: opt.iv })), [rb.bids, opt.iv]);
   const maxAskTotal = asks[asks.length - 1]?.total ?? 1;
   const maxBidTotal = bids[bids.length - 1]?.total ?? 1;
 
@@ -386,7 +387,7 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
                     <div className="flex items-center justify-center h-[200px] text-[13px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无订单簿数据</div>
                   ) : (
                     <>
-                      <div className="px-2 py-1 text-[10px]" style={{ color: 'var(--db-warn)' }}>示意盘口（围绕实时买卖价模拟，非真实深度）</div>
+                      <div className="px-2 py-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>真实盘口 · {source === 'bybit' ? 'Bybit' : 'Deribit'}（最多 10 档；期权盘口通常较薄）</div>
                       <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
                         <span className="text-right">总计</span><span className="text-right">数量</span><span className="text-right">IV%</span>
                         <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>

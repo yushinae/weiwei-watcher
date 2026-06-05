@@ -2,11 +2,14 @@
 // ① MarketHeadlineWidget：现在在哪 + 怎么动（大价 + 24h 涨跌 + 当日区间条 + 关键数）
 // ② MarketSignalsWidget：市场倾向（PCR/skew/资金费率/期限 → 一个综合判定 + 四个清晰读数）
 import React, { useEffect, useMemo } from 'react';
+import type { EChartsOption } from 'echarts';
+import { EChart } from '../../components/echart/EChart';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
   useCoinControl, useDeribitOptions, useTickerSnapshotWS,
   CoinTabs, LiveBadge, type CoinControlProps, type ExpiryGroup,
 } from '../../registry/monitorWidgetsBase';
+import { useCandles } from '../priceChart/candles';
 
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -33,48 +36,77 @@ const Stat = ({ label, value, color = 'rgba(255,255,255,0.85)' }: { label: strin
   </div>
 );
 
-// ── ① 行情头条 ──
+const Mom = ({ label, pct }: { label: string; pct: number }) => (
+  <span className="text-[10px] tabular-nums whitespace-nowrap">
+    <span className="text-white/35">{label}</span>{' '}
+    <span className="font-semibold" style={{ color: pct > 0 ? UP : pct < 0 ? DOWN : MUTE }}>{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</span>
+  </span>
+);
+
+// ── ① 行情头条：价格走势 sparkline + 多周期动量 ──
 export const MarketHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const ticker = useTickerSnapshotWS(coin);
   const { data } = useDeribitOptions(coin);
+  const { candles } = useCandles(coin, '1h');
 
   const spot = ticker?.spot ?? data?.spot ?? 0;
-  const chg = ticker?.change24hPct ?? 0;
-  const hi = ticker?.high24h ?? spot;
-  const lo = ticker?.low24h ?? spot;
-  const range = hi - lo;
-  const pos = range > 1e-6 ? Math.max(0, Math.min(1, (spot - lo) / range)) : 0.5;
-  const hasRange = range > 1e-6;
   const dvol = ticker?.dvol ?? data?.dvol30 ?? 0;
   const funding = ticker?.fundingAnn ?? 0;
   const optVol = data ? data.totalOptVol24hUSD / 1e6 : (ticker?.optVol24h_M ?? 0);
+
+  // 多周期动量（1h/4h 从 K 线，24h 用 ticker 官方值）
+  const cl = candles.map(c => c.c);
+  const n = cl.length;
+
+  // 24H 高低：优先从最近 24 根 1h K 线推（比 ticker 字段可靠），降级用 ticker，再降级用现价
+  const last24 = candles.slice(-24);
+  const hi = last24.length ? Math.max(...last24.map(c => c.h)) : (ticker?.high24h ?? spot);
+  const lo = last24.length ? Math.min(...last24.map(c => c.l)) : (ticker?.low24h ?? spot);
+  const chgK = (k: number) => (n > k && cl[n - 1 - k] ? (cl[n - 1] / cl[n - 1 - k] - 1) * 100 : 0);
+  const m1h = chgK(1), m4h = chgK(4);
+  const chg = ticker?.change24hPct ?? chgK(24);
   const chgC = chg > 0 ? UP : chg < 0 ? DOWN : MUTE;
+
+  // sparkline：最近 48 根 1h 收盘
+  const spark = cl.slice(-48);
+  const sparkUp = spark.length >= 2 ? spark[spark.length - 1] >= spark[0] : true;
+  const sparkColor = sparkUp ? UP : DOWN;
+  const sparkOption = useMemo<EChartsOption>(() => ({
+    grid: { left: 2, right: 2, top: 6, bottom: 2 },
+    xAxis: { type: 'category', show: false, boundaryGap: false, data: spark.map((_, i) => i) },
+    yAxis: { type: 'value', show: false, scale: true },
+    tooltip: { show: false },
+    series: [{
+      type: 'line', data: spark.map(v => +v.toFixed(1)), smooth: 0.2, showSymbol: false,
+      lineStyle: { color: sparkColor, width: 1.6 },
+      areaStyle: { color: sparkUp ? 'rgba(40,200,64,0.12)' : 'rgba(255,95,87,0.12)' },
+    }],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [spark.length, sparkColor, spark[spark.length - 1]]);
 
   return (
     <div className="w-full h-full flex items-center gap-4 px-3 overflow-x-auto">
       <Header coin={coin} setCoin={setCoin} live={!!ticker} />
-      {/* 大价 + 涨跌 */}
-      <div className="flex flex-col gap-0.5 shrink-0">
+      {/* 大价 + 24h 涨跌 + 多周期动量 */}
+      <div className="flex flex-col gap-1 shrink-0">
         <div className="flex items-baseline gap-2">
           <span className="text-[30px] font-bold tabular-nums leading-none" style={{ color: chgC }}>{fmtPx(spot)}</span>
           <span className="text-[13px] font-bold tabular-nums" style={{ color: chgC }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>
         </div>
-        <span className="text-[9px] text-white/35 uppercase tracking-wider">{coin} 指数 · 24H</span>
+        <div className="flex items-center gap-3">
+          <Mom label="1h" pct={m1h} />
+          <Mom label="4h" pct={m4h} />
+          <Mom label="24h" pct={chg} />
+        </div>
+        <span className="text-[9px] text-white/35 tabular-nums">24H 区间 {fmtPx(lo)} – {fmtPx(hi)}</span>
       </div>
 
-      {/* 当日区间条 */}
-      <div className="flex flex-col gap-1 min-w-[200px] flex-1 max-w-[340px]">
-        <div className="flex items-center justify-between text-[10px] tabular-nums text-white/45">
-          <span>低 {hasRange ? fmtPx(lo) : '—'}</span>
-          <span className="text-white/30">当日区间</span>
-          <span>高 {hasRange ? fmtPx(hi) : '—'}</span>
-        </div>
-        <div className="relative h-2 rounded-full bg-white/[0.07] overflow-hidden">
-          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pos * 100}%`, background: 'linear-gradient(90deg, rgba(255,95,87,0.4), rgba(40,200,64,0.5))' }} />
-          <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#111]" style={{ left: `calc(${pos * 100}% - 5px)` }} />
-        </div>
-        {!hasRange && <span className="text-[9px] text-white/30">24H 高低暂无（等行情推送）</span>}
+      {/* 价格走势 sparkline（最近 48h）*/}
+      <div className="flex-1 min-w-[160px] max-w-[420px] h-full py-1.5">
+        {spark.length >= 2
+          ? <EChart option={sparkOption} notMerge />
+          : <div className="w-full h-full flex items-center justify-center text-[10px] text-white/30">加载走势…</div>}
       </div>
 
       <div className="w-px h-9 bg-white/[0.08] shrink-0" />

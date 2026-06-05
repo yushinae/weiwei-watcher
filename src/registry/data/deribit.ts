@@ -79,9 +79,12 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 export function parseDeribitExpiry(s: string): Date | null {
-  const day = parseInt(s.slice(0, 2));
-  const mon = MONTH_MAP[s.slice(2, 5)];
-  const yr = 2000 + parseInt(s.slice(5));
+  // 日期段可能是 1~2 位日（如 6JUN26 / 27JUN26）——必须用正则，slice(2,5) 对单位数日会错位丢掉当天/末日期权
+  const m = /^(\d{1,2})([A-Z]{3})(\d{2})$/.exec(s);
+  if (!m) return null;
+  const day = parseInt(m[1]);
+  const mon = MONTH_MAP[m[2]];
+  const yr = 2000 + parseInt(m[3]);
   if (isNaN(day) || mon === undefined || isNaN(yr)) return null;
   return new Date(Date.UTC(yr, mon, day, 8, 0, 0));
 }
@@ -93,7 +96,10 @@ export function closestDeltaIV(opts: ParsedOption[], targetAbsDelta: number): nu
   ).iv;
 }
 
-export function processDeribitResponse(results: any[]): DeribitData {
+// minGroupDays / perOptFloor 让监控页与期权链共用解析但各取所需：
+//   监控页 = (2, 0.5)：丢掉 <2 天的到期组，避免 0DTE 的巨量 gamma 扭曲 GEX / 速读；
+//   期权链 = (0, 0.02)：放开末日/临期期权，只挡掉 ~30 分钟内即将到期的。
+export function processDeribitResponse(results: any[], minGroupDays = 2, perOptFloor = 0.5): DeribitData {
   const now = Date.now();
   const parsed: ParsedOption[] = [];
 
@@ -104,7 +110,7 @@ export function processDeribitResponse(results: any[]): DeribitData {
     const expiry = parseDeribitExpiry(parts[1]);
     if (!expiry) continue;
     const daysToExp = (expiry.getTime() - now) / 86_400_000;
-    if (daysToExp < 0.5 || daysToExp > 200) continue;
+    if (daysToExp < perOptFloor || daysToExp > 200) continue;
     const strike = parseInt(parts[2]);
     const type = parts[3] as 'C' | 'P';
     if (isNaN(strike) || (type !== 'C' && type !== 'P')) continue;
@@ -150,7 +156,7 @@ export function processDeribitResponse(results: any[]): DeribitData {
 
   const expiries: ExpiryGroup[] = [];
   for (const [days, opts] of [...groups.entries()].sort((a, b) => a[0] - b[0])) {
-    if (days < 2) continue;
+    if (days < minGroupDays) continue;
     const calls = opts.filter(o => o.type === 'C').sort((a, b) => a.delta - b.delta);
     const puts = opts.filter(o => o.type === 'P').sort((a, b) => b.delta - a.delta);
 
@@ -255,6 +261,53 @@ export function useDeribitOptions(coin: Coin) {
     const unsub = subscribeData<DeribitData>(
       `options-${coin}`,
       () => fetchDeribitOptions(coin),
+      CACHE_TTL,
+      d => {
+        if (!active) return;
+        setLoading(false);
+        setData(prev => (prev && prev.fetchedAt === d.fetchedAt ? prev : d));
+      },
+    );
+    return () => { active = false; unsub(); };
+  }, [coin]);
+
+  return { data, loading };
+}
+
+// ── 期权链专用：含末日/临期期权（独立缓存，不影响监控页的 GEX/速读）──
+const DERIBIT_CHAIN_CACHE = new Map<string, { data: DeribitData; ts: number }>();
+
+export async function fetchDeribitChainOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
+  const cached = DERIBIT_CHAIN_CACHE.get(currency);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
+  const url = `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${currency}&kind=option`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (json.error) throw new Error(json.error.message ?? 'API error');
+  const rawResults: any[] = json.result ?? [];
+
+  const totalOptOI        = rawResults.reduce((s, b) => s + (b.open_interest ?? 0), 0);
+  const totalOptVol24hUSD = rawResults.reduce((s, b) => s + (b.volume_usd      ?? 0), 0);
+
+  const data = processDeribitResponse(rawResults, 0, 0.02); // 放开 0DTE/末日
+  data.totalOptOI        = totalOptOI;
+  data.totalOptVol24hUSD = totalOptVol24hUSD;
+  DERIBIT_CHAIN_CACHE.set(currency, { data, ts: Date.now() });
+  return data;
+}
+
+export function useDeribitChainOptions(coin: Coin) {
+  const [data, setData] = useState<DeribitData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    const unsub = subscribeData<DeribitData>(
+      `options-chain-${coin}`,
+      () => fetchDeribitChainOptions(coin),
       CACHE_TTL,
       d => {
         if (!active) return;

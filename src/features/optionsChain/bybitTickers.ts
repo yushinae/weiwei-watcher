@@ -63,9 +63,12 @@ const MONTH_MAP: Record<string, number> = {
 
 /** Parse "26MAR27" → Date (UTC 08:00 = Deribit/Bybit standard delivery hour). */
 function parseBybitExpiry(s: string): number | null {
-  const day = parseInt(s.slice(0, 2));
-  const mon = MONTH_MAP[s.slice(2, 5)];
-  const yr  = 2000 + parseInt(s.slice(5));
+  // 日期段 1~2 位日（6JUN26 / 27JUN26）——slice 对单位数日会错位，必须正则，否则末日/0DTE 全被丢
+  const m = /^(\d{1,2})([A-Z]{3})(\d{2})$/.exec(s);
+  if (!m) return null;
+  const day = parseInt(m[1]);
+  const mon = MONTH_MAP[m[2]];
+  const yr  = 2000 + parseInt(m[3]);
   if (isNaN(day) || mon === undefined || isNaN(yr)) return null;
   return Date.UTC(yr, mon, day, 8, 0, 0);
 }
@@ -112,7 +115,7 @@ export async function fetchBybitTickers(coin: 'BTC' | 'ETH'): Promise<BybitOptio
     const parsed = parseSymbol(raw.symbol);
     if (!parsed) continue;
     const daysToExp = (parsed.expiryTs - Date.now()) / 86_400_000;
-    if (daysToExp < 0.5 || daysToExp > 365) continue; // skip expired / too far
+    if (daysToExp < 0.02 || daysToExp > 365) continue; // 放开末日/0DTE，只挡掉 ~30 分钟内即将到期的
 
     const ticker: BybitOptionTicker = {
       symbol: raw.symbol,
@@ -166,7 +169,7 @@ export function organizeChain(coin: 'BTC' | 'ETH', tickers: BybitOptionTicker[])
     return tsA - tsB;
   })) {
     const daysToExp = (opts[0].expiryTs - now) / 86_400_000;
-    if (daysToExp < 1 || daysToExp > 180) continue;
+    if (daysToExp < 0.02 || daysToExp > 180) continue; // 放开 0DTE/末日期权（原 <1 会把当天到期的整组砍掉）
 
     const calls = opts.filter(o => o.type === 'C').sort((a, b) => a.strike - b.strike);
     const puts  = opts.filter(o => o.type === 'P').sort((a, b) => a.strike - b.strike);

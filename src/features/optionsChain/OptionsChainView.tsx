@@ -19,7 +19,7 @@ import { ChevronDown, Check, Loader2, SlidersHorizontal, Filter } from 'lucide-r
 import { cn } from '../../lib/utils';
 import { useOptionChain } from './bybitTickers';
 import { useLiveSpot, useChainStream } from './liveData';
-import { useDeribitOptions } from '../../registry/data/deribit';
+import { useDeribitChainOptions } from '../../registry/data/deribit';
 import { buildBybitExpiry, buildDeribitExpiry, seedFor, dteLabel } from './chainModel';
 import type { ChainExpiry, ChainRow } from './chainModel';
 import { useOCStore, ocStore, coinOf, sourceOf, underlyingFor } from './store';
@@ -51,7 +51,7 @@ export default function OptionsChainView() {
   const [chainCollapsed, setChainCollapsed] = useState(false); // collapse the chain grid to its header
 
   const bybit = useOptionChain(coin);
-  const deribit = useDeribitOptions(coin);
+  const deribit = useDeribitChainOptions(coin);
   const loading = source === 'bybit' ? bybit.loading : deribit.loading;
   const error = source === 'bybit' ? bybit.error : null;
 
@@ -236,6 +236,12 @@ export default function OptionsChainView() {
           <div className="relative">
             <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
               到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.label}</span>}
+              {expiry && expiry.daysToExp < 2 && (
+                <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full"
+                  style={expiry.daysToExp < 1 ? { background: 'rgba(255,95,87,0.18)', color: '#FF5F57' } : { background: 'rgba(254,188,46,0.18)', color: '#FEBC2E' }}>
+                  {expiry.daysToExp < 1 ? '末日' : '临期'}
+                </span>
+              )}
               <ChevronDown size={14} className="text-white/50" />
             </button>
             <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
@@ -247,6 +253,12 @@ export default function OptionsChainView() {
                     <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); ocStore.setExpiryIdx(i); setSelectedCell(null); }}>
                       <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
                       <span className="flex-1 font-semibold">{e.dateLabel}</span>
+                      {e.daysToExp < 2 && (
+                        <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full mr-1"
+                          style={e.daysToExp < 1 ? { background: 'rgba(255,95,87,0.18)', color: '#FF5F57' } : { background: 'rgba(254,188,46,0.18)', color: '#FEBC2E' }}>
+                          {e.daysToExp < 1 ? '末日' : '临期'}
+                        </span>
+                      )}
                       <span className="text-white/35 font-mono text-[11px]">{dteLabel(e.daysToExp)}</span>
                     </button>
                   );
@@ -411,7 +423,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
               </motion.div>
             </div>
           </>

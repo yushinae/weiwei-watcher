@@ -9,7 +9,7 @@
 // without burning CPU (re-rendering the whole grid on every tick would be wasteful).
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DERIBIT_WS } from '../../registry/data/ws';
 import { BYBIT_OPTION_WS } from './bybitOptionWs';
 import type { Coin, DataSource, ChainExpiry, Side } from './chainModel';
@@ -87,6 +87,66 @@ function normalizeDeribit(d: Record<string, any>): Partial<Side> | null {
   return Object.keys(out).length ? out : null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 真实多档盘口 —— 替代 TradingPanel 旧的"示意盘口"（genBook 模拟深度）。
+//   • Deribit:  public/get_order_book（option 报价为币本位 → ×underlying 折 USD）
+//   • Bybit:    /bybit-api/v5/market/orderbook（已是 USDT≈USD）
+// REST 轮询 1.5s：期权盘口变化慢、且多档本就薄，足够；document.hidden 时暂停。
+// 注意：期权盘口普遍很薄，多数行权价只有 1~3 档，空时返回 real=false（UI 显示"暂无"）。
+// ─────────────────────────────────────────────────────────────────────────────
+export interface BookLvl { price: number; size: number; total: number }
+
+export function useOrderBook(instrument: string | undefined, source: DataSource, spot: number) {
+  const [book, setBook] = useState<{ asks: BookLvl[]; bids: BookLvl[]; real: boolean }>({ asks: [], bids: [], real: false });
+  const spotRef = useRef(spot);
+  spotRef.current = spot;
+
+  useEffect(() => {
+    if (!instrument) { setBook({ asks: [], bids: [], real: false }); return; }
+    let alive = true;
+
+    // 排序 + 累计量；asks 升序（最优卖在前）、bids 降序（最优买在前），各取前 10 档
+    const mk = (arr: [number, number][], desc: boolean): BookLvl[] => {
+      const s = arr.filter(([p, sz]) => p > 0 && sz > 0).sort((a, b) => (desc ? b[0] - a[0] : a[0] - b[0])).slice(0, 10);
+      let cum = 0;
+      return s.map(([price, size]) => { cum += size; return { price, size, total: cum }; });
+    };
+
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        let rawBids: [number, number][] = [];
+        let rawAsks: [number, number][] = [];
+        if (source === 'bybit') {
+          const r = await fetch(`/bybit-api/v5/market/orderbook?category=option&symbol=${encodeURIComponent(instrument)}&limit=25`);
+          const j = await r.json();
+          const res = j?.result ?? {};
+          rawBids = (res.b ?? []).map((x: string[]) => [+x[0], +x[1]] as [number, number]);
+          rawAsks = (res.a ?? []).map((x: string[]) => [+x[0], +x[1]] as [number, number]);
+        } else {
+          const r = await fetch(`https://www.deribit.com/api/v2/public/get_order_book?instrument_name=${encodeURIComponent(instrument)}&depth=10`);
+          const j = await r.json();
+          const res = j?.result ?? {};
+          const u = (res.underlying_price ?? res.index_price ?? spotRef.current) || 1; // 币价→USD
+          rawBids = (res.bids ?? []).map((x: number[]) => [x[0] * u, x[1]] as [number, number]);
+          rawAsks = (res.asks ?? []).map((x: number[]) => [x[0] * u, x[1]] as [number, number]);
+        }
+        const asks = mk(rawAsks, false);
+        const bids = mk(rawBids, true);
+        if (alive) setBook({ asks, bids, real: asks.length > 0 || bids.length > 0 });
+      } catch {
+        if (alive) setBook({ asks: [], bids: [], real: false });
+      }
+    };
+
+    void poll();
+    const id = setInterval(() => void poll(), 1500);
+    return () => { alive = false; clearInterval(id); };
+  }, [instrument, source]);
+
+  return book;
+}
+
 export function useChainStream(source: DataSource, expiry: ChainExpiry | undefined): LiveTicks {
   const [ticks, setTicks] = useState<LiveTicks>({});
 
@@ -94,8 +154,16 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
   const targetSig = expiry ? `${expiry.key}:${expiry.rows.length}` : '';
   const targets = useMemo(() => {
     if (!expiry) return [] as { instrument: string; key: string }[];
+    const rows = expiry.rows;
+    // 只订阅 ATM 附近的行权价：远端深 OTM/ITM 基本不动，REST 快照足够。
+    // 这能把"几十路 .100ms 实时流"砍到 ~33 行（发烫主因之一）。ATM 用行索引锁定 → 不随现价抖动重订阅。
+    const atm = rows.findIndex(r => r.isATM);
+    const center = atm >= 0 ? atm : Math.floor(rows.length / 2);
+    const K = 16; // ATM ± 16 档（覆盖可见窗口 + 余量）
+    const lo = Math.max(0, center - K), hi = Math.min(rows.length, center + K + 1);
     const out: { instrument: string; key: string }[] = [];
-    for (const r of expiry.rows) {
+    for (let i = lo; i < hi; i++) {
+      const r = rows[i];
       if (r.call.instrument) out.push({ instrument: r.call.instrument, key: `C-${r.strike}` });
       if (r.put.instrument) out.push({ instrument: r.put.instrument, key: `P-${r.strike}` });
     }

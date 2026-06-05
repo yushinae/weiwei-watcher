@@ -7,7 +7,7 @@
 import { useSyncExternalStore, useState, useEffect } from 'react';
 import type { Coin, DataSource } from './chainModel';
 import { fetchOptionChain } from './bybitTickers';
-import { fetchDeribitOptions } from '../../registry/data/deribit';
+import { fetchDeribitChainOptions } from '../../registry/data/deribit';
 
 // Underlying (标的) — the name encodes coin + data source.
 //   BTC / ETH         → 币本位 (coin-margined) → Deribit (Inverse)
@@ -89,13 +89,13 @@ export function useUnderlyingExpiries(): ExpiryMap {
     let active = true;
     (async () => {
       const [dBTC, dETH, bBTC, bETH] = await Promise.all([
-        fetchDeribitOptions('BTC').catch(() => null),
-        fetchDeribitOptions('ETH').catch(() => null),
+        fetchDeribitChainOptions('BTC').catch(() => null),
+        fetchDeribitChainOptions('ETH').catch(() => null),
         fetchOptionChain('BTC').catch(() => null),
         fetchOptionChain('ETH').catch(() => null),
       ]);
       if (!active) return;
-      const fromDeribit = (d: Awaited<ReturnType<typeof fetchDeribitOptions>> | null): ExpiryMeta[] =>
+      const fromDeribit = (d: Awaited<ReturnType<typeof fetchDeribitChainOptions>> | null): ExpiryMeta[] =>
         d ? d.expiries.map(e => ({ key: e.label, label: e.label, daysToExp: e.daysToExp, dateLabel: fmtShortDate(Date.now() + e.daysToExp * 86_400_000) })) : [];
       const fromBybit = (d: Awaited<ReturnType<typeof fetchOptionChain>> | null): ExpiryMeta[] =>
         d ? d.expiries.map(e => ({ key: e.label, label: e.label, daysToExp: e.daysToExp, dateLabel: fmtShortDate(e.expiryTs) })) : [];

@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Local order book / positions — a self-contained simulated trading engine.
 //
-// Demo state lives per-mount (no global store / persistence): market orders fill at
-// mark, limit orders rest until marketable, and `updateMarks` both auto-fills resting
-// orders and marks open positions to market. Pure reducer + thin hook → easy to test.
+// 持久化 + 全局：状态存 localStorage(weiwei.simbook.v1)、模块级单例 + subscribe，
+// 跨页跨刷新都在（期权页下单 → 账户页「模拟」页签也能看到）。市价单按 mark 成交、
+// 限价单挂到可成交、updateMarks 既撮合挂单又把持仓盯市。纯 reducer + 薄 hook → 易测。
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useReducer, useCallback } from 'react';
+import { useSyncExternalStore, useCallback } from 'react';
 
 export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
 export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number }
@@ -102,10 +102,38 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
   }
 }
 
+// ── 持久化全局单例 ───────────────────────────────────────────────────────────
+const SIM_KEY = 'weiwei.simbook.v1';
+const emptyBook = (): BookState => ({ positions: [], openOrders: [], orderHistory: [], fills: [] });
+
+function loadBook(): BookState {
+  try {
+    const raw = localStorage.getItem(SIM_KEY);
+    if (raw) return { ...emptyBook(), ...(JSON.parse(raw) as Partial<BookState>) };
+  } catch { /* ignore */ }
+  return emptyBook();
+}
+
+let simState: BookState = loadBook();
+const simListeners = new Set<() => void>();
+
+function commitSim(next: BookState) {
+  if (next === simState) return;
+  simState = next;
+  try { localStorage.setItem(SIM_KEY, JSON.stringify(next)); } catch { /* quota — ignore */ }
+  simListeners.forEach(l => l());
+}
+
+export function dispatchSim(action: BookAction): void { commitSim(bookReducer(simState, action)); }
+export function subscribeSim(cb: () => void): () => void { simListeners.add(cb); return () => { simListeners.delete(cb); }; }
+export function getSimState(): BookState { return simState; }
+export function clearSimBook(): void { commitSim(emptyBook()); }
+
+/** 读取持久化模拟簿（全局单例）；接口与原 per-mount 版一致，期权页无需改动。 */
 export function useLocalBook() {
-  const [state, dispatch] = useReducer(bookReducer, { positions: [], openOrders: [], orderHistory: [], fills: [] });
-  const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
-  const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
-  const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
+  const state = useSyncExternalStore(subscribeSim, getSimState, getSimState);
+  const placeOrder = useCallback((a: PlaceArgs) => dispatchSim({ t: 'place', a }), []);
+  const cancelOrder = useCallback((id: string) => dispatchSim({ t: 'cancel', id }), []);
+  const updateMarks = useCallback((marks: Record<string, number>) => dispatchSim({ t: 'marks', marks }), []);
   return { ...state, placeOrder, cancelOrder, updateMarks };
 }

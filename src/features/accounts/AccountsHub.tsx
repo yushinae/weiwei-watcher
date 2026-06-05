@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, RefreshCw, Download, Wallet, Upload, X } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Download, Wallet, Upload, X, Settings } from 'lucide-react';
 import {
   getAccounts, subscribeAccounts, addAccount, removeAccount, ensureEnvAccounts,
 } from './store';
@@ -10,6 +10,7 @@ import { setBook } from './bookStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
 import { parseFile, rowsToFills, type CsvParsed, type Field } from './csvImport';
 import type { Venue, VenueAccount, UnifiedPosition, UnifiedFill } from './types';
+import { useLocalBook, clearSimBook } from '../optionsChain/simBook';
 
 const ALL_VENUES: Venue[] = ['Hyperliquid', 'Bybit', 'Deribit', 'Binance'];
 const FIELD_LABEL: Record<Field, string> = { time: '时间', symbol: '合约', side: '方向', price: '价格', qty: '数量', fee: '手续费', pnl: '已实现盈亏' };
@@ -33,6 +34,12 @@ const fmtTime = (ms: number) => {
 
 const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[12px] text-white/85 outline-none focus:ring-white/20';
 
+// 账户筛选 chip 样式
+const chipCls = (active: boolean) =>
+  `h-[28px] px-3 rounded-full text-[12px] font-medium flex items-center gap-1.5 ring-1 ring-inset transition-colors ${
+    active ? 'bg-[#25e889]/15 text-[#25e889] ring-[#25e889]/40'
+           : 'bg-white/[0.04] text-white/65 ring-white/10 hover:bg-white/[0.08]'}`;
+
 const Card = ({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) => (
   <div className="flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06]">
     <div className="flex items-center px-4 pt-3 pb-2 shrink-0">
@@ -52,6 +59,13 @@ export const AccountsHub = () => {
   const [syncing, setSyncing] = useState(false);
   const [status, setStatus] = useState<Record<string, SyncStat>>({});
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [filterAcctId, setFilterAcctId] = useState<string | null>(null); // null = 全部；'SIM' = 模拟仓
+  const [showManage, setShowManage] = useState(false);                   // 账户管理面板默认折叠
+  const sim = useLocalBook();                                            // 持久化模拟簿（与期权链共用）
+  const isSim = filterAcctId === 'SIM';
+  const simNetPnl = useMemo(() => sim.positions.reduce((s, p) => s + p.unrealizedPnL, 0), [sim.positions]);
+  const simFee = useMemo(() => sim.fills.reduce((s, f) => s + f.fee, 0), [sim.fills]);
+  const simRecent = useMemo(() => [...sim.fills].sort((a, b) => b.timestamp - a.timestamp).slice(0, 40), [sim.fills]);
 
   // 新增账户表单
   const [venue, setVenue] = useState<Venue>('Hyperliquid');
@@ -98,6 +112,11 @@ export const AccountsHub = () => {
   // 进入页面 / 账户变化 → 自动同步（syncAll 由 useCallback 稳定）
   useEffect(() => { void syncAll(); }, [accounts.length, syncAll]);
 
+  // 被筛选的账户若被移除 → 回到「全部」（'SIM' 模拟仓不属于任何账户，豁免）
+  useEffect(() => {
+    if (filterAcctId && filterAcctId !== 'SIM' && !accounts.some(a => a.id === filterAcctId)) setFilterAcctId(null);
+  }, [accounts, filterAcctId]);
+
   const submitAdd = () => {
     if (venue === 'Hyperliquid') {
       const addr = address.trim();
@@ -117,20 +136,24 @@ export const AccountsHub = () => {
     setPositions(p => p.filter(x => x.accountId !== a.id));
   };
 
-  // 已实现盈亏统计（来自本地累积的成交）
+  // 账户筛选（null = 全部）→ 持仓 / 盈亏 / 成交 全部按它过滤
+  const viewFills = useMemo(() => filterAcctId ? fills.filter(f => f.accountId === filterAcctId) : fills, [fills, filterAcctId]);
+  const viewPositions = useMemo(() => filterAcctId ? positions.filter(p => p.accountId === filterAcctId) : positions, [positions, filterAcctId]);
+
+  // 已实现盈亏统计（来自本地累积的成交，按筛选）
   const pnlByVenue = useMemo(() => {
     const m = new Map<Venue, { closed: number; fee: number; count: number }>();
-    for (const f of fills) {
+    for (const f of viewFills) {
       const e = m.get(f.venue) ?? { closed: 0, fee: 0, count: 0 };
       e.closed += f.closedPnl; e.fee += f.fee; e.count += 1;
       m.set(f.venue, e);
     }
     return m;
-  }, [fills]);
-  const totalClosed = useMemo(() => fills.reduce((s, f) => s + f.closedPnl, 0), [fills]);
-  const totalFee = useMemo(() => fills.reduce((s, f) => s + f.fee, 0), [fills]);
+  }, [viewFills]);
+  const totalClosed = useMemo(() => viewFills.reduce((s, f) => s + f.closedPnl, 0), [viewFills]);
+  const totalFee = useMemo(() => viewFills.reduce((s, f) => s + f.fee, 0), [viewFills]);
 
-  const recentFills = useMemo(() => [...fills].sort((a, b) => b.time - a.time).slice(0, 60), [fills]);
+  const recentFills = useMemo(() => [...viewFills].sort((a, b) => b.time - a.time).slice(0, 60), [viewFills]);
   const noAccounts = accounts.length === 0;
 
   // ── CSV 导入 ──
@@ -240,9 +263,44 @@ export const AccountsHub = () => {
           </div>
         )}
 
-        {/* 账户配置 */}
-        <Card title="我的账户">
-          <div className="flex flex-col gap-2">
+        {/* 账户筛选条（紧凑）+ 管理面板（默认折叠）*/}
+        <Card
+          title="我的账户"
+          right={!noAccounts && (
+            <button onClick={() => setShowManage(v => !v)}
+              className="h-[26px] px-2.5 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/10 text-[11px] font-semibold text-white/55 flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors">
+              <Settings size={12} /> {showManage ? '收起' : '管理'}
+            </button>
+          )}
+        >
+          {/* 筛选 chip：全部 + 每个账户（带同步状态点）→ 过滤下方持仓/盈亏/成交 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setFilterAcctId(null)} className={chipCls(filterAcctId === null)}>全部</button>
+            {accounts.map(a => {
+              const st = status[a.id];
+              const dot = st?.error ? DOWN : st?.when ? UP : MUTE;
+              const tip = st?.error ? `✕ ${st.error}` : st?.when ? `✓ 同步 ${fmtTime(st.when)}${st.added ? ` · 新增 ${st.added}` : ''}` : '待同步';
+              return (
+                <button key={a.id} onClick={() => setFilterAcctId(a.id)} title={tip} className={chipCls(filterAcctId === a.id)}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot }} />
+                  {a.venue}
+                </button>
+              );
+            })}
+            <button onClick={() => setFilterAcctId('SIM')} className={chipCls(isSim)} title="期权链页的模拟下单仓位">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#FEBC2E' }} />
+              模拟{sim.positions.length ? ` · ${sim.positions.length}` : ''}
+            </button>
+            {!noAccounts && (
+              <span className="ml-auto text-[10px] text-white/30">
+                {isSim ? '模拟试盘 · 不影响真实账户' : filterAcctId ? '已筛选 · 点「全部」清除' : `${accounts.length} 个账户`}
+              </span>
+            )}
+          </div>
+
+          {/* 管理面板（增删账户；默认折叠，无账户时强制展开）*/}
+          {(showManage || noAccounts) && (
+          <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-white/[0.06]">
             {accounts.map(a => {
               const st = status[a.id];
               return (
@@ -298,18 +356,20 @@ export const AccountsHub = () => {
               </div>
             )}
           </div>
+          )}
         </Card>
 
-        {/* 已实现盈亏（来自本地累积成交） */}
-        {fills.length > 0 && (
-          <Card title="已实现盈亏（累计自本地记录）">
+        {/* 已实现盈亏（来自本地累积成交，按筛选）*/}
+        {!isSim && viewFills.length > 0 && (
+          <Card title={`已实现盈亏${filterAcctId ? `（${accounts.find(a => a.id === filterAcctId)?.venue ?? ''}）` : '（累计自本地记录）'}`}>
             <div className="flex gap-2.5 flex-wrap">
               <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
-                <span className="text-[10px] uppercase tracking-wider text-white/45">合计净盈亏（扣费）</span>
+                <span className="text-[10px] uppercase tracking-wider text-white/45">{filterAcctId ? '净盈亏（扣费）' : '合计净盈亏（扣费）'}</span>
                 <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color: sgn(totalClosed - totalFee) }}>{fmtUsd(totalClosed - totalFee)}</span>
-                <span className="text-[10px] text-white/40">毛 {fmtUsd(totalClosed)} · 手续费 {fmtUsdPlain(totalFee)} · {fills.length} 笔</span>
+                <span className="text-[10px] text-white/40">毛 {fmtUsd(totalClosed)} · 手续费 {fmtUsdPlain(totalFee)} · {viewFills.length} 笔</span>
               </div>
-              {[...pnlByVenue.entries()].map(([v, e]) => (
+              {/* 仅「全部」时展开各所拆解；筛选到单账户时上面那张已是该所合计 */}
+              {filterAcctId === null && [...pnlByVenue.entries()].map(([v, e]) => (
                 <div key={v} className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
                   <span className="text-[10px] uppercase tracking-wider text-white/45">{v}</span>
                   <span className="text-[18px] font-bold tabular-nums leading-none" style={{ color: sgn(e.closed - e.fee) }}>{fmtUsd(e.closed - e.fee)}</span>
@@ -320,11 +380,12 @@ export const AccountsHub = () => {
           </Card>
         )}
 
-        {/* 当前持仓（合并各账户） */}
-        <Card title={`当前持仓 · ${positions.length}`}>
-          {positions.length === 0 ? (
+        {/* 当前持仓（合并各账户，按筛选） */}
+        {!isSim && (
+        <Card title={`当前持仓 · ${viewPositions.length}`}>
+          {viewPositions.length === 0 ? (
             <div className="h-[80px] flex items-center justify-center text-[12px] text-white/40">
-              {syncing ? '同步中…' : noAccounts ? '添加账户后显示' : '无持仓 / 同步后显示'}
+              {syncing ? '同步中…' : noAccounts ? '添加账户后显示' : filterAcctId ? '该账户无持仓' : '无持仓 / 同步后显示'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -342,7 +403,7 @@ export const AccountsHub = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((p, i) => (
+                  {viewPositions.map((p, i) => (
                     <tr key={`${p.venue}-${p.coin}-${i}`} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
                       <td className="py-1.5 px-2 text-white/50">{p.venue}</td>
                       <td className="py-1.5 px-2 font-bold text-white/80">{p.coin}</td>
@@ -359,10 +420,11 @@ export const AccountsHub = () => {
             </div>
           )}
         </Card>
+        )}
 
-        {/* 成交记录（本地累积，最近 60 笔） */}
-        {recentFills.length > 0 && (
-          <Card title={`成交记录 · 本地共 ${fills.length} 笔（显示最近 60）`}>
+        {/* 成交记录（本地累积，最近 60 笔，按筛选） */}
+        {!isSim && recentFills.length > 0 && (
+          <Card title={`成交记录 · ${filterAcctId ? '' : '本地'}共 ${viewFills.length} 笔（显示最近 60）`}>
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
@@ -398,6 +460,130 @@ export const AccountsHub = () => {
               建议偶尔点「导出备份」存一份 JSON，防清浏览器缓存丢数据。
             </div>
           </Card>
+        )}
+
+        {/* ── 模拟仓（持久化，来自期权链下单）── */}
+        {isSim && (
+          <>
+            <Card title="模拟仓概览" right={
+              (sim.positions.length > 0 || sim.fills.length > 0) ? (
+                <button onClick={() => { if (window.confirm('清空所有模拟持仓 / 挂单 / 成交？不可撤销。')) clearSimBook(); }}
+                  className="h-[26px] px-2.5 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/10 text-[11px] font-semibold text-white/55 hover:text-[#FF5F57] hover:bg-white/[0.1] transition-colors">
+                  清空模拟
+                </button>
+              ) : null
+            }>
+              <div className="flex gap-2.5 flex-wrap">
+                <div className="flex-1 min-w-[160px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+                  <span className="text-[10px] uppercase tracking-wider text-white/45">浮动盈亏（盯市）</span>
+                  <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color: sgn(simNetPnl) }}>{fmtUsd(simNetPnl)}</span>
+                  <span className="text-[10px] text-white/40">{sim.positions.length} 持仓 · {sim.openOrders.length} 挂单 · 手续费 {fmtUsdPlain(simFee)}</span>
+                </div>
+                <div className="flex-[2] min-w-[220px] flex items-center px-4 py-3 rounded-xl bg-[#FEBC2E]/[0.06] ring-1 ring-inset ring-[#FEBC2E]/20">
+                  <span className="text-[11px] text-white/60 leading-relaxed">模拟试盘 —— 来自「期权」页的模拟下单，本地存储（换设备/清缓存会丢）。<b className="text-[#FEBC2E]/90">不影响任何真实账户</b>。标记价在你打开期权链时盯市更新。</span>
+                </div>
+              </div>
+            </Card>
+
+            {sim.positions.length === 0 ? (
+              <Card title="模拟持仓 · 0">
+                <div className="h-[80px] flex items-center justify-center text-[12px] text-white/40">
+                  还没有模拟持仓 —— 去「期权」页选个合约，下个模拟单试试
+                </div>
+              </Card>
+            ) : (
+              <Card title={`模拟持仓 · ${sim.positions.length}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                        <th className="text-left font-medium py-1.5 px-2">合约</th>
+                        <th className="text-left font-medium py-1.5 px-2">方向</th>
+                        <th className="text-right font-medium py-1.5 px-2">数量</th>
+                        <th className="text-right font-medium py-1.5 px-2">开仓价</th>
+                        <th className="text-right font-medium py-1.5 px-2">标记价</th>
+                        <th className="text-right font-medium py-1.5 px-2">浮动盈亏</th>
+                        <th className="text-right font-medium py-1.5 px-2">Δ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sim.positions.map(p => (
+                        <tr key={p.id} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                          <td className="py-1.5 px-2 font-semibold text-white/80">{p.symbol}</td>
+                          <td className="py-1.5 px-2" style={{ color: p.side === 'long' ? UP : DOWN }}>{p.side === 'long' ? '多' : '空'}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/70">{p.qty}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{p.avgEntryPrice.toFixed(2)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{p.markPrice.toFixed(2)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums font-semibold" style={{ color: sgn(p.unrealizedPnL) }}>{fmtUsd(p.unrealizedPnL)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/50">{p.delta.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {sim.openOrders.length > 0 && (
+              <Card title={`模拟挂单 · ${sim.openOrders.length}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                        <th className="text-left font-medium py-1.5 px-2">合约</th>
+                        <th className="text-left font-medium py-1.5 px-2">方向</th>
+                        <th className="text-left font-medium py-1.5 px-2">类型</th>
+                        <th className="text-right font-medium py-1.5 px-2">数量</th>
+                        <th className="text-right font-medium py-1.5 px-2">限价</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sim.openOrders.map(o => (
+                        <tr key={o.id} className="border-t border-white/[0.05]">
+                          <td className="py-1.5 px-2 font-semibold text-white/75">{o.symbol}</td>
+                          <td className="py-1.5 px-2" style={{ color: o.side === 'buy' ? UP : DOWN }}>{o.side === 'buy' ? '买' : '卖'}</td>
+                          <td className="py-1.5 px-2 text-white/50">{o.type}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{o.qty}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{o.price.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {simRecent.length > 0 && (
+              <Card title={`模拟成交 · ${sim.fills.length} 笔（显示最近 40）`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                        <th className="text-left font-medium py-1.5 px-2">时间</th>
+                        <th className="text-left font-medium py-1.5 px-2">合约</th>
+                        <th className="text-left font-medium py-1.5 px-2">方向</th>
+                        <th className="text-right font-medium py-1.5 px-2">价格</th>
+                        <th className="text-right font-medium py-1.5 px-2">数量</th>
+                        <th className="text-right font-medium py-1.5 px-2">手续费</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {simRecent.map(f => (
+                        <tr key={f.id} className="border-t border-white/[0.05]">
+                          <td className="py-1.5 px-2 tabular-nums text-white/55 whitespace-nowrap">{fmtTime(f.timestamp)}</td>
+                          <td className="py-1.5 px-2 font-semibold text-white/75">{f.symbol}</td>
+                          <td className="py-1.5 px-2" style={{ color: f.side === 'buy' ? UP : DOWN }}>{f.side === 'buy' ? '买' : '卖'}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{f.price.toFixed(2)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/65">{f.qty}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-white/45">{fmtUsdPlain(f.fee)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </>
         )}
       </div>
     </div>

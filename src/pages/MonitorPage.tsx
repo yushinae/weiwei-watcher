@@ -9,33 +9,24 @@ import type { MonitorSelection } from '../features/monitor/types';
 import {
   OIByStrikeWidget,
   GEXWidget,
-  OptionsSkewWidget,
   IVSurfaceWidget,
-  VolConeWidget,
   DVOLSeriesWidget,
   FundingRateWidget,
   FuturesBasisWidget,
   OptionsFlowWidget,
   BlockTradeWidget,
-  VannaCharmWidget,
   ExpiryCalendarWidget,
-  KeyLevelsWidget,
   ImpliedMoveWidget,
   DollarGreeksWidget,
   TopOIWidget,
-  VolRegimeWidget,
-  GreeksScenarioWidget,
-  LargeTradeAlertWidget,
-  CalendarSpreadWidget,
-  ForwardVolWidget,
   WatchlistWidget,
-  PositionTrackerWidget,
-  PayoffProfileWidget,
   IVCheapnessWidget,
   GlobalGradDefs,
 } from '../registry/monitorWidgets';
 import { VolHeadlineWidget, VolSmileCurveWidget, VolTermWidget } from '../features/monitor/VolRead';
 import { MarketHeadlineWidget, MarketSignalsWidget } from '../features/monitor/MarketRead';
+import { GammaHeadlineWidget } from '../features/monitor/OIRead';
+import { FlowHeadlineWidget } from '../features/monitor/FlowRead';
 
 export default function MonitorPage() {
   const { tab, setTab, coin, setCoin } = useMonitorQueryState();
@@ -60,7 +51,7 @@ export default function MonitorPage() {
             {tab === 'market' && (
               <div className="grid grid-cols-12 gap-2">
                 {/* ① 行情头条：在哪 + 怎么动 */}
-                <WidgetCard title="实时行情" headerDensity="compact" className="col-span-12 h-[104px]">
+                <WidgetCard title="实时行情" headerDensity="compact" className="col-span-12 h-[132px]">
                   <MarketHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ② 市场信号：综合倾向 + 四读数 */}
@@ -92,7 +83,7 @@ export default function MonitorPage() {
                 <WidgetCard title="期限结构 + 偏斜（ATM IV · 25Δ RR）" headerDensity="compact" className="col-span-6 h-[300px]">
                   <VolTermWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                {/* ③ 明细：精确值表 + 历史时间序列 */}
+                {/* ③ 明细：精确值表 + 历史时间序列 + IV 贵贱评级 */}
                 <WidgetCard title="IV 曲面偏斜表（精确值）" headerDensity="compact" className="col-span-6 self-start">
                   <IVSurfaceWidget
                     coin={coin}
@@ -103,23 +94,8 @@ export default function MonitorPage() {
                 <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-6 h-[280px]">
                   <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="波动率锥" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <VolConeWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="期权偏斜（25δ / 10δ 明细）" headerDensity="compact" className="col-span-6 h-[300px]">
-                  <OptionsSkewWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="Vanna / Charm 热力图" headerDensity="compact" className="col-span-7 h-[320px]">
-                  <VannaCharmWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-5 h-[320px]">
-                  <DollarGreeksWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="ATM IV 日历价差" headerDensity="compact" className="col-span-6 h-[280px]">
-                  <CalendarSpreadWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="隐含远期波动率（σ_fwd）" headerDensity="compact" className="col-span-6 h-[280px]">
-                  <ForwardVolWidget coin={coin} onCoinChange={setCoin} />
+                <WidgetCard title="波动率便宜/贵评级（IV vs 历史 RV 锥）" headerDensity="compact" className="col-span-12 h-[280px]">
+                  <IVCheapnessWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
               </div>
             )}
@@ -127,14 +103,18 @@ export default function MonitorPage() {
             {/* ── 持仓 ─────────────────────────────────────────────────────── */}
             {tab === 'oi' && (
               <div className="grid grid-cols-12 gap-2">
+                {/* 分层阅读：① Gamma 速读（结论先行）*/}
+                <WidgetCard title="Gamma 速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                  <GammaHeadlineWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
                 <WidgetCard title="持仓分布（OI by Strike）" headerDensity="compact" className="col-span-6 h-[500px]">
                   <OIByStrikeWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="Gamma 敞口（GEX by Strike）" headerDensity="compact" className="col-span-6 h-[500px]">
                   <GEXWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="关键价位" headerDensity="compact" className="col-span-12 h-[148px]">
-                  <KeyLevelsWidget coin={coin} onCoinChange={setCoin} />
+                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[320px]">
+                  <DollarGreeksWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="到期日日历（OI · Max Pain · PCR）" headerDensity="compact" className="col-span-12 h-[400px]">
                   <ExpiryCalendarWidget coin={coin} onCoinChange={setCoin} />
@@ -148,6 +128,10 @@ export default function MonitorPage() {
             {/* ── 资金流 ────────────────────────────────────────────────────── */}
             {tab === 'flow' && (
               <div className="grid grid-cols-12 gap-2">
+                {/* 分层阅读：① 资金面速读（结论先行）*/}
+                <WidgetCard title="资金面速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                  <FlowHeadlineWidget coin={coin} onCoinChange={setCoin} />
+                </WidgetCard>
                 <WidgetCard title="资金费率历史" headerDensity="compact" className="col-span-6 h-[240px]">
                   <FundingRateWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
@@ -157,36 +141,12 @@ export default function MonitorPage() {
                 <WidgetCard title="期权成交量流向（24H）" headerDensity="compact" className="col-span-12 h-[300px]">
                   <OptionsFlowWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="大单警报" headerDensity="compact" className="col-span-12 h-[360px]">
-                  <LargeTradeAlertWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-              </div>
-            )}
-
-            {/* ── 分析 ─────────────────────────────────────────────────────── */}
-            {tab === 'analysis' && (
-              <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="波动率区间分类" headerDensity="compact" className="col-span-12 h-[200px]">
-                  <VolRegimeWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="Straddle P&L 情景矩阵（Spot × IV）" headerDensity="compact" className="col-span-12 h-[380px]">
-                  <GreeksScenarioWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="波动率便宜/贵评级（IV vs 历史 RV 锥）" headerDensity="compact" className="col-span-12 h-[280px]">
-                  <IVCheapnessWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
               </div>
             )}
 
             {/* ── 交易工具 ──────────────────────────────────────────────────── */}
             {tab === 'trade' && (
               <div className="grid grid-cols-12 gap-2">
-                <WidgetCard title="持仓追踪（实时 Greeks + P&L）" headerDensity="compact" className="col-span-12 h-[400px]">
-                  <PositionTrackerWidget coin={coin} onCoinChange={setCoin} />
-                </WidgetCard>
-                <WidgetCard title="到期日 P&L 曲线" headerDensity="compact" className="col-span-12 h-[260px]">
-                  <PayoffProfileWidget />
-                </WidgetCard>
                 <WidgetCard title="自选合约监控" headerDensity="compact" className="col-span-12 h-[500px]">
                   <WatchlistWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>

@@ -5,7 +5,6 @@ export const MONITOR_TABS = [
   { id: 'vol',      label: '波动率' },
   { id: 'oi',       label: '持仓'   },
   { id: 'flow',     label: '资金流' },
-  { id: 'analysis', label: '分析'   },
   { id: 'trade',    label: '交易工具' },
 ] as const;
 

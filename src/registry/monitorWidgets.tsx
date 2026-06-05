@@ -4840,7 +4840,7 @@ function useTickerSnapshotWS(coin: Coin): TickerSnapshot | null {
       d => { partialRef.current.dvol = d.volatility; tryEmit(); },
     );
     const u3 = DERIBIT_WS.subscribe<any>(
-      `ticker.${cur}-PERPETUAL.raw`,
+      `ticker.${cur}-PERPETUAL.100ms`,
       d => {
         partialRef.current.fundingAnn   = (d.current_funding ?? 0) * 3 * 365 * 100;
         const st = d.stats ?? {};
@@ -4880,7 +4880,7 @@ function useOptionTradesWS(coin: Coin): RawOptionTrade[] {
     const cur = coin === 'BTC' ? 'BTC' : 'ETH';
 
     const unsub = DERIBIT_WS.subscribe<any[]>(
-      `trades.option.${cur}.raw`,
+      `trades.option.${cur}.100ms`,
       (batch) => {
         if (!alive) return;
         const newTrades: RawOptionTrade[] = [];
@@ -5746,7 +5746,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     if (watchlist.length === 0) { setItems([]); return; }
     watchlistDirtyRef.current = false;
     const unsubs = watchlist.map(inst =>
-      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.100ms`, (d) => {
         const oi: number = d.open_interest ?? 0;
         if (!WATCH_OI_SNAP.has(inst)) WATCH_OI_SNAP.set(inst, oi);
         WATCH_CACHE2.set(inst, {
@@ -6232,7 +6232,7 @@ export const PositionTrackerWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     posDirtyRef.current = false;
     const instruments = Array.from(new Set<string>(positions.map(p => p.instrument)));
     const unsubs = instruments.map(inst =>
-      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.100ms`, (d) => {
         POS_TICKER_CACHE.set(inst, d);
         posDirtyRef.current = true;
       })
@@ -6616,7 +6616,7 @@ export const PayoffProfileWidget = () => {
     payoffDirtyRef.current = false;
     const instruments = Array.from(new Set<string>(snap.map(p => p.instrument)));
     const unsubs = instruments.map(inst =>
-      DERIBIT_WS.subscribe<any>(`ticker.${inst}.raw`, (d) => {
+      DERIBIT_WS.subscribe<any>(`ticker.${inst}.100ms`, (d) => {
         POS_TICKER_CACHE.set(inst, d);
         payoffDirtyRef.current = true;
       })

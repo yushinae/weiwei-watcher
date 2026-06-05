@@ -66,7 +66,7 @@ export const PortfolioRiskView = () => {
     setLive(buildLiveFromCache(positionsRaw));
     const insts = Array.from(new Set<string>(positionsRaw.map(p => p.instrument)));
     const unsubs = insts.map(inst =>
-      DERIBIT_WS.subscribe<Record<string, unknown>>(`ticker.${inst}.raw`, d => {
+      DERIBIT_WS.subscribe<Record<string, unknown>>(`ticker.${inst}.100ms`, d => {
         POS_TICKER_CACHE.set(inst, d);
         dirty.current = true;
       }),

@@ -91,7 +91,8 @@ export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell
 export type BookAction =
   | { t: 'place'; a: PlaceArgs }
   | { t: 'cancel'; id: string }
-  | { t: 'marks'; marks: Record<string, number> };
+  | { t: 'marks'; marks: Record<string, number> }
+  | { t: 'clear' };
 
 export function bookReducer(s: BookState, action: BookAction): BookState {
   switch (action.t) {
@@ -176,6 +177,8 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         orderHistory: filled.length ? s.orderHistory.map(e => filled.find(o => o.id === e.id) ? { ...e, status: 'filled' as const, filledPrice: e.price } : e) : s.orderHistory,
       };
     }
+    case 'clear':
+      return { positions: [], openOrders: [], orderHistory: [], fills: [] };
     default:
       return s;
   }
@@ -186,5 +189,6 @@ export function useLocalBook() {
   const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
   const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
   const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
-  return { ...state, placeOrder, cancelOrder, updateMarks };
+  const clearBook = useCallback(() => dispatch({ t: 'clear' }), []);
+  return { ...state, placeOrder, cancelOrder, updateMarks, clearBook };
 }

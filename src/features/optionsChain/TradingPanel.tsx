@@ -248,7 +248,6 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     const b = fillAgainstBook(usdBook, 'buy', nQty), s = fillAgainstBook(usdBook, 'sell', nQty);
     return { buy: b, sell: s, worstPct: Math.max(b.slippagePct, s.slippagePct) };
   }, [usdBook, nQty]);
-  const depthFr = useFreshness(opt.instrument ? depthFeedKey(opt.instrument) : '');
   const notional = nPrice * nQty;
   const fee = notional * 0.0005;
   const margin = notional * 0.12;

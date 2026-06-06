@@ -277,7 +277,7 @@ const AppNavigationDropdown = () => {
             "flex items-center justify-center w-[32px] h-[32px] shrink-0 rounded-[8px] transition-colors duration-[120ms]",
             navOpen
               ? "bg-brand-blue/20 text-brand-blue"
-              : "bg-transparent text-white hover:bg-white/[0.08]",
+              : "bg-transparent text-white hover:bg-brand-blue/20",
           )}
         >
           <NineDots size={22} />
@@ -322,7 +322,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.monitor}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isMonitor ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85"
+          isMonitor ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-brand-blue/20 hover:text-white/85"
         )}>
         监控
       </button>
@@ -332,7 +332,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.dashboard}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isDashboard ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          isDashboard ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-brand-blue/20 hover:text-white/85",
         )}
       >
         决策
@@ -343,7 +343,7 @@ const AppNavigationDropdown = () => {
           onClick={() => navigate('/options-chain')}
           className={cn(
             "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-            isOptionsChain || optOpen ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+            isOptionsChain || optOpen ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-brand-blue/20 hover:text-white/85",
           )}
         >
           期权
@@ -364,7 +364,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.priceChart}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isPriceChart ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          isPriceChart ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-brand-blue/20 hover:text-white/85",
         )}
       >
         图表
@@ -584,7 +584,7 @@ export default function App() {
                 'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
                 settingsOpen
                   ? 'bg-brand-blue/20 text-brand-blue'
-                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+                  : 'text-white/55 hover:text-white/85 hover:bg-brand-blue/20',
               )}
               title="UI 设置"
               aria-label="UI 设置"
@@ -599,7 +599,7 @@ export default function App() {
                 'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
                 isAlerts
                   ? 'bg-brand-blue/20 text-brand-blue'
-                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+                  : 'text-white/55 hover:text-white/85 hover:bg-brand-blue/20',
               )}
               title="告警"
               aria-label="告警"
@@ -614,7 +614,7 @@ export default function App() {
                 'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
                 isAccounts
                   ? 'bg-brand-blue/20 text-brand-blue'
-                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+                  : 'text-white/55 hover:text-white/85 hover:bg-brand-blue/20',
               )}
               title="账户"
               aria-label="账户"

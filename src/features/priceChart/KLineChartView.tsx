@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { init, dispose } from 'klinecharts';
 import type { Chart } from 'klinecharts';
-import { useCandles, fetchCandlesBefore, computeChainLevels, COIN_SYMBOL, LIMIT, type Resolution } from './candles';
+import { useCandles, computeChainLevels, COIN_SYMBOL, type Resolution } from './candles';
 import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { Coin } from '../monitor/types';
@@ -87,7 +87,6 @@ export const KLineChartView = () => {
   const [showLevels, setShowLevels] = useState(true);
   const [showEM, setShowEM] = useState(true);
   const [showDrawTools, setShowDrawTools] = useState(true);
-  const [goToDate, setGoToDate] = useState('');
 
   const { candles, loading, error } = useCandles(coin, res);
   const { data: opt } = useDeribitOptions(coin);
@@ -168,42 +167,12 @@ export const KLineChartView = () => {
     chart.setSymbol({ ticker: COIN_SYMBOL[coin], pricePrecision: 0, volumePrecision: 2 });
     chart.setPeriod(RES_TO_PERIOD[res] as any);
     chart.setDataLoader({
-      getBars: async (params: any) => {
-        if (params.type === 'init') {
-          params.callback(initialData, { backward: true, forward: false });
-        } else if (params.type === 'backward' && params.timestamp) {
-          try {
-            const older = await fetchCandlesBefore(coin, res, params.timestamp);
-            if (older.length > 0) {
-              params.callback(toKData(older), { backward: older.length >= LIMIT[res], forward: false });
-            } else {
-              params.callback([], { backward: false, forward: false });
-            }
-          } catch {
-            params.callback([], { backward: false, forward: false });
-          }
-        }
+      getBars: (params: any) => {
+        params.callback(initialData, { backward: false, forward: false });
       },
     });
     loadOverlays(chart, coin, res);
   }, [candles, coin, res]);
-
-  // 4) 跳转日期
-  const handleGoToDate = async () => {
-    if (!goToDate) return;
-    const chart = chartRef.current;
-    if (!chart) return;
-    const targetMs = new Date(goToDate).getTime();
-    if (isNaN(targetMs)) return;
-    try {
-      const older = await fetchCandlesBefore(coin, res, targetMs + 86_400_000); // 目标日期 +1d 作为 endTime
-      if (older.length === 0) return;
-      saveOverlays(chart, coin, res);
-      // 用 init 类型替换数据
-      (chart as any)._addData(toKData(older), 'init', { backward: older.length >= LIMIT[res], forward: false });
-      loadOverlays(chart, coin, res);
-    } catch { /* ignore */ }
-  };
 
   // 6) 关键位叠加
   useEffect(() => {
@@ -280,17 +249,6 @@ export const KLineChartView = () => {
         </div>
         <Pill active={showLevels} onClick={() => setShowLevels(v => !v)}>关键位</Pill>
         <Pill active={showEM} onClick={() => setShowEM(v => !v)}>预期波动</Pill>
-
-        {/* 跳转日期 */}
-        <div className="flex items-center gap-1 ml-1">
-          <input type="date" value={goToDate} onChange={e => setGoToDate(e.target.value)}
-            className="h-[26px] px-2 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/[0.08] text-[11px] text-white/70 outline-none cursor-pointer [color-scheme:dark]"
-          />
-          <button onClick={handleGoToDate}
-            className="h-[26px] px-2 rounded-md bg-white/[0.08] hover:bg-white/[0.13] text-[11px] font-medium text-white/60 hover:text-white/80 transition-colors duration-[120ms]">
-            跳转
-          </button>
-        </div>
 
         <div className="ml-auto text-[11px] text-white/35">价格 Binance · 关键位 Deribit</div>
       </div>

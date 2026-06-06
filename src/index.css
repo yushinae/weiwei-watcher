@@ -15,9 +15,9 @@
   --dur-card: 160ms;
   --lift-card: 1.5px;
 
-  /* Brand — 道奇蓝 Dodger Blue，唯一品牌色 */
-  --color-brand: #1E90FF;
-  --color-brand-blue: #1E90FF;
+  /* Brand */
+  --color-brand: #1E51FF;
+  --color-brand-blue: #1E51FF;
 
   /* 中性暗灰色阶（v5 — 4级清晰层次，步长 ≥7，L1/L2 色差提升至 +12 肉眼可辨） */
   --color-bg-base:   #131313;  /* L1 页面底 (v5: +2 lift，给暗色投影呼吸空间) */

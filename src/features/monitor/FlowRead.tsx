@@ -5,7 +5,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
   useCoinControl, useDeribitOptions, useFlowData,
-  CoinTabs, LiveBadge, type CoinControlProps,
+  LiveBadge, type CoinControlProps,
 } from '../../registry/monitorWidgetsBase';
 import { recordOISnapshot, getOIChange24h } from './oiSnapshot';
 
@@ -21,7 +21,7 @@ export const FlowHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   const { setHeaderRight } = useCardHeader();
   const live = !!(flow || opt);
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{live ? <LiveBadge /> : null}<CoinTabs v={coin} set={setCoin} /></div>);
+    setHeaderRight(<div className="flex items-center gap-2">{live ? <LiveBadge /> : null}</div>);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, live]);
 

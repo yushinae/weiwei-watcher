@@ -7,7 +7,7 @@ import { EChart } from '../../components/echart/EChart';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
   useCoinControl, useDeribitOptions, useTickerSnapshotWS,
-  CoinTabs, LiveBadge, type CoinControlProps, type ExpiryGroup,
+  LiveBadge, type CoinControlProps, type ExpiryGroup,
 } from '../../registry/monitorWidgetsBase';
 import { useCandles } from '../priceChart/candles';
 
@@ -23,7 +23,7 @@ const pick = (a: ExpiryGroup[], t: number) => (a.length ? a.reduce((b, e) => (Ma
 const Header = ({ coin, setCoin, live }: { coin: 'BTC' | 'ETH'; setCoin: (c: 'BTC' | 'ETH') => void; live: boolean }) => {
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{live ? <LiveBadge /> : null}<CoinTabs v={coin} set={setCoin} /></div>);
+    setHeaderRight(<div className="flex items-center gap-2">{live ? <LiveBadge /> : null}</div>);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, live]);
   return null;

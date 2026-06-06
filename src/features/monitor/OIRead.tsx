@@ -6,7 +6,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
   useCoinControl, useDeribitOptions, bsGamma,
-  CoinTabs, LiveBadge, type CoinControlProps,
+  LiveBadge, type CoinControlProps,
 } from '../../registry/monitorWidgetsBase';
 import { computeChainLevels } from '../priceChart/candles';
 
@@ -21,7 +21,7 @@ export const GammaHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{data ? <LiveBadge /> : null}<CoinTabs v={coin} set={setCoin} /></div>);
+    setHeaderRight(<div className="flex items-center gap-2">{data ? <LiveBadge /> : null}</div>);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 

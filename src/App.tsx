@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Bell,
   ListOrdered,
-  Settings,
   ShieldAlert,
   TrendingUp,
   Wallet,
@@ -586,7 +585,7 @@ export default function App() {
               title="UI 设置"
               aria-label="UI 设置"
             >
-              <Settings size={16} />
+              <img src="/icons/settings.png" className="w-5 h-5 rounded-[6px]" alt="" />
             </button>
 
             <button
@@ -596,7 +595,7 @@ export default function App() {
               title="告警"
               aria-label="告警"
             >
-              <Bell size={16} />
+              <img src="/icons/alerts.png" className="w-5 h-5 rounded-[6px]" alt="" />
             </button>
 
             <button
@@ -606,7 +605,7 @@ export default function App() {
               title="账户"
               aria-label="账户"
             >
-              <Wallet size={16} />
+              <img src="/icons/accounts.png" className="w-5 h-5 rounded-[6px]" alt="" />
             </button>
 
             <DataHealthIndicator />

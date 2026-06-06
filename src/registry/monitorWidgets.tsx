@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { cn } from '../lib/utils';
 import { useCardHeader } from '../components/card/WidgetCard';
 import type { Coin } from '../features/monitor/types';
-import { EChart } from '../components/echart/EChart';
-import type { EChartsOption } from 'echarts';
 import {
   VOL_CONE,
   VRP_HIST, IVR_HIST,
@@ -1602,10 +1600,23 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const putArr  = strikes.map(k => ({ strike: k, oi: putOI.get(k)  ?? 0 }));
   const maxPain = computeMaxPain(callArr, putArr, strikes);
 
+  const maxCallOI = Math.max(...strikes.map(k => callOI.get(k) ?? 0), 1);
+  const maxPutOI  = Math.max(...strikes.map(k => putOI.get(k)  ?? 0), 1);
+  const maxOI     = Math.max(maxCallOI, maxPutOI);
+
   // PCR / Totals — use ALL strikes within the selected expiries (not just visible window)
   const totalCallOI = [...callOI.values()].reduce((s, o) => s + o, 0);
   const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
+
+  const BAR_H = 16;
+  const GAP = 2;
+  const ROW_H = BAR_H + GAP;
+  const LEFT_W = 120; // put bars max width
+  const RIGHT_W = 120; // call bars max width
+  const LABEL_W = 80;
+  const TOTAL_W = LEFT_W + LABEL_W + RIGHT_W;
+  const CHART_H = strikes.length * ROW_H;
 
   const fmtOI = (v: number) => {
     const abs = Math.abs(v);
@@ -1614,94 +1625,6 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     return v.toFixed(0);
   };
   const fmtPrice = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
-
-  const oiOption = useMemo<EChartsOption>(() => {
-    if (!strikes.length) return {};
-    return {
-      grid: { left: 72, right: 48, top: 8, bottom: 8 },
-      xAxis: {
-        type: 'value',
-        splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.04)' } },
-        axisLabel: { fontSize: 9, color: 'rgba(255,255,255,0.35)', show: true },
-        axisLine: { show: false },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: 'category',
-        data: strikes.slice(),
-        inverse: true,
-        axisLabel: {
-          fontSize: 9,
-          fontFamily: 'monospace',
-          color: 'rgba(255,255,255,0.45)',
-          formatter: (v: string) => {
-            const k = Number(v);
-            const s = Math.abs(k - spot) < spot * 0.005;
-            const mp = Math.abs(k - maxPain) < spot * 0.005;
-            let label = fmtPrice(k);
-            if (s) label += ' ◆';
-            else if (mp) label += ' ★';
-            return label;
-          },
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.025)' } },
-      },
-      series: [
-        {
-          name: 'Put OI',
-          type: 'bar',
-          data: strikes.map(k => -(putOI.get(k) ?? 0)),
-          barWidth: 12,
-          barGap: '-100%',
-          itemStyle: { borderRadius: [0, 2, 2, 0], color: 'rgba(202,63,100,0.7)' },
-          label: {
-            show: true,
-            position: 'left',
-            fontSize: 8,
-            color: 'rgba(202,63,100,0.6)',
-            formatter: (p: any) => {
-              const v = -(p.value ?? 0);
-              return v > 0 ? fmtOI(v) : '';
-            },
-          },
-        },
-        {
-          name: 'Call OI',
-          type: 'bar',
-          data: strikes.map(k => callOI.get(k) ?? 0),
-          barWidth: 12,
-          itemStyle: { borderRadius: [2, 0, 0, 2], color: 'rgba(37,232,137,0.7)' },
-          label: {
-            show: true,
-            position: 'right',
-            fontSize: 8,
-            color: 'rgba(37,232,137,0.55)',
-            formatter: (p: any) => {
-              const v = p.value ?? 0;
-              return v > 0 ? fmtOI(v) : '';
-            },
-          },
-        },
-      ],
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any) => {
-          if (!params?.length) return '';
-          const idx = params[0].dataIndex;
-          const st = strikes[idx];
-          const cv = callOI.get(st) ?? 0;
-          const pv = putOI.get(st) ?? 0;
-          return [
-            `<div>Strike ${fmtPrice(st)}</div>`,
-            `<div>Call OI: ${fmtOI(cv)} | Put OI: ${fmtOI(pv)}</div>`,
-            `<div>PCR: ${pv > 0 ? (cv / pv).toFixed(2) : '∞'}</div>`,
-          ].join('');
-        },
-      },
-    };
-  }, [strikes, callOI, putOI, spot, maxPain, fmtOI, fmtPrice]);
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -1744,10 +1667,77 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-0 px-2">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
         {strikes.length === 0
           ? <div className="py-8 text-center text-[11px] text-white/55">暂无持仓数据</div>
-          : <EChart option={oiOption} notMerge key={coin} />
+          : (
+            <svg
+              viewBox={`0 0 ${TOTAL_W} ${CHART_H}`}
+              width="100%"
+              style={{ height: Math.min(CHART_H, 600) }}
+            >
+              {strikes.map((strike, i) => {
+                const y = i * ROW_H;
+                const cOI = callOI.get(strike) ?? 0;
+                const pOI = putOI.get(strike)  ?? 0;
+                const callBarW = (cOI / maxOI) * RIGHT_W;
+                const putBarW  = (pOI / maxOI) * LEFT_W;
+                const isSpot    = Math.abs(strike - spot)    < spot * 0.005;
+                const isMaxPain = Math.abs(strike - maxPain) < spot * 0.005;
+                const labelColor = isSpot ? '#FEBC2E' : isMaxPain ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)';
+
+                return (
+                  <g key={strike}>
+                    {/* Put bar – left, aligned right to LABEL_W start */}
+                    <rect
+                      x={LEFT_W - putBarW}
+                      y={y + 1}
+                      width={putBarW}
+                      height={BAR_H - 2}
+                      rx={2}
+                      fill={`rgba(202,63,100,${0.45 + (pOI / maxOI) * 0.35})`}
+                    />
+                    {/* Call bar – right */}
+                    <rect
+                      x={LEFT_W + LABEL_W}
+                      y={y + 1}
+                      width={callBarW}
+                      height={BAR_H - 2}
+                      rx={2}
+                      fill={`rgba(37,232,137,${0.4 + (cOI / maxOI) * 0.4})`}
+                    />
+                    {/* Strike label */}
+                    <text
+                      x={LEFT_W + LABEL_W / 2}
+                      y={y + BAR_H / 2 + 4}
+                      textAnchor="middle"
+                      fontSize={9}
+                      fontWeight={isSpot || isMaxPain ? 'bold' : 'normal'}
+                      fontFamily="monospace"
+                      fill={labelColor}
+                    >
+                      {fmtPrice(strike)}
+                      {isSpot    && ' ◆'}
+                      {isMaxPain && !isSpot && ' ★'}
+                    </text>
+                    {/* OI labels */}
+                    {pOI > 0 && (
+                      <text x={LEFT_W - putBarW - 2} y={y + BAR_H / 2 + 3.5} textAnchor="end" fontSize={8} fill="rgba(202,63,100,0.6)">
+                        {fmtOI(pOI)}
+                      </text>
+                    )}
+                    {cOI > 0 && (
+                      <text x={LEFT_W + LABEL_W + callBarW + 2} y={y + BAR_H / 2 + 3.5} fontSize={8} fill="rgba(37,232,137,0.55)">
+                        {fmtOI(cOI)}
+                      </text>
+                    )}
+                    {/* Separator */}
+                    <line x1={0} y1={y + ROW_H - 0.5} x2={TOTAL_W} y2={y + ROW_H - 0.5} stroke="rgba(255,255,255,0.03)" strokeWidth={0.5} />
+                  </g>
+                );
+              })}
+            </svg>
+          )
         }
       </div>
 
@@ -2034,97 +2024,10 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   };
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
-  const gexOption = useMemo<EChartsOption>(() => {
-    if (!strikes.length) return {};
-    const gexData = strikes.map(k => {
-      const e = gexMap.get(k)!;
-      return e.pGex - e.cGex;
-    });
-    return {
-      grid: { left: 72, right: 56, top: 8, bottom: 8 },
-      xAxis: {
-        type: 'value',
-        splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.04)' } },
-        axisLabel: { fontSize: 9, color: 'rgba(255,255,255,0.35)' },
-        axisLine: { show: false },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: 'category',
-        data: strikes.slice(),
-        inverse: true,
-        axisLabel: {
-          fontSize: 9,
-          fontFamily: 'monospace',
-          color: 'rgba(255,255,255,0.35)',
-          formatter: (v: string) => {
-            const k = Number(v);
-            const s = Math.abs(k - spot) < spot * 0.005;
-            const z = zeroGamma !== null && Math.abs(k - zeroGamma) < spot * 0.005;
-            let label = fmtPx(k);
-            if (s) label += ' ◆';
-            else if (z) label += ' ○';
-            return label;
-          },
-        },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { show: true, lineStyle: { color: 'rgba(255,255,255,0.025)' } },
-      },
-      series: [{
-        type: 'bar',
-        data: gexData.map(v => ({
-          value: v,
-          itemStyle: {
-            color: v >= 0 ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)',
-            borderRadius: v >= 0 ? [2, 0, 0, 2] : [0, 2, 2, 2],
-          },
-        })),
-        barWidth: 12,
-        label: {
-          show: true,
-          position: 'outside',
-          fontSize: 8,
-          formatter: (p: any) => {
-            const v = p.value ?? 0;
-            return Math.abs(v) / maxAbs > 0.08 ? fmtGex(v) : '';
-          },
-        },
-        markLine: {
-          silent: true,
-          symbol: ['none', 'none'],
-          data: [
-            {
-              xAxis: spot,
-              lineStyle: { color: '#FEBC2E', type: 'dashed', width: 1 },
-              label: { color: '#FEBC2E', fontSize: 9, position: 'insideEndTop', formatter: '现货' },
-            },
-            ...(zeroGamma !== null ? [{
-              xAxis: zeroGamma,
-              lineStyle: { color: '#a78bfa', type: 'dashed', width: 1 },
-              label: { color: '#a78bfa', fontSize: 9, position: 'insideEndTop', formatter: '零Gamma' },
-            }] : []),
-          ],
-        },
-      }],
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any) => {
-          if (!params?.length) return '';
-          const idx = params[0].dataIndex;
-          const st = strikes[idx];
-          const e = gexMap.get(st);
-          if (!e) return '';
-          const net = e.pGex - e.cGex;
-          return [
-            `<div>Strike ${fmtPx(st)}</div>`,
-            `净 GEX: ${fmtGex(net)}`,
-            `Call: ${fmtGex(e.cGex)} | Put: ${fmtGex(e.pGex)}`,
-          ].join(' · ');
-        },
-      },
-    };
-  }, [strikes, gexMap, maxAbs, spot, zeroGamma, fmtGex, fmtPx]);
+  const BAR_H = 15, GAP = 3, ROW_H = BAR_H + GAP;
+  const MAX_BAR = 130;
+  const LABEL_W = 72;
+  const CHART_H = strikes.length * ROW_H;
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -2157,8 +2060,52 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       </div>
 
       {/* GEX chart */}
-      <div className="flex-1 min-h-0 px-3 pb-2">
-        <EChart option={gexOption} notMerge key={coin} />
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
+        <svg width="100%" viewBox={`0 0 ${MAX_BAR * 2 + LABEL_W} ${CHART_H}`} style={{ display: 'block', minHeight: CHART_H }}>
+          {/* Centre line */}
+          <line x1={MAX_BAR} y1={0} x2={MAX_BAR} y2={CHART_H} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+
+          {strikes.map((k, i) => {
+            const y = i * ROW_H;
+            const net = netGex[i];
+            const barW = Math.abs(net) / maxAbs * (MAX_BAR - 2);
+            const isPos = net >= 0;
+            const barX = isPos ? MAX_BAR : MAX_BAR - barW;
+            const isSpot = Math.abs(k - spot) / spot < 0.005;
+            const isZero = zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005;
+            const barColor = isPos ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)';
+
+            return (
+              <g key={k}>
+                <rect x={barX} y={y + 1} width={barW} height={BAR_H - 2} fill={barColor} rx={2} />
+                {/* Strike label */}
+                <text
+                  x={MAX_BAR + LABEL_W / 2}
+                  y={y + BAR_H / 2 + 3.5}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={isSpot ? '#FEBC2E' : isZero ? '#a78bfa' : 'rgba(255,255,255,0.35)'}
+                  fontWeight={isSpot || isZero ? 700 : 400}
+                >
+                  {fmtPx(k)}{isSpot ? ' ◆' : isZero ? ' ○' : ''}
+                </text>
+                {/* Value label */}
+                {Math.abs(net) / maxAbs > 0.12 && (
+                  <text
+                    x={isPos ? barX + barW + 2 : barX - 2}
+                    y={y + BAR_H / 2 + 3.5}
+                    textAnchor={isPos ? 'start' : 'end'}
+                    fontSize={7.5}
+                    fill={isPos ? 'rgba(37,232,137,0.5)' : 'rgba(248,113,113,0.5)'}
+                  >
+                    {fmtGex(net)}
+                  </text>
+                )}
+                <line x1={0} y1={y + ROW_H - 0.5} x2={MAX_BAR * 2 + LABEL_W} y2={y + ROW_H - 0.5} stroke="rgba(255,255,255,0.025)" strokeWidth={0.5} />
+              </g>
+            );
+          })}
+        </svg>
       </div>
 
       <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">

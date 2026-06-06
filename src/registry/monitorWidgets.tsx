@@ -649,6 +649,14 @@ function ivrLabel(r: number) { return r <= 20 ? '极低' : r <= 40 ? '偏低' : 
 function pcrColor(p: number) { return p < 0.7 ? '#28C840' : p < 1.0 ? '#FEBC2E' : '#FF5F57'; }
 function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : '偏空'; }
 
+// ── 静态币种标签（只读，显示当前 BTC/ETH）──────────────────────────────────────────
+
+const CoinLabel = ({ coin }: { coin: Coin }) => (
+  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/[0.06] text-white/55 uppercase tracking-wider">
+    {coin}
+  </span>
+);
+
 // ── Live badge ────────────────────────────────────────────────────────────────
 
 const LiveBadge = () => (
@@ -659,18 +667,7 @@ const LiveBadge = () => (
 );
 
 // ── Sample-data badge ───────────────────────────────────────────────────────────
-// 当实时数据未到（加载中）或拉取失败时，widget 会退回写死的示例数据。以下两个组件
-// 明确标注「这不是实时数据」，避免交易者拿一条假曲线下单。
-//  · StaleBadge：表头小徽标（与 LiveBadge 同位，互斥显示）
-//  · StaleRibbon：拉取超时失败后，图表角落的醒目角标
-
-const StaleBadge = ({ failed }: { failed?: boolean }) => (
-  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-yellow)]/90 uppercase tracking-wider">
-    <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-yellow)]/80" />
-    {failed ? '示例·无实时' : '示例数据'}
-  </span>
-);
-
+// 拉取超时失败后，图表角落的醒目角标
 const StaleRibbon = () => (
   <div className="absolute top-1.5 right-2 z-10 pointer-events-none flex items-center gap-1 px-1.5 py-0.5 rounded-md
                   bg-[var(--nexus-yellow)]/[0.12] ring-1 ring-inset ring-[var(--nexus-yellow)]/[0.35]">
@@ -976,7 +973,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {hasLive && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1056,7 +1053,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           <div className="px-3 py-2">
             <div className="flex items-center gap-1 mb-1">
               <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">PCR</div>
-              {data && <LiveBadge />}
+              <CoinLabel coin={coin} />
             </div>
             <div className="text-[16px] font-mono font-bold tnum leading-none mb-0.5" style={{ color: pcrc }}>{pcr.toFixed(2)}</div>
             <div className="text-[9px] font-mono" style={{ color: pcrc }}>{pcrLabel(pcr)}</div>
@@ -1066,7 +1063,7 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
         <div className="border-t border-surface-2/80 px-3 pt-2 pb-2.5">
           <div className="flex items-center gap-2 mb-2">
             <div className="text-[9px] font-bold text-white/55 tracking-wider uppercase">期限结构 ATM IV</div>
-            {data && <LiveBadge />}
+            <CoinLabel coin={coin} />
           </div>
           <div className="flex gap-0.5 items-end h-[40px]">
             {termItems.map((t, i) => {
@@ -1133,7 +1130,7 @@ export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1156,7 +1153,7 @@ export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1183,7 +1180,7 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1249,7 +1246,7 @@ export const IVSurfaceWidget = ({
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1332,7 +1329,7 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3482,7 +3479,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3561,7 +3558,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3669,7 +3666,7 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && hist && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3812,7 +3809,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
             </button>
           ))}
         </div>
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3906,7 +3903,7 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4304,7 +4301,7 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4427,7 +4424,7 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4567,7 +4564,7 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {hist && <LiveBadge />}
+        <CoinLabel coin={coin} />
       </div>
     );
     return () => setHeaderRight(null);

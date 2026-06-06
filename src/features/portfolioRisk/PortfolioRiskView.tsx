@@ -8,10 +8,11 @@ import {
   type UserPosition, type LivePosition,
 } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
+import { useLocalBook } from '../optionsChain/simBook';
 import { fetchAllPositions } from '../accounts/sync';
 import type { UnifiedPosition } from '../accounts/types';
 import {
-  fromDeribit, fromAccounts, buildBooks, totals, portfolioScenarioPnL, samplePositions,
+  fromDeribit, fromAccounts, fromSim, buildBooks, totals, portfolioScenarioPnL, samplePositions,
   type RiskPosition,
 } from './aggregate';
 import { captureSnapshot, loadSnapshots, buildAttribution, sampleAttribution } from './snapshot';
@@ -99,16 +100,28 @@ export const PortfolioRiskView = () => {
   const realRisk = useMemo(() => [...acctRisk, ...liveRisk], [acctRisk, liveRisk]);
   const hasLive = realRisk.length > 0;
 
+  // 模拟仓（期权链下单）→ 策略沙盒；默认并入，可关
+  const sim = useLocalBook();
+  const [includeSim, setIncludeSim] = useState(true);
+  const simRisk = useMemo(
+    () => fromSim(sim.positions, { BTC: btcSpot ?? 0, ETH: ethSpot ?? 0 }),
+    [sim.positions, btcSpot, ethSpot],
+  );
+  const hasSim = simRisk.length > 0;
+  const hasAny = hasLive || (includeSim && hasSim);
+
   const [forceSample, setForceSample] = useState(false);
-  const usingSample = forceSample || !hasLive;
+  const usingSample = forceSample || !hasAny;
 
   const positions: RiskPosition[] = useMemo(
-    () => (usingSample ? samplePositions(btcSpot ?? 67000, ethSpot ?? 3500) : realRisk),
-    [usingSample, realRisk, btcSpot, ethSpot],
+    () => (usingSample ? samplePositions(btcSpot ?? 67000, ethSpot ?? 3500) : [...realRisk, ...(includeSim ? simRisk : [])]),
+    [usingSample, realRisk, simRisk, includeSim, btcSpot, ethSpot],
   );
 
   const books = useMemo(() => buildBooks(positions), [positions]);
   const tot = useMemo(() => totals(books), [books]);
+  // 快照只记真实仓，避免模拟污染每日希腊历史
+  const realBooks = useMemo(() => buildBooks(realRisk), [realRisk]);
 
   // ── 每日希腊快照 → P&L 归因 ──
   const dvolRef = useRef<Record<string, number>>({});
@@ -118,12 +131,12 @@ export const PortfolioRiskView = () => {
     return () => { u1(); u2(); };
   }, []);
   const [snaps, setSnaps] = useState(() => loadSnapshots());
-  // 实盘 + 有持仓时，每天存一条（覆盖今天）
+  // 实盘 + 有持仓时，每天存一条（覆盖今天）。只记真实仓，不含模拟沙盒。
   useEffect(() => {
-    if (usingSample || !books.length) return;
-    const t = setTimeout(() => setSnaps(captureSnapshot(books, dvolRef.current)), 1500); // 等 DVOL 到
+    if (forceSample || !hasLive || !realBooks.length) return;
+    const t = setTimeout(() => setSnaps(captureSnapshot(realBooks, dvolRef.current)), 1500); // 等 DVOL 到
     return () => clearTimeout(t);
-  }, [usingSample, books]);
+  }, [forceSample, hasLive, realBooks]);
   const realAttrib = useMemo(() => buildAttribution(snaps), [snaps]);
   const attrib = realAttrib.length >= 1 ? realAttrib : sampleAttribution();
   const attribIsSample = realAttrib.length < 1;
@@ -263,7 +276,7 @@ export const PortfolioRiskView = () => {
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--nexus-green,#28C840)]/[0.12] ring-1 ring-inset ring-[#28C840]/30 text-[#28C840] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#28C840] animate-pulse" /> 实盘账户 · {tot.count} 持仓
+              <span className="w-1.5 h-1.5 rounded-full bg-[#28C840] animate-pulse" /> {hasLive ? '实盘账户' : '模拟沙盒'}{hasLive && includeSim && hasSim ? ' + 模拟' : ''} · {tot.count} 持仓
             </span>
           )}
           {hasLive && (
@@ -272,7 +285,14 @@ export const PortfolioRiskView = () => {
               {forceSample ? '切回实时持仓' : '查看示例'}
             </button>
           )}
-          <span className="ml-auto text-white/35">净希腊 = 各所实盘持仓（HL/Bybit/Deribit，1张=1币、$Δ=delta×现价）· 请对照交易所核对</span>
+          {hasSim && (
+            <button onClick={() => setIncludeSim(v => !v)} title="期权链下单的模拟持仓 → 当策略沙盒"
+              className={`px-2.5 py-1 rounded-md ring-1 ring-inset font-semibold transition-colors inline-flex items-center gap-1.5 ${includeSim ? 'ring-[#FEBC2E]/40' : 'ring-white/10 hover:bg-white/[0.1]'}`}
+              style={{ background: includeSim ? 'rgba(254,188,46,0.14)' : 'rgba(255,255,255,0.06)', color: includeSim ? '#FEBC2E' : 'rgba(255,255,255,0.65)' }}>
+              <FlaskConical size={12} /> {includeSim ? `含模拟仓 ${simRisk.length}` : '加入模拟仓'}
+            </button>
+          )}
+          <span className="ml-auto text-white/35">净希腊 = 实盘持仓（HL/Bybit/Deribit）{includeSim && hasSim ? ' + 模拟仓（沙盒，希腊为下单时快照）' : ''} · 请对照交易所核对</span>
         </div>
 
         {/* ── 净美元希腊（总 + 分币种）── */}
@@ -367,8 +387,11 @@ export const PortfolioRiskView = () => {
               <tbody>
                 {positions.map(p => (
                   <tr key={p.id} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
-                    <td className="py-1.5 px-2 font-mono text-white/80 whitespace-nowrap">{p.instrument}</td>
-                    <td className="py-1.5 px-2 text-white/50">{p.venue}</td>
+                    <td className="py-1.5 px-2 font-mono text-white/80 whitespace-nowrap">
+                      {p.sim && <span className="mr-1.5 text-[9px] font-bold px-1.5 py-[1px] rounded-full align-middle" style={{ background: 'rgba(254,188,46,0.16)', color: '#FEBC2E' }}>模拟</span>}
+                      {p.instrument}
+                    </td>
+                    <td className="py-1.5 px-2 text-white/50">{p.sim ? '—' : p.venue}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: p.qty >= 0 ? UP : DOWN }}>{p.qty > 0 ? '+' : ''}{p.qty}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: sgnColor(p.dollarDelta) }}>{fmtUsd(p.dollarDelta)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: sgnColor(p.dollarGamma) }}>{fmtUsd(p.dollarGamma)}</td>

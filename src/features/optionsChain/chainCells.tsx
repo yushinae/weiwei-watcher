@@ -68,10 +68,10 @@ MarkCell.displayName = 'MarkCell';
 export interface SelectedCell { row: ChainRow; side: 'call' | 'put' }
 
 export const ChainRowComp = memo(({
-  row, cols, loading, isEven, isSelected, onRowClick, showDist, spot, emBandStrikeMin, emBandStrikeMax,
+  row, cols, loading, isEven, isSelected, owned, onRowClick, showDist, spot, emBandStrikeMin, emBandStrikeMax,
 }: {
   row: ChainRow; cols: ViewCol[]; loading: boolean; isEven: boolean;
-  isSelected: boolean; onRowClick: (row: ChainRow, side: 'call' | 'put') => void;
+  isSelected: boolean; owned?: boolean; onRowClick: (row: ChainRow, side: 'call' | 'put') => void;
   showDist: boolean; spot: number; emBandStrikeMin: number; emBandStrikeMax: number;
 }) => {
   const { call: c, put: p, strike, isATM, isITM } = row;
@@ -84,7 +84,7 @@ export const ChainRowComp = memo(({
   const callBg = isSelected ? 'var(--db-bg-selected)' : callItmBg;
   const putBg = isSelected ? 'var(--db-bg-selected)' : putItmBg;
 
-  const callCols = [...cols].reverse();
+  const callCols = cols; // 两侧列序一致（买价在左、卖价在右，与 Deribit 期权链一致），不镜像
   const putCols = cols;
   const colWidths = cols.map(col => `${col.w}px`).join(' ');
   const gridTpl = `${colWidths} ${STRIKE_W}px ${colWidths}`;
@@ -94,24 +94,33 @@ export const ChainRowComp = memo(({
   const distColor = distPct > 0 ? 'var(--db-up)' : distPct < 0 ? 'var(--db-down)' : 'var(--db-muted)';
   const strikeText = strike.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const sideFromX = useCallback((e: React.MouseEvent<HTMLDivElement>): 'call' | 'put' => {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = e.clientX - rect.left;
     const callW = cols.reduce((s, col) => s + col.w, 0);
-    onRowClick(row, relX < callW + STRIKE_W / 2 ? 'call' : 'put');
-  }, [row, cols, onRowClick]);
+    return relX < callW + STRIKE_W / 2 ? 'call' : 'put';
+  }, [cols]);
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => onRowClick(row, sideFromX(e)), [row, sideFromX, onRowClick]);
+  // 悬停只高亮鼠标所在的一侧（看涨/看跌），避免两侧同时高亮分不清在哪边
+  const [hoverSide, setHoverSide] = useState<'call' | 'put' | null>(null);
+  const onHoverMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const s = sideFromX(e);
+    setHoverSide(prev => (prev === s ? prev : s)); // 仅在跨越中线时更新，避免每像素 re-render
+  }, [sideFromX]);
 
   return (
     <div
-      className="db-oc-row group grid"
+      className={`db-oc-row group grid${hoverSide ? ` is-hover-${hoverSide}` : ''}`}
       style={{ gridTemplateColumns: gridTpl, height: ROW_H, cursor: 'pointer', borderBottom: `1px solid ${BORDER_C}` }}
       onClick={handleClick}
+      onMouseMove={onHoverMove}
+      onMouseLeave={() => setHoverSide(null)}
     >
       {callCols.map((col, i) => {
         const { text, colorKey } = getCellValue(c, col);
         const isLast = i === callCols.length - 1;
         return (
-          <div key={`c-${col.id}`} className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
+          <div key={`c-${col.id}`} data-side="call" className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
             style={{ background: callBg, borderRight: isLast ? `1px solid ${BORDER_C}` : undefined }}>
             {col.key === 'mark'
               ? <MarkCell mark={c.mark} iv={c.iv} loading={loading} dimmed={!callITM && !isATM} />
@@ -122,9 +131,11 @@ export const ChainRowComp = memo(({
 
       <div className="db-oc-strike flex flex-col items-center justify-center transition-[filter] duration-75"
         style={{
-          background: (strike >= emBandStrikeMin && strike <= emBandStrikeMax) ? 'transparent' : 'var(--db-bg-strike)',
+          background: owned ? 'rgba(37,232,137,0.10)' : (strike >= emBandStrikeMin && strike <= emBandStrikeMax) ? 'transparent' : 'var(--db-bg-strike)',
           borderLeft: `1px solid ${BORDER_STRONG}`, borderRight: `1px solid ${BORDER_STRONG}`, position: 'relative',
+          boxShadow: owned ? 'inset 0 0 0 1.5px var(--db-accent)' : undefined,
         }}>
+        {owned && <span title="你在此行权价有模拟持仓" style={{ position: 'absolute', top: 2, right: 3, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
         <span style={{ ...TABNUM, fontSize: 14, fontWeight: isATM ? 800 : 700, color: '#FFFFFF', lineHeight: showDist ? 1.02 : undefined }}>
           {loading ? <Skeleton /> : strikeText}
         </span>
@@ -137,7 +148,7 @@ export const ChainRowComp = memo(({
         const { text, colorKey } = getCellValue(p, col);
         const isFirst = i === 0;
         return (
-          <div key={`p-${col.id}`} className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
+          <div key={`p-${col.id}`} data-side="put" className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
             style={{ background: putBg, borderLeft: isFirst ? `1px solid ${BORDER_C}` : undefined }}>
             {col.key === 'mark'
               ? <MarkCell mark={p.mark} iv={p.iv} loading={loading} dimmed={!putITM && !isATM} />
@@ -172,7 +183,7 @@ const HeaderCell = memo(({ col }: { col: ViewCol }) => (
 HeaderCell.displayName = 'HeaderCell';
 
 export const ColHeaderRow = memo(({ cols }: { cols: ViewCol[] }) => {
-  const callCols = [...cols].reverse();
+  const callCols = cols; // 两侧列序一致（买价在左、卖价在右，与 Deribit 期权链一致），不镜像
   const putCols = cols;
   const colWidths = cols.map(c => `${c.w}px`).join(' ');
   const gridTpl = `${colWidths} ${STRIKE_W}px ${colWidths}`;

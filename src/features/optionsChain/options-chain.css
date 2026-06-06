@@ -171,7 +171,13 @@
 }
 .db-oc-root .db-oc-strike { background: var(--db-bg-strike); }
 
-.db-oc-root .db-oc-row:hover > .db-oc-cell-wrap { filter: brightness(1.4); }
+/* 悬停只高亮鼠标所在的一侧（看涨/看跌）——由 ChainRowComp 按鼠标 X 加 is-hover-call/put 类。
+   用 inset box-shadow 染一层（渲染在文字之下、文字保持清晰，且不被 cell 行内 background 覆盖），对比明显 */
+.db-oc-root .db-oc-row.is-hover-call > .db-oc-cell-wrap[data-side="call"],
+.db-oc-root .db-oc-row.is-hover-put  > .db-oc-cell-wrap[data-side="put"] {
+  box-shadow: inset 0 0 0 9999px rgba(120, 170, 255, 0.16);
+  filter: brightness(1.12);
+}
 
 /* Scrollbars */
 .db-oc-root ::-webkit-scrollbar { width: 8px; height: 8px; }

@@ -147,6 +147,48 @@ export function useOrderBook(instrument: string | undefined, source: DataSource,
   return book;
 }
 
+// ── 近期成交（市场最近成交流）—— REST 轮询 3s ───────────────────────────────────
+//   • Deribit:  public/get_last_trades_by_instrument（币价 ×index 折 USD）
+//   • Bybit:    /bybit-api/v5/market/recent-trade
+export interface RecentTrade { price: number; size: number; side: 'buy' | 'sell'; ts: number }
+
+export function useRecentTrades(instrument: string | undefined, source: DataSource, spot: number) {
+  const [trades, setTrades] = useState<RecentTrade[]>([]);
+  const spotRef = useRef(spot);
+  spotRef.current = spot;
+
+  useEffect(() => {
+    if (!instrument) { setTrades([]); return; }
+    let alive = true;
+
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        let out: RecentTrade[] = [];
+        if (source === 'bybit') {
+          const r = await fetch(`/bybit-api/v5/market/recent-trade?category=option&symbol=${encodeURIComponent(instrument)}&limit=30`);
+          const j = await r.json();
+          const list: Array<Record<string, unknown>> = j?.result?.list ?? [];
+          out = list.map(t => ({ price: +(t.price as string), size: +(t.size as string), side: (t.side as string) === 'Buy' ? 'buy' : 'sell', ts: +(t.time as string) }));
+        } else {
+          const r = await fetch(`https://www.deribit.com/api/v2/public/get_last_trades_by_instrument?instrument_name=${encodeURIComponent(instrument)}&count=30&sorting=desc`);
+          const j = await r.json();
+          const list: Array<Record<string, any>> = j?.result?.trades ?? [];
+          out = list.map(t => { const u = (t.index_price ?? spotRef.current) || 1; return { price: (Number(t.price) || 0) * u, size: Number(t.amount) || 0, side: t.direction === 'buy' ? 'buy' as const : 'sell' as const, ts: Number(t.timestamp) || 0 }; });
+        }
+        out = out.filter(t => t.price > 0 && Number.isFinite(t.price)).sort((a, b) => b.ts - a.ts).slice(0, 30);
+        if (alive) setTrades(out);
+      } catch { if (alive) setTrades([]); }
+    };
+
+    void poll();
+    const id = setInterval(() => void poll(), 3000);
+    return () => { alive = false; clearInterval(id); };
+  }, [instrument, source]);
+
+  return trades;
+}
+
 export function useChainStream(source: DataSource, expiry: ChainExpiry | undefined): LiveTicks {
   const [ticks, setTicks] = useState<LiveTicks>({});
 

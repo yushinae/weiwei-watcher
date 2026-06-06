@@ -1623,6 +1623,12 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     if (!strikes.length) return {};
     const putData = strikes.map(k => -(putOI.get(k) ?? 0));
     const callData = strikes.map(k => callOI.get(k) ?? 0);
+    const labelFormatter = (_i: number, v: number) => v > 0 ? fmtOI(v) : '';
+    const yLabels = strikes.map(k => {
+      const s = Math.abs(k - spot) < spot * 0.005;
+      const mp = Math.abs(k - maxPain) < spot * 0.005;
+      return { val: fmtPrice(k) + (s ? ' ◆' : mp ? ' ★' : ''), color: s ? '#FEBC2E' : mp ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)' };
+    });
     return {
       grid: { left: 72, right: 48, top: 8, bottom: 8 },
       xAxis: {
@@ -1634,29 +1640,13 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       },
       yAxis: {
         type: 'category',
-        data: strikes,
+        data: yLabels.map(l => l.val),
         inverse: true,
         axisLabel: {
           fontSize: 9,
           fontFamily: 'monospace',
-          formatter: (v: string) => {
-            const k = Number(v);
-            const s = Math.abs(k - spot) < spot * 0.005;
-            const mp = Math.abs(k - maxPain) < spot * 0.005;
-            let l = fmtPrice(k);
-            if (s) l += ' ◆'; else if (mp) l += ' ★';
-            return l;
-          },
-          rich: {
-            s: { color: '#FEBC2E', fontWeight: 'bold', fontSize: 9 },
-            mp: { color: 'rgba(37,232,137,0.9)', fontWeight: 'bold', fontSize: 9 },
-          },
-          color: (v: string) => {
-            const k = Number(v);
-            if (Math.abs(k - spot) < spot * 0.005) return '#FEBC2E';
-            if (Math.abs(k - maxPain) < spot * 0.005) return 'rgba(37,232,137,0.9)';
-            return 'rgba(255,255,255,0.45)';
-          },
+          color: yLabels.map(l => l.color),
+          fontWeight: yLabels.map(l => l.color !== 'rgba(255,255,255,0.45)' ? 'bold' as const : 'normal' as const),
         },
         axisLine: { show: false },
         axisTick: { show: false },
@@ -1669,24 +1659,13 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           data: putData,
           barWidth: 12,
           barGap: '-100%',
-          itemStyle: {
-            borderRadius: [0, 2, 2, 0],
-            color: (params: any) => {
-              const k = strikes[params.dataIndex];
-              const p = putOI.get(k) ?? 0;
-              return `rgba(202,63,100,${0.45 + (p / maxOI) * 0.35})`;
-            },
-          },
+          itemStyle: { borderRadius: [0, 2, 2, 0], color: 'rgba(202,63,100,0.7)' },
           label: {
             show: true,
             position: 'left',
             fontSize: 8,
             color: 'rgba(202,63,100,0.6)',
-            formatter: (params: any) => {
-              const k = strikes[params.dataIndex];
-              const v = putOI.get(k) ?? 0;
-              return v > 0 ? fmtOI(v) : '';
-            },
+            formatter: (p: any) => labelFormatter(p.dataIndex, -(p.value ?? 0)),
           },
         },
         {
@@ -1694,24 +1673,13 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           type: 'bar',
           data: callData,
           barWidth: 12,
-          itemStyle: {
-            borderRadius: [2, 0, 0, 2],
-            color: (params: any) => {
-              const k = strikes[params.dataIndex];
-              const c = callOI.get(k) ?? 0;
-              return `rgba(37,232,137,${0.4 + (c / maxOI) * 0.4})`;
-            },
-          },
+          itemStyle: { borderRadius: [2, 0, 0, 2], color: 'rgba(37,232,137,0.7)' },
           label: {
             show: true,
             position: 'right',
             fontSize: 8,
             color: 'rgba(37,232,137,0.55)',
-            formatter: (params: any) => {
-              const k = strikes[params.dataIndex];
-              const v = callOI.get(k) ?? 0;
-              return v > 0 ? fmtOI(v) : '';
-            },
+            formatter: (p: any) => labelFormatter(p.dataIndex, p.value ?? 0),
           },
         },
       ],
@@ -1719,7 +1687,8 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         trigger: 'axis',
         formatter: (params: any) => {
           if (!params?.length) return '';
-          const st = Number(params[0].name);
+          const idx = params[0].dataIndex;
+          const st = strikes[idx];
           const cv = callOI.get(st) ?? 0;
           const pv = putOI.get(st) ?? 0;
           return [
@@ -2070,6 +2039,12 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       const e = gexMap.get(k)!;
       return e.pGex - e.cGex;
     });
+    const gexRadii = gexData.map(v => v >= 0 ? [2, 0, 0, 2] : [0, 2, 2, 2]);
+    const yLabels = strikes.map(k => {
+      const s = Math.abs(k - spot) < spot * 0.005;
+      const z = zeroGamma !== null && Math.abs(k - zeroGamma) < spot * 0.005;
+      return { val: fmtPx(k) + (s ? ' ◆' : z ? ' ○' : ''), color: s ? '#FEBC2E' : z ? '#a78bfa' : 'rgba(255,255,255,0.35)' };
+    });
     return {
       grid: { left: 72, right: 56, top: 8, bottom: 8 },
       xAxis: {
@@ -2081,25 +2056,13 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       },
       yAxis: {
         type: 'category',
-        data: strikes,
+        data: yLabels.map(l => l.val),
         inverse: true,
         axisLabel: {
           fontSize: 9,
           fontFamily: 'monospace',
-          formatter: (v: string) => {
-            const k = Number(v);
-            const s = Math.abs(k - spot) < spot * 0.005;
-            const z = zeroGamma !== null && Math.abs(k - zeroGamma) < spot * 0.005;
-            let l = fmtPx(k);
-            if (s) l += ' ◆'; else if (z) l += ' ○';
-            return l;
-          },
-          color: (v: string) => {
-            const k = Number(v);
-            if (Math.abs(k - spot) < spot * 0.005) return '#FEBC2E';
-            if (zeroGamma !== null && Math.abs(k - zeroGamma) < spot * 0.005) return '#a78bfa';
-            return 'rgba(255,255,255,0.35)';
-          },
+          color: yLabels.map(l => l.color),
+          fontWeight: yLabels.map(l => l.color !== 'rgba(255,255,255,0.35)' ? 'bold' as const : 'normal' as const),
         },
         axisLine: { show: false },
         axisTick: { show: false },
@@ -2107,19 +2070,19 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       },
       series: [{
         type: 'bar',
-        data: strikes.map((_, i) => ({
-          value: gexData[i],
+        data: gexData.map((v, i) => ({
+          value: v,
           itemStyle: {
-            color: gexData[i] >= 0 ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)',
-            borderRadius: gexData[i] >= 0 ? [2, 0, 0, 2] : [0, 2, 2, 0],
+            color: v >= 0 ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)',
+            borderRadius: gexRadii[i],
           },
         })),
         barWidth: 12,
         label: {
           show: true,
-          position: (p: any) => p.value >= 0 ? 'right' : 'left',
+          position: 'outside',
           fontSize: 8,
-          formatter: (p: any) => Math.abs(p.value) / maxAbs > 0.12 ? fmtGex(p.value) : '',
+          formatter: (p: any) => Math.abs(p.value ?? 0) / maxAbs > 0.08 ? fmtGex(p.value ?? 0) : '',
         },
         markLine: {
           silent: true,
@@ -2128,12 +2091,12 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
             {
               xAxis: spot,
               lineStyle: { color: '#FEBC2E', type: 'dashed', width: 1 },
-              label: { show: true, formatter: '现货', color: '#FEBC2E', fontSize: 9, position: 'insideEndTop' as const },
+              label: { color: '#FEBC2E', fontSize: 9, position: 'insideEndTop' as const, formatter: '现货' },
             },
             ...(zeroGamma !== null ? [{
               xAxis: zeroGamma,
               lineStyle: { color: '#a78bfa', type: 'dashed', width: 1 },
-              label: { show: true, formatter: '零Gamma', color: '#a78bfa', fontSize: 9, position: 'insideEndTop' as const },
+              label: { color: '#a78bfa', fontSize: 9, position: 'insideEndTop' as const, formatter: '零Gamma' },
             }] : []),
           ],
         },
@@ -2142,7 +2105,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         trigger: 'axis',
         formatter: (params: any) => {
           if (!params?.length) return '';
-          const st = Number(params[0].name);
+          const idx = params[0].dataIndex;
+          const st = strikes[idx];
           const e = gexMap.get(st);
           if (!e) return '';
           const net = e.pGex - e.cGex;

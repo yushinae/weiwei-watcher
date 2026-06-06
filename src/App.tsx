@@ -274,7 +274,7 @@ const AppNavigationDropdown = () => {
       >
         <button
           className={cn(
-            "flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-colors duration-[120ms]",
+            "flex items-center justify-center w-[32px] h-[32px] shrink-0 rounded-[8px] transition-colors duration-[120ms]",
             navOpen
               ? "bg-brand-blue/20 text-brand-blue"
               : "bg-transparent text-white hover:bg-white/[0.08]",

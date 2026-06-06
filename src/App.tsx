@@ -279,7 +279,7 @@ const AppNavigationDropdown = () => {
             navOpen && "bg-white/[0.10] text-white",
           )}
         >
-          <NineDots size={24} />
+          <NineDots size={22} />
         </button>
 
         {navOpen && (
@@ -573,7 +573,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <DigitalClock />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setSettingsOpen(o => !o)}
               className={cn(

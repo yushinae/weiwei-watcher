@@ -1685,6 +1685,21 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           },
         },
       ],
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: any) => {
+          if (!params?.length) return '';
+          const idx = params[0].dataIndex;
+          const st = strikes[idx];
+          const cv = callOI.get(st) ?? 0;
+          const pv = putOI.get(st) ?? 0;
+          return [
+            `<div>Strike ${fmtPrice(st)}</div>`,
+            `<div>Call OI: ${fmtOI(cv)} | Put OI: ${fmtOI(pv)}</div>`,
+            `<div>PCR: ${pv > 0 ? (cv / pv).toFixed(2) : '∞'}</div>`,
+          ].join('');
+        },
+      },
     };
   }, [strikes, callOI, putOI, spot, maxPain, fmtOI, fmtPrice]);
 
@@ -2075,7 +2090,39 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
             return Math.abs(v) / maxAbs > 0.08 ? fmtGex(v) : '';
           },
         },
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          data: [
+            {
+              xAxis: spot,
+              lineStyle: { color: '#FEBC2E', type: 'dashed', width: 1 },
+              label: { color: '#FEBC2E', fontSize: 9, position: 'insideEndTop', formatter: '现货' },
+            },
+            ...(zeroGamma !== null ? [{
+              xAxis: zeroGamma,
+              lineStyle: { color: '#a78bfa', type: 'dashed', width: 1 },
+              label: { color: '#a78bfa', fontSize: 9, position: 'insideEndTop', formatter: '零Gamma' },
+            }] : []),
+          ],
+        },
       }],
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: any) => {
+          if (!params?.length) return '';
+          const idx = params[0].dataIndex;
+          const st = strikes[idx];
+          const e = gexMap.get(st);
+          if (!e) return '';
+          const net = e.pGex - e.cGex;
+          return [
+            `<div>Strike ${fmtPx(st)}</div>`,
+            `净 GEX: ${fmtGex(net)}`,
+            `Call: ${fmtGex(e.cGex)} | Put: ${fmtGex(e.pGex)}`,
+          ].join(' · ');
+        },
+      },
     };
   }, [strikes, gexMap, maxAbs, spot, zeroGamma, fmtGex, fmtPx]);
 

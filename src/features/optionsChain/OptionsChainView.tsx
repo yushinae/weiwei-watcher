@@ -19,8 +19,8 @@ import { ChevronDown, Check, Loader2, SlidersHorizontal, Filter } from 'lucide-r
 import { cn } from '../../lib/utils';
 import { useOptionChain } from './bybitTickers';
 import { useLiveSpot, useChainStream } from './liveData';
-import { useDeribitChainOptions } from '../../registry/data/deribit';
-import { buildBybitExpiry, buildDeribitExpiry, seedFor, dteLabel } from './chainModel';
+import { useDeribitOptions } from '../../registry/data/deribit';
+import { buildBybitExpiry, buildDeribitExpiry, dteLabel } from './chainModel';
 import type { ChainExpiry, ChainRow } from './chainModel';
 import { useOCStore, ocStore, coinOf, sourceOf, underlyingFor } from './store';
 import {
@@ -51,7 +51,7 @@ export default function OptionsChainView() {
   const [chainCollapsed, setChainCollapsed] = useState(false); // collapse the chain grid to its header
 
   const bybit = useOptionChain(coin);
-  const deribit = useDeribitChainOptions(coin);
+  const deribit = useDeribitOptions(coin);
   const loading = source === 'bybit' ? bybit.loading : deribit.loading;
   const error = source === 'bybit' ? bybit.error : null;
 
@@ -72,18 +72,6 @@ export default function OptionsChainView() {
   // Live spot from Deribit index WS (1 Hz); falls back to the REST snapshot's spot.
   const liveSpot = useLiveSpot(coin);
   const spot = liveSpot ?? expiry?.spot ?? 0;
-
-  // 当前到期里"我有模拟持仓"的行权价集合 → 高亮对应行
-  const ownedStrikes = useMemo(() => {
-    const prefix = `${coin}-${(expiry?.dateLabel ?? '').replace(/\s+/g, '')}-`;
-    const set = new Set<number>();
-    for (const p of book.positions) {
-      if (Math.abs(p.qty) < 1e-9 || !p.symbol.startsWith(prefix)) continue;
-      const m = p.symbol.slice(prefix.length).match(/^(\d+)-/);
-      if (m) set.add(parseInt(m[1]));
-    }
-    return set;
-  }, [book.positions, coin, expiry?.dateLabel]);
 
   const cols = useMemo(() => SIDE_COLS.filter(c => visibleColIds.has(c.id)), [visibleColIds]);
   const colsWidth = cols.reduce((s, c) => s + c.w, 0);
@@ -248,12 +236,6 @@ export default function OptionsChainView() {
           <div className="relative">
             <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
               到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.label}</span>}
-              {expiry && expiry.daysToExp < 2 && (
-                <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full"
-                  style={expiry.daysToExp < 1 ? { background: 'rgba(255,95,87,0.18)', color: '#FF5F57' } : { background: 'rgba(254,188,46,0.18)', color: '#FEBC2E' }}>
-                  {expiry.daysToExp < 1 ? '末日' : '临期'}
-                </span>
-              )}
               <ChevronDown size={14} className="text-white/50" />
             </button>
             <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
@@ -265,12 +247,6 @@ export default function OptionsChainView() {
                     <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); ocStore.setExpiryIdx(i); setSelectedCell(null); }}>
                       <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
                       <span className="flex-1 font-semibold">{e.dateLabel}</span>
-                      {e.daysToExp < 2 && (
-                        <span className="text-[9px] font-bold px-1.5 py-[1px] rounded-full mr-1"
-                          style={e.daysToExp < 1 ? { background: 'rgba(255,95,87,0.18)', color: '#FF5F57' } : { background: 'rgba(254,188,46,0.18)', color: '#FEBC2E' }}>
-                          {e.daysToExp < 1 ? '末日' : '临期'}
-                        </span>
-                      )}
                       <span className="text-white/35 font-mono text-[11px]">{dteLabel(e.daysToExp)}</span>
                     </button>
                   );
@@ -393,7 +369,7 @@ export default function OptionsChainView() {
                   return (
                     <div key={row.strike} style={{ position: 'absolute', top: idx * ROW_H, left: 0, width: '100%', height: ROW_H }}>
                       <ChainRowComp row={row} cols={cols} loading={false} isEven={idx % 2 === 0}
-                        isSelected={!!isSelected} owned={ownedStrikes.has(row.strike)} onRowClick={handleRowClick} showDist={showDist} spot={spot}
+                        isSelected={!!isSelected} onRowClick={handleRowClick} showDist={showDist} spot={spot}
                         emBandStrikeMin={emBandStrikeMin} emBandStrikeMax={emBandStrikeMax} />
                     </div>
                   );
@@ -435,7 +411,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : `options-${coin}`} />
               </motion.div>
             </div>
           </>

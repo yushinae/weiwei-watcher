@@ -585,7 +585,7 @@ export default function App() {
               title="UI 设置"
               aria-label="UI 设置"
             >
-              <img src="/icons/settings.png" className="w-8 h-8 rounded-[6px]" alt="" />
+              <img src="/icons/settings.png" className="w-6 h-6 rounded-[6px]" alt="" />
             </button>
 
             <button
@@ -595,7 +595,7 @@ export default function App() {
               title="告警"
               aria-label="告警"
             >
-              <img src="/icons/alerts.png" className="w-8 h-8 rounded-[6px]" alt="" />
+              <img src="/icons/alerts.png" className="w-6 h-6 rounded-[6px]" alt="" />
             </button>
 
             <button
@@ -605,7 +605,7 @@ export default function App() {
               title="账户"
               aria-label="账户"
             >
-              <img src="/icons/accounts.png" className="w-8 h-8 rounded-[6px]" alt="" />
+              <img src="/icons/accounts.png" className="w-6 h-6 rounded-[6px]" alt="" />
             </button>
 
             <DataHealthIndicator />

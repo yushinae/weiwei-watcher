@@ -642,8 +642,6 @@ export default function App() {
         <AppRoutes />
       </main>
 
-      <footer className="h-[34px] glass-bar flex items-center px-1.5 shrink-0 z-10 w-full relative" />
-
       {/* 全局告警 Toast（应用内，独立于系统通知）*/}
       <AlertToastHost />
     </div>

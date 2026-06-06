@@ -67,7 +67,7 @@ export default function DataHealthIndicator() {
   const close = () => { tooltipTimer.current = setTimeout(() => setShowTooltip(false), 250); };
 
   return (
-    <div className="relative flex items-center" onMouseEnter={open} onMouseLeave={close}>
+    <div className="relative flex items-center shrink-0 self-stretch" onMouseEnter={open} onMouseLeave={close}>
       <style>{`
         @keyframes ws-breathe { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.2;transform:scale(1.35);} }
         @keyframes ws-ping { 0%{transform:scale(1);opacity:.7;} 50%{transform:scale(1.8);opacity:.3;} 100%{transform:scale(2.2);opacity:0;} }
@@ -77,16 +77,14 @@ export default function DataHealthIndicator() {
         .anim-alert   { animation: ws-alert 1.2s ease-in-out infinite; }
       `}</style>
 
-      <div className={`flex items-center gap-1.5 rounded-full ${shout ? 'pl-2.5 pr-1' : ''} h-[30px] ${shout ? 'bg-white/[0.06]' : ''} hover:bg-white/[0.10] transition-all duration-[120ms] cursor-pointer`}>
-        {shout && (
-          <span className="text-[11px] font-bold whitespace-nowrap" style={{ color }}>{shout}</span>
-        )}
-        <div className="flex items-center justify-center rounded-full w-[30px] h-[30px] bg-white/[0.06] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms]">
-          <span className="relative flex h-4 w-4 items-center justify-center">
-            <span className={`absolute inline-flex h-full w-full rounded-full ${animClass}`} style={{ backgroundColor: color }} />
-            <span className="relative h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-          </span>
-        </div>
+      {shout && (
+        <span className="absolute right-full mr-1.5 text-[11px] font-bold whitespace-nowrap top-1/2 -translate-y-1/2 pointer-events-none" style={{ color }}>{shout}</span>
+      )}
+      <div className="flex items-center justify-center rounded-full w-[30px] h-[30px] bg-white/[0.06] hover:bg-white/[0.10] active:scale-[0.98] transition-all duration-[120ms] cursor-pointer">
+        <span className="relative flex h-4 w-4 items-center justify-center">
+          <span className={`absolute inline-flex h-full w-full rounded-full ${animClass}`} style={{ backgroundColor: color }} />
+          <span className="relative h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+        </span>
       </div>
 
       {showTooltip && (

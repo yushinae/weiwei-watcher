@@ -171,6 +171,27 @@ export const KLineChartView = () => {
     }
   }, [candles, coin, res]);
 
+  // 4.5) 实时价格更新——WS spot 推送到最后一根 K 线（3 秒节流）
+  const lastUpdateRef = useRef(0);
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || candles.length === 0 || !liveSpot) return;
+    const now = Date.now();
+    if (now - lastUpdateRef.current < 1000) return; // 1s 节流
+    lastUpdateRef.current = now;
+    const last = candles[candles.length - 1];
+    if (last && Math.abs(last.c - liveSpot) > 0.5) {
+      (chart as any)._addData({
+        timestamp: last.t,
+        open: last.o,
+        high: Math.max(last.h, liveSpot),
+        low: Math.min(last.l, liveSpot),
+        close: liveSpot,
+        volume: last.v,
+      }, 'update');
+    }
+  }, [liveSpot, candles]);
+
   // 4) 切换币种/周期时，先保存旧的再加载新的
   const prevCoinRes = useRef({ coin, res });
   useEffect(() => {
@@ -182,6 +203,8 @@ export const KLineChartView = () => {
       // 切换后等新数据加载完成（下次 data effect 会 loadOverlays）
       // 清除关键位标记，让它们在新币种上重建
       levelIdsRef.current = [];
+      // 重置 setup 标记，让下次 data effect 重新 setSymbol/setPeriod
+      if (chart) (chart as any).__kcSetup = false;
     }
     prevCoinRes.current = { coin, res };
   }, [coin, res]);

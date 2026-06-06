@@ -588,7 +588,7 @@ export default function App() {
               title="UI 设置"
               aria-label="UI 设置"
             >
-              <img src="/icons/settings.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
+              <img src="/icons/settings.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" style={settingsOpen ? { filter: 'brightness(0) saturate(100%) invert(30%) sepia(100%) saturate(5000%) hue-rotate(225deg)' } : undefined} />
             </button>
 
             <button
@@ -603,7 +603,7 @@ export default function App() {
               title="告警"
               aria-label="告警"
             >
-              <img src="/icons/alerts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
+              <img src="/icons/alerts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" style={isAlerts ? { filter: 'brightness(0) saturate(100%) invert(30%) sepia(100%) saturate(5000%) hue-rotate(225deg)' } : undefined} />
             </button>
 
             <button
@@ -618,7 +618,7 @@ export default function App() {
               title="账户"
               aria-label="账户"
             >
-              <img src="/icons/accounts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
+              <img src="/icons/accounts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" style={isAccounts ? { filter: 'brightness(0) saturate(100%) invert(30%) sepia(100%) saturate(5000%) hue-rotate(225deg)' } : undefined} />
             </button>
 
             <DataHealthIndicator />

@@ -1,4 +1,5 @@
 // KLineChart 关键位叠加图表
+// 画线持久化：每 5 秒自动存 localStorage，页面刷新/切换币种时自动恢复
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { init, dispose } from 'klinecharts';
 import type { Chart } from 'klinecharts';
@@ -28,6 +29,8 @@ const RES_TO_PERIOD: Record<Resolution, { type: string; span: number }> = {
   '1d':  { type: 'day',    span: 1 },
 };
 
+const STORAGE_PREFIX = 'kc_ov_';
+
 const Pill: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button onClick={onClick}
     className={'px-2.5 h-[26px] rounded-md text-[12px] font-semibold transition-colors duration-[120ms] ' +
@@ -47,6 +50,44 @@ const LevelChip = ({ label, value, sub, color }: { label: string; value: string;
     </div>
   </div>
 );
+
+// ── 持久化工具 ────────────────────────────────────────────────────────────────
+
+function storageKey(coin: Coin, res: Resolution) {
+  return STORAGE_PREFIX + coin + '_' + res;
+}
+
+function saveOverlays(chart: Chart | null, coin: Coin, res: Resolution) {
+  if (!chart) return;
+  try {
+    const overlays = chart.getOverlays();
+    // 只存关键字段，去掉运行时产生的 id/paneId/groupId
+    const data = overlays.map(o => ({
+      name: o.name,
+      points: o.points,
+      styles: o.styles,
+      totalStep: o.totalStep,
+      currentStep: o.currentStep,
+    }));
+    localStorage.setItem(storageKey(coin, res), JSON.stringify(data));
+  } catch { /* localStorage 满或不可用 */ }
+}
+
+function loadOverlays(chart: Chart | null, coin: Coin, res: Resolution) {
+  if (!chart) return;
+  try {
+    const raw = localStorage.getItem(storageKey(coin, res));
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) return;
+    for (const item of data) {
+      if (!item.name || !item.points) continue;
+      chart.createOverlay(item);
+    }
+  } catch { /* json 损坏忽略 */ }
+}
+
+// ── 主组件 ────────────────────────────────────────────────────────────────────
 
 export const KLineChartView = () => {
   const [coin, setCoin] = useState<Coin>('BTC');
@@ -69,8 +110,10 @@ export const KLineChartView = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
-  // 记住关键位 overlay id，只删自己的
   const levelIdsRef = useRef<string[]>([]);
+  // 存一个 ref 跟踪当前 coin/res，用于自动保存
+  const storeRef = useRef({ coin, res, chartReady: false });
+  storeRef.current = { coin, res, chartReady: !!chartRef.current };
 
   // 1) 初始化图表
   useEffect(() => {
@@ -78,40 +121,72 @@ export const KLineChartView = () => {
     const chart = init(containerRef.current, { styles: 'dark' });
     if (!chart) return;
     chartRef.current = chart;
+    storeRef.current.chartReady = true;
+
+    // 页面关闭前保存
+    const onUnload = () => saveOverlays(chart, coin, res);
+    window.addEventListener('beforeunload', onUnload);
+
     return () => {
+      saveOverlays(chart, coin, res);
+      window.removeEventListener('beforeunload', onUnload);
       dispose(containerRef.current!);
       chartRef.current = null;
+      storeRef.current.chartReady = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2) 喂 K 线（candles/coin/res 任一变化都重设数据，但保留用户画的线）
+  // 2) 定时自动保存（每 5 秒）
+  useEffect(() => {
+    const id = setInterval(() => {
+      const { coin: c, res: r, chartReady } = storeRef.current;
+      if (chartReady) saveOverlays(chartRef.current, c, r);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 3) 喂 K 线（首次设基础配置，后续只更新数据）
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || candles.length === 0) return;
 
     const kData = candles.map(c => ({
-      timestamp: c.t,
-      open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v,
+      timestamp: c.t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v,
     }));
 
-    // 仅首次：设置 symbol / period / dataLoader
     const isSetup = (chart as any).__kcSetup;
     if (!isSetup) {
       chart.setSymbol({ ticker: COIN_SYMBOL[coin], pricePrecision: 0, volumePrecision: 2 });
       chart.setPeriod(RES_TO_PERIOD[res] as any);
       chart.setDataLoader({
-        getBars: (params) => {
-          params.callback(kData, { backward: false, forward: false });
-        },
+        getBars: (params) => { params.callback(kData, { backward: false, forward: false }); },
       });
       (chart as any).__kcSetup = true;
+      // 初始化完成后，恢复之前保存的画线
+      loadOverlays(chart, coin, res);
     } else {
-      // 仅换数据，不动覆盖层
+      // 数据刷新，不动覆盖层
       (chart as any)._addData(kData, 'init', { backward: false, forward: false });
     }
   }, [candles, coin, res]);
 
-  // 3) 关键位叠加 — 只删自己的 ID，不动用户画的线
+  // 4) 切换币种/周期时，先保存旧的再加载新的
+  const prevCoinRes = useRef({ coin, res });
+  useEffect(() => {
+    const prev = prevCoinRes.current;
+    if (prev.coin !== coin || prev.res !== res) {
+      // 切换前保存旧的
+      const chart = chartRef.current;
+      if (chart) saveOverlays(chart, prev.coin, prev.res as Resolution);
+      // 切换后等新数据加载完成（下次 data effect 会 loadOverlays）
+      // 清除关键位标记，让它们在新币种上重建
+      levelIdsRef.current = [];
+    }
+    prevCoinRes.current = { coin, res };
+  }, [coin, res]);
+
+  // 5) 关键位叠加 — 只删自己的 ID
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -143,8 +218,7 @@ export const KLineChartView = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLevels, showEM, levels.callWall, levels.putWall, levels.maxPain, levels.emSigma, spot]);
 
-  const emPct = levels.emSigma != null && spot ? (levels.emSigma / spot) * 100 : null;
-
+  // ── 画线工具栏 ──
   const OVERLAY_TOOLS = [
     { name: 'segment',        label: '线段' },
     { name: 'straightLine',   label: '直线' },
@@ -163,8 +237,13 @@ export const KLineChartView = () => {
     const chart = chartRef.current;
     if (!chart) return;
     if (drawTool === name) setDrawTool(null);
-    else { chart.createOverlay(name); setDrawTool(name); }
+    else {
+      chart.createOverlay(name);
+      setDrawTool(name);
+    }
   };
+
+  const emPct = levels.emSigma != null && spot ? (levels.emSigma / spot) * 100 : null;
 
   return (
     <div className="absolute inset-0 flex flex-col p-3 gap-2.5 text-white/85">

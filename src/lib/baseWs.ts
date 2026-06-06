@@ -20,6 +20,13 @@ export type WsStatus = 'disconnected' | 'connecting' | 'connected';
 
 type AnyListener = (data: never) => void;
 
+// ── 数据新鲜度上报（控制反转，避免 lib 反向依赖 registry/data） ──────────────────
+export type WsActivityKind = 'message' | 'connected' | 'disconnected';
+export type WsActivityReporter = (feedKey: string, kind: WsActivityKind) => void;
+let _wsActivityReporter: WsActivityReporter | null = null;
+/** 由 registry/data/freshness 在启动时注入；未注入时所有上报均为 no-op。 */
+export function _setWsActivityReporter(r: WsActivityReporter): void { _wsActivityReporter = r; }
+
 export interface BaseWSOptions {
   /** Reconnect delay in ms. Fixed delay when min === max, else exponential min→max. */
   backoffMin?: number;
@@ -31,6 +38,9 @@ export interface BaseWSOptions {
 export abstract class BaseWS<S extends string = WsStatus> {
   protected ws: WebSocket | null = null;
   protected subs = new Map<string, Set<AnyListener>>();
+
+  /** 设置后，本连接的消息/断开会上报到新鲜度护栏（见 _setWsActivityReporter）。 */
+  protected feedKey?: string;
 
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -64,6 +74,7 @@ export abstract class BaseWS<S extends string = WsStatus> {
     if (s === this._status) return;
     this._status = s;
     this._statusListeners.forEach(fn => fn(s));
+    if (this.feedKey && s === 'disconnected') _wsActivityReporter?.(this.feedKey, 'disconnected');
   }
 
   // ── Channel subscriptions (ref-counted) ──────────────────────────────────────
@@ -89,6 +100,7 @@ export abstract class BaseWS<S extends string = WsStatus> {
 
   /** Deliver a decoded payload to a channel's listeners. */
   protected dispatch(channel: string, data: unknown): void {
+    if (this.feedKey) _wsActivityReporter?.(this.feedKey, 'message');
     this.subs.get(channel)?.forEach(fn => (fn as (d: unknown) => void)(data));
   }
 

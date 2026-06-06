@@ -18,7 +18,7 @@ import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-
 import { cn } from './lib/utils';
 import { OptionsHoverMenu } from './features/optionsChain/OptionsHoverMenu';
 import DigitalClock from './components/DigitalClock';
-import WsConnectionIndicator from './components/WsConnectionIndicator';
+import DataHealthIndicator from './components/DataHealthIndicator';
 import { UISettings, useTheme } from './features/settings/UISettings';
 
 const MonitorPage = lazy(() => import('./pages/MonitorPage'));
@@ -584,7 +584,7 @@ export default function App() {
         <div className="flex items-center gap-2 ml-8 shrink-0">
           <div className="flex items-center gap-4">
             <DigitalClock />
-            <WsConnectionIndicator />
+            <DataHealthIndicator />
           </div>
           <div className="relative flex items-center ml-2">
             <button

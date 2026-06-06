@@ -1,33 +1,78 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Local order book / positions — a self-contained simulated trading engine.
 //
-// 持久化 + 全局：状态存 localStorage(weiwei.simbook.v1)、模块级单例 + subscribe，
-// 跨页跨刷新都在（期权页下单 → 账户页「模拟」页签也能看到）。市价单按 mark 成交、
-// 限价单挂到可成交、updateMarks 既撮合挂单又把持仓盯市。纯 reducer + 薄 hook → 易测。
+// Demo state lives per-mount (no global store / persistence): market orders fill at
+// mark, limit orders rest until marketable, and `updateMarks` both auto-fills resting
+// orders and marks open positions to market. Pure reducer + thin hook → easy to test.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useSyncExternalStore, useCallback } from 'react';
+import { useReducer, useCallback } from 'react';
 
-// optDelta/optGamma/optVega/optTheta：成交时从期权链快照的"每张"希腊（自然符号，call δ>0/put δ<0；θ<0）
-export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; optGamma?: number; optVega?: number; optTheta?: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
-// delta/gamma/vega/theta：仓位级"每张×方向符号"（long +/short −），组合风险用它 ×qty 折美元希腊
-export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number; gamma?: number; vega?: number; theta?: number }
+export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
+export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number }
 export interface SimFill { id: string; symbol: string; side: 'buy' | 'sell'; qty: number; price: number; fee: number; timestamp: number }
 
-export interface PlaceArgs { side: 'buy' | 'sell'; type: 'limit' | 'market' | 'stop'; symbol: string; qty: number; price: number; mark: number; delta: number; gamma?: number; vega?: number; theta?: number }
+// ── 真实盘口（喂给撮合，让市价单吃单滑点、限价单按真盘口成交） ──────────────────
+export interface DepthLevel { price: number; size: number }
+/** bids 价降序、asks 价升序（best 在最前）。 */
+export interface DepthBook { bids: DepthLevel[]; asks: DepthLevel[] }
+
+export interface FillResult {
+  filledQty: number;    // 实际从真实档位吃到的量
+  avgPrice: number;     // 成交均价（VWAP），无成交为 0
+  bestPrice: number;    // 对手方最优价（算滑点的基准）
+  worstPrice: number;   // 吃到的最差档位价
+  slippagePct: number;  // (均价 − 最优)/最优 ×100，正=对吃单方更差
+  restQty: number;      // 未成交剩余
+}
+
+/**
+ * 把 qty 打到真实盘口上：买单扫 asks（升序）、卖单扫 bids（降序）。
+ * 传 limitPrice 则只吃不超过限价的档位（限价单）；不传则一路吃（市价单）。
+ */
+export function fillAgainstBook(book: DepthBook, side: 'buy' | 'sell', qty: number, limitPrice?: number): FillResult {
+  const levels = side === 'buy' ? book.asks : book.bids;
+  const best = levels[0]?.price ?? 0;
+  let remaining = qty, cost = 0, filled = 0, worst = best;
+  for (const lv of levels) {
+    if (remaining <= 1e-12) break;
+    if (limitPrice != null) {
+      if (side === 'buy' && lv.price > limitPrice + 1e-12) break;
+      if (side === 'sell' && lv.price < limitPrice - 1e-12) break;
+    }
+    const take = Math.min(remaining, lv.size);
+    if (take <= 0) continue;
+    cost += take * lv.price;
+    filled += take;
+    worst = lv.price;
+    remaining -= take;
+  }
+  const avgPrice = filled > 0 ? cost / filled : 0;
+  const slippagePct = best > 0 && filled > 0
+    ? ((side === 'buy' ? avgPrice - best : best - avgPrice) / best) * 100
+    : 0;
+  return { filledQty: filled, avgPrice, bestPrice: best, worstPrice: worst, slippagePct, restQty: remaining };
+}
+
+export interface PlaceArgs { side: 'buy' | 'sell'; type: 'limit' | 'market' | 'stop'; symbol: string; qty: number; price: number; mark: number; delta: number; book?: DepthBook }
 
 export interface BookState { positions: SimPosition[]; openOrders: SimOrder[]; orderHistory: SimOrder[]; fills: SimFill[] }
 
 const rid = () => Math.random().toString(36).slice(2, 9);
+const FEE_RATE = 0.0005;
+const hasDepth = (b?: DepthBook): b is DepthBook => !!b && (b.bids.length + b.asks.length) > 0;
+const mkFill = (id: string, a: PlaceArgs, qty: number, px: number, now: number): SimFill =>
+  ({ id, symbol: a.symbol, side: a.side, qty, price: px, fee: px * qty * FEE_RATE, timestamp: now });
+const mkHist = (id: string, a: PlaceArgs, qty: number, px: number, now: number): SimOrder =>
+  ({ id, symbol: a.symbol, side: a.side, type: a.type, qty, price: px, optDelta: a.delta, status: 'filled', createdAt: now, filledPrice: px });
 
 /** Apply a fill to the positions list — proper average price + realized close. */
-export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell', qty: number, px: number, optDelta: number, g?: { gamma?: number; vega?: number; theta?: number }): SimPosition[] {
+export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell', qty: number, px: number, optDelta: number): SimPosition[] {
   const signed = side === 'buy' ? qty : -qty;
-  const og = g?.gamma ?? 0, ov = g?.vega ?? 0, ot = g?.theta ?? 0;
   const ex = ps.find(p => p.symbol === symbol);
   if (!ex) {
     const sign = signed > 0 ? 1 : -1;
-    return [...ps, { id: rid(), symbol, side: sign > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: px, unrealizedPnL: 0, delta: optDelta * sign, gamma: og * sign, vega: ov * sign, theta: ot * sign }];
+    return [...ps, { id: rid(), symbol, side: sign > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: px, unrealizedPnL: 0, delta: optDelta * sign }];
   }
   const cur = ex.side === 'long' ? ex.qty : -ex.qty;
   const next = cur + signed;
@@ -38,9 +83,8 @@ export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell
   if (cur === 0 || growing) avg = (ex.avgEntryPrice * Math.abs(cur) + px * Math.abs(signed)) / Math.abs(next);
   else if (flipped) avg = px; // remaining qty opens fresh at fill price
   const sign = next > 0 ? 1 : -1;
-  // 希腊用本次成交的每张快照 × 新方向符号（每张希腊随行情变，沙盒取最近一次即可）
   return ps.map(p => p.symbol === symbol
-    ? { ...p, side: sign > 0 ? 'long' : 'short', qty: Math.abs(next), avgEntryPrice: avg, markPrice: px, unrealizedPnL: (px - avg) * Math.abs(next) * sign, delta: optDelta * sign, gamma: og * sign, vega: ov * sign, theta: ot * sign }
+    ? { ...p, side: sign > 0 ? 'long' : 'short', qty: Math.abs(next), avgEntryPrice: avg, markPrice: px, unrealizedPnL: (px - avg) * Math.abs(next) * sign, delta: optDelta * sign }
     : p);
 }
 
@@ -53,17 +97,48 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
   switch (action.t) {
     case 'place': {
       const a = action.a;
-      const id = rid();
       const now = Date.now();
+
+      // ── 市价单：吃真实盘口（加权成交价 + 滑点）；无盘口时退回 mark ──
       if (a.type === 'market') {
+        let px = a.mark;
+        if (hasDepth(a.book)) {
+          const r = fillAgainstBook(a.book, a.side, a.qty);
+          if (r.filledQty > 0) {
+            // 盘口吃不满（深度太薄）时，剩余按最差档位估价，sim 仍全量成交但价反映真实冲击
+            px = r.restQty > 1e-9
+              ? (r.avgPrice * r.filledQty + r.worstPrice * r.restQty) / a.qty
+              : r.avgPrice;
+          }
+        }
+        const id = rid();
         return {
           ...s,
-          positions: applyFill(s.positions, a.symbol, a.side, a.qty, a.mark, a.delta, a),
-          fills: [...s.fills, { id, symbol: a.symbol, side: a.side, qty: a.qty, price: a.mark, fee: a.mark * a.qty * 0.0005, timestamp: now }],
-          orderHistory: [...s.orderHistory, { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.mark, optDelta: a.delta, optGamma: a.gamma, optVega: a.vega, optTheta: a.theta, status: 'filled', createdAt: now, filledPrice: a.mark }],
+          positions: applyFill(s.positions, a.symbol, a.side, a.qty, px, a.delta),
+          fills: [...s.fills, mkFill(id, a, a.qty, px, now)],
+          orderHistory: [...s.orderHistory, mkHist(id, a, a.qty, px, now)],
         };
       }
-      const order: SimOrder = { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, optDelta: a.delta, optGamma: a.gamma, optVega: a.vega, optTheta: a.theta, status: 'pending', createdAt: now };
+
+      // ── 限价单：可成交部分按真盘口立刻吃掉，剩余挂单（其后由 marks 穿越成交） ──
+      if (a.type === 'limit' && hasDepth(a.book)) {
+        const r = fillAgainstBook(a.book, a.side, a.qty, a.price);
+        if (r.filledQty > 1e-9) {
+          const fid = rid();
+          const positions = applyFill(s.positions, a.symbol, a.side, r.filledQty, r.avgPrice, a.delta);
+          const fills = [...s.fills, mkFill(fid, a, r.filledQty, r.avgPrice, now)];
+          const orderHistory = [...s.orderHistory, mkHist(fid, a, r.filledQty, r.avgPrice, now)];
+          if (r.restQty > 1e-9) {
+            const order: SimOrder = { id: rid(), symbol: a.symbol, side: a.side, type: a.type, qty: r.restQty, price: a.price, optDelta: a.delta, status: 'pending', createdAt: now };
+            return { positions, openOrders: [...s.openOrders, order], orderHistory: [...orderHistory, order], fills };
+          }
+          return { ...s, positions, fills, orderHistory };
+        }
+      }
+
+      // ── 不可立即成交（或无盘口）：整单挂出 ──
+      const id = rid();
+      const order: SimOrder = { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, optDelta: a.delta, status: 'pending', createdAt: now };
       return { ...s, openOrders: [...s.openOrders, order], orderHistory: [...s.orderHistory, order] };
     }
     case 'cancel': {
@@ -84,7 +159,7 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         else stillOpen.push(o);
       }
       let positions = s.positions;
-      for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, o.optDelta, { gamma: o.optGamma, vega: o.optVega, theta: o.optTheta });
+      for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, o.optDelta);
       // Mark-to-market the open positions.
       positions = positions.map(p => {
         const m = marks[p.symbol];
@@ -106,38 +181,10 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
   }
 }
 
-// ── 持久化全局单例 ───────────────────────────────────────────────────────────
-const SIM_KEY = 'weiwei.simbook.v1';
-const emptyBook = (): BookState => ({ positions: [], openOrders: [], orderHistory: [], fills: [] });
-
-function loadBook(): BookState {
-  try {
-    const raw = localStorage.getItem(SIM_KEY);
-    if (raw) return { ...emptyBook(), ...(JSON.parse(raw) as Partial<BookState>) };
-  } catch { /* ignore */ }
-  return emptyBook();
-}
-
-let simState: BookState = loadBook();
-const simListeners = new Set<() => void>();
-
-function commitSim(next: BookState) {
-  if (next === simState) return;
-  simState = next;
-  try { localStorage.setItem(SIM_KEY, JSON.stringify(next)); } catch { /* quota — ignore */ }
-  simListeners.forEach(l => l());
-}
-
-export function dispatchSim(action: BookAction): void { commitSim(bookReducer(simState, action)); }
-export function subscribeSim(cb: () => void): () => void { simListeners.add(cb); return () => { simListeners.delete(cb); }; }
-export function getSimState(): BookState { return simState; }
-export function clearSimBook(): void { commitSim(emptyBook()); }
-
-/** 读取持久化模拟簿（全局单例）；接口与原 per-mount 版一致，期权页无需改动。 */
 export function useLocalBook() {
-  const state = useSyncExternalStore(subscribeSim, getSimState, getSimState);
-  const placeOrder = useCallback((a: PlaceArgs) => dispatchSim({ t: 'place', a }), []);
-  const cancelOrder = useCallback((id: string) => dispatchSim({ t: 'cancel', id }), []);
-  const updateMarks = useCallback((marks: Record<string, number>) => dispatchSim({ t: 'marks', marks }), []);
+  const [state, dispatch] = useReducer(bookReducer, { positions: [], openOrders: [], orderHistory: [], fills: [] });
+  const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
+  const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
+  const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
   return { ...state, placeOrder, cancelOrder, updateMarks };
 }

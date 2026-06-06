@@ -4,6 +4,8 @@
 // data. Pauses automatically when the window/tab is hidden (Page Visibility API).
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { markOk, markError, markAllPaused, setActive } from './freshness';
+
 export type DataSub<T> = (data: T) => void;
 
 export interface PollerEntry {
@@ -35,7 +37,10 @@ async function _pollOnce(key: string): Promise<void> {
     if (_shouldSkip()) return;
     e.lastData = d;
     e.subscribers.forEach(fn => fn(d));
-  } catch {}
+    markOk(key, e.intervalMs);
+  } catch (err) {
+    markError(key, err);
+  }
 }
 
 let _wsPauseFn: (() => void) | null = null;
@@ -48,6 +53,7 @@ export function _registerWSPauseResume(pause: () => void, resume: () => void): v
 
 export function _resumeAll(): void {
   _isHidden = false;
+  markAllPaused(false);
   POLLERS.forEach((e, key) => {
     if (e.subscribers.size > 0 && e.timerId == null) {
       _pollOnce(key);
@@ -59,6 +65,7 @@ export function _resumeAll(): void {
 
 export function _pauseAll(): void {
   _isHidden = true;
+  markAllPaused(true);
   POLLERS.forEach(e => {
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
   });
@@ -123,7 +130,9 @@ export function subscribeData<T>(
     POLLERS.set(key, e);
   }
   const entry = e;
+  const wasEmpty = entry.subscribers.size === 0;
   entry.subscribers.add(subscriber as DataSub<unknown>);
+  if (wasEmpty) setActive(key, true);
 
   if (entry.lastData !== undefined) subscriber(entry.lastData as T);
 
@@ -134,9 +143,9 @@ export function subscribeData<T>(
 
   return () => {
     entry.subscribers.delete(subscriber as DataSub<unknown>);
-    if (entry.subscribers.size === 0 && entry.timerId != null) {
-      clearInterval(entry.timerId);
-      entry.timerId = null;
+    if (entry.subscribers.size === 0) {
+      setActive(key, false); // 无人消费 → 不再计入「冻住」告警
+      if (entry.timerId != null) { clearInterval(entry.timerId); entry.timerId = null; }
     }
   };
 }

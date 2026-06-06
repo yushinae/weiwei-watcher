@@ -11,14 +11,17 @@
 import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { genBook } from './chainModel';
-import type { Coin } from './chainModel';
-import { useLocalBook } from './simBook';
+import type { Coin, DataSource } from './chainModel';
+import { useLocalBook, fillAgainstBook, type DepthBook, type DepthLevel } from './simBook';
+import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import {
   BG_MAIN, BG_HEADER, BG_CARD, BORDER_C, CARD_SHADOW, TABNUM, fmtGamma5, optionSymbol,
 } from './chainConstants';
+import FreshnessTag from '../../components/FreshnessTag';
+import { useFreshness } from '../../registry/data/freshness';
+import { preTradeChecks, type CheckLevel } from './preTradeChecks';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Positions panel — 仓位 / 未结订单 / 订单历史 / 交易历史 (shared: page + trade modal)
@@ -186,9 +189,16 @@ FlashValue.displayName = 'FlashValue';
 // Trading panel (ticket + order book + greeks + positions)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, book, onClose }: {
-  selected: SelectedCell; coin: Coin; spot: number; dateLabel: string; dec: number; seed: number;
-  book: ReturnType<typeof useLocalBook>; onClose: () => void;
+// 下单前 sanity 灯：总灯三档（绿可下 / 黄注意 / 红别急）。
+const SANITY: Record<CheckLevel, { color: string; text: string }> = {
+  ok:    { color: '#22C55E', text: '数据新鲜 · 可下单' },
+  warn:  { color: '#F59E0B', text: '可下单，但先看一眼' },
+  block: { color: '#EF4444', text: '先改一下再下单' },
+};
+
+export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose, chainFeedKey }: {
+  selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number;
+  book: ReturnType<typeof useLocalBook>; onClose: () => void; chainFeedKey: string;
 }) => {
   const { row, side } = selected;
   const opt = side === 'call' ? row.call : row.put;
@@ -208,24 +218,64 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
 
   const { placeOrder } = book;
 
-  const { asks, bids } = useMemo(() => {
-    if (opt.bid === null && opt.ask === null) return { asks: [], bids: [] };
-    return genBook(opt.bid, opt.ask, opt.iv, dec, seed ^ row.strike);
-  }, [opt.bid, opt.ask, opt.iv, dec, seed, row.strike]);
-  const maxAskTotal = asks[asks.length - 1]?.total ?? 1;
-  const maxBidTotal = bids[bids.length - 1]?.total ?? 1;
+  // ── 真实订单簿深度（只订当前合约，关面板即退订）──────────────────────────────
+  const rawDepth = useOptionDepth(source, opt.instrument);
+  // 原生→USD 系数：用顶档锚点反推（反向币本位 ×spot、USDC/Bybit ≈ ×1），免依赖 underlying_price
+  const usdBook = useMemo<DepthBook | null>(() => {
+    if (!rawDepth || (rawDepth.bids.length === 0 && rawDepth.asks.length === 0)) return null;
+    const rawAsk = rawDepth.asks[0]?.price, rawBid = rawDepth.bids[0]?.price;
+    let factor = 1;
+    if (opt.ask != null && rawAsk) factor = opt.ask / rawAsk;
+    else if (opt.bid != null && rawBid) factor = opt.bid / rawBid;
+    const conv = (l: DepthLevel) => ({ price: l.price * factor, size: l.size });
+    return { bids: rawDepth.bids.map(conv), asks: rawDepth.asks.map(conv) };
+  }, [rawDepth, opt.ask, opt.bid]);
+
+  // 显示阶梯（带累计 total，各取前 8 档）
+  const ladder = useMemo(() => {
+    const mk = (levels: DepthLevel[]) => { let cum = 0; return levels.slice(0, 8).map(l => { cum += l.size; return { price: l.price, size: l.size, total: cum }; }); };
+    return { asks: mk(usdBook?.asks ?? []), bids: mk(usdBook?.bids ?? []) };
+  }, [usdBook]);
+  const maxAskTotal = ladder.asks[ladder.asks.length - 1]?.total ?? 1;
+  const maxBidTotal = ladder.bids[ladder.bids.length - 1]?.total ?? 1;
 
   const nPrice = useMemo(() => { const p = parseFloat((price || '').replace(/,/g, '')); return Number.isFinite(p) ? p : 0; }, [price]);
   const nQty = useMemo(() => { const q = parseFloat((qty || '').replace(/,/g, '')); return Number.isFinite(q) ? q : 0; }, [qty]);
+
+  // 市价吃单预估（当前数量）：买扫卖档、卖扫买档；取两侧较差的滑点喂给 sanity
+  const slip = useMemo(() => {
+    if (!usdBook || !(nQty > 0)) return null;
+    const b = fillAgainstBook(usdBook, 'buy', nQty), s = fillAgainstBook(usdBook, 'sell', nQty);
+    return { buy: b, sell: s, worstPct: Math.max(b.slippagePct, s.slippagePct) };
+  }, [usdBook, nQty]);
+  const depthFr = useFreshness(opt.instrument ? depthFeedKey(opt.instrument) : '');
   const notional = nPrice * nQty;
   const fee = notional * 0.0005;
   const margin = notional * 0.12;
   const totalCost = notional + fee;
 
-  const submit = (s: 'buy' | 'sell') => placeOrder({
-    side: s, type: orderType, symbol, qty: nQty,
-    price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
-  });
+  // ── 下单前 sanity 灯：报价新鲜度 + 现价新鲜度 + 点差 + 限价偏离 + 数量 ──
+  const chainFr = useFreshness(chainFeedKey);
+  const spotFr = useFreshness('ws-deribit');
+  const sanity = useMemo(() => preTradeChecks({
+    bid: opt.bid, ask: opt.ask, mark: opt.mark,
+    qty: nQty, price: nPrice, orderType,
+    chainKind: chainFr?.kind ?? null, chainAgeMs: chainFr?.ageMs ?? null,
+    spotKind: spotFr?.kind ?? null,
+    marketSlippagePct: orderType === 'market' ? (slip?.worstPct ?? null) : null,
+  }), [opt.bid, opt.ask, opt.mark, nQty, nPrice, orderType, chainFr?.kind, chainFr?.ageMs, spotFr?.kind, slip?.worstPct]);
+
+  const submit = (s: 'buy' | 'sell') => {
+    if (sanity.blocking) return;
+    placeOrder({
+      side: s, type: orderType, symbol, qty: nQty,
+      price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
+      book: usdBook ?? undefined,
+    });
+  };
+
+  const light = SANITY[sanity.level];
+  const issues = sanity.checks.filter(c => c.level !== 'ok');
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: BG_MAIN }}>
@@ -258,6 +308,12 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
                 <FlashValue text={item.value} className="font-mono font-bold" style={{ color: item.color }} />
               </div>
             ))}
+          </div>
+          {/* 内联新鲜度：现价(WS) + 报价(期权链 feed) —— 让你下单前一眼知道这些数多新 */}
+          <div className="mt-1 flex items-center gap-3">
+            <FreshnessTag dataKey="ws-deribit" label="现价" />
+            <span className="text-white/15">·</span>
+            <FreshnessTag dataKey={chainFeedKey} label="报价" />
           </div>
         </div>
         <div className="flex-1" />
@@ -345,9 +401,29 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
               <span className="text-[12px] font-extrabold px-2 py-1 rounded-[8px]" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)', border: '1px solid var(--db-accent-soft)' }}>仓位 0.00</span>
             </div>
 
+            {/* ── 下单前 sanity 灯 —— 护栏的终点：护到你手指按下去那刻 ── */}
+            <div className="mt-3 rounded-[10px] border px-3 py-2" style={{ borderColor: `${light.color}55`, background: `${light.color}14` }}>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: light.color }} />
+                <span className="text-[12px] font-extrabold" style={{ color: light.color }}>{light.text}</span>
+                {issues.length > 0 && <span className="ml-auto text-[11px] font-bold" style={{ color: light.color }}>{issues.length} 项</span>}
+              </div>
+              {issues.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {issues.map(c => (
+                    <div key={c.id} className="flex items-start gap-1.5 text-[11px] leading-snug">
+                      <span className="mt-[3px] h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: c.level === 'block' ? '#EF4444' : '#F59E0B' }} />
+                      <span className="text-white/45 font-semibold shrink-0">{c.label}</span>
+                      <span className="text-white/70">{c.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-3 flex gap-2">
-              <button onClick={() => submit('buy')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: 'var(--db-up)' }}>买入</button>
-              <button onClick={() => submit('sell')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: 'var(--db-down)' }}>卖出</button>
+              <button onClick={() => submit('buy')} disabled={sanity.blocking} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-up)' }}>买入</button>
+              <button onClick={() => submit('sell')} disabled={sanity.blocking} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-down)' }}>卖出</button>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-4 text-[12px]">
@@ -382,28 +458,39 @@ export const TradingPanel = memo(({ selected, coin, spot, dateLabel, dec, seed, 
             <div className="flex-1 min-h-0 overflow-y-auto">
               {rtab === 'book' && (
                 <div>
-                  {asks.length === 0 && bids.length === 0 ? (
-                    <div className="flex items-center justify-center h-[200px] text-[13px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无订单簿数据</div>
+                  {ladder.asks.length === 0 && ladder.bids.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[200px] gap-1.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.30)' }}>
+                      {source === 'bybit'
+                        ? <span>Bybit 真实盘口待接入（下一步用 REST 轮询）</span>
+                        : <span>等待真实盘口…</span>}
+                      <span className="text-[11px] text-white/25">只显示真实深度，不再编示意盘口</span>
+                    </div>
                   ) : (
                     <>
-                      <div className="px-2 py-1 text-[10px]" style={{ color: 'var(--db-warn)' }}>示意盘口（围绕实时买卖价模拟，非真实深度）</div>
-                      <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
-                        <span className="text-right">总计</span><span className="text-right">数量</span><span className="text-right">IV%</span>
-                        <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
-                        <span className="text-right">IV%</span><span className="text-right">数量</span><span className="text-right">总计</span>
+                      <div className="px-2 py-1 flex items-center gap-2 text-[10px]" style={{ color: '#888888' }}>
+                        <span className="font-semibold" style={{ color: 'var(--db-up)' }}>实时盘口</span>
+                        <FreshnessTag dataKey={opt.instrument ? depthFeedKey(opt.instrument) : ''} />
+                        {slip && (
+                          <span className="ml-auto" style={{ ...TABNUM }}>
+                            {nQty} 张市价滑点 ≈ 买 <b style={{ color: 'var(--db-down)' }}>{slip.buy.slippagePct.toFixed(1)}%</b> / 卖 <b style={{ color: 'var(--db-up)' }}>{slip.sell.slippagePct.toFixed(1)}%</b>
+                          </span>
+                        )}
                       </div>
-                      {Array.from({ length: Math.max(asks.length, bids.length) }, (_, i) => {
-                        const a = asks[i], b = bids[i];
+                      <div className="grid grid-cols-[1fr_1fr_auto_auto_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
+                        <span className="text-right">总计</span><span className="text-right">数量</span>
+                        <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
+                        <span className="text-right">数量</span><span className="text-right">总计</span>
+                      </div>
+                      {Array.from({ length: Math.max(ladder.asks.length, ladder.bids.length) }, (_, i) => {
+                        const a = ladder.asks[i], b = ladder.bids[i];
                         return (
-                          <div key={i} className="relative grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 hover:bg-white/[0.03] cursor-pointer" style={{ height: 26 }}>
+                          <div key={i} className="relative grid grid-cols-[1fr_1fr_auto_auto_1fr_1fr] px-2 hover:bg-white/[0.03]" style={{ height: 26 }}>
                             {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
                             {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{a ? a.iv.toFixed(1) + '%' : '—'}</span>
                             <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
                             <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{b ? b.iv.toFixed(1) + '%' : '—'}</span>
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{b ? b.total.toFixed(2) : '—'}</span>
                           </div>

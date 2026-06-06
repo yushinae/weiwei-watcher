@@ -12,7 +12,7 @@ import type { DeribitData, ExpiryGroup } from '../../registry/monitorWidgetsBase
 // 价格源 = Binance（最深流动性的基准价、分辨率全、历史长），经 /binance-api 代理拉 klines。
 // 期权关键位仍来自 Deribit 持仓数据（见 computeChainLevels），互不影响。
 
-export type Resolution = '15m' | '1h' | '4h' | '1d';
+export type Resolution = '5m' | '15m' | '1h' | '4h' | '1d' | '1w';
 
 export interface Candle {
   t: number; // 起始时间戳（ms）
@@ -23,11 +23,12 @@ export interface Candle {
   v: number;
 }
 
-export const RESOLUTION_LABEL: Record<Resolution, string> = { '15m': '15分', '1h': '1时', '4h': '4时', '1d': '1日' };
+export const RESOLUTION_LABEL: Record<Resolution, string> = { '5m': '5分', '15m': '15分', '1h': '1时', '4h': '4时', '1d': '1日', '1w': '1周' };
 
 // 每个分辨率取多少根（Binance limit ≤ 1000）与轮询间隔（ms）
-const LIMIT: Record<Resolution, number> = { '15m': 480, '1h': 720, '4h': 540, '1d': 365 };
-const POLL_MS: Record<Resolution, number> = { '15m': 20_000, '1h': 30_000, '4h': 60_000, '1d': 300_000 };
+const LIMIT: Record<Resolution, number> = { '5m': 1000, '15m': 1000, '1h': 1000, '4h': 1000, '1d': 1000, '1w': 500 };
+export { LIMIT };
+const POLL_MS: Record<Resolution, number> = { '5m': 10_000, '15m': 20_000, '1h': 30_000, '4h': 60_000, '1d': 300_000, '1w': 600_000 };
 
 export const COIN_SYMBOL: Record<Coin, string> = { BTC: 'BTCUSDT', ETH: 'ETHUSDT' };
 
@@ -36,6 +37,18 @@ type BinanceKline = [number, string, string, string, string, string, ...unknown[
 
 export async function fetchCandles(coin: Coin, res: Resolution): Promise<Candle[]> {
   const url = `/binance-api/api/v3/klines?symbol=${COIN_SYMBOL[coin]}&interval=${res}&limit=${LIMIT[res]}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`binance klines ${r.status}`);
+  const rows = (await r.json()) as BinanceKline[];
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((k) => ({ t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5] }))
+    .filter((c) => Number.isFinite(c.o) && Number.isFinite(c.c));
+}
+
+// 加载指定时间戳之前的 K 线（用于懒加载 / 跳转）
+export async function fetchCandlesBefore(coin: Coin, res: Resolution, beforeTimestamp: number): Promise<Candle[]> {
+  const url = `/binance-api/api/v3/klines?symbol=${COIN_SYMBOL[coin]}&interval=${res}&limit=${LIMIT[res]}&endTime=${beforeTimestamp}`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`binance klines ${r.status}`);
   const rows = (await r.json()) as BinanceKline[];

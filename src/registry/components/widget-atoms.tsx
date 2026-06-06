@@ -22,6 +22,13 @@ export const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
   </div>
 );
 
+// 静态币种标签（只读，无切换功能）
+export const CoinLabel = ({ coin }: { coin: Coin }) => (
+  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/[0.06] text-white/55 uppercase tracking-wider">
+    {coin}
+  </span>
+);
+
 // 「实时」徽章：绿点 + 文字
 export const LiveBadge = () => (
   <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/80 uppercase tracking-wider">

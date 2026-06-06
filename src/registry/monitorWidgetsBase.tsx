@@ -24,7 +24,7 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 // Re-export: UI atoms from components/widget-atoms.tsx
 // ═══════════════════════════════════════════════════════════════════════════════
-export { CoinTabs, LiveBadge, Skeleton, HistLoadErr } from './components/widget-atoms';
+export { CoinTabs, CoinLabel, LiveBadge, Skeleton, HistLoadErr } from './components/widget-atoms';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Re-export: Poller infrastructure from data/poller.ts

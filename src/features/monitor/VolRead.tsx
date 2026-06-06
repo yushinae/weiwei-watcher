@@ -6,7 +6,7 @@ import { EChart } from '../../components/echart/EChart';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
   useCoinControl, useDeribitOptions, useDeribitHistory, SmileChartLive,
-  LiveBadge,
+  CoinLabel,
   type CoinControlProps, type ExpiryGroup,
 } from '../../registry/monitorWidgetsBase';
 
@@ -28,7 +28,7 @@ export const VolHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const { data: hist } = useDeribitHistory(coin);
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{data ? <LiveBadge /> : null}</div>);
+    setHeaderRight(<CoinLabel coin={coin} />);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 
@@ -84,7 +84,7 @@ export const VolSmileCurveWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{data ? <LiveBadge /> : null}</div>);
+    setHeaderRight(<CoinLabel coin={coin} />);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
   return (
@@ -100,7 +100,7 @@ export const VolTermWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
   const { data } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<div className="flex items-center gap-2">{data ? <LiveBadge /> : null}</div>);
+    setHeaderRight(<CoinLabel coin={coin} />);
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 

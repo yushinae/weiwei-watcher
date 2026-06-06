@@ -224,7 +224,6 @@ const AppNavigationDropdown = () => {
   const isMonitor = location.pathname === '/monitor';
   const isOptionsChain = location.pathname === '/options-chain';
   const isPriceChart = location.pathname === '/price-chart';
-  const isAccounts = location.pathname === '/accounts';
 
   const [navOpen, setNavOpen] = useState(false);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -339,28 +338,6 @@ const AppNavigationDropdown = () => {
         决策
       </button>
 
-      <button
-        onClick={() => navigate('/price-chart')}
-        onMouseEnter={preload.priceChart}
-        className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isPriceChart ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
-        )}
-      >
-        图表
-      </button>
-
-      <button
-        onClick={() => navigate('/accounts')}
-        onMouseEnter={preload.accounts}
-        className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isAccounts ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
-        )}
-      >
-        账户
-      </button>
-
       <div className="relative" onMouseEnter={() => { openOpt(); preload.optionsChain(); }} onMouseLeave={closeOpt}>
         <button
           onClick={() => navigate('/options-chain')}
@@ -381,6 +358,17 @@ const AppNavigationDropdown = () => {
           </div>
         )}
       </div>
+
+      <button
+        onClick={() => navigate('/price-chart')}
+        onMouseEnter={preload.priceChart}
+        className={cn(
+          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isPriceChart ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+        )}
+      >
+        图表
+      </button>
 
     </div>
   );

@@ -524,6 +524,7 @@ const TickerBar = () => {
 
 
 export default function App() {
+  const navigate = useNavigate();
   useTheme();
   useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
 
@@ -584,9 +585,8 @@ export default function App() {
         <div className="flex items-center gap-2 ml-8 shrink-0">
           <div className="flex items-center gap-4">
             <DigitalClock />
-            <DataHealthIndicator />
           </div>
-          <div className="relative flex items-center ml-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setSettingsOpen(o => !o)}
               className={cn(
@@ -601,30 +601,52 @@ export default function App() {
               <Settings size={16} />
             </button>
 
-            {settingsOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-[190]"
-                  onClick={() => setSettingsOpen(false)}
-                />
-                <div
-                  className="absolute top-full right-0 mt-2 w-[300px] p-4 bg-[var(--color-dropdown)] rounded-xl z-[200] ring-1 ring-white/[0.08]
-                             shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[13px] font-semibold text-white/80">UI 设置</span>
-                    <button
-                      onClick={() => setSettingsOpen(false)}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
-                    >
-                      <span className="text-[14px] leading-none">✕</span>
-                    </button>
-                  </div>
-                  <UISettings onClose={() => setSettingsOpen(false)} />
-                </div>
-              </>
-            )}
+            <button
+              onClick={() => navigate('/alerts')}
+              onMouseEnter={preload.alerts}
+              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              title="告警"
+              aria-label="告警"
+            >
+              <Bell size={16} />
+            </button>
+
+            <button
+              onClick={() => navigate('/accounts')}
+              onMouseEnter={preload.accounts}
+              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              title="账户"
+              aria-label="账户"
+            >
+              <Wallet size={16} />
+            </button>
+
+            <DataHealthIndicator />
           </div>
+
+          {settingsOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-[190]"
+                onClick={() => setSettingsOpen(false)}
+              />
+              <div
+                className="absolute top-full right-0 mt-2 w-[300px] p-4 bg-[var(--color-dropdown)] rounded-xl z-[200] ring-1 ring-white/[0.08]
+                           shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[13px] font-semibold text-white/80">UI 设置</span>
+                  <button
+                    onClick={() => setSettingsOpen(false)}
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                  >
+                    <span className="text-[14px] leading-none">✕</span>
+                  </button>
+                </div>
+                <UISettings onClose={() => setSettingsOpen(false)} />
+              </div>
+            </>
+          )}
         </div>
       </header>
 

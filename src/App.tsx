@@ -276,7 +276,7 @@ const AppNavigationDropdown = () => {
           className={cn(
             "flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-colors duration-[120ms]",
             "bg-transparent text-white hover:bg-white/[0.08]",
-            navOpen && "bg-white/[0.10]",
+            navOpen && "bg-white/[0.10] text-brand-blue",
           )}
         >
           <NineDots size={22} />

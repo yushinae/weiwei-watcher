@@ -293,7 +293,7 @@ html.is-scrolling * {
     0 2px 8px -2px rgba(0,0,0,0.50),
     inset 0 0 0 1px rgba(255,255,255,0.07), /* 细描边 */
     inset 0 1px 0 rgba(255,255,255,0.10);   /* 顶部高光 */
-  padding: 8px;
+  padding: 0 4px;
   color: var(--nexus-text-pri);
   transition: box-shadow var(--dur-card) var(--ease-emphasis),
               transform var(--dur-card) var(--ease-emphasis);
@@ -404,7 +404,7 @@ html.is-scrolling * {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 7px;
+  padding-top: 4px;
   margin-bottom: 2px;
 }
 

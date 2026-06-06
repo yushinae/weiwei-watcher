@@ -321,7 +321,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.monitor}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isMonitor ? "bg-brand-blue text-white ring-1 ring-inset ring-brand-blue/50" : "bg-transparent text-white hover:bg-white/[0.07]"
+          isMonitor ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85"
         )}>
         监控
       </button>
@@ -331,7 +331,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.dashboard}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isDashboard ? "bg-brand-blue text-white ring-1 ring-inset ring-brand-blue/50" : "bg-transparent text-white hover:bg-white/[0.07]",
+          isDashboard ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
         )}
       >
         决策
@@ -342,7 +342,7 @@ const AppNavigationDropdown = () => {
           onClick={() => navigate('/options-chain')}
           className={cn(
             "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-            isOptionsChain || optOpen ? "bg-brand-blue text-white ring-1 ring-inset ring-brand-blue/50" : "bg-transparent text-white hover:bg-white/[0.07]",
+            isOptionsChain || optOpen ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
           )}
         >
           期权
@@ -363,7 +363,7 @@ const AppNavigationDropdown = () => {
         onMouseEnter={preload.priceChart}
         className={cn(
           "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isPriceChart ? "bg-brand-blue text-white ring-1 ring-inset ring-brand-blue/50" : "bg-transparent text-white hover:bg-white/[0.07]",
+          isPriceChart ? "bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
         )}
       >
         图表

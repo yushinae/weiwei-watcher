@@ -275,8 +275,8 @@ const AppNavigationDropdown = () => {
         <button
           className={cn(
             "flex items-center justify-center w-[32px] h-[32px] rounded-[8px] transition-colors duration-[120ms]",
-            "bg-transparent text-white/60 hover:bg-white/[0.08] hover:text-white/90",
-            navOpen && "bg-white/[0.10] text-white",
+            "bg-transparent text-white hover:bg-white/[0.08]",
+            navOpen && "bg-white/[0.10]",
           )}
         >
           <NineDots size={22} />

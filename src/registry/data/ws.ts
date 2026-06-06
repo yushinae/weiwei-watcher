@@ -17,6 +17,7 @@ export class DeribitWS extends BaseWS {
 
   constructor() {
     super({ pingMs: 15_000 }); // Deribit heartbeat (public/test) every 15s
+    this.feedKey = 'ws-deribit'; // 上报到数据新鲜度护栏
   }
 
   connect(): void { this.openSocket(); }

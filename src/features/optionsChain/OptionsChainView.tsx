@@ -20,7 +20,7 @@ import { cn } from '../../lib/utils';
 import { useOptionChain } from './bybitTickers';
 import { useLiveSpot, useChainStream } from './liveData';
 import { useDeribitOptions } from '../../registry/data/deribit';
-import { buildBybitExpiry, buildDeribitExpiry, seedFor, dteLabel } from './chainModel';
+import { buildBybitExpiry, buildDeribitExpiry, dteLabel } from './chainModel';
 import type { ChainExpiry, ChainRow } from './chainModel';
 import { useOCStore, ocStore, coinOf, sourceOf, underlyingFor } from './store';
 import {
@@ -411,7 +411,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} spot={spot} dateLabel={expiry.dateLabel} dec={dec} seed={seed} book={book} onClose={() => setSelectedCell(null)} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : `options-${coin}`} />
               </motion.div>
             </div>
           </>

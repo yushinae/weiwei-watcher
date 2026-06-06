@@ -1,0 +1,73 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// useOptionDepth — 真实订单簿深度（只为下单面板里那一个合约）
+//
+// 打开下单面板时订阅该合约的盘口深度，关闭即退订（便宜：同一时刻只订一个合约）。
+// 喂给模拟撮合 → 市价单吃单有真实滑点、限价单按真盘口成交。接 #6 实盘时管道现成。
+//
+//   • Deribit：DERIBIT_WS  book.{inst}.none.10.100ms（公有，深度限档，每帧即完整 top-N）
+//   • Bybit：  下一步用 REST /v5/market/orderbook 轮询（快照式，免 delta 合并）
+//
+// 价为合约原生计价（Deribit 反向=币本位）；换 USD 的系数由调用方用顶档锚点反推。
+// 注册新鲜度 key `depth-{inst}` → 面板可贴「盘口 实时/N秒前」徽章。
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { useEffect, useState } from 'react';
+import { DERIBIT_WS } from '../../registry/data/ws';
+import { markOk } from '../../registry/data/freshness';
+import type { DataSource } from './chainModel';
+import type { DepthLevel } from './simBook';
+
+export interface OptionDepth { bids: DepthLevel[]; asks: DepthLevel[]; ts: number }
+
+const FLUSH_MS = 250; // 4Hz，够盘口跳动又不烧 CPU
+
+export const depthFeedKey = (instrument: string) => `depth-${instrument}`;
+
+// Deribit 帧里 bids/asks 可能是 [price, amount] 或 [action, price, amount]，统一解析。
+function parseLevels(arr: unknown): DepthLevel[] {
+  const out: DepthLevel[] = [];
+  if (!Array.isArray(arr)) return out;
+  for (const e of arr) {
+    if (!Array.isArray(e)) continue;
+    const price = Number(e.length === 3 ? e[1] : e[0]);
+    const size = Number(e.length === 3 ? e[2] : e[1]);
+    if (Number.isFinite(price) && size > 0) out.push({ price, size });
+  }
+  return out;
+}
+
+export function useOptionDepth(source: DataSource, instrument: string | undefined): OptionDepth | null {
+  const [depth, setDepth] = useState<OptionDepth | null>(null);
+
+  useEffect(() => {
+    setDepth(null);
+    if (!instrument) return;
+
+    // Bybit：真深度待接（REST 轮询）。先返回 null —— 面板显示「等待真实盘口」，绝不编假数据。
+    if (source === 'bybit') return;
+
+    const feedKey = depthFeedKey(instrument);
+    let bids: DepthLevel[] = [], asks: DepthLevel[] = [];
+    let dirty = false;
+
+    const unsub = DERIBIT_WS.subscribe<{ bids?: unknown; asks?: unknown }>(
+      `book.${instrument}.none.10.100ms`,
+      d => {
+        if (!d) return;
+        // 深度限档频道每帧即完整 top-N → 直接替换
+        bids = parseLevels(d.bids).sort((a, b) => b.price - a.price);
+        asks = parseLevels(d.asks).sort((a, b) => a.price - b.price);
+        dirty = true;
+        markOk(feedKey, 2_000);
+      },
+    );
+
+    const flush = setInterval(() => {
+      if (dirty) { dirty = false; setDepth({ bids, asks, ts: Date.now() }); }
+    }, FLUSH_MS);
+
+    return () => { unsub(); clearInterval(flush); };
+  }, [source, instrument]);
+
+  return depth;
+}

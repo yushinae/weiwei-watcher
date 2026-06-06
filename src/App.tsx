@@ -512,6 +512,9 @@ const TickerBar = () => {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAlerts = location.pathname === '/alerts';
+  const isAccounts = location.pathname === '/accounts';
   useTheme();
   useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
 
@@ -579,7 +582,7 @@ export default function App() {
               className={cn(
                 'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
                 settingsOpen
-                  ? 'bg-white/[0.10] text-white'
+                  ? 'bg-brand-blue/20 text-brand-blue ring-1 ring-inset ring-brand-blue/30'
                   : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
               )}
               title="UI 设置"
@@ -591,7 +594,12 @@ export default function App() {
             <button
               onClick={() => navigate('/alerts')}
               onMouseEnter={preload.alerts}
-              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              className={cn(
+                'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                isAlerts
+                  ? 'bg-brand-blue/20 text-brand-blue ring-1 ring-inset ring-brand-blue/30'
+                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+              )}
               title="告警"
               aria-label="告警"
             >
@@ -601,7 +609,12 @@ export default function App() {
             <button
               onClick={() => navigate('/accounts')}
               onMouseEnter={preload.accounts}
-              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              className={cn(
+                'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                isAccounts
+                  ? 'bg-brand-blue/20 text-brand-blue ring-1 ring-inset ring-brand-blue/30'
+                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+              )}
               title="账户"
               aria-label="账户"
             >

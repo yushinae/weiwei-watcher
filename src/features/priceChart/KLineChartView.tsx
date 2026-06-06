@@ -208,32 +208,6 @@ export const KLineChartView = () => {
 
   const emPct = levels.emSigma != null && spot ? (levels.emSigma / spot) * 100 : null;
 
-  // ── K 线倒计时 ──
-  const [countdown, setCountdown] = useState('00:00');
-  useEffect(() => {
-    const tick = () => {
-      const now = Date.now();
-      const d = new Date(now);
-      let end: number;
-      switch (res) {
-        case '5m':  { d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0); end = d.getTime(); break; }
-        case '15m': { d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15, 0, 0); end = d.getTime(); break; }
-        case '1h':  { d.setHours(d.getHours() + 1, 0, 0, 0); end = d.getTime(); break; }
-        case '4h':  { d.setHours(Math.ceil(d.getHours() / 4) * 4, 0, 0, 0); end = d.getTime(); break; }
-        case '1d':  { d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0); end = d.getTime(); break; }
-        case '1w':  { d.setDate(d.getDate() + (8 - d.getDay()) % 7 || 7); d.setHours(0, 0, 0, 0); end = d.getTime(); break; }
-        default: end = now;
-      }
-      const s = Math.max(0, Math.floor((end - now) / 1000));
-      const m = Math.floor(s / 60);
-      const sec = s % 60;
-      setCountdown(`${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [res]);
-
   const OVERLAY_TOOLS = [
     { name: 'segment',        label: '线段' },
     { name: 'straightLine',   label: '直线' },
@@ -276,11 +250,7 @@ export const KLineChartView = () => {
         <Pill active={showLevels} onClick={() => setShowLevels(v => !v)}>关键位</Pill>
         <Pill active={showEM} onClick={() => setShowEM(v => !v)}>预期波动</Pill>
 
-        <div className="ml-auto flex items-center gap-3 text-[11px]">
-          <span className="text-white/70 font-bold tabular-nums">${fmtPx(spot)}</span>
-          <span className="text-white/35 font-mono tabular-nums">{countdown}</span>
-          <span className="text-white/30">Binance · Deribit</span>
-        </div>
+        <div className="ml-auto text-[11px] text-white/35">价格 Binance · 关键位 Deribit</div>
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto shrink-0 pb-0.5">

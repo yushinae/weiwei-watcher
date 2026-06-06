@@ -11,7 +11,7 @@
 import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useOrderBook } from './liveData';
+import { useOrderBook, useRecentTrades } from './liveData';
 import type { DataSource } from './chainModel';
 import type { Coin } from './chainModel';
 import { useLocalBook } from './simBook';
@@ -203,14 +203,19 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [qty, setQty] = useState('0.10');
   const [tif, setTif] = useState('GTC');
   const [tifOpen, setTifOpen] = useState(false);
-  const [reduceOnly, setReduceOnly] = useState(false);
-  const [postOnly, setPostOnly] = useState(false);
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
+  const [hoverBook, setHoverBook] = useState<{ i: number; side: 'ask' | 'bid' } | null>(null); // 盘口悬停只高亮鼠标那一侧
+  const [armedDir, setArmedDir] = useState<'buy' | 'sell' | null>(null); // 点卖价→买入 / 点买价→卖出：预选方向
+  useEffect(() => { setArmedDir(null); }, [symbol]); // 换合约清空预选
+  const [orderTypeOpen, setOrderTypeOpen] = useState(false); // 订单类型下拉
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null); // 下单反馈
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
 
   const { placeOrder } = book;
 
   // 真实多档盘口（替代旧的 genBook 示意盘口）。每档补上合约的标记 IV（盘口本身不带逐档 IV）。
   const rb = useOrderBook(opt.instrument, source, spot);
+  const recentTrades = useRecentTrades(opt.instrument, source, spot);
   const asks = useMemo(() => rb.asks.map(l => ({ ...l, iv: opt.iv })), [rb.asks, opt.iv]);
   const bids = useMemo(() => rb.bids.map(l => ({ ...l, iv: opt.iv })), [rb.bids, opt.iv]);
   const maxAskTotal = asks[asks.length - 1]?.total ?? 1;
@@ -223,13 +228,35 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const margin = notional * 0.12;
   const totalCost = notional + fee;
 
-  const submit = (s: 'buy' | 'sell') => placeOrder({
-    side: s, type: orderType, symbol, qty: nQty,
-    price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
-  });
+  // 模拟资金：初始 10万 USDC，按成交扣减（买付权利金+费、卖收权利金−费）
+  const SIM_START = 100_000;
+  const simAvail = useMemo(
+    () => SIM_START - book.fills.reduce((s, f) => s + (f.side === 'buy' ? f.price * f.qty + f.fee : -(f.price * f.qty - f.fee)), 0),
+    [book.fills],
+  );
+  const bestAsk = asks[0]?.price ?? null; // 市价买入预计成交
+  const bestBid = bids[0]?.price ?? null; // 市价卖出预计成交
+
+  const submit = (s: 'buy' | 'sell') => {
+    if (!(nQty > 0)) { setToast({ msg: '请输入有效数量', ok: false }); return; }
+    placeOrder({
+      side: s, type: orderType, symbol, qty: nQty,
+      price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark,
+      delta: opt.delta, gamma: opt.gamma, vega: opt.vega, theta: opt.theta,
+    });
+    const px = orderType === 'market' ? opt.mark : nPrice;
+    setToast({ msg: `${s === 'buy' ? '买入' : '卖出'} ${nQty} 张 @ ${orderType === 'market' ? '市价' : px.toFixed(dec)} · ${orderType === 'market' ? '已成交' : '已挂单'}（模拟）`, ok: true });
+    setArmedDir(null);
+  };
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: BG_MAIN }}>
+    <div className="relative flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: BG_MAIN }}>
+      {toast && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-[10px] text-[13px] font-bold shadow-lg flex items-center gap-2 pointer-events-none"
+          style={{ background: toast.ok ? 'rgba(40,200,64,0.95)' : 'rgba(255,95,87,0.95)', color: '#000' }}>
+          {toast.ok ? '✓' : '✕'} {toast.msg}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b shrink-0" style={{ borderBottom: BORDER, backgroundColor: BG_HEADER }}>
         <div className="min-w-0">
@@ -272,21 +299,34 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
         <div className="flex flex-col shrink-0 border-r overflow-hidden" style={{ width: 320, borderRight: BORDER, backgroundColor: '#171717' }}>
           <div className="px-3 pt-3">
             <div className="flex items-center gap-2">
-              <button className="flex-1 h-11 rounded-[12px] border px-3 flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }}
-                onClick={() => setOrderType(t => t === 'limit' ? 'market' : 'limit')}>
-                <span className="text-[13px] font-extrabold text-white/85">
-                  {orderType === 'limit' ? '限价单' : orderType === 'market' ? '市价单' : '止损单'}{quoteMode === 'iv' ? '/IV' : ''}
-                </span>
-                <ChevronDown size={16} className="text-white/45" />
-              </button>
-              <button className="h-11 px-3 rounded-[12px] border flex items-center gap-2 font-extrabold text-white/85" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }} title="RFQ">
-                <span className="w-5 h-5 rounded-[8px] border flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.70)' }}>◇</span>RFQ
+              <div className="relative flex-1">
+                <button className="w-full h-11 rounded-[12px] border px-3 flex items-center justify-between" style={{ borderColor: orderTypeOpen ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }}
+                  onClick={() => setOrderTypeOpen(o => !o)}>
+                  <span className="text-[13px] font-extrabold text-white/85">
+                    {orderType === 'limit' ? '限价单' : orderType === 'market' ? '市价单' : '止损单'}{quoteMode === 'iv' ? ' / IV' : ''}
+                  </span>
+                  <ChevronDown size={16} className={`text-white/45 transition-transform ${orderTypeOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <Popover open={orderTypeOpen} onClose={() => setOrderTypeOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-full z-30">
+                  {([['limit', '限价单', '挂指定价，价优才成交'], ['market', '市价单', '立即按对手价吃单成交']] as const).map(([k, label, desc]) => (
+                    <button key={k} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.05] transition-colors text-left" onClick={() => { setOrderType(k); setOrderTypeOpen(false); }}>
+                      <div className="flex-1">
+                        <div className="text-[13px] font-semibold" style={{ color: k === orderType ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.70)' }}>{label}</div>
+                        <div className="text-[10px] text-white/35">{desc}</div>
+                      </div>
+                      {k === orderType && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </button>
+                  ))}
+                </Popover>
+              </div>
+              <button disabled className="h-11 px-3 rounded-[12px] border flex items-center gap-2 font-extrabold cursor-not-allowed" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)', color: 'rgba(255,255,255,0.30)' }} title="RFQ 询价 · 暂不可用">
+                <span className="w-5 h-5 rounded-[8px] border flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.30)' }}>◇</span>RFQ
               </button>
             </div>
           </div>
 
           <div className="px-3 pt-3 overflow-auto">
-            <div className="text-[12px] font-semibold text-white/55 mb-1.5">合约（1 = 1 {coin}）<span className="float-right text-white/45 font-mono font-bold">≈ 0.01 {coin}</span></div>
+            <div className="text-[12px] font-semibold text-white/55 mb-1.5">合约（1 = 1 {coin}）<span className="float-right text-white/45 font-mono font-bold">≈ {nQty.toFixed(2)} {coin}</span></div>
             <div className="flex items-center rounded-[12px] border" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)' }}>
               <input value={qty} onChange={e => setQty(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none" style={{ ...TABNUM, color: '#EAECEF' }} />
               <div className="px-2 flex flex-col">
@@ -295,16 +335,21 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
               </div>
               <div className="px-3 text-[12px] font-bold text-white/60 border-l" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>合约</div>
             </div>
-            <div className="mt-2 text-[12px] font-semibold text-white/55">可用: <span className="text-white/85 font-mono font-bold">≈ 16,849,985.46 USDC</span></div>
+            <div className="mt-2 text-[12px] font-semibold text-white/55">模拟资金: <span className="font-mono font-bold" style={{ color: simAvail >= 0 ? 'rgba(255,255,255,0.85)' : 'var(--db-down)' }}>≈ {simAvail.toLocaleString('en-US', { maximumFractionDigits: 0 })} USDC</span></div>
+            {orderType === 'market' && (
+              <div className="mt-1.5 text-[11px] font-semibold text-white/45">
+                市价预计成交 · 买 <span className="font-mono font-bold" style={{ color: 'var(--db-down)' }}>{bestAsk != null ? bestAsk.toFixed(dec) : '—'}</span> / 卖 <span className="font-mono font-bold" style={{ color: 'var(--db-up)' }}>{bestBid != null ? bestBid.toFixed(dec) : '—'}</span>
+              </div>
+            )}
 
             <div className="mt-3 flex flex-col gap-2">
               <button onClick={() => setQuoteMode('price')} className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full border flex items-center justify-center" style={{ borderColor: quoteMode === 'price' ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.20)' }}>
                   {quoteMode === 'price' ? <span className="w-2 h-2 rounded-full bg-white" /> : null}
                 </span>
-                <span className="text-[13px] font-extrabold text-white/85">限价单</span>
+                <span className="text-[13px] font-extrabold text-white/85">价格{orderType === 'market' ? <span className="ml-1 text-[10px] font-semibold text-white/35">市价免填</span> : ''}</span>
                 <div className="ml-auto flex items-center rounded-[10px] border overflow-hidden" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)', width: 200 }}>
-                  <input disabled={quoteMode !== 'price' || orderType === 'market'} value={price} onChange={e => setPrice(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
+                  <input disabled={quoteMode !== 'price' || orderType === 'market'} value={orderType === 'market' ? '市价' : price} onChange={e => setPrice(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
                   <span className="px-3 text-[12px] font-bold text-white/45">USDC</span>
                 </div>
               </button>
@@ -315,7 +360,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                 <span className="text-[13px] font-extrabold text-white/85">隐含波动率</span>
                 <span className="text-[11px] font-extrabold px-2 py-[2px] rounded-full" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)' }}>高级</span>
                 <div className="ml-auto flex items-center rounded-[10px] border overflow-hidden" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)', width: 200 }}>
-                  <input disabled={quoteMode !== 'iv'} value={iv} onChange={e => setIv(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
+                  <input disabled={quoteMode !== 'iv' || orderType === 'market'} value={orderType === 'market' ? '市价' : iv} onChange={e => setIv(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
                   <span className="px-3 text-[12px] font-bold text-white/45">IV (%)</span>
                 </div>
               </button>
@@ -324,11 +369,10 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
             <div className="mt-3">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.45)' }}>挂单方式</span>
-                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{reduceOnly ? 'Reduce-only' : ''}{reduceOnly && postOnly ? ' · ' : ''}{postOnly ? 'Post-only' : ''}</span>
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <button onClick={() => setReduceOnly(v => !v)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold" style={{ borderColor: reduceOnly ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)', background: reduceOnly ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', color: reduceOnly ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)' }}>减少</button>
-                <button onClick={() => setPostOnly(v => !v)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold" style={{ borderColor: postOnly ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)', background: postOnly ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', color: postOnly ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)' }}>挂单</button>
+                <button disabled title="Reduce-only · 模拟撮合暂不支持" className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold cursor-not-allowed" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)', color: 'rgba(255,255,255,0.30)' }}>减少</button>
+                <button disabled title="Post-only · 模拟撮合暂不支持" className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold cursor-not-allowed" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)', color: 'rgba(255,255,255,0.30)' }}>挂单</button>
                 <div className="relative">
                   <button onClick={() => setTifOpen(o => !o)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.75)' }}>{tif} <ChevronDown size={14} className="text-white/45" /></button>
                   <Popover open={tifOpen} onClose={() => setTifOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[140px]">
@@ -347,13 +391,15 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
             </div>
 
             <div className="mt-3 flex gap-2">
-              <button onClick={() => submit('buy')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: 'var(--db-up)' }}>买入</button>
-              <button onClick={() => submit('sell')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: 'var(--db-down)' }}>卖出</button>
+              <button onClick={() => submit('buy')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black active:scale-[0.98] transition-all outline-none focus:outline-none focus-visible:outline-none"
+                style={{ background: 'var(--db-up)', opacity: armedDir === 'sell' ? 0.4 : 1, boxShadow: armedDir === 'buy' ? '0 0 0 2px #fff, 0 0 14px rgba(40,200,64,0.55)' : 'none' }}>买入{armedDir === 'buy' ? ' ✓' : ''}</button>
+              <button onClick={() => submit('sell')} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black active:scale-[0.98] transition-all outline-none focus:outline-none focus-visible:outline-none"
+                style={{ background: 'var(--db-down)', opacity: armedDir === 'buy' ? 0.4 : 1, boxShadow: armedDir === 'sell' ? '0 0 0 2px #fff, 0 0 14px rgba(255,95,87,0.55)' : 'none' }}>卖出{armedDir === 'sell' ? ' ✓' : ''}</button>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-4 text-[12px]">
-              <div><div className="text-white/45 font-semibold">购买保证金</div><div className="mt-1 text-white font-mono font-extrabold">{totalCost.toFixed(2)} USDC</div></div>
-              <div className="text-right"><div className="text-white/45 font-semibold">卖出保证金</div><div className="mt-1 text-white font-mono font-extrabold">{(margin * 1.8).toFixed(2)} USDC</div></div>
+              <div><div className="text-white/45 font-semibold" title="买期权只付权利金，无需保证金">买入·权利金成本</div><div className="mt-1 text-white font-mono font-extrabold">{totalCost.toFixed(2)} USDC</div></div>
+              <div className="text-right"><div className="text-white/45 font-semibold" title="卖期权需占用保证金">卖出·保证金</div><div className="mt-1 text-white font-mono font-extrabold">{(margin * 1.8).toFixed(2)} USDC</div></div>
             </div>
 
             <div className="mt-4 pt-3 border-t" style={{ borderTop: BORDER }}>
@@ -387,26 +433,31 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                     <div className="flex items-center justify-center h-[200px] text-[13px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无订单簿数据</div>
                   ) : (
                     <>
-                      <div className="px-2 py-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>真实盘口 · {source === 'bybit' ? 'Bybit' : 'Deribit'}（最多 10 档；期权盘口通常较薄）</div>
+                      <div className="px-2 py-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>真实盘口 · {source === 'bybit' ? 'Bybit' : 'Deribit'} · 点<span style={{ color: 'var(--db-up)' }}>买价</span>→预选卖出 / 点<span style={{ color: 'var(--db-down)' }}>卖价</span>→预选买入</div>
                       <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
                         <span className="text-right">总计</span><span className="text-right">数量</span><span className="text-right">IV%</span>
-                        <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
+                        <span className="text-right pr-3" style={{ color: 'var(--db-up)' }}>买价(bid)</span><span className="text-left pl-3" style={{ color: 'var(--db-down)' }}>卖价(ask)</span>
                         <span className="text-right">IV%</span><span className="text-right">数量</span><span className="text-right">总计</span>
                       </div>
                       {Array.from({ length: Math.max(asks.length, bids.length) }, (_, i) => {
                         const a = asks[i], b = bids[i];
                         return (
-                          <div key={i} className="relative grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 hover:bg-white/[0.03] cursor-pointer" style={{ height: 26 }}>
-                            {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
-                            {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{a ? a.iv.toFixed(1) + '%' : '—'}</span>
-                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{b ? b.iv.toFixed(1) + '%' : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                          <div key={i} className="relative grid grid-cols-[1fr_1fr_1fr_auto_auto_1fr_1fr_1fr] px-2 cursor-pointer" style={{ height: 26 }}
+                            onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const sd = (e.clientX - r.left) < r.width / 2 ? 'bid' : 'ask'; setHoverBook(p => (p && p.i === i && p.side === sd ? p : { i, side: sd })); }}
+                            onMouseLeave={() => setHoverBook(null)}>
+                            {hoverBook?.i === i && (
+                              <div className="absolute top-0 h-full pointer-events-none" style={hoverBook.side === 'bid' ? { left: 0, width: '50%', background: 'rgba(120,170,255,0.13)' } : { right: 0, width: '50%', background: 'rgba(120,170,255,0.13)' }} />
+                            )}
+                            {b && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
+                            {a && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{b ? b.total.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{b ? b.iv.toFixed(1) + '%' : '—'}</span>
+                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} title="点买价 → 预选卖出（你以买价吃单卖出）" onClick={() => { if (!b) return; setPrice(b.price.toFixed(dec)); setArmedDir('sell'); }}>{b ? b.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} title="点卖价 → 预选买入（你以卖价吃单买入）" onClick={() => { if (!a) return; setPrice(a.price.toFixed(dec)); setArmedDir('buy'); }}>{a ? a.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ color: '#888888' }}>{a ? a.iv.toFixed(1) + '%' : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
                           </div>
                         );
                       })}
@@ -431,7 +482,26 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                   ))}
                 </div>
               )}
-              {rtab === 'trades' && <div className="flex items-center justify-center h-32 text-[12px]" style={{ color: '#888888' }}>近期无成交数据</div>}
+              {rtab === 'trades' && (
+                recentTrades.length === 0
+                  ? <div className="flex items-center justify-center h-32 text-[12px]" style={{ color: '#888888' }}>近期无成交数据</div>
+                  : (
+                    <div>
+                      <div className="grid grid-cols-[1fr_1fr_1fr] px-3 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
+                        <span>价格</span><span className="text-right">数量</span><span className="text-right">时间</span>
+                      </div>
+                      <div className="max-h-[260px] overflow-auto">
+                        {recentTrades.map((t, i) => (
+                          <div key={i} className="grid grid-cols-[1fr_1fr_1fr] px-3 py-[3px] text-[11px] hover:bg-white/[0.03]">
+                            <span className="font-mono font-semibold" style={{ ...TABNUM, color: t.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{t.price.toFixed(dec)}</span>
+                            <span className="text-right font-mono self-center" style={{ ...TABNUM, color: '#EAECEF' }}>{t.size}</span>
+                            <span className="text-right font-mono self-center" style={{ ...TABNUM, color: '#888888' }}>{new Date(t.ts).toLocaleTimeString('en-GB')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+              )}
             </div>
           </div>
 

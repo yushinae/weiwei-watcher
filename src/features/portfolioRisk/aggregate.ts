@@ -27,6 +27,7 @@ export interface RiskPosition {
   dollarGamma: number; // $Γ / 1% spot
   dollarVega: number;  // $ν / 1% IV
   dollarTheta: number; // $Θ / day
+  sim?: boolean;       // 模拟仓（策略沙盒），与真实仓区分
 }
 
 export interface CoinBook {
@@ -85,6 +86,39 @@ export function fromAccounts(positions: UnifiedPosition[], spotByCoin: Record<st
         dollarGamma: gamma * spot * spot / 100,
         dollarVega: usd ? vega : vega * spot,
         dollarTheta: usd ? theta : theta * spot,
+      };
+    });
+}
+
+// 模拟仓（期权链下单）→ 风险模型。希腊在成交时从链上 BS 快照（USD 口径、每张）：
+//   delta/gamma 为每张×方向 → ×qty 得仓位币本位；vega(USD/1%) / theta(USD/日) 已是 USD → ×qty。
+export function fromSim(
+  positions: Array<{ symbol: string; side: 'long' | 'short'; qty: number; markPrice: number; delta?: number; gamma?: number; vega?: number; theta?: number }>,
+  spotByCoin: Record<string, number>,
+): RiskPosition[] {
+  return positions
+    .filter(p => p.qty > 0)
+    .map(p => {
+      const coin = (p.symbol.split('-')[0] || '—').replace(/_.*/, '');
+      const spot = spotByCoin[coin] || 0;
+      const dl = (p.delta ?? 0) * p.qty; // 仓位币本位 delta
+      const gm = (p.gamma ?? 0) * p.qty; // 仓位币本位 gamma
+      const vg = (p.vega ?? 0) * p.qty;  // 已是 USD/1%
+      const th = (p.theta ?? 0) * p.qty; // 已是 USD/日
+      return {
+        id: `sim-${p.symbol}`,
+        venue: 'Deribit' as const,
+        coin,
+        instrument: p.symbol,
+        qty: p.side === 'long' ? p.qty : -p.qty,
+        spot,
+        mark: p.markPrice,
+        iv: 0,
+        dollarDelta: dl * spot,
+        dollarGamma: gm * spot * spot / 100,
+        dollarVega: vg,
+        dollarTheta: th,
+        sim: true,
       };
     });
 }

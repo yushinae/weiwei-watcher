@@ -73,6 +73,18 @@ export default function OptionsChainView() {
   const liveSpot = useLiveSpot(coin);
   const spot = liveSpot ?? expiry?.spot ?? 0;
 
+  // 当前到期里"我有模拟持仓"的行权价集合 → 高亮对应行
+  const ownedStrikes = useMemo(() => {
+    const prefix = `${coin}-${(expiry?.dateLabel ?? '').replace(/\s+/g, '')}-`;
+    const set = new Set<number>();
+    for (const p of book.positions) {
+      if (Math.abs(p.qty) < 1e-9 || !p.symbol.startsWith(prefix)) continue;
+      const m = p.symbol.slice(prefix.length).match(/^(\d+)-/);
+      if (m) set.add(parseInt(m[1]));
+    }
+    return set;
+  }, [book.positions, coin, expiry?.dateLabel]);
+
   const cols = useMemo(() => SIDE_COLS.filter(c => visibleColIds.has(c.id)), [visibleColIds]);
   const colsWidth = cols.reduce((s, c) => s + c.w, 0);
   const totalWidth = colsWidth * 2 + STRIKE_W;
@@ -381,7 +393,7 @@ export default function OptionsChainView() {
                   return (
                     <div key={row.strike} style={{ position: 'absolute', top: idx * ROW_H, left: 0, width: '100%', height: ROW_H }}>
                       <ChainRowComp row={row} cols={cols} loading={false} isEven={idx % 2 === 0}
-                        isSelected={!!isSelected} onRowClick={handleRowClick} showDist={showDist} spot={spot}
+                        isSelected={!!isSelected} owned={ownedStrikes.has(row.strike)} onRowClick={handleRowClick} showDist={showDist} spot={spot}
                         emBandStrikeMin={emBandStrikeMin} emBandStrikeMax={emBandStrikeMax} />
                     </div>
                   );

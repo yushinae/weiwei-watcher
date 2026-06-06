@@ -135,14 +135,34 @@ export const KLineChartView = () => {
     return () => clearInterval(id);
   }, []);
 
-  // 3) 数据层——懒加载 DataLoader（只在 coin/res 变化时重建）
+  // 3) 数据层——懒加载 DataLoader
+  // 用 ref 记录是否已初始化 DataLoader（切换币种/周期时重置）
+  const loaderInitRef = useRef(false);
+  const prevCoinResRef = useRef({ coin, res });
+
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart || candles.length === 0) return;
 
-    const initialData = toKData(candles);
+    const cur = { coin, res };
+    const prev = prevCoinResRef.current;
+    const isNewSetup = !loaderInitRef.current || cur.coin !== prev.coin || cur.res !== prev.res;
+    prevCoinResRef.current = cur;
 
-    // 先保存旧画线、恢复之后会做
+    if (!isNewSetup) {
+      // 轮询刷新：仅更新最后一根 K 线的收盘价
+      const c = candles[candles.length - 1];
+      if (c) {
+        (chart as any)._addData({
+          timestamp: c.t, open: c.o, high: c.h, low: c.l, close: c.c, volume: c.v,
+        });
+      }
+      return;
+    }
+
+    // 首次 或 切换币种/周期：重建 DataLoader
+    loaderInitRef.current = true;
+    const initialData = toKData(candles);
     saveOverlays(chart, coin, res);
 
     chart.setSymbol({ ticker: COIN_SYMBOL[coin], pricePrecision: 0, volumePrecision: 2 });
@@ -155,7 +175,6 @@ export const KLineChartView = () => {
           try {
             const older = await fetchCandlesBefore(coin, res, params.timestamp);
             if (older.length > 0) {
-              // backward: true 告诉图表还有更旧的数据可以继续加载
               params.callback(toKData(older), { backward: older.length >= LIMIT[res], forward: false });
             } else {
               params.callback([], { backward: false, forward: false });
@@ -167,21 +186,9 @@ export const KLineChartView = () => {
       },
     });
     loadOverlays(chart, coin, res);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coin, res]);
+  }, [candles, coin, res]);
 
-  // 4) 轮询刷新——只追加新数据，不替换（保留懒加载的历史数据）
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || candles.length === 0) return;
-    // 用内部 api 替换数据 — 但只替换初始范围（避免覆盖已懒加载的历史）
-    // 实际用比懒加载更简单的做法：每次轮询重建时 chart 已通过 init loader 拿到最新数据，
-    // 懒加载的历史数据只在同一 loader 周期内有效。这里我们什么也不做，
-    // 因为 coin/res 不变时 loader 不被重建，轮询数据不会自动推入。
-    // 将在后续改为增量更新。
-  }, [candles]);
-
-  // 5) 跳转日期
+  // 4) 跳转日期
   const handleGoToDate = async () => {
     if (!goToDate) return;
     const chart = chartRef.current;

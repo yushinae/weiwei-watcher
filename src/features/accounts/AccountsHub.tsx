@@ -10,7 +10,7 @@ import { setBook } from './bookStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
 import { parseFile, rowsToFills, type CsvParsed, type Field } from './csvImport';
 import type { Venue, VenueAccount, UnifiedPosition, UnifiedFill } from './types';
-import { useLocalBook, clearSimBook } from '../optionsChain/simBook';
+import { useLocalBook } from '../optionsChain/simBook';
 
 const ALL_VENUES: Venue[] = ['Hyperliquid', 'Bybit', 'Deribit', 'Binance'];
 const FIELD_LABEL: Record<Field, string> = { time: '时间', symbol: '合约', side: '方向', price: '价格', qty: '数量', fee: '手续费', pnl: '已实现盈亏' };
@@ -467,7 +467,7 @@ export const AccountsHub = () => {
           <>
             <Card title="模拟仓概览" right={
               (sim.positions.length > 0 || sim.fills.length > 0) ? (
-                <button onClick={() => { if (window.confirm('清空所有模拟持仓 / 挂单 / 成交？不可撤销。')) clearSimBook(); }}
+                <button onClick={() => { if (window.confirm('清空所有模拟持仓 / 挂单 / 成交？不可撤销。')) sim.clearBook(); }}
                   className="h-[26px] px-2.5 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/10 text-[11px] font-semibold text-white/55 hover:text-[#FF5F57] hover:bg-white/[0.1] transition-colors">
                   清空模拟
                 </button>

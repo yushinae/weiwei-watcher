@@ -110,8 +110,6 @@ export default function OptionsChainView() {
   const dec = spot < 1 ? 6 : spot < 100 ? 4 : 2;
   const spotDp = dec;
   const dte = expiry ? dteLabel(expiry.daysToExp) : '—';
-  const seed = useMemo(() => seedFor(source + coin + (expiry?.label ?? '')), [source, coin, expiry?.label]);
-
   // Feed live marks → positions mark-to-market + fill marketable resting orders.
   const updateMarks = book.updateMarks;
   useEffect(() => {

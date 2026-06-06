@@ -649,14 +649,6 @@ function ivrLabel(r: number) { return r <= 20 ? '极低' : r <= 40 ? '偏低' : 
 function pcrColor(p: number) { return p < 0.7 ? '#28C840' : p < 1.0 ? '#FEBC2E' : '#FF5F57'; }
 function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : '偏空'; }
 
-// ── CoinTabs ──────────────────────────────────────────────────────────────────
-
-const CoinTabs = ({ v }: { v: Coin; set: (c: Coin) => void }) => (
-  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/[0.06] text-white/50 uppercase tracking-wider">
-    {v}
-  </span>
-);
-
 // ── Live badge ────────────────────────────────────────────────────────────────
 
 const LiveBadge = () => (
@@ -939,7 +931,7 @@ function useCoinControl({ coin: coinProp, onCoinChange }: CoinControlProps) {
 const WidgetShell = ({ children, coin, setCoin }: { children: React.ReactNode; coin: Coin; setCoin: (c: Coin) => void }) => {
   const { setHeaderRight } = useCardHeader();
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
   return (
@@ -985,7 +977,6 @@ export const VolOverviewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {hasLive && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1143,7 +1134,6 @@ export const VRPHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     setHeaderRight(
       <div className="flex items-center gap-2">
         {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1167,7 +1157,6 @@ export const IVRankHistoryWidget = ({ coin: coinProp, onCoinChange }: CoinContro
     setHeaderRight(
       <div className="flex items-center gap-2">
         {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1195,7 +1184,6 @@ export const VolConeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
     setHeaderRight(
       <div className="flex items-center gap-2">
         {histData ? <LiveBadge /> : <StaleBadge failed={timedOut} />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1262,7 +1250,6 @@ export const IVSurfaceWidget = ({
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1346,7 +1333,6 @@ export const OptionsSkewWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1421,7 +1407,6 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1579,7 +1564,6 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -1978,7 +1962,6 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2136,7 +2119,6 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     setHeaderRight(
       <div className="flex items-center gap-2">
         {histData && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2229,7 +2211,6 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2324,7 +2305,6 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2390,7 +2370,6 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2619,7 +2598,6 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />10s
         </span>
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -2733,7 +2711,6 @@ export const VannaCharmWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
             </button>
           ))}
         </div>
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3017,7 +2994,6 @@ export const IVSignalWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3087,7 +3063,6 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3233,7 +3208,6 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3361,7 +3335,6 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3510,7 +3483,6 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3590,7 +3562,6 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3699,7 +3670,6 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && hist && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3843,7 +3813,6 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
           ))}
         </div>
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -3938,7 +3907,6 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4337,7 +4305,6 @@ export const VolRegimeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4461,7 +4428,6 @@ export const PriceTargetProbWidget = ({ coin: coinProp, onCoinChange }: CoinCont
     setHeaderRight(
       <div className="flex items-center gap-2">
         {data && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -4602,7 +4568,6 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     setHeaderRight(
       <div className="flex items-center gap-2">
         {hist && <LiveBadge />}
-        <CoinTabs v={coin} set={setCoin} />
       </div>
     );
     return () => setHeaderRight(null);
@@ -5009,7 +4974,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const snap = useTickerSnapshotWS(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5094,7 +5059,7 @@ export const GreeksScenarioWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   const [expIdx, setExpIdx] = useState(0);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5309,7 +5274,6 @@ export const LargeTradeAlertWidget = ({ coin: coinProp, onCoinChange }: CoinCont
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        <CoinTabs v={coin} set={setCoin} />
         <select
           value={threshold}
           onChange={e => setThreshold(Number(e.target.value))}
@@ -5397,7 +5361,7 @@ export const CalendarSpreadWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   const { data: ddata, loading } = useDeribitOptions(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5461,7 +5425,7 @@ export const ForwardVolWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const { data: ddata, loading } = useDeribitOptions(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5528,7 +5492,7 @@ export const GammaPinWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
   const { data: ddata, loading } = useDeribitOptions(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5859,7 +5823,7 @@ export const RollCostWidget = ({ coin: coinProp, onCoinChange }: CoinControlProp
   const { data: ddata, loading } = useDeribitOptions(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -5994,7 +5958,7 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -6093,7 +6057,7 @@ export const OrderbookDepthWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   const ob = useOrderbookWS(coin);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -6464,7 +6428,7 @@ export const AlertsWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps)
   const [thresh, setThresh] = useState('');
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -6751,7 +6715,7 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const [timedOut, setTimedOut]   = useState(false);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 
@@ -6907,7 +6871,7 @@ export const VerticalSpreadPricerWidget = ({ coin: coinProp, onCoinChange }: Coi
   const [sellStrike, setSellStrike] = useState<number | null>(null);
 
   useEffect(() => {
-    setHeaderRight(<CoinTabs v={coin} set={setCoin} />);
+
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight]);
 

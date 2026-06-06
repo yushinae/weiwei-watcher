@@ -1555,12 +1555,12 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   // 'all' = aggregate all expiries; or a specific expiry label
   const [expFilter, setExpFilter] = useState<'all' | string>('all');
 
-  const expiries = data?.expiries.slice(0, 8) ?? [];
+  const expiries = data?.expiries.slice(0, 6) ?? [];
 
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
+        {data && <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Deribit</span>}
       </div>
     );
     return () => setHeaderRight(null);
@@ -1595,7 +1595,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     .filter(k => k >= spot * 0.65 && k <= spot * 1.35)
     .sort((a, b) => a - b);
 
-  // Max pain
+  // Max pain (over visible strikes)
   const callArr = strikes.map(k => ({ strike: k, oi: callOI.get(k) ?? 0 }));
   const putArr  = strikes.map(k => ({ strike: k, oi: putOI.get(k)  ?? 0 }));
   const maxPain = computeMaxPain(callArr, putArr, strikes);
@@ -1604,8 +1604,9 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const maxPutOI  = Math.max(...strikes.map(k => putOI.get(k)  ?? 0), 1);
   const maxOI     = Math.max(maxCallOI, maxPutOI);
 
-  const totalCallOI = callArr.reduce((s, o) => s + o.oi, 0);
-  const totalPutOI  = putArr.reduce((s, o) => s + o.oi, 0);
+  // PCR / Totals — use ALL strikes within the selected expiries (not just visible window)
+  const totalCallOI = [...callOI.values()].reduce((s, o) => s + o, 0);
+  const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
   const BAR_H = 16;
@@ -1617,7 +1618,12 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const TOTAL_W = LEFT_W + LABEL_W + RIGHT_W;
   const CHART_H = strikes.length * ROW_H;
 
-  const fmtOI = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
+  const fmtOI = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+    if (abs >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+    return v.toFixed(0);
+  };
   const fmtPrice = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   return (
@@ -1958,7 +1964,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   useEffect(() => {
     setHeaderRight(
       <div className="flex items-center gap-2">
-        {data && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--nexus-green)]/70 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-[var(--nexus-green)]/80 animate-pulse" />实时</span>}
+        {data && <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Deribit</span>}
       </div>
     );
     return () => setHeaderRight(null);
@@ -1972,7 +1978,10 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   const spot = data.spot;
   const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
 
-  // GEX by strike: Σ(gamma × OI × S²/100) for calls (positive) and puts (negative)
+  // GEX by strike (做市商视角): 做市商持有 short calls / short puts
+  //   → Call OI 对 dealer 是负 gamma（-1 系数）
+  //   → Put  OI 对 dealer 是正 gamma（+1 系数）
+  //   → Net GEX = (Put_γ × OI) − (Call_γ × OI)，乘以 S²/100 得到每 1% 标的价格变动的美元敞口
   const gexMap = new Map<number, { cGex: number; pGex: number }>();
   for (const exp of targetExps) {
     for (const opt of [...exp.calls, ...exp.puts]) {
@@ -1985,12 +1994,13 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   }
 
   const strikes = [...gexMap.keys()]
-    .filter(k => k >= spot * 0.70 && k <= spot * 1.30)
+    .filter(k => k >= spot * 0.65 && k <= spot * 1.35)
     .sort((a, b) => a - b);
 
+  // Net GEX = Put contribution − Call contribution (dealer perspective)
   const netGex = strikes.map(k => {
     const e = gexMap.get(k)!;
-    return e.cGex - e.pGex;
+    return e.pGex - e.cGex;
   });
   const totalNet = netGex.reduce((s, g) => s + g, 0);
 
@@ -2022,11 +2032,13 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Expiry filter */}
-      <div className="flex items-center gap-1 px-3 py-1.5 shrink-0 border-b border-white/[0.04]">
+      <div className="flex items-center gap-1 px-3 pt-2 pb-1.5 shrink-0 overflow-x-auto">
         {['all', ...expiries.map(e => e.label)].map(f => (
           <button key={f} onClick={() => setExpFilter(f as 'all' | string)}
-            className={cn('text-[10px] font-bold px-2 py-0.5 rounded-[6px] transition-colors',
-              expFilter === f ? 'bg-white/10 text-white/80' : 'text-white/55 hover:text-white/50'
+            className={cn('px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
+              expFilter === f
+                ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
+                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]'
             )}>
             {f === 'all' ? '全部' : f}
           </button>

@@ -307,11 +307,8 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                 <FlashValue text={item.value} className="font-mono font-bold" style={{ color: item.color }} />
               </div>
             ))}
-          </div>
-          {/* 内联新鲜度：现价(WS) + 报价(期权链 feed) —— 让你下单前一眼知道这些数多新 */}
-          <div className="mt-1 flex items-center gap-3">
+            <span className="text-white/10">·</span>
             <FreshnessTag dataKey="ws-deribit" label="现价" />
-            <span className="text-white/15">·</span>
             <FreshnessTag dataKey={chainFeedKey} label="报价" />
           </div>
         </div>
@@ -350,6 +347,24 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
               <div className="px-3 text-[12px] font-bold text-white/60 border-l" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>合约</div>
             </div>
             <div className="mt-2 text-[12px] font-semibold text-white/55">可用: <span className="text-white/85 font-mono font-bold">≈ 16,849,985.46 USDC</span></div>
+
+            {/* ── Quick quantity presets ── */}
+            <div className="mt-1.5 flex items-center gap-1">
+              {[0.1, 0.5, 1, 5, 10].map(n => {
+                const active = Math.abs(Number(qty || 0) - n) < 0.005;
+                return (
+                  <button key={n} onClick={() => setQty(n.toFixed(2))}
+                    className={cn('h-6 px-2.5 rounded-[6px] text-[11px] font-bold transition-colors',
+                      active
+                        ? 'text-white/90'
+                        : 'text-white/40 hover:text-white/65')}
+                    style={{ background: active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', border: active ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent' }}
+                  >{n}</button>
+                );
+              })}
+              <div className="flex-1" />
+              <span className="text-[10px] text-white/25 font-mono">合约</span>
+            </div>
 
             <div className="mt-3 flex flex-col gap-2">
               <button onClick={() => setQuoteMode('price')} className="flex items-center gap-2">
@@ -475,7 +490,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-[1fr_1fr_auto_auto_1fr_1fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
+                      <div className="grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
                         <span className="text-right">总计</span><span className="text-right">数量</span>
                         <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
                         <span className="text-right">数量</span><span className="text-right">总计</span>
@@ -483,7 +498,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                       {Array.from({ length: Math.max(ladder.asks.length, ladder.bids.length) }, (_, i) => {
                         const a = ladder.asks[i], b = ladder.bids[i];
                         return (
-                          <div key={i} className="relative grid grid-cols-[1fr_1fr_auto_auto_1fr_1fr] px-2 hover:bg-white/[0.03]" style={{ height: 26 }}>
+                          <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 hover:bg-white/[0.03]" style={{ height: 26 }}>
                             {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
                             {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>

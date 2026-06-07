@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { useCardHeader } from '../components/card/WidgetCard';
+import { EChart } from '../components/echart/EChart';
 import type { Coin } from '../features/monitor/types';
 import {
   VOL_CONE,
@@ -92,7 +93,7 @@ function processDeribitResponse(results: any[]): DeribitData {
     const expiry = parseDeribitExpiry(parts[1]);
     if (!expiry) continue;
     const daysToExp = (expiry.getTime() - now) / 86_400_000;
-    if (daysToExp < 0.5 || daysToExp > 200) continue;
+    if (daysToExp < 0.02 || daysToExp > 200) continue;
     const strike = parseInt(parts[2]);
     const type = parts[3] as 'C' | 'P';
     if (isNaN(strike) || (type !== 'C' && type !== 'P')) continue;
@@ -100,7 +101,8 @@ function processDeribitResponse(results: any[]): DeribitData {
     if (spot <= 0) continue;
     const T = daysToExp / 365;
     const delta = bsDelta(spot, strike, T, item.mark_iv, type);
-    if (Math.abs(delta) < 0.04 || Math.abs(delta) > 0.96) continue;
+    const deltaFloor = daysToExp < 2 ? 0.001 : 0.04;
+    if (Math.abs(delta) < deltaFloor || Math.abs(delta) > 0.96) continue;
 
     parsed.push({
       strike, type, daysToExp, T,
@@ -132,7 +134,7 @@ function processDeribitResponse(results: any[]): DeribitData {
 
   const expiries: ExpiryGroup[] = [];
   for (const [days, opts] of [...groups.entries()].sort((a, b) => a[0] - b[0])) {
-    if (days < 2) continue;
+    if (days < 0) continue;
     const calls = opts.filter(o => o.type === 'C').sort((a, b) => a.delta - b.delta);
     const puts = opts.filter(o => o.type === 'P').sort((a, b) => b.delta - a.delta);
 
@@ -171,8 +173,9 @@ function processDeribitResponse(results: any[]): DeribitData {
   return { spot, dvol30, pcr, expiries, callVol24h, putVol24h, totalOptOI: 0, totalOptVol24hUSD: 0, fetchedAt: now };
 }
 
-const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number }>();
+const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number; v: number }>();
 const CACHE_TTL = 300_000; // 300s — spot/DVOL/trades now come via WS; options chain REST can be slow
+const CACHE_VERSION = 3;    // bump to invalidate stale cache after filter rule changes
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shared polling scheduler
@@ -352,7 +355,7 @@ const WS_FLUSH_MS = 500;
 
 async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
   const cached = DERIBIT_CACHE.get(currency);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  if (cached && Date.now() - cached.ts < CACHE_TTL && cached.v === CACHE_VERSION) return cached.data;
 
   const url = `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${currency}&kind=option`;
   const resp = await fetch(url);
@@ -368,7 +371,7 @@ async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData
   const data = processDeribitResponse(rawResults);
   data.totalOptOI        = totalOptOI;
   data.totalOptVol24hUSD = totalOptVol24hUSD;
-  DERIBIT_CACHE.set(currency, { data, ts: Date.now() });
+  DERIBIT_CACHE.set(currency, { data, ts: Date.now(), v: CACHE_VERSION });
   return data;
 }
 
@@ -1552,7 +1555,6 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data, loading } = useDeribitOptions(coin);
   const { setHeaderRight } = useCardHeader();
-  // 'all' = aggregate all expiries; or a specific expiry label
   const [expFilter, setExpFilter] = useState<'all' | string>('all');
 
   const expiries = data?.expiries.slice(0, 6) ?? [];
@@ -1568,19 +1570,13 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
-  if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
-
-  const spot = data.spot;
-
-  // Aggregate OI by strike for selected expiries
-  const callOI = new Map<number, number>();
-  const putOI  = new Map<number, number>();
-
+  const spot = data?.spot ?? 0;
   const targetExps = expFilter === 'all'
     ? expiries
     : expiries.filter(e => e.label === expFilter);
 
+  const callOI = new Map<number, number>();
+  const putOI  = new Map<number, number>();
   for (const e of targetExps) {
     for (const o of e.calls) {
       callOI.set(o.strike, (callOI.get(o.strike) ?? 0) + o.oi);
@@ -1590,34 +1586,17 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     }
   }
 
-  // Filter to ±35% of spot
   const strikes = [...new Set([...callOI.keys(), ...putOI.keys()])]
-    .filter(k => k >= spot * 0.65 && k <= spot * 1.35)
+    .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
     .sort((a, b) => a - b);
 
-  // Max pain (over visible strikes)
   const callArr = strikes.map(k => ({ strike: k, oi: callOI.get(k) ?? 0 }));
   const putArr  = strikes.map(k => ({ strike: k, oi: putOI.get(k)  ?? 0 }));
   const maxPain = computeMaxPain(callArr, putArr, strikes);
 
-  const maxCallOI = Math.max(...strikes.map(k => callOI.get(k) ?? 0), 1);
-  const maxPutOI  = Math.max(...strikes.map(k => putOI.get(k)  ?? 0), 1);
-  const maxOI     = Math.max(maxCallOI, maxPutOI);
-
-  // PCR / Totals — use ALL strikes within the selected expiries (not just visible window)
   const totalCallOI = [...callOI.values()].reduce((s, o) => s + o, 0);
   const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
-
-  const BAR_H = 24;
-  const GAP = 3;
-  const ROW_H = BAR_H + GAP;
-  const BAR_MAX_W = 180;
-  const LABEL_W = 80;
-  const LEFT_W = BAR_MAX_W;
-  const RIGHT_W = BAR_MAX_W;
-  const TOTAL_W = LEFT_W + LABEL_W + RIGHT_W;
-  const CHART_H = strikes.length * ROW_H;
 
   const fmtOI = (v: number) => {
     const abs = Math.abs(v);
@@ -1626,6 +1605,77 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
     return v.toFixed(0);
   };
   const fmtPrice = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
+
+  const chartH = Math.max(strikes.length * 32, 240);
+
+  const option = useMemo(() => ({
+    textStyle: { fontFamily: 'sans-serif' },
+    grid: { left: 80, right: 12, top: 8, bottom: 12 },
+    xAxis: {
+      type: 'value',
+      axisLabel: {
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 9,
+        formatter: (v: number) => fmtOI(Math.abs(v)),
+      },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'category',
+      data: strikes.map(k => fmtPrice(k)),
+      inverse: true,
+      axisLabel: {
+        fontSize: 9,
+        color: (_v: string, i: number) => {
+          const k = strikes[i];
+          if (spot > 0 && Math.abs(k - spot) < spot * 0.005) return '#FEBC2E';
+          if (spot > 0 && Math.abs(k - maxPain) < spot * 0.005) return 'rgba(37,232,137,0.9)';
+          return 'rgba(255,255,255,0.55)';
+        },
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: unknown) => {
+        const p = (params as { dataIndex: number; seriesName: string; value: number });
+        const i = p.dataIndex;
+        const k = strikes[i];
+        const c = callOI.get(k) ?? 0;
+        const put = putOI.get(k) ?? 0;
+        const isSpot = spot > 0 && Math.abs(k - spot) < spot * 0.005;
+        const isMP = spot > 0 && Math.abs(k - maxPain) < spot * 0.005;
+        const marker = isSpot ? ' ◆ 现货' : isMP ? ' ★ 最大痛点' : '';
+        const net = c - put;
+        return `<div style="font-weight:bold;margin-bottom:4px">${fmtPrice(k)}${marker}</div>
+<span style="color:#FF5F57">●</span> Put OI: <b>${fmtOI(put)}</b><br/>
+<span style="color:#25e889">●</span> Call OI: <b>${fmtOI(c)}</b><br/>
+<span>净: <b style="color:${net >= 0 ? '#25e889' : '#FF5F57'}">${fmtOI(Math.abs(net))}</b></span>`;
+      },
+    },
+    series: [
+      {
+        name: 'Put OI',
+        type: 'bar',
+        data: strikes.map(k => -(putOI.get(k) ?? 0)),
+        barWidth: 24,
+        itemStyle: { color: 'rgba(255,95,87,0.7)', borderRadius: [2, 0, 0, 2] },
+      },
+      {
+        name: 'Call OI',
+        type: 'bar',
+        data: strikes.map(k => callOI.get(k) ?? 0),
+        barWidth: 24,
+        itemStyle: { color: 'rgba(37,232,137,0.7)', borderRadius: [0, 2, 2, 0] },
+      },
+    ],
+  }), [strikes, callOI, putOI, spot, maxPain]);
+
+  if (loading && !data) return <Skeleton />;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -1657,92 +1707,25 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-3 px-3 pb-2 text-[11px] shrink-0 font-medium">
-        <span className="text-white/55">Call OI <span className="font-mono text-[13px] text-[var(--nexus-green)]/80 font-bold">{fmtOI(totalCallOI)}</span></span>
-        <span className="text-white/40">·</span>
-        <span className="text-white/55">Put OI <span className="font-mono text-[13px] text-[var(--nexus-red)]/80 font-bold">{fmtOI(totalPutOI)}</span></span>
-        <span className="text-white/40">·</span>
-        <span className="text-white/55">PCR <span className="font-mono text-[13px] text-[var(--nexus-yellow)]/80 font-bold">{pcr.toFixed(2)}</span></span>
-        <span className="text-white/40">·</span>
-        <span className="text-white/55">最大痛点 <span className="font-mono text-[13px] text-[var(--nexus-accent)]/80 font-bold">{maxPain.toLocaleString()}</span></span>
+      <div className="flex gap-2 px-3 py-2 shrink-0">
+        {[
+          { label: 'Call OI', val: fmtOI(totalCallOI), color: '#25e889' },
+          { label: 'Put OI', val: fmtOI(totalPutOI), color: '#FF5F57' },
+          { label: 'PCR', val: pcr.toFixed(2), color: pcr >= 1.2 ? '#FF5F57' : pcr <= 0.7 ? '#25e889' : '#FEBC2E' },
+          { label: '最大痛点', val: maxPain.toLocaleString(), color: 'rgba(37,232,137,0.9)' },
+        ].map(s => (
+          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.35)] transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_6px_14px_-4px_rgba(0,0,0,0.50)] hover:brightness-110">
+            <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
+            <div className="font-mono text-[14px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
+          </div>
+        ))}
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-2">
         {strikes.length === 0
           ? <div className="py-8 text-center text-[11px] text-white/55">暂无持仓数据</div>
-          : (
-            <svg
-              viewBox={`0 0 ${TOTAL_W} ${CHART_H}`}
-              width="100%"
-              style={{ height: Math.min(CHART_H, 600) }}
-            >
-              {strikes.map((strike, i) => {
-                const y = i * ROW_H;
-                const cOI = callOI.get(strike) ?? 0;
-                const pOI = putOI.get(strike)  ?? 0;
-                const callBarW = (cOI / maxOI) * RIGHT_W;
-                const putBarW  = (pOI / maxOI) * LEFT_W;
-                const isSpot    = Math.abs(strike - spot)    < spot * 0.005;
-                const isMaxPain = Math.abs(strike - maxPain) < spot * 0.005;
-                const labelColor = isSpot ? '#FEBC2E' : isMaxPain ? 'rgba(37,232,137,0.9)' : 'rgba(255,255,255,0.45)';
-
-                return (
-                  <g key={strike}>
-                    {/* ATM 行背景高亮 */}
-                    {isSpot && (
-                      <rect x={0} y={y} width={TOTAL_W} height={ROW_H} fill="rgba(254,188,46,0.06)" rx={2} />
-                    )}
-                    {/* Put bar – left, aligned right to LABEL_W start */}
-                    <rect
-                      x={LEFT_W - putBarW}
-                      y={y + 1}
-                      width={putBarW}
-                      height={BAR_H - 2}
-                      rx={2}
-                      fill={`rgba(202,63,100,${0.45 + (pOI / maxOI) * 0.35})`}
-                    />
-                    {/* Call bar – right */}
-                    <rect
-                      x={LEFT_W + LABEL_W}
-                      y={y + 1}
-                      width={callBarW}
-                      height={BAR_H - 2}
-                      rx={2}
-                      fill={`rgba(37,232,137,${0.4 + (cOI / maxOI) * 0.4})`}
-                    />
-                    {/* Strike label */}
-                    <text
-                      x={LEFT_W + LABEL_W / 2}
-                      y={y + BAR_H / 2 + 4}
-                      textAnchor="middle"
-                      fontSize={9}
-                      fontWeight={isSpot || isMaxPain ? 'bold' : 'normal'}
-                      fontFamily="monospace"
-                      fill={labelColor}
-                    >
-                      {fmtPrice(strike)}
-                      {isSpot    && ' ◆'}
-                      {isMaxPain && !isSpot && ' ★'}
-                    </text>
-                    {/* OI labels */}
-                    {pOI > 0 && (
-                      <text x={LEFT_W - putBarW - 2} y={y + BAR_H / 2 + 3.5} textAnchor="end" fontSize={8} fill="rgba(202,63,100,0.6)">
-                        {fmtOI(pOI)}
-                      </text>
-                    )}
-                    {cOI > 0 && (
-                      <text x={LEFT_W + LABEL_W + callBarW + 2} y={y + BAR_H / 2 + 3.5} fontSize={8} fill="rgba(37,232,137,0.55)">
-                        {fmtOI(cOI)}
-                      </text>
-                    )}
-                    {/* Separator */}
-                    <line x1={0} y1={y + ROW_H - 0.5} x2={TOTAL_W} y2={y + ROW_H - 0.5} stroke="rgba(255,255,255,0.03)" strokeWidth={0.5} />
-                  </g>
-                );
-              })}
-            </svg>
-          )
+          : <EChart option={option} notMerge style={{ height: chartH }} />
         }
       </div>
 
@@ -1977,39 +1960,32 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
 
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
-  if (loading && !data) return <Skeleton />;
-  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
-
-  const spot = data.spot;
+  const spot = data?.spot ?? 0;
   const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
 
-  // GEX by strike (做市商视角): 做市商持有 short calls / short puts
-  //   → Call OI 对 dealer 是负 gamma（-1 系数）
-  //   → Put  OI 对 dealer 是正 gamma（+1 系数）
-  //   → Net GEX = (Put_γ × OI) − (Call_γ × OI)，乘以 S²/100 得到每 1% 标的价格变动的美元敞口
   const gexMap = new Map<number, { cGex: number; pGex: number }>();
-  for (const exp of targetExps) {
-    for (const opt of [...exp.calls, ...exp.puts]) {
-      const g = bsGamma(spot, opt.strike, opt.T, opt.iv) * spot * spot / 100;
-      if (!gexMap.has(opt.strike)) gexMap.set(opt.strike, { cGex: 0, pGex: 0 });
-      const e = gexMap.get(opt.strike)!;
-      if (opt.type === 'C') e.cGex += g * opt.oi;
-      else                   e.pGex += g * opt.oi;
+  if (spot > 0) {
+    for (const exp of targetExps) {
+      for (const opt of [...exp.calls, ...exp.puts]) {
+        const g = bsGamma(spot, opt.strike, opt.T, opt.iv) * spot * spot / 100;
+        if (!gexMap.has(opt.strike)) gexMap.set(opt.strike, { cGex: 0, pGex: 0 });
+        const e = gexMap.get(opt.strike)!;
+        if (opt.type === 'C') e.cGex += g * opt.oi;
+        else                   e.pGex += g * opt.oi;
+      }
     }
   }
 
   const strikes = [...gexMap.keys()]
-    .filter(k => k >= spot * 0.65 && k <= spot * 1.35)
+    .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
     .sort((a, b) => a - b);
 
-  // Net GEX = Put contribution − Call contribution (dealer perspective)
   const netGex = strikes.map(k => {
     const e = gexMap.get(k)!;
     return e.pGex - e.cGex;
   });
   const totalNet = netGex.reduce((s, g) => s + g, 0);
 
-  // Zero-gamma level (linear interpolation between sign-change neighbours)
   let zeroGamma: number | null = null;
   for (let i = 1; i < strikes.length; i++) {
     if (netGex[i - 1] * netGex[i] < 0) {
@@ -2019,7 +1995,6 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
     }
   }
 
-  const maxAbs = Math.max(...netGex.map(Math.abs), 1);
   const fmtGex = (v: number) => {
     const abs = Math.abs(v);
     if (abs >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
@@ -2029,10 +2004,75 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   };
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
-  const BAR_H = 24, GAP = 3, ROW_H = BAR_H + GAP;
-  const MAX_BAR = 180;
-  const LABEL_W = 72;
-  const CHART_H = strikes.length * ROW_H;
+  const chartH = Math.max(strikes.length * 32, 240);
+
+  const option = useMemo(() => ({
+    textStyle: { fontFamily: 'sans-serif' },
+    grid: { left: 80, right: 12, top: 8, bottom: 12 },
+    xAxis: {
+      type: 'value',
+      axisLabel: {
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 9,
+        formatter: (v: number) => fmtGex(Math.abs(v)),
+      },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'category',
+      data: strikes.map(k => fmtPx(k)),
+      inverse: true,
+      axisLabel: {
+        fontSize: 9,
+        color: (_v: string, i: number) => {
+          const k = strikes[i];
+          if (spot > 0 && Math.abs(k - spot) / spot < 0.005) return '#FEBC2E';
+          if (zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005) return '#a78bfa';
+          return 'rgba(255,255,255,0.55)';
+        },
+      },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: unknown) => {
+        const p = (params as { dataIndex: number; seriesName: string; value: number });
+        const i = p.dataIndex;
+        const k = strikes[i];
+        const net = netGex[i];
+        const e = gexMap.get(k);
+        const isSpot = spot > 0 && Math.abs(k - spot) / spot < 0.005;
+        const isZero = zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005;
+        const marker = isSpot ? ' ◆ 现货' : isZero ? ' ○ 零Gamma' : '';
+        const cGex = e ? -e.cGex : 0;
+        const pGexVal = e ? e.pGex : 0;
+        return `<div style="font-weight:bold;margin-bottom:4px">${fmtPx(k)}${marker}</div>
+<span style="color:#FF5F57">●</span> Call GEX: <b>${fmtGex(cGex)}</b><br/>
+<span style="color:#25e889">●</span> Put GEX: <b>${fmtGex(pGexVal)}</b><br/>
+<span>净 GEX: <b style="color:${net >= 0 ? '#25e889' : '#FF5F57'}">${fmtGex(net)}</b></span>`;
+      },
+    },
+    series: [{
+      name: 'GEX',
+      type: 'bar',
+      data: netGex,
+      barWidth: 24,
+      itemStyle: {
+        color: (params: unknown) =>
+          (params as { value: number }).value >= 0
+            ? 'rgba(37,232,137,0.7)'
+            : 'rgba(248,113,113,0.7)',
+        borderRadius: (params: unknown) =>
+          (params as { value: number }).value >= 0 ? [0, 2, 2, 0] : [2, 0, 0, 2],
+      },
+    }],
+  }), [strikes, netGex, spot, zeroGamma]);
+
+  if (loading && !data) return <Skeleton />;
+  if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -2057,7 +2097,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
           { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#FEBC2E' },
           { label: '现货', val: fmtPx(spot), color: 'rgba(255,255,255,0.6)' },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.35)] transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_6px_14px_-4px_rgba(0,0,0,0.50)] hover:brightness-110">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[14px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -2065,56 +2105,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       </div>
 
       {/* GEX chart */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
-        <svg width="100%" viewBox={`0 0 ${MAX_BAR * 2 + LABEL_W} ${CHART_H}`} style={{ display: 'block', minHeight: CHART_H }}>
-          {/* Centre line */}
-          <line x1={MAX_BAR} y1={0} x2={MAX_BAR} y2={CHART_H} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
-
-          {strikes.map((k, i) => {
-            const y = i * ROW_H;
-            const net = netGex[i];
-            const barW = Math.abs(net) / maxAbs * (MAX_BAR - 2);
-            const isPos = net >= 0;
-            const barX = isPos ? MAX_BAR : MAX_BAR - barW;
-            const isSpot = Math.abs(k - spot) / spot < 0.005;
-            const isZero = zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005;
-            const barColor = isPos ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)';
-
-            return (
-              <g key={k}>
-                {/* ATM 行背景高亮 */}
-                {isSpot && (
-                  <rect x={0} y={y} width={MAX_BAR * 2 + LABEL_W} height={ROW_H} fill="rgba(254,188,46,0.06)" rx={2} />
-                )}
-                <rect x={barX} y={y + 1} width={barW} height={BAR_H - 2} fill={barColor} rx={2} />
-                {/* Strike label */}
-                <text
-                  x={MAX_BAR + LABEL_W / 2}
-                  y={y + BAR_H / 2 + 3.5}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fill={isSpot ? '#FEBC2E' : isZero ? '#a78bfa' : 'rgba(255,255,255,0.35)'}
-                  fontWeight={isSpot || isZero ? 700 : 400}
-                >
-                  {fmtPx(k)}{isSpot ? ' ◆' : isZero ? ' ○' : ''}
-                </text>
-                {/* Value label */}
-                {Math.abs(net) / maxAbs > 0.12 && (
-                  <text
-                    x={isPos ? barX + barW + 2 : barX - 2}
-                    y={y + BAR_H / 2 + 3.5}
-                    textAnchor={isPos ? 'start' : 'end'}
-                    fontSize={7.5}
-                    fill={isPos ? 'rgba(37,232,137,0.5)' : 'rgba(248,113,113,0.5)'}
-                  >
-                    {fmtGex(net)}
-                  </text>
-                )}
-                <line x1={0} y1={y + ROW_H - 0.5} x2={MAX_BAR * 2 + LABEL_W} y2={y + ROW_H - 0.5} stroke="rgba(255,255,255,0.025)" strokeWidth={0.5} />
-              </g>
-            );
-          })}
-        </svg>
+      <div className="flex-1 min-h-0 overflow-y-auto px-3">
+        <EChart option={option} notMerge style={{ height: chartH }} />
       </div>
 
       <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
@@ -6035,7 +6027,7 @@ export const SentimentCompositeWidget = ({ coin: coinProp, onCoinChange }: CoinC
           <text x="18" y="86" fill="#6e6e6e" fontSize="8" textAnchor="middle">熊</text>
           <text x="142" y="86" fill="#6e6e6e" fontSize="8" textAnchor="middle">牛</text>
           {/* Score */}
-          <text x={CX} y={CY - 10} fill={color} fontSize="20" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+          <text x={CX} y={CY - 10} fill={color} fontSize="20" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
             {composite.toFixed(0)}
           </text>
           <text x={CX} y={CY + 4} fill={color} fontSize="9" textAnchor="middle">{label}</text>

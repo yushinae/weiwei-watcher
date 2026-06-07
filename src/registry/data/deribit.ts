@@ -97,9 +97,9 @@ export function closestDeltaIV(opts: ParsedOption[], targetAbsDelta: number): nu
 }
 
 // minGroupDays / perOptFloor 让监控页与期权链共用解析但各取所需：
-//   监控页 = (2, 0.5)：丢掉 <2 天的到期组，避免 0DTE 的巨量 gamma 扭曲 GEX / 速读；
+//   监控页 = (0, 0.02)：放开 0DTE/末日，只挡掉 ~30 分钟内即将到期的；
 //   期权链 = (0, 0.02)：放开末日/临期期权，只挡掉 ~30 分钟内即将到期的。
-export function processDeribitResponse(results: any[], minGroupDays = 2, perOptFloor = 0.5): DeribitData {
+export function processDeribitResponse(results: any[], minGroupDays = 0, perOptFloor = 0.02): DeribitData {
   const now = Date.now();
   const parsed: ParsedOption[] = [];
 
@@ -118,7 +118,8 @@ export function processDeribitResponse(results: any[], minGroupDays = 2, perOptF
     if (spot <= 0) continue;
     const T = daysToExp / 365;
     const delta = bsDelta(spot, strike, T, item.mark_iv, type);
-    if (Math.abs(delta) < 0.04 || Math.abs(delta) > 0.96) continue;
+    const deltaFloor = daysToExp < 2 ? 0.001 : 0.04;
+    if (Math.abs(delta) < deltaFloor || Math.abs(delta) > 0.96) continue;
 
     // Real USD prices — Deribit inverse options quote in coin, so ×underlying (forward).
     const toUsd = (c: unknown) => { const n = c as number; return Number.isFinite(n) && n > 0 ? n * spot : null; };
@@ -197,8 +198,9 @@ export function processDeribitResponse(results: any[], minGroupDays = 2, perOptF
 // Cache
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number }>();
+export const DERIBIT_CACHE = new Map<string, { data: DeribitData; ts: number; v: number }>();
 export const CACHE_TTL = 300_000;
+const CACHE_VERSION = 3; // bump to invalidate stale cache after filter changes
 export const HIST_CACHE = new Map<string, { data: HistoryData; ts: number }>();
 export const HIST_TTL = 900_000;
 
@@ -232,7 +234,7 @@ import { DERIBIT_WS } from './ws';
 
 export async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
   const cached = DERIBIT_CACHE.get(currency);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  if (cached && Date.now() - cached.ts < CACHE_TTL && cached.v === CACHE_VERSION) return cached.data;
 
   const url = `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${currency}&kind=option`;
   const resp = await fetch(url);
@@ -247,7 +249,7 @@ export async function fetchDeribitOptions(currency: 'BTC' | 'ETH'): Promise<Deri
   const data = processDeribitResponse(rawResults);
   data.totalOptOI        = totalOptOI;
   data.totalOptVol24hUSD = totalOptVol24hUSD;
-  DERIBIT_CACHE.set(currency, { data, ts: Date.now() });
+  DERIBIT_CACHE.set(currency, { data, ts: Date.now(), v: CACHE_VERSION });
   return data;
 }
 

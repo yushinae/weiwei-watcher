@@ -1609,27 +1609,13 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
-  const LABEL_W = 80;
   const BAR_H = 16;
   const GAP = 2;
   const ROW_H = BAR_H + GAP;
-  // 动态列宽 + 容器 ref
-  const chartBodyRef = useRef<HTMLDivElement>(null);
-  const [oiBarW, setOiBarW] = useState(120);
-  useEffect(() => {
-    const el = chartBodyRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        const w = Math.max(60, Math.min(200, (e.contentRect.width - LABEL_W - 24) / 2));
-        setOiBarW(w);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const LEFT_W = oiBarW;
-  const RIGHT_W = oiBarW;
+  const BAR_MAX_W = 180;
+  const LABEL_W = 80;
+  const LEFT_W = BAR_MAX_W;
+  const RIGHT_W = BAR_MAX_W;
   const TOTAL_W = LEFT_W + LABEL_W + RIGHT_W;
   const CHART_H = strikes.length * ROW_H;
 
@@ -1682,7 +1668,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
 
       {/* Chart */}
-      <div ref={chartBodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
         {strikes.length === 0
           ? <div className="py-8 text-center text-[11px] text-white/55">暂无持仓数据</div>
           : (
@@ -2044,22 +2030,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   const BAR_H = 15, GAP = 3, ROW_H = BAR_H + GAP;
-  // 动态列宽
-  const gexChartRef = useRef<HTMLDivElement>(null);
-  const [gexBarW, setGexBarW] = useState(130);
-  useEffect(() => {
-    const el = gexChartRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        const w = Math.max(60, Math.min(200, (e.contentRect.width - 72 - 24) / 2));
-        setGexBarW(w);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const MAX_BAR = gexBarW;
+  const MAX_BAR = 180;
   const LABEL_W = 72;
   const CHART_H = strikes.length * ROW_H;
 
@@ -2094,7 +2065,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       </div>
 
       {/* GEX chart */}
-      <div ref={gexChartRef} className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
         <svg width="100%" viewBox={`0 0 ${MAX_BAR * 2 + LABEL_W} ${CHART_H}`} style={{ display: 'block', minHeight: CHART_H }}>
           {/* Centre line */}
           <line x1={MAX_BAR} y1={0} x2={MAX_BAR} y2={CHART_H} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />

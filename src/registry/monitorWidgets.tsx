@@ -1609,12 +1609,27 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
+  const LABEL_W = 80;
   const BAR_H = 16;
   const GAP = 2;
   const ROW_H = BAR_H + GAP;
-  const LEFT_W = 120; // put bars max width
-  const RIGHT_W = 120; // call bars max width
-  const LABEL_W = 80;
+  // 动态列宽 + 容器 ref
+  const chartBodyRef = useRef<HTMLDivElement>(null);
+  const [oiBarW, setOiBarW] = useState(120);
+  useEffect(() => {
+    const el = chartBodyRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const w = Math.max(60, Math.min(200, (e.contentRect.width - LABEL_W - 24) / 2));
+        setOiBarW(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const LEFT_W = oiBarW;
+  const RIGHT_W = oiBarW;
   const TOTAL_W = LEFT_W + LABEL_W + RIGHT_W;
   const CHART_H = strikes.length * ROW_H;
 
@@ -1656,18 +1671,18 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-3 px-3 pb-2 text-[10px] shrink-0">
-        <span className="text-white/55">Call OI <span className="font-mono text-[var(--nexus-green)]/80">{fmtOI(totalCallOI)}</span></span>
-        <span className="text-white/55">·</span>
-        <span className="text-white/55">Put OI <span className="font-mono text-[var(--nexus-red)]/80">{fmtOI(totalPutOI)}</span></span>
-        <span className="text-white/55">·</span>
-        <span className="text-white/55">PCR <span className="font-mono text-[var(--nexus-yellow)]/80">{pcr.toFixed(2)}</span></span>
-        <span className="text-white/55">·</span>
-        <span className="text-white/55">最大痛点 <span className="font-mono text-[var(--nexus-accent)]/80">{maxPain.toLocaleString()}</span></span>
+      <div className="flex items-center gap-3 px-3 pb-2 text-[11px] shrink-0 font-medium">
+        <span className="text-white/55">Call OI <span className="font-mono text-[13px] text-[var(--nexus-green)]/80 font-bold">{fmtOI(totalCallOI)}</span></span>
+        <span className="text-white/40">·</span>
+        <span className="text-white/55">Put OI <span className="font-mono text-[13px] text-[var(--nexus-red)]/80 font-bold">{fmtOI(totalPutOI)}</span></span>
+        <span className="text-white/40">·</span>
+        <span className="text-white/55">PCR <span className="font-mono text-[13px] text-[var(--nexus-yellow)]/80 font-bold">{pcr.toFixed(2)}</span></span>
+        <span className="text-white/40">·</span>
+        <span className="text-white/55">最大痛点 <span className="font-mono text-[13px] text-[var(--nexus-accent)]/80 font-bold">{maxPain.toLocaleString()}</span></span>
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
+      <div ref={chartBodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2">
         {strikes.length === 0
           ? <div className="py-8 text-center text-[11px] text-white/55">暂无持仓数据</div>
           : (
@@ -1688,6 +1703,10 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
                 return (
                   <g key={strike}>
+                    {/* ATM 行背景高亮 */}
+                    {isSpot && (
+                      <rect x={0} y={y} width={TOTAL_W} height={ROW_H} fill="rgba(254,188,46,0.06)" rx={2} />
+                    )}
                     {/* Put bar – left, aligned right to LABEL_W start */}
                     <rect
                       x={LEFT_W - putBarW}
@@ -2025,7 +2044,22 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   const BAR_H = 15, GAP = 3, ROW_H = BAR_H + GAP;
-  const MAX_BAR = 130;
+  // 动态列宽
+  const gexChartRef = useRef<HTMLDivElement>(null);
+  const [gexBarW, setGexBarW] = useState(130);
+  useEffect(() => {
+    const el = gexChartRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const w = Math.max(60, Math.min(200, (e.contentRect.width - 72 - 24) / 2));
+        setGexBarW(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const MAX_BAR = gexBarW;
   const LABEL_W = 72;
   const CHART_H = strikes.length * ROW_H;
 
@@ -2054,13 +2088,13 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         ].map(s => (
           <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
-            <div className="font-mono text-[12px] font-bold" style={{ color: s.color }}>{s.val}</div>
+            <div className="font-mono text-[14px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
         ))}
       </div>
 
       {/* GEX chart */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
+      <div ref={gexChartRef} className="flex-1 min-h-0 overflow-y-auto px-3 pb-2">
         <svg width="100%" viewBox={`0 0 ${MAX_BAR * 2 + LABEL_W} ${CHART_H}`} style={{ display: 'block', minHeight: CHART_H }}>
           {/* Centre line */}
           <line x1={MAX_BAR} y1={0} x2={MAX_BAR} y2={CHART_H} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
@@ -2077,6 +2111,10 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
 
             return (
               <g key={k}>
+                {/* ATM 行背景高亮 */}
+                {isSpot && (
+                  <rect x={0} y={y} width={MAX_BAR * 2 + LABEL_W} height={ROW_H} fill="rgba(254,188,46,0.06)" rx={2} />
+                )}
                 <rect x={barX} y={y + 1} width={barW} height={BAR_H - 2} fill={barColor} rx={2} />
                 {/* Strike label */}
                 <text

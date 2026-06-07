@@ -499,14 +499,14 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                         const a = ladder.asks[i], b = ladder.bids[i];
                         return (
                           <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 hover:bg-white/[0.03]" style={{ height: 26 }}>
-                            {a && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
-                            {b && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
-                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                            {b && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
+                            {a && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{b ? b.total.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
                           </div>
                         );
                       })}

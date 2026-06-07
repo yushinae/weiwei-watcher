@@ -68,7 +68,6 @@ export const KLineChartView = () => {
   const levelIdsRef = useRef<string[]>([]);
   const [drawTool,setDrawTool] = useState<string|null>(null);
   const [countdown,setCountdown] = useState('00:00');
-  const lastWsTickRef = useRef(0);
   const hiddenSinceRef = useRef(0);
 
   // 1) 初始化
@@ -145,22 +144,6 @@ export const KLineChartView = () => {
     const id = setInterval(tick,1000);
     return ()=>clearInterval(id);
   },[res]);
-
-  // 5) WS 实时更新最后一根 K 线（2 秒节流）
-  useEffect(()=>{
-    const chart = chartRef.current;
-    if (!chart || !liveSpot || candles.length === 0) return;
-    if (hiddenSinceRef.current && Date.now()-hiddenSinceRef.current > 300_000) return;
-    const now = Date.now();
-    if (now - lastWsTickRef.current < 2000) return;
-    lastWsTickRef.current = now;
-    const last = candles[candles.length-1];
-    if (!last || Math.abs(last.c - liveSpot) < 0.5) return;
-    (chart as any)._addData({
-      timestamp: last.t, open: last.o, high: Math.max(last.h,liveSpot),
-      low: Math.min(last.l,liveSpot), close: liveSpot, volume: last.v,
-    });
-  },[liveSpot,candles]);
 
   const emPct = levels.emSigma != null && spot ? (levels.emSigma/spot)*100 : null;
 

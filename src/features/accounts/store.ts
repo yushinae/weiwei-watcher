@@ -1,5 +1,7 @@
 // 已配置账户列表（存哪些账户：Hyperliquid 地址 / 交易所 key 引用）。
+// 数据同时存 localStorage（快速访问）和后端（持久化，清缓存不丢）。
 import type { VenueAccount } from './types';
+import { put as apiPut } from '../../api';
 
 const KEY = 'weiwei.accounts.v1';
 const listeners = new Set<() => void>();
@@ -12,6 +14,8 @@ let ACCOUNTS: VenueAccount[] = load();
 
 function persist(): void {
   try { localStorage.setItem(KEY, JSON.stringify(ACCOUNTS)); } catch { /* ignore */ }
+  // 同步到后端（失败不影响本地，下次会重试）
+  apiPut('/api/accounts', ACCOUNTS).catch(() => {});
   listeners.forEach(f => f());
 }
 

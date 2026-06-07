@@ -1,0 +1,13 @@
+{
+  "name": "weiwei-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "hono": "^4.7.0"
+  }
+}

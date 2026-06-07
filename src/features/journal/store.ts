@@ -1,5 +1,6 @@
-// 交易日志：localStorage 持久化 + 统计 / 净值曲线计算（纯函数）。
+// 交易日志：localStorage 持久化 + 后端同步。
 import type { JournalTrade } from './types';
+import { put as apiPut } from '../../api';
 
 const KEY = 'weiwei.journal.v1';
 
@@ -15,11 +16,8 @@ export function loadTrades(): JournalTrade[] {
 }
 
 export function saveTrades(trades: JournalTrade[]): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(trades));
-  } catch {
-    /* 配额溢出等忽略 */
-  }
+  localStorage.setItem(KEY, JSON.stringify(trades));
+  apiPut('/api/journal', trades).catch(() => {});
 }
 
 export function newId(): string {

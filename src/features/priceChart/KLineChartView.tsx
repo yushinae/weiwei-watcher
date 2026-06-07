@@ -67,6 +67,9 @@ export const KLineChartView = () => {
   const chartRef = useRef<Chart|null>(null);
   const levelIdsRef = useRef<string[]>([]);
   const [drawTool,setDrawTool] = useState<string|null>(null);
+  const [countdown,setCountdown] = useState('00:00');
+  const lastWsTickRef = useRef(0);
+  const hiddenSinceRef = useRef(0);
 
   // 1) 初始化
   useEffect(()=>{
@@ -74,6 +77,7 @@ export const KLineChartView = () => {
     const chart = init(containerRef.current,{styles:'dark'});
     if (!chart) return;
     chartRef.current = chart;
+    chart.setTimezone('America/New_York');
     return ()=>{ dispose(containerRef.current!); chartRef.current = null; };
   },[]);
 
@@ -111,6 +115,52 @@ export const KLineChartView = () => {
     levelIdsRef.current = ids;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[showLevels,showEM,levels.callWall,levels.putWall,levels.maxPain,levels.emSigma,spot]);
+
+  // 4) 倒计时 + 页面隐藏 5min 暂停
+  useEffect(()=>{
+    const tick = ()=>{
+      if (document.hidden){
+        if (!hiddenSinceRef.current) hiddenSinceRef.current = Date.now();
+        if (Date.now() - hiddenSinceRef.current > 300_000) return; // >5min 不更新
+      } else {
+        hiddenSinceRef.current = 0;
+      }
+      const now = Date.now();
+      const d = new Date();
+      let end: number;
+      switch (res){
+        case '5m': d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0); end=d.getTime(); break;
+        case '15m': d.setMinutes(Math.ceil(d.getMinutes()/15)*15,0,0); end=d.getTime(); break;
+        case '1h': d.setHours(d.getHours()+1,0,0,0); end=d.getTime(); break;
+        case '4h': d.setHours(Math.ceil(d.getHours()/4)*4,0,0,0); end=d.getTime(); break;
+        case '1d': d.setDate(d.getDate()+1); d.setHours(0,0,0,0); end=d.getTime(); break;
+        case '1w': d.setDate(d.getDate()+(8-d.getDay())%7||7); d.setHours(0,0,0,0); end=d.getTime(); break;
+        default: end = now;
+      }
+      const s = Math.max(0,Math.floor((end-now)/1000));
+      const m = Math.floor(s/60);
+      setCountdown(`${m}:${(s%60).toString().padStart(2,'0')}`);
+    };
+    tick();
+    const id = setInterval(tick,1000);
+    return ()=>clearInterval(id);
+  },[res]);
+
+  // 5) WS 实时更新最后一根 K 线（2 秒节流）
+  useEffect(()=>{
+    const chart = chartRef.current;
+    if (!chart || !liveSpot || candles.length === 0) return;
+    if (hiddenSinceRef.current && Date.now()-hiddenSinceRef.current > 300_000) return;
+    const now = Date.now();
+    if (now - lastWsTickRef.current < 2000) return;
+    lastWsTickRef.current = now;
+    const last = candles[candles.length-1];
+    if (!last || Math.abs(last.c - liveSpot) < 0.5) return;
+    (chart as any)._addData({
+      timestamp: last.t, open: last.o, high: Math.max(last.h,liveSpot),
+      low: Math.min(last.l,liveSpot), close: liveSpot, volume: last.v,
+    });
+  },[liveSpot,candles]);
 
   const emPct = levels.emSigma != null && spot ? (levels.emSigma/spot)*100 : null;
 
@@ -172,6 +222,11 @@ export const KLineChartView = () => {
         </button>
         <div className="flex-1 min-w-0 rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.05] p-1.5 relative overflow-hidden">
           <div ref={containerRef} className="absolute inset-1.5"/>
+          {candles.length>0 && !loading && (
+            <div className="absolute bottom-2 right-3 z-10 text-[10px] font-mono tabular-nums text-white/35 pointer-events-none select-none">
+              ⏱ {countdown}
+            </div>
+          )}
           {(candles.length===0||loading)&&(
             <div className="absolute inset-0 flex items-center justify-center text-[12px] text-white/40 pointer-events-none">
               {error?'数据加载失败，重试中…':loading?'加载 K 线中…':'暂无数据'}

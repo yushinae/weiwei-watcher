@@ -1609,8 +1609,8 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
-  const BAR_H = 16;
-  const GAP = 2;
+  const BAR_H = 24;
+  const GAP = 3;
   const ROW_H = BAR_H + GAP;
   const BAR_MAX_W = 180;
   const LABEL_W = 80;
@@ -2029,7 +2029,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   };
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
-  const BAR_H = 15, GAP = 3, ROW_H = BAR_H + GAP;
+  const BAR_H = 24, GAP = 3, ROW_H = BAR_H + GAP;
   const MAX_BAR = 180;
   const LABEL_W = 72;
   const CHART_H = strikes.length * ROW_H;

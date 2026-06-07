@@ -69,6 +69,10 @@ export const KLineChartView = () => {
   const [drawTool,setDrawTool] = useState<string|null>(null);
   const [countdown,setCountdown] = useState('00:00');
   const hiddenSinceRef = useRef(0);
+  // 自定义 tooltip：悬停 K 线时显示一行 OHLC
+  const [hoverCandle, setHoverCandle] = useState<{
+    t: string; o: number; h: number; l: number; c: number;
+  } | null>(null);
 
   // 1) 初始化
   useEffect(()=>{
@@ -77,6 +81,24 @@ export const KLineChartView = () => {
     if (!chart) return;
     chartRef.current = chart;
     chart.setTimezone('America/New_York');
+    // 隐藏自带的 tooltip，用自定义替代
+    chart.setStyles({candle:{tooltip:{showRule:'none'}}});
+    // 监听十字光标，更新自定义 tooltip
+    chart.subscribeAction('onCrosshairChange',(data:any)=>{
+      if (data?.dataIndex != null){
+        const list = chart.getDataList();
+        const c = list[data.dataIndex];
+        if (c){
+          const d = new Date(c.timestamp);
+          setHoverCandle({
+            t: d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'),
+            o: c.open, h: c.high, l: c.low, c: c.close,
+          });
+          return;
+        }
+      }
+      setHoverCandle(null);
+    });
     return ()=>{ dispose(containerRef.current!); chartRef.current = null; };
   },[]);
 
@@ -208,6 +230,11 @@ export const KLineChartView = () => {
           {candles.length>0 && !loading && (
             <div className="absolute bottom-2 right-3 z-10 text-[10px] font-mono tabular-nums text-white/35 pointer-events-none select-none">
               ⏱ {countdown}
+            </div>
+          )}
+          {hoverCandle && (
+            <div className="absolute top-1.5 left-1.5 z-10 px-2.5 py-1 rounded-md bg-black/70 text-[11px] font-mono tabular-nums text-white/85 pointer-events-none select-none whitespace-nowrap">
+              {coin}USDT · {RES_LABEL[res]}  O{hoverCandle.o.toFixed(0)}  H{hoverCandle.h.toFixed(0)}  L{hoverCandle.l.toFixed(0)}  C<span className={hoverCandle.c >= hoverCandle.o ? 'text-[#28C840]': 'text-[#FF5F57]'}>{hoverCandle.c.toFixed(0)}</span>
             </div>
           )}
           {(candles.length===0||loading)&&(

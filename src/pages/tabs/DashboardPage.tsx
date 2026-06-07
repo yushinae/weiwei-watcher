@@ -6,7 +6,7 @@ import { AccountSummaryCard } from '../../features/accounts/AccountSummaryCard';
 import {
   DashCard,
   EnvironmentThermometer,
-  TermStructureSkewStrip,
+  VolConeCard,
   GEXKeyLevels,
   EventCalendarStrip,
   StrategyBottom,
@@ -105,8 +105,8 @@ export default function DashboardPage({ coin, setCoin }: Props) {
             </DashCard>
           </motion.div>
           <motion.div variants={rise} className="h-full">
-            <DashCard icon={BarChart3} title="期限结构与偏度" right={<CoinBadge coin={coin} />}>
-              <E name="期限结构"><TermStructureSkewStrip coin={coin} /></E>
+            <DashCard icon={BarChart3} title="波动率锥" right={<CoinBadge coin={coin} />}>
+              <E name="波动率锥"><VolConeCard coin={coin} /></E>
             </DashCard>
           </motion.div>
           <motion.div variants={rise} className="h-full">

@@ -1,7 +1,9 @@
+// 同时同步到后端，清缓存不丢。
 import type { Coin } from '../../features/monitor/types';
 import { DERIBIT_CACHE, HIST_CACHE } from './deribit';
 import { FLOW_CACHE } from './flow';
 import { TICKER_CACHE, type RawOptionTrade } from './ws';
+import { put as apiPut } from '../../api';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Premium flow accumulators
@@ -79,6 +81,7 @@ export function loadWatchlist(): Set<string> {
 
 export function saveWatchlist(): void {
   try { localStorage.setItem('ww_watchlist', JSON.stringify([...WATCHLIST_SET])); } catch { /* ignore */ }
+  apiPut('/api/watchlist', [...WATCHLIST_SET]).catch(() => {});
 }
 
 export const WATCHLIST_SET = loadWatchlist();
@@ -109,6 +112,7 @@ export function loadPositions(): UserPosition[] {
 
 export function savePositions(): void {
   try { localStorage.setItem('ww_positions', JSON.stringify(POS_STORE)); } catch { /* ignore */ }
+  apiPut('/api/positions', POS_STORE).catch(() => {});
 }
 
 export const POS_STORE: UserPosition[] = loadPositions();
@@ -186,6 +190,9 @@ export function saveAlerts(): void {
     );
     localStorage.setItem('ww_alerts', JSON.stringify(toStore));
   } catch { /* ignore */ }
+  apiPut('/api/alerts', ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
+    ({ id, coin, metric, op, threshold, active })
+  )).catch(() => {});
 }
 
 export const ALERTS_STORE: UserAlert[] = loadAlerts();

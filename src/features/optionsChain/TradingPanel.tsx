@@ -17,7 +17,7 @@ import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import {
-  BG_MAIN, BG_HEADER, BG_CARD, BORDER_C, CARD_SHADOW, TABNUM, fmtGamma5, optionSymbol,
+  BG_MAIN, BG_HEADER, BORDER_C, TABNUM, fmtGamma5, optionSymbol,
 } from './chainConstants';
 import FreshnessTag from '../../components/FreshnessTag';
 import { useFreshness } from '../../registry/data/freshness';
@@ -28,11 +28,9 @@ import { preTradeChecks, type CheckLevel } from './preTradeChecks';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BORDER = `1px solid ${BORDER_C}`;
-const POS_GRID = 'grid grid-cols-[minmax(150px,1.6fr)_90px_110px_110px_110px_110px_90px]';
-const POS_MIN_W = 780;
+const POS_GRID = 'grid grid-cols-[minmax(115px,1fr)_55px_75px_70px_70px_70px_55px_55px_55px_55px]';
 
 // Window-frame controls (最大化 / 收起) — top-right of a component card.
-// Only the buttons whose handlers are supplied are rendered (no dead placeholders).
 export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggleCollapse }: {
   maximized?: boolean; onToggleMaximize?: () => void;
   collapsed?: boolean; onToggleCollapse?: () => void;
@@ -59,24 +57,39 @@ export function PositionsPanel({ book, style, className, embedded }: {
   book: ReturnType<typeof useLocalBook>; style?: React.CSSProperties; className?: string; embedded?: boolean;
 }) {
   const [btab, setBtab] = useState<'position' | 'open' | 'history' | 'trades'>('position');
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const { positions, openOrders, orderHistory, fills, cancelOrder } = book;
 
-  // Themed segmented tab buttons.
+  // ── Summary stats for the header ─────────────────────────────────────
+  const totalDelta = useMemo(
+    () => positions.reduce((s, p) => s + p.delta, 0),
+    [positions],
+  );
+  const totalPnL = useMemo(
+    () => positions.reduce((s, p) => s + p.unrealizedPnL, 0),
+    [positions],
+  );
+
+  // Website-style pill tab bar
   const tabBar = (
-    <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-max" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--db-border)' }}>
+    <div className="flex items-center gap-1">
       {([
         { k: 'position' as const, l: '仓位', c: positions.length },
-        { k: 'open' as const, l: '未结订单', c: openOrders.length },
-        { k: 'history' as const, l: '订单历史记录', c: orderHistory.length },
-        { k: 'trades' as const, l: '交易历史记录', c: fills.length },
+        { k: 'open' as const, l: '未结', c: openOrders.length },
+        { k: 'history' as const, l: '历史', c: orderHistory.length },
+        { k: 'trades' as const, l: '成交', c: fills.length },
       ]).map(t => {
         const on = btab === t.k;
         return (
-          <button key={t.k} onClick={() => setBtab(t.k)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors whitespace-nowrap"
-            style={{ background: on ? 'var(--color-surface-5, #2E2E2E)' : 'transparent', color: on ? '#EAECEF' : 'rgba(255,255,255,0.55)' }}>
-            {t.l}<span className="text-[11px]" style={{ color: on ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)' }}>{t.c}</span>
+          <button key={t.k} onClick={() => { setBtab(t.k); setCollapsed(false); }}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors whitespace-nowrap',
+              on
+                ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
+                : 'text-white/40 hover:text-white/55',
+            )}>
+            {t.l}
+            {t.c > 0 && <span className="text-[9px] opacity-60">{t.c}</span>}
           </button>
         );
       })}
@@ -84,66 +97,106 @@ export function PositionsPanel({ book, style, className, embedded }: {
   );
 
   const table = (
-    <div style={{ minWidth: POS_MIN_W }}>
-      <div className={cn(POS_GRID, 'px-3 py-2 text-[11px] border-b sticky top-0')} style={{ borderColor: BORDER_C, color: 'rgba(255,255,255,0.35)', backgroundColor: BG_HEADER }}>
-        <div>产品</div><div className="text-right">数量</div><div className="text-right">值</div><div className="text-right">平均价格</div><div className="text-right">标记价格</div><div className="text-right">损益</div><div className="text-right">Δ</div>
+    <div className="min-w-0 w-full">
+      <div className={cn(POS_GRID, 'px-3 py-1.5 text-[10px] border-b border-white/[0.04]')} style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <div>产品</div><div className="text-right">数量</div><div className="text-right">价值</div><div className="text-right">均价</div><div className="text-right">标记</div><div className="text-right">损益</div><div className="text-right">Δ</div><div className="text-right">Γ</div><div className="text-right">Θ</div><div className="text-right">ν</div>
       </div>
-      {btab === 'position' && positions.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无持仓</div>}
+      {btab === 'position' && positions.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无持仓</div>}
       {btab === 'position' && positions.map(p => (
-        <div key={p.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? 'var(--db-up)' : 'var(--db-down)' }}>{p.symbol}</div>
-          <div className="text-right font-mono">{p.qty.toFixed(2)}</div>
-          <div className="text-right font-mono">{(p.markPrice * p.qty).toFixed(2)}</div>
-          <div className="text-right font-mono">{p.avgEntryPrice.toFixed(2)}</div>
-          <div className="text-right font-mono">{p.markPrice.toFixed(2)}</div>
-          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--db-up)' : 'var(--db-down)' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
-          <div className="text-right font-mono">{p.delta.toFixed(3)}</div>
+        <div key={p.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors')}>
+          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? '#25e889' : '#FF5F57' }}>{p.symbol}</div>
+          <div className="text-right font-mono text-white/80">{p.qty.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{(p.markPrice * p.qty).toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{p.avgEntryPrice.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/80">{p.markPrice.toFixed(2)}</div>
+          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? '#25e889' : '#FF5F57' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{p.delta.toFixed(3)}</div>
+          <div className="text-right font-mono text-white/35">{'—'}</div>
+          <div className="text-right font-mono text-white/35">{'—'}</div>
+          <div className="text-right font-mono text-white/35">{'—'}</div>
         </div>
       ))}
-      {btab === 'open' && openOrders.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无未结订单</div>}
+      {btab === 'open' && openOrders.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无未结订单</div>}
       {btab === 'open' && openOrders.map(o => (
-        <div key={o.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono font-bold truncate">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">{o.type === 'limit' ? '限价' : o.type === 'stop' ? '止损' : '市价'}</div>
-          <div className="text-right font-mono">{o.price.toFixed(2)}</div><div className="text-right font-mono">—</div>
-          <div className="text-right font-mono" style={{ color: o.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
+        <div key={o.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
+          <div className="font-mono font-bold truncate text-white/80">{o.symbol}</div><div className="text-right font-mono text-white/80">{o.qty.toFixed(2)}</div><div className="text-right font-mono text-white/55">{o.type === 'limit' ? '限价' : o.type === 'stop' ? '止损' : '市价'}</div>
+          <div className="text-right font-mono text-white/55">{o.price.toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono" style={{ color: o.side === 'buy' ? '#25e889' : '#FF5F57' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
           <div className="text-right">
-            <button onClick={() => cancelOrder(o.id)} className="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.08]" style={{ color: 'var(--db-down)' }}>取消</button>
+            <button onClick={() => cancelOrder(o.id)} className="text-[10px] font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.06] text-[#FF5F57]/80 hover:text-[#FF5F57] transition-colors">取消</button>
           </div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
         </div>
       ))}
-      {btab === 'history' && orderHistory.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无历史订单</div>}
+      {btab === 'history' && orderHistory.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无历史订单</div>}
       {btab === 'history' && orderHistory.slice(-30).reverse().map(o => (
-        <div key={o.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono font-bold truncate">{o.symbol}</div><div className="text-right font-mono">{o.qty.toFixed(2)}</div><div className="text-right font-mono">—</div>
-          <div className="text-right font-mono">{(o.filledPrice ?? o.price).toFixed(2)}</div><div className="text-right font-mono">—</div>
-          <div className="text-right font-mono" style={{ color: o.status === 'filled' ? 'var(--db-up)' : o.status === 'cancelled' ? '#888888' : 'var(--db-warn)' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
-          <div className="text-right font-mono">{new Date(o.createdAt).toLocaleTimeString()}</div>
+        <div key={o.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
+          <div className="font-mono font-bold truncate text-white/80">{o.symbol}</div><div className="text-right font-mono text-white/80">{o.qty.toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/55">{(o.filledPrice ?? o.price).toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono" style={{ color: o.status === 'filled' ? '#25e889' : o.status === 'cancelled' ? '#888' : '#FEBC2E' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
+          <div className="text-right font-mono text-white/40">{new Date(o.createdAt).toLocaleTimeString()}</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
         </div>
       ))}
-      {btab === 'trades' && fills.length === 0 && <div className="h-[110px] flex items-center justify-center text-[12px]" style={{ color: 'rgba(255,255,255,0.30)' }}>暂无成交记录</div>}
+      {btab === 'trades' && fills.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无成交记录</div>}
       {btab === 'trades' && fills.slice(-30).reverse().map(f => (
-        <div key={f.id} className={cn(POS_GRID, 'px-3 py-2 text-[12px] border-b')} style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono font-bold truncate">{f.symbol}</div><div className="text-right font-mono">{f.qty.toFixed(2)}</div><div className="text-right font-mono">{(f.price * f.qty).toFixed(2)}</div>
-          <div className="text-right font-mono">{f.price.toFixed(2)}</div><div className="text-right font-mono">{f.fee.toFixed(4)}</div>
-          <div className="text-right font-mono" style={{ color: f.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
-          <div className="text-right font-mono">{new Date(f.timestamp).toLocaleTimeString()}</div>
+        <div key={f.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
+          <div className="font-mono font-bold truncate text-white/80">{f.symbol}</div><div className="text-right font-mono text-white/80">{f.qty.toFixed(2)}</div><div className="text-right font-mono text-white/55">{(f.price * f.qty).toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{f.price.toFixed(2)}</div><div className="text-right font-mono text-white/40">{f.fee.toFixed(4)}</div>
+          <div className="text-right font-mono" style={{ color: f.side === 'buy' ? '#25e889' : '#FF5F57' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
+          <div className="text-right font-mono text-white/40">{new Date(f.timestamp).toLocaleTimeString()}</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div>
         </div>
       ))}
     </div>
   );
 
+  const hasData = positions.length > 0 || openOrders.length > 0 || orderHistory.length > 0 || fills.length > 0;
+
   if (embedded) {
-    // Page card — own horizontal scroll, grows vertically (page scrolls).
     return (
-      <div className={cn('rounded-xl border overflow-hidden shrink-0', className)} style={{ borderColor: BORDER_C, backgroundColor: BG_CARD, boxShadow: CARD_SHADOW, ...style }}>
-        <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: BORDER_C }}>
+      <div className={cn('rounded-xl border overflow-hidden shrink-0 flex flex-col', className)}
+        style={{
+          borderColor: 'rgba(255,255,255,0.06)',
+          background: 'rgba(255,255,255,0.012)',
+          boxShadow: '0 2px 8px -2px rgba(0,0,0,0.35)',
+          height: 320,
+          ...style,
+        }}>
+        {/* Header bar */}
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.04] shrink-0">
           {tabBar}
-          <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-full border" title="模拟持仓 / 订单，刷新后清空"
-            style={{ borderColor: 'rgba(254,188,46,0.40)', background: 'rgba(254,188,46,0.12)', color: 'var(--db-warn)' }}>模拟</span>
+          <span className="text-[9px] font-bold px-1.5 py-[2px] rounded-full border border-[#FEBC2E]/30 text-[#FEBC2E]/80 bg-[#FEBC2E]/8">模拟</span>
+
+          {/* Inline summary stats when collapsed */}
+          {collapsed && hasData && positions.length > 0 && (
+            <div className="flex items-center gap-3 ml-2">
+              <span className="text-[10px] text-white/35">{positions.length} 仓位</span>
+              <span className="text-[10px] text-white/35">Δ <span className={cn('font-mono font-bold', totalDelta >= 0 ? 'text-[#25e889]' : 'text-[#FF5F57]')}>{totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(3)}</span></span>
+              <span className="text-[10px] text-white/35">PnL <span className={cn('font-mono font-bold', totalPnL >= 0 ? 'text-[#25e889]' : 'text-[#FF5F57]')}>{totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)}</span></span>
+            </div>
+          )}
+
           <div className="flex-1" />
-          <FrameControls collapsed={collapsed} onToggleCollapse={() => setCollapsed(c => !c)} />
+          <button onClick={() => setCollapsed(c => !c)} className="text-white/30 hover:text-white/50 transition-colors">
+            <ChevronsUpDown size={13} />
+          </button>
         </div>
-        {!collapsed && <div className="overflow-x-auto">{table}</div>}
+
+        {/* Body */}
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+          {collapsed ? (
+            <div className="flex items-center justify-center h-full text-[11px] text-white/15">点击标签查看详情</div>
+          ) : (
+            table
+          )}
+        </div>
       </div>
     );
   }

@@ -60,7 +60,7 @@ class BybitPrivateWS extends BaseWS<WsStatus | 'auth'> {
   protected handleOpen(): void { void this.authenticate(); }
 
   private async authenticate(): Promise<void> {
-    const creds = getCredentials();
+    const creds = await getCredentials();
     if (!creds || !this.ws) return;
     const expires = (Date.now() + AUTH_EXPIRES_MS).toString();
     const sig = await hmacSha256Hex(creds.secret, `GET/realtime${expires}`);

@@ -1,14 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Bybit V5 signed REST client.
+// Bybit V5 REST client.
 //
-// Signature spec (V5):
-//   payload   = timestamp + apiKey + recvWindow + (queryString | bodyString)
-//   signature = HMAC_SHA256(apiSecret, payload), hex-encoded
-//
-// Headers:
-//   X-BAPI-API-KEY, X-BAPI-TIMESTAMP, X-BAPI-RECV-WINDOW, X-BAPI-SIGN
-//
-// All requests go through the /bybit-api Vite proxy so we don't hit CORS.
+// 现在所有签名请求走后端代理（/api/proxy/bybit），Key 不出浏览器。
+// 后端没跑时仍回退到本地签名（从 .env / localStorage 读 Key）。
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { getCredentials } from './auth';
@@ -35,8 +29,35 @@ function paramsToQuery(params: Record<string, string | number | undefined>): str
   return entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
 }
 
+/**
+ * 优先走后端代理（安全），后端不可用时回退到本地签名（env/localStorage）。
+ */
 export async function bybitGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  const creds = getCredentials();
+  // 尝试后端代理
+  try {
+    const resp = await fetch('/api/proxy/bybit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, params }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ retMsg: 'HTTP ' + resp.status }));
+      if (err.retCode === 10001) throw new BybitAuthError();
+      throw new BybitApiError(err.retCode ?? -1, err.retMsg ?? `HTTP ${resp.status}`);
+    }
+    const json = await resp.json();
+    if (json.retCode !== 0) throw new BybitApiError(json.retCode, json.retMsg ?? 'unknown error');
+    return json.result as T;
+  } catch (e) {
+    // 网络错误（后端没跑）→ 回退本地签名
+    if (e instanceof BybitAuthError || e instanceof BybitApiError) throw e;
+    return fallbackBybitGet<T>(path, params);
+  }
+}
+
+/** 本地签名版（后端不可用时的退路） */
+async function fallbackBybitGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+  const creds = await getCredentials();
   if (!creds) throw new BybitAuthError();
 
   const queryString = paramsToQuery(params);
@@ -62,6 +83,7 @@ export async function bybitGet<T>(path: string, params: Record<string, string | 
 
 // ── Server time check — useful to detect clock skew ──────────────────────────
 export async function getBybitServerTime(): Promise<number> {
+  // 不需要签名的公开接口
   const resp = await fetch(`${BASE}/v5/market/time`);
   const json = await resp.json();
   return Number(json.result?.timeSecond ?? 0) * 1000;
@@ -94,7 +116,6 @@ interface BybitListResult<T> {
 }
 
 export async function fetchBybitOptionPositions(baseCoin?: 'BTC' | 'ETH' | 'SOL'): Promise<BybitOptionPosition[]> {
-  // category=option requires baseCoin (Bybit V5). Pull each requested coin, merge.
   const coins = baseCoin ? [baseCoin] : (['BTC', 'ETH', 'SOL'] as const);
   const out: BybitOptionPosition[] = [];
   for (const c of coins) {
@@ -104,12 +125,9 @@ export async function fetchBybitOptionPositions(baseCoin?: 'BTC' | 'ETH' | 'SOL'
         baseCoin: c,
         limit: 200,
       });
-      // Filter out zero-size positions (Bybit returns historical entries with size=0)
       out.push(...result.list.filter(p => parseFloat(p.size) !== 0));
     } catch (e) {
-      // One coin failing shouldn't kill the whole fetch
       if (e instanceof BybitAuthError) throw e;
-      // swallow other per-coin errors (e.g. user has no SOL options)
     }
   }
   return out;

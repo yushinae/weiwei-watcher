@@ -1,8 +1,8 @@
 // 本地持久成交库 —— 每次同步把新成交合并进来（按 venue:id 去重），只增不减。
-// 这就是"本地存一份"的实现：关掉重开都在；交易所端永远是源头，这里是加速 + 多所合并的缓存。
-// 容量：localStorage 约 5MB，按每笔 ~150B 估可存 3 万+笔，个人自用足够；将来量大可平滑换 IndexedDB。
-
+// 同时同步到后端，清缓存不丢。
+// 容量：localStorage 约 5MB，后端无此限制。
 import type { UnifiedFill, Venue } from './types';
+import { put as apiPut } from '../../api';
 
 const FILLS_KEY = 'weiwei.fills.v1';
 const SYNC_KEY = 'weiwei.fills.sync.v1';
@@ -32,6 +32,8 @@ export function mergeFills(fills: UnifiedFill[]): number {
     m[key] = f;
   }
   save(FILLS_KEY, m);
+  // 同步新增到后端
+  if (added > 0) apiPut('/api/fills/merge', fills).catch(() => {});
   return added;
 }
 

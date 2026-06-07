@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { EChart } from '../components/echart/EChart';
+import React, { useMemo } from 'react';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Tile } from '../components/card/Tile';
 import type { Coin } from '../features/monitor/types';
-import { useDeribitOptions, useDeribitHistory, useFlowData } from './monitorWidgetsBase';
+import { useDeribitOptions, useDeribitHistory, useFlowData, VolConeChart } from './monitorWidgetsBase';
 import { classifyRegime } from './monitorWidgetsBase';
-import { POS_STORE, type LivePosition, buildLiveFromCache, POS_TICKER_CACHE, DERIBIT_WS, WS_FLUSH_MS, _shouldSkip } from './monitorWidgetsBase';
 import { getUpcomingEvents, formatEventTime, type EcoEvent } from './data/economicCalendar';
 import type { TickerSnapshot } from './data/ws';
 
@@ -115,72 +113,55 @@ export const EnvironmentThermometer = ({ coin, ticker }: { coin: Coin; ticker: T
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. TermStructureSkewStrip — ECharts bar chart + skew
+// 2. VolConeCard — historical RV boxplot cone + current ATM IV line
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const TermStructureSkewStrip = ({ coin }: { coin: Coin }) => {
-  const { data: opt } = useDeribitOptions(coin);
-  const expiries = opt?.expiries ?? [];
+const CONE_TENORS = [7, 14, 30, 60, 90, 180];
 
-  const { chartOption, summary } = useMemo(() => {
-    if (!expiries.length) return { chartOption: null, summary: null };
-    
+export const VolConeCard = ({ coin }: { coin: Coin }) => {
+  const { data: opt } = useDeribitOptions(coin);
+  const { data: hist } = useDeribitHistory(coin);
+
+  const cone = hist?.volCone;
+  const currIVs = useMemo(() => {
+    if (!opt?.expiries.length) return CONE_TENORS.map(() => 0);
+    return CONE_TENORS.map(t => {
+      const closest = opt.expiries.reduce((best, e) =>
+        Math.abs(e.daysToExp - t) < Math.abs(best.daysToExp - t) ? e : best
+      );
+      return closest.atmIV;
+    });
+  }, [opt]);
+  const labels = CONE_TENORS.map(t => `${t}D`);
+
+  // Term structure summary (skew + slope)
+  const summary = useMemo(() => {
+    const expiries = opt?.expiries ?? [];
+    if (!expiries.length) return null;
     const bars = expiries
       .filter(e => e.daysToExp >= 1 && e.daysToExp <= 180)
-      .slice(0, 6)
-      .map(e => ({ label: e.label, atmIV: +e.atmIV.toFixed(1), rr25: +e.rr25.toFixed(2) }));
-
-    if (!bars.length) return { chartOption: null, summary: null };
-
+      .slice(0, 6);
+    if (!bars.length) return null;
     const exp30 = expiries.find(e => Math.abs(e.daysToExp - 30) < 5) ?? bars[0];
     const slope = bars[bars.length - 1].atmIV - bars[0].atmIV;
-    const minIv = Math.min(...bars.map(t => t.atmIV)) - 3;
-    const maxIv = Math.max(...bars.map(t => t.atmIV)) + 3;
-
     return {
-      chartOption: {
-        animation: true,
-        animationDuration: 650,
-        animationEasing: 'cubicOut' as const,
-        grid: { left: 32, right: 36, top: 8, bottom: 28 },
-        xAxis: {
-          type: 'category', data: bars.map(t => t.label),
-          axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-          axisLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9 },
-          axisTick: { show: false },
-        },
-        yAxis: [
-          { type: 'value', min: minIv, max: maxIv, axisLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 9, formatter: (v: number) => `${v.toFixed(0)}%` }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } },
-          { type: 'value', scale: true, axisLabel: { show: false }, splitLine: { show: false } },
-        ],
-        series: [
-          { name: 'ATM IV', type: 'bar', yAxisIndex: 0, data: bars.map(t => t.atmIV), barWidth: '40%', itemStyle: { borderRadius: [3, 3, 0, 0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(37,232,137,0.5)' }, { offset: 1, color: 'rgba(37,232,137,0.1)' }] } }, label: { show: true, position: 'top', fontSize: 9, color: '#25e889', formatter: (p: { value: number }) => p.value.toFixed(0) } },
-          { name: 'RR25', type: 'line', yAxisIndex: 1, smooth: 0.3, showSymbol: true, symbol: 'circle', symbolSize: 6, data: bars.map(t => t.rr25), lineStyle: { color: '#FEBC2E', width: 1.5 }, itemStyle: { color: '#FEBC2E' }, label: { show: true, position: 'bottom', fontSize: 8, color: '#FEBC2E', formatter: (p: { value: number }) => `${p.value >= 0 ? '+' : ''}${p.value.toFixed(1)}` } },
-        ],
-        legend: {
-          data: [{ name: 'ATM IV', icon: 'roundRect', itemStyle: { color: '#25e889' } }, { name: 'RR25', icon: 'line', itemStyle: { color: '#FEBC2E' } }],
-          textStyle: { color: 'rgba(255,255,255,0.4)', fontSize: 9 }, right: 8, top: 0,
-        },
-        tooltip: { trigger: 'axis' as const },
-      },
-      summary: {
-        slope, exp30, morph: slope >= 2 ? '正向 ✅' : slope <= -2 ? '倒挂 ⚠️' : '平坦',
-        morphColor: slope >= 2 ? 'var(--color-trade-up)' : slope <= -2 ? 'var(--color-trade-down)' : 'var(--color-sev-mid)',
-        putSkew: exp30.rr25 < 0 ? `${exp30.rr25.toFixed(1)}%` : '—',
-        callSkew: exp30.rr25 > 0 ? `+${exp30.rr25.toFixed(1)}%` : '—',
-      },
+      slope,
+      morph: slope >= 2 ? '正向 ✅' : slope <= -2 ? '倒挂 ⚠️' : '平坦',
+      morphColor: slope >= 2 ? 'var(--color-trade-up)' : slope <= -2 ? 'var(--color-trade-down)' : 'var(--color-sev-mid)',
+      putSkew: exp30.rr25 < 0 ? `${exp30.rr25.toFixed(1)}%` : '—',
+      callSkew: exp30.rr25 > 0 ? `+${exp30.rr25.toFixed(1)}%` : '—',
     };
-  }, [expiries]);
+  }, [opt]);
 
-  if (!chartOption) return <div className="text-[11px] text-white/45 flex items-center justify-center h-full">加载中…</div>;
+  if (!cone) return <div className="text-[11px] text-white/45 flex items-center justify-center h-full">加载中…</div>;
 
   return (
-    <div className="flex flex-col w-full h-full">
+    <div className="flex flex-col w-full h-full gap-1.5">
       <div className="flex-1 min-h-0">
-        <EChart option={chartOption} />
+        <VolConeChart cone={cone} currIVs={currIVs} tenorLabels={labels} />
       </div>
       {summary && (
-        <Tile className="flex items-center gap-3 mt-1 py-2 px-2 text-[11px]">
+        <Tile className="flex items-center gap-3 py-1.5 px-2 text-[11px]">
           <span>形态 <span className="font-semibold" style={{ color: summary.morphColor }}>{summary.morph}</span></span>
           <span>Put 25Δ <span className="font-semibold tabular-nums text-trade-down">{summary.putSkew}</span></span>
           <span>Call 25Δ <span className="font-semibold tabular-nums text-trade-up">{summary.callSkew}</span></span>
@@ -219,12 +200,21 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
     const totalPutOi  = allOptions.filter(o => o.type === 'P').reduce((s, o) => s + o.oi, 0);
     const gexTilt = totalPutOi > totalCallOi * 1.15 ? 'bearish' : totalCallOi > totalPutOi * 1.15 ? 'bullish' : 'neutral';
     const gexUsd = totalPutOi > totalCallOi ? `-$${((totalPutOi - totalCallOi) * spot / 1e6).toFixed(0)}M` : `+$${((totalCallOi - totalPutOi) * spot / 1e6).toFixed(0)}M`;
-    return { callWall, putWall, maxPain, gexTilt, gexUsd };
+
+    // OI-based support/resistance zones from top 3 call/put OI strikes
+    const topCalls = [...oiMap.entries()].filter(([k]) => k >= spot).sort((a, b) => b[1].callOi - a[1].callOi).slice(0, 3);
+    const topPuts  = [...oiMap.entries()].filter(([k]) => k <= spot).sort((a, b) => b[1].putOi - a[1].putOi).slice(0, 3);
+    const resistStrikes = topCalls.filter(([,v]) => v.callOi > 0).map(([k]) => k);
+    const supportStrikes = topPuts.filter(([,v]) => v.putOi > 0).map(([k]) => k);
+    const resistL = resistStrikes.length >= 2 ? Math.min(...resistStrikes) : spot;
+    const resistH = resistStrikes.length >= 2 ? Math.max(...resistStrikes) : spot;
+    const supportL = supportStrikes.length >= 2 ? Math.min(...supportStrikes) : spot;
+    const supportH = supportStrikes.length >= 2 ? Math.max(...supportStrikes) : spot;
+
+    return { callWall, putWall, maxPain, gexTilt, gexUsd, resistL, resistH, supportL, supportH };
   }, [opt, spot]);
 
   const fmtPx = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const supportL = spot * 0.95, supportH = spot * 0.98;
-  const resistL  = spot * 1.02, resistH  = spot * 1.05;
 
   return (
     <div className="flex flex-col w-full h-full gap-2">
@@ -259,11 +249,19 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
       <div className="flex gap-1.5">
         <Tile className="flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">支撑区</span>
-          <span className="text-[13px] font-bold tabular-nums text-trade-down">{fmtPx(supportL)} – {fmtPx(supportH)}</span>
+          <span className="text-[13px] font-bold tabular-nums text-trade-down">
+            {levels ? `${fmtPx(levels.supportL)} – ${fmtPx(levels.supportH)}` : (
+              <span className="text-white/40">—</span>
+            )}
+          </span>
         </Tile>
         <Tile className="flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">阻力区</span>
-          <span className="text-[13px] font-bold tabular-nums text-trade-up">{fmtPx(resistL)} – {fmtPx(resistH)}</span>
+          <span className="text-[13px] font-bold tabular-nums text-trade-up">
+            {levels ? `${fmtPx(levels.resistL)} – ${fmtPx(levels.resistH)}` : (
+              <span className="text-white/40">—</span>
+            )}
+          </span>
         </Tile>
       </div>
 
@@ -345,70 +343,7 @@ export const EventCalendarStrip = React.memo(() => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 5. PositionsSummaryMini
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export const PositionsSummaryMini = React.memo((_props: { coin: Coin }) => {
-  const [live, setLive] = useState<LivePosition[]>([]);
-  const dirtyRef = React.useRef(false);
-  const flushRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    dirtyRef.current = false;
-    if (flushRef.current) { clearTimeout(flushRef.current); flushRef.current = null; }
-    let alive = true;
-    const snap = [...POS_STORE];
-    if (snap.length === 0) { setLive([]); return; }
-    setLive(buildLiveFromCache(snap));
-    const instruments = Array.from(new Set(snap.map(p => p.instrument)));
-    const unsubs = instruments.map(inst =>
-      DERIBIT_WS.subscribe<any>(`ticker.${inst}.100ms`, (d) => {
-        POS_TICKER_CACHE.set(inst, d);
-        dirtyRef.current = true;
-        if (!flushRef.current) {
-          flushRef.current = setTimeout(() => {
-            flushRef.current = null;
-            if (alive && dirtyRef.current && !_shouldSkip()) {
-              dirtyRef.current = false;
-              setLive(buildLiveFromCache(POS_STORE));
-            }
-          }, WS_FLUSH_MS);
-        }
-      })
-    );
-    return () => { alive = false; if (flushRef.current) { clearTimeout(flushRef.current); flushRef.current = null; } unsubs.forEach(u => u()); };
-  }, []);
-
-  if (live.length === 0) return <div className="text-[11px] text-white/45 text-center py-2">暂无持仓</div>;
-
-  return (
-    <div className="flex gap-3 overflow-x-auto">
-      {live.slice(0, 6).map(p => {
-        const parts = p.instrument.split('-');
-        const strike = parts[2] ? Number(parts[2]) : 0;
-        const optType = parts[3] || '';
-        const deltaColor = p.delta > 0 ? 'var(--color-trade-up)' : p.delta < 0 ? 'var(--color-trade-down)' : 'var(--color-text-muted)';
-        const pnlColor = p.dollarDelta >= 0 ? 'var(--color-trade-up)' : 'var(--color-trade-down)';
-        return (
-          <Tile key={p.id} className="flex-1 min-w-[150px] p-2.5 flex flex-col shrink-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-semibold text-white/50 truncate max-w-[100px]">{strike >= 100 ? `${(strike / 1000).toFixed(0)}K` : strike}{optType}</span>
-              <span className="text-[10px] font-mono font-bold" style={{ color: pnlColor }}>{p.dollarDelta >= 0 ? '+' : ''}${Math.abs(p.dollarDelta) >= 1000 ? (Math.abs(p.dollarDelta) / 1000).toFixed(1) + 'K' : Math.abs(p.dollarDelta).toFixed(0)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: deltaColor }} />
-              <span className="text-[8px] text-white/45">Δ {p.delta >= 0 ? '+' : ''}{p.delta.toFixed(2)}</span>
-              <span className="text-[8px] text-white/40 ml-auto">×{p.qty}</span>
-            </div>
-          </Tile>
-        );
-      })}
-    </div>
-  );
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 6. StrategyBottom — dual-column recommendation
+// 5. StrategyBottom — dual-column recommendation
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const StrategyBottom = ({ coin }: { coin: Coin }) => {

@@ -13,6 +13,7 @@ import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown } from 'luc
 import { cn } from '../../lib/utils';
 import type { Coin, DataSource } from './chainModel';
 import { useLocalBook, fillAgainstBook, type DepthBook, type DepthLevel } from './simBook';
+import type { GlobalOptionBook } from './optionBookStore';
 import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
@@ -54,7 +55,7 @@ export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggle
 }
 
 export function PositionsPanel({ book, style, className, embedded }: {
-  book: ReturnType<typeof useLocalBook>; style?: React.CSSProperties; className?: string; embedded?: boolean;
+  book: ReturnType<typeof useLocalBook> | GlobalOptionBook; style?: React.CSSProperties; className?: string; embedded?: boolean;
 }) {
   const [btab, setBtab] = useState<'position' | 'open' | 'history' | 'trades'>('position');
   const [collapsed, setCollapsed] = useState(true);
@@ -251,7 +252,7 @@ const SANITY: Record<CheckLevel, { color: string; text: string }> = {
 
 export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose, chainFeedKey }: {
   selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number;
-  book: ReturnType<typeof useLocalBook>; onClose: () => void; chainFeedKey: string;
+  book: ReturnType<typeof useLocalBook> | GlobalOptionBook; onClose: () => void; chainFeedKey: string;
 }) => {
   const { row, side } = selected;
   const opt = side === 'call' ? row.call : row.put;
@@ -270,6 +271,8 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
 
   const { placeOrder } = book;
+  const currentPosition = useMemo(() => book.positions.find(p => p.symbol === symbol), [book.positions, symbol]);
+  const currentSignedQty = currentPosition ? (currentPosition.side === 'long' ? currentPosition.qty : -currentPosition.qty) : 0;
 
   // ── 真实订单簿深度（只订当前合约，关面板即退订）──────────────────────────────
   const rawDepth = useOptionDepth(source, opt.instrument);
@@ -465,7 +468,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
             </div>
 
             <div className="mt-3 inline-flex items-center gap-2">
-              <span className="text-[12px] font-extrabold px-2 py-1 rounded-[8px]" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)', border: '1px solid var(--db-accent-soft)' }}>仓位 0.00</span>
+              <span className="text-[12px] font-extrabold px-2 py-1 rounded-[8px]" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)', border: '1px solid var(--db-accent-soft)' }}>仓位 {currentSignedQty >= 0 ? '+' : ''}{currentSignedQty.toFixed(2)}</span>
             </div>
 
             {/* ── 下单前 sanity 灯 —— 护栏的终点：护到你手指按下去那刻 ── */}

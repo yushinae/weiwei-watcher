@@ -4,6 +4,8 @@ import { motion } from 'motion/react';
 import { Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { BybitSettingsPanel } from './BybitSettingsPanel';
+import { useGlobalOptionBook } from '../optionsChain/optionBookStore';
+import type { SimPosition } from '../optionsChain/simBook';
 import { isEnvConfigured } from './auth';
 import { useBybitAuthState, useBybitPositions } from './usePositions';
 import type { BybitOptionPosition } from './rest';
@@ -67,7 +69,8 @@ export default function BybitPositionsView() {
   const unlocked = useBybitAuthState();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [demo, setDemo] = useState(false);
-  const [tab, setTab] = useState<'positions' | 'history'>('positions');
+  const [tab, setTab] = useState<'positions' | 'history' | 'sim-options'>('positions');
+  const optionBook = useGlobalOptionBook();
   const { positions: livePositions, loading, error, fetchedAt, refresh } = useBybitPositions();
 
   const positions = demo ? DEMO_POSITIONS : livePositions;
@@ -114,7 +117,7 @@ export default function BybitPositionsView() {
         <span className="text-[14px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
         {/* Tab 切换 pill */}
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07] mr-3">
-          {([['positions', '当前持仓'], ['history', '历史记录']] as const).map(([key, label]) => (
+          {([['positions', '当前持仓'], ['history', '历史记录'], ['sim-options', `模拟期权${optionBook.positions.length ? ` ${optionBook.positions.length}` : ''}`]] as const).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -220,6 +223,7 @@ export default function BybitPositionsView() {
           )}
 
           {tab === 'history' && <TradeHistoryView />}
+          {tab === 'sim-options' && <SimOptionsPositionsView book={optionBook} />}
         </div>
       </div>
     </div>
@@ -256,6 +260,101 @@ function TotalsBar({ totals, count }: { totals: { unrealized: number; delta: num
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+function SimOptionsPositionsView({ book }: { book: ReturnType<typeof useGlobalOptionBook> }) {
+  const totalPnL = useMemo(() => book.positions.reduce((s, p) => s + p.unrealizedPnL, 0), [book.positions]);
+  const totalDelta = useMemo(() => book.positions.reduce((s, p) => s + p.delta, 0), [book.positions]);
+
+  if (book.positions.length === 0) {
+    return (
+      <div className="widget-card p-8 text-center">
+        <div className="text-[13px] text-white/50 mb-2">暂无模拟期权仓位</div>
+        <div className="text-[11px] text-white/55">从顶部「期权」选择到期日，进入期权链下单后会出现在这里</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="widget-card p-4">
+        <div className="flex items-center gap-x-10 gap-y-3 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">模拟仓位</span>
+            <span className="text-[16px] font-mono font-bold tnum text-white/90">{book.positions.length}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">未实现 PnL</span>
+            <span className={cn('text-[16px] font-mono font-bold tnum', totalPnL >= 0 ? 'text-trade-up' : 'text-trade-down')}>
+              {totalPnL >= 0 ? '+' : '-'}{Math.abs(totalPnL).toFixed(2)}$
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">净 Δ</span>
+            <span className="text-[16px] font-mono font-bold tnum text-white/90">{totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(3)}</span>
+          </div>
+          <div className="ml-auto text-[11px] text-white/40">模拟账本 · 不会真实下单</div>
+        </div>
+      </div>
+
+      <div className="widget-card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="text-left text-[11px] text-white/55 uppercase tracking-wider border-b border-white/[0.08]">
+                <Th>合约</Th>
+                <Th align="right">方向</Th>
+                <Th align="right">数量</Th>
+                <Th align="right">名义价值</Th>
+                <Th align="right">均价</Th>
+                <Th align="right">标记</Th>
+                <Th align="right">未实现 PnL</Th>
+                <Th align="right">Δ</Th>
+                <Th align="right">操作</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {book.positions.map(p => (
+                <React.Fragment key={p.id}>
+                  <SimPositionRow position={p} onClose={() => book.closePosition(p)} />
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SimPositionRow({ position, onClose }: { position: SimPosition; onClose: () => void }) {
+  const parsed = parseSymbol(position.symbol);
+  const signedQty = position.side === 'long' ? position.qty : -position.qty;
+  return (
+    <tr className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+      <Td>
+        <div className="flex flex-col leading-tight">
+          <span className="text-white/90 font-mono">{position.symbol}</span>
+          {parsed && <span className="text-[10px] text-white/55">{parsed.coin} {parsed.type === 'C' ? 'Call' : 'Put'} · {parsed.expiry}</span>}
+        </div>
+      </Td>
+      <Td align="right"><span className={position.side === 'long' ? 'text-trade-up' : 'text-trade-down'}>{position.side === 'long' ? '做多' : '做空'}</span></Td>
+      <Td align="right" mono>{signedQty >= 0 ? '+' : ''}{signedQty.toFixed(2)}</Td>
+      <Td align="right" mono>{(position.markPrice * position.qty).toFixed(2)}</Td>
+      <Td align="right" mono>{position.avgEntryPrice.toFixed(2)}</Td>
+      <Td align="right" mono>{position.markPrice.toFixed(2)}</Td>
+      <Td align="right" mono className={position.unrealizedPnL >= 0 ? 'text-trade-up' : 'text-trade-down'}>
+        {position.unrealizedPnL >= 0 ? '+' : '-'}{Math.abs(position.unrealizedPnL).toFixed(2)}$
+      </Td>
+      <Td align="right" mono>{position.delta >= 0 ? '+' : ''}{position.delta.toFixed(3)}</Td>
+      <Td align="right">
+        <button
+          onClick={onClose}
+          className="h-7 px-3 rounded-lg border border-[var(--color-trade-down)]/35 bg-[var(--color-trade-down)]/10 text-[11px] font-semibold text-[var(--color-trade-down)] hover:bg-[var(--color-trade-down)]/18 transition-colors"
+        >平仓</button>
+      </Td>
+    </tr>
+  );
+}
 
 function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
   // Group by expiry then by coin for readability

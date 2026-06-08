@@ -17,13 +17,13 @@ import { useLiveSpot, useChainStream } from './liveData';
 import { useDeribitOptions } from '../../registry/data/deribit';
 import { buildBybitExpiry, buildDeribitExpiry, dteLabel } from './chainModel';
 import type { ChainExpiry, ChainRow } from './chainModel';
-import { ocStore, coinOf, sourceOf, underlyingFor, UNDERLYING_GROUPS } from './store';
+import { ocStore, useOCStore, coinOf, sourceOf, underlyingFor, UNDERLYING_GROUPS } from './store';
 import {
   SIDE_COLS, STRIKE_W, ROW_H, BG_MAIN, BG_HEADER, BG_CARD, BORDER_C, CARD_SHADOW, optionSymbol,
 } from './chainConstants';
 import { Popover, ChainRowComp, ColHeaderRow, SectionRow } from './chainCells';
 import type { SelectedCell } from './chainCells';
-import { useLocalBook } from './simBook';
+import { useGlobalOptionBook } from './optionBookStore';
 import { FrameControls, PositionsPanel, TradingPanel } from './TradingPanel';
 import './options-chain.css';
 
@@ -57,6 +57,8 @@ export default function OptionsChainView() {
   const source = sourceOf(activeUnderlying);
 
   const tabState = tabStates[activeUnderlying] ?? DEFAULT_TAB_STATE;
+  const navUnderlying = useOCStore(s => s.underlying);
+  const navExpiryIdx = useOCStore(s => s.expiryIdx);
 
   const setTabState = useCallback((patch: Partial<typeof tabState>) => {
     setTabStates(prev => ({
@@ -67,6 +69,29 @@ export default function OptionsChainView() {
 
   // Sync the shared store so the global nav "期权" hover stays in sync.
   useEffect(() => { ocStore.setUnderlying(activeUnderlying); }, [activeUnderlying]);
+
+  // When the top-nav picker chooses an underlying/expiry before entering this page,
+  // materialize that selection as a real tab + per-tab expiry here.
+  useEffect(() => {
+    if (!navUnderlying) return;
+    setTabs(prev => {
+      const existingIdx = prev.indexOf(navUnderlying);
+      if (existingIdx >= 0) {
+        setActiveTabIdx(existingIdx);
+        return prev;
+      }
+      setActiveTabIdx(prev.length);
+      return [...prev, navUnderlying];
+    });
+    setTabStates(prev => ({
+      ...prev,
+      [navUnderlying]: {
+        ...(prev[navUnderlying] ?? DEFAULT_TAB_STATE),
+        expiryIdx: navExpiryIdx,
+      },
+    }));
+    setSelectedCell(null);
+  }, [navUnderlying, navExpiryIdx]);
 
   const addTab = useCallback((u: string) => {
     setTabs(prev => {
@@ -104,7 +129,7 @@ export default function OptionsChainView() {
   const deribit = useDeribitOptions(coin);
   const error = source === 'bybit' ? bybit.error : null;
 
-  const book = useLocalBook();
+  const book = useGlobalOptionBook();
 
   const expiries: ChainExpiry[] = useMemo(() => {
     if (source === 'bybit') {

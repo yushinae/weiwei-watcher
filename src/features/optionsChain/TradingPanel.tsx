@@ -105,16 +105,16 @@ export function PositionsPanel({ book, style, className, embedded }: {
       {btab === 'position' && positions.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无持仓</div>}
       {btab === 'position' && positions.map(p => (
         <div key={p.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors')}>
-          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? '#25e889' : '#FF5F57' }}>{p.symbol}</div>
+          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{p.symbol}</div>
           <div className="text-right font-mono text-white/80">{p.qty.toFixed(2)}</div>
           <div className="text-right font-mono text-white/55">{(p.markPrice * p.qty).toFixed(2)}</div>
           <div className="text-right font-mono text-white/55">{p.avgEntryPrice.toFixed(2)}</div>
           <div className="text-right font-mono text-white/80">{p.markPrice.toFixed(2)}</div>
-          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? '#25e889' : '#FF5F57' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
+          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
           <div className="text-right font-mono text-white/55">{p.delta.toFixed(3)}</div>
-          <div className="text-right font-mono text-white/35">{'—'}</div>
-          <div className="text-right font-mono text-white/35">{'—'}</div>
-          <div className="text-right font-mono text-white/35">{'—'}</div>
+          <div className="text-right font-mono text-white/55">{p.gamma.toFixed(4)}</div>
+          <div className="text-right font-mono text-white/55">{p.theta.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{p.vega.toFixed(2)}</div>
         </div>
       ))}
       {btab === 'open' && openOrders.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无未结订单</div>}
@@ -325,6 +325,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     placeOrder({
       side: s, type: orderType, symbol, qty: nQty,
       price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
+      gamma: opt.gamma, theta: opt.theta, vega: opt.vega,
       book: usdBook ?? undefined,
     });
   };

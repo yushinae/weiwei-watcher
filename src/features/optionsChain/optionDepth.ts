@@ -13,13 +13,15 @@
 
 import { useEffect, useState } from 'react';
 import { DERIBIT_WS } from '../../registry/data/ws';
-import { markOk } from '../../registry/data/freshness';
+import { markError, markOk } from '../../registry/data/freshness';
 import type { DataSource } from './chainModel';
 import type { DepthLevel } from './simBook';
+import { fetchWithRetry } from '../../lib/fetchRetry';
 
 export interface OptionDepth { bids: DepthLevel[]; asks: DepthLevel[]; ts: number }
 
 const FLUSH_MS = 250; // 4Hz，够盘口跳动又不烧 CPU
+const BYBIT_POLL_MS = 2_000;
 
 export const depthFeedKey = (instrument: string) => `depth-${instrument}`;
 
@@ -43,8 +45,42 @@ export function useOptionDepth(source: DataSource, instrument: string | undefine
     setDepth(null);
     if (!instrument) return;
 
-    // Bybit：真深度待接（REST 轮询）。先返回 null —— 面板显示「等待真实盘口」，绝不编假数据。
-    if (source === 'bybit') return;
+    if (source === 'bybit') {
+      const feedKey = depthFeedKey(instrument);
+      let alive = true;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const controller = new AbortController();
+
+      const poll = async () => {
+        try {
+          const resp = await fetchWithRetry(
+            `/bybit-api/v5/market/orderbook?category=option&symbol=${encodeURIComponent(instrument)}&limit=25`,
+            { signal: controller.signal, retries: 2, timeoutMs: 8_000 },
+          );
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const json = await resp.json();
+          if (json.retCode !== 0) throw new Error(`Bybit ${json.retCode}: ${json.retMsg ?? 'orderbook error'}`);
+          const result = json.result ?? {};
+          const bids = parseLevels(result.b).sort((a, b) => b.price - a.price);
+          const asks = parseLevels(result.a).sort((a, b) => a.price - b.price);
+          if (!alive) return;
+          setDepth({ bids, asks, ts: Number(result.ts) || Date.now() });
+          markOk(feedKey, BYBIT_POLL_MS * 2);
+        } catch (e) {
+          if (!alive || controller.signal.aborted) return;
+          markError(feedKey, e);
+        } finally {
+          if (alive) timer = setTimeout(poll, BYBIT_POLL_MS);
+        }
+      };
+
+      void poll();
+      return () => {
+        alive = false;
+        controller.abort();
+        if (timer) clearTimeout(timer);
+      };
+    }
 
     const feedKey = depthFeedKey(instrument);
     let bids: DepthLevel[] = [], asks: DepthLevel[] = [];

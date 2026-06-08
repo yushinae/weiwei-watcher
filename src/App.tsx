@@ -50,10 +50,8 @@ const preload = {
 // 全局告警引擎 + 应用内 Toast（始终挂载，不随页面卸载）
 import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
-// Lightweight import: only the WebSocket singleton + cache GC, not the full widget registry
-import { DERIBIT_WS, startCacheCleanup } from './registry/monitorWidgetsBase';
-// Monitor polling control — pause when monitor page is hidden, resume when shown
-import { pauseMonitorPolling, resumeMonitorPolling } from './registry/monitorWidgets';
+import { startCacheCleanup } from './registry/data/cacheCleanup';
+import { DERIBIT_WS } from './registry/data/ws';
 
 // ── Deribit index price hook — via shared WebSocket, no REST polling ───────────
 
@@ -223,6 +221,7 @@ const AppNavigationDropdown = () => {
   const isMonitor = location.pathname === '/monitor';
   const isOptionsChain = location.pathname === '/options-chain';
   const isPriceChart = location.pathname === '/price-chart';
+  const isPositionNav = location.pathname === '/bybit/positions' || location.pathname === '/position-builder';
 
   const [navOpen, setNavOpen] = useState(false);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -243,6 +242,17 @@ const AppNavigationDropdown = () => {
   };
   const closeOpt = () => {
     optTimer.current = setTimeout(() => setOptOpen(false), 300);
+  };
+
+  // 头寸 — hover 弹出头寸工具，点击默认去头寸可视化
+  const [positionOpen, setPositionOpen] = useState(false);
+  const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openPosition = () => {
+    if (positionTimer.current) { clearTimeout(positionTimer.current); positionTimer.current = null; }
+    setPositionOpen(true);
+  };
+  const closePosition = () => {
+    positionTimer.current = setTimeout(() => setPositionOpen(false), 300);
   };
 
   // 九宫格 = 唯一完整菜单，按「我的 / 市场」分组
@@ -370,6 +380,57 @@ const AppNavigationDropdown = () => {
         图表
       </button>
 
+      <div
+        className="relative"
+        onMouseEnter={() => { openPosition(); preload.bybitPositions(); preload.positionBuilder(); }}
+        onPointerEnter={() => { openPosition(); preload.bybitPositions(); preload.positionBuilder(); }}
+        onMouseMove={openPosition}
+        onMouseLeave={closePosition}
+      >
+        <button
+          onClick={() => navigate('/bybit/positions')}
+          onFocus={() => { openPosition(); preload.bybitPositions(); preload.positionBuilder(); }}
+          className={cn(
+            "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+            isPositionNav || positionOpen ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          )}
+        >
+          头寸
+        </button>
+        {positionOpen && (
+          <div
+            onMouseEnter={openPosition}
+            onPointerEnter={openPosition}
+            onMouseMove={openPosition}
+            onMouseLeave={closePosition}
+            className="absolute top-full left-0 mt-1 w-[176px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
+                       shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+          >
+            {([
+              { label: '头寸可视化', icon: Eye, to: '/bybit/positions', preload: preload.bybitPositions },
+              { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
+            ]).map((it) => {
+              const Icon = it.icon;
+              const active = location.pathname === it.to;
+              return (
+                <button
+                  key={it.label}
+                  onClick={() => { navigate(it.to); setPositionOpen(false); }}
+                  onMouseEnter={it.preload}
+                  className={cn(
+                    'flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left transition-colors',
+                    active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.07]',
+                  )}
+                >
+                  <Icon size={16} className={cn('shrink-0', active ? 'text-white/85' : 'text-white/55')} />
+                  <span className={cn('text-[13px] font-semibold', active ? 'text-white' : 'text-white/80')}>{it.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };
@@ -390,111 +451,88 @@ const PageFallback = () => (
 // - 其他轻量页面正常按需挂载
 // - 预加载（hover）保留
 function AppRoutes() {
-  const { pathname } = useLocation();
-  const [monitorMounted, setMonitorMounted] = React.useState(false);
-
-  // 首次访问监控页时挂载，之后永不卸载
-  // 切走时暂停所有轮询 + WS，切回来时恢复
-  React.useEffect(() => {
-    if (pathname === '/monitor') {
-      setMonitorMounted(true);
-      resumeMonitorPolling();
-    } else {
-      pauseMonitorPolling();
-    }
-  }, [pathname]);
-
-  const isMonitor = pathname === '/monitor';
-
   return (
-    <>
-      {/* 监控页 keep-alive：挂载后只用 display 切换 */}
-      {monitorMounted && (
-        <div className="absolute inset-0" style={{ display: isMonitor ? 'block' : 'none' }}>
+    <Routes>
+      <Route path="/monitor" element={
+        <div className="absolute inset-0">
           <Suspense fallback={<PageFallback />}>
             <MonitorPage />
           </Suspense>
         </div>
-      )}
-
-      {/* 其他页面正常路由 */}
-      {!isMonitor && (
-        <Routes>
-          <Route path="/dashboard" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <DashboardPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/position-builder" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PositionBuilderPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/bybit/positions" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <BybitPositionsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/options-chain" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <OptionsChainPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/price-chart" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PriceChartPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/journal" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <JournalPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/portfolio-risk" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PortfolioRiskPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/vol-history" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <VolHistoryPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/alerts" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <AlertsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/accounts" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <AccountsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      )}
-    </>
+      } />
+      <Route path="/dashboard" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <DashboardPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/position-builder" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PositionBuilderPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/bybit/positions" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <BybitPositionsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/options-chain" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <OptionsChainPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/price-chart" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PriceChartPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/journal" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <JournalPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/portfolio-risk" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PortfolioRiskPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/vol-history" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <VolHistoryPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/alerts" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <AlertsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/accounts" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <AccountsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
 
@@ -557,8 +595,8 @@ export default function App() {
       <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]" style={{ background: 'var(--base-strong)' }}>
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
-            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(37,232,137,0.4)] group-hover:shadow-[0_0_22px_rgba(37,232,137,0.6)] transition-shadow duration-500" />
-            <span className="font-bold text-sm tracking-tight text-[#25e889]">
+            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(30,144,255,0.35)] group-hover:shadow-[0_0_22px_rgba(30,144,255,0.55)] transition-shadow duration-500" />
+            <span className="font-bold text-sm text-[var(--color-brand)]">
               薇薇看板
             </span>
           </div>
@@ -631,7 +669,7 @@ export default function App() {
                     <span className="text-[14px] leading-none">✕</span>
                   </button>
                 </div>
-                <UISettings onClose={() => setSettingsOpen(false)} />
+                <UISettings />
               </div>
             </>
           )}

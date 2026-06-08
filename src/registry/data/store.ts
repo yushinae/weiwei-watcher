@@ -241,14 +241,6 @@ export function evalAlerts(coin: Coin, liveOverrides?: Partial<Record<AlertMetri
     if (a.triggered && !prev) {
       a.triggeredAt = Date.now();
       emitAlertTrigger({ id: a.id, coin: a.coin, metric: a.metric, op: a.op, threshold: a.threshold, value: v, at: a.triggeredAt });
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        const meta = METRIC_META[a.metric];
-        new Notification(`${a.coin} 警报触发`, {
-          body: `${meta.label} ${a.op} ${a.threshold}${meta.unit}  (当前: ${v.toFixed(2)}${meta.unit})`,
-          icon: '/favicon.ico',
-          tag: a.id,
-        });
-      }
     }
   }
 }

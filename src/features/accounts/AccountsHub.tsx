@@ -37,7 +37,7 @@ const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset rin
 // 账户筛选 chip 样式
 const chipCls = (active: boolean) =>
   `h-[28px] px-3 rounded-full text-[12px] font-medium flex items-center gap-1.5 ring-1 ring-inset transition-colors ${
-    active ? 'bg-[#25e889]/15 text-[#25e889] ring-[#25e889]/40'
+    active ? 'bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-[var(--color-brand)]/40'
            : 'bg-white/[0.04] text-white/65 ring-white/10 hover:bg-white/[0.08]'}`;
 
 const Card = ({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) => (
@@ -123,7 +123,7 @@ export const AccountsHub = () => {
       if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) { alert('请填入有效的钱包地址（0x 开头 + 40 位）'); return; }
       addAccount({ venue, address: addr, label: label.trim() || `HL ${addr.slice(0, 6)}…${addr.slice(-4)}` });
       setAddress(''); setLabel('');
-    } else if (venue === 'Bybit' || venue === 'Deribit') {
+    } else if (venue === 'Bybit' || venue === 'Deribit' || venue === 'Binance') {
       addAccount({ venue, label: label.trim() || `${venue} 账户` });
       setLabel('');
     }
@@ -252,7 +252,7 @@ export const AccountsHub = () => {
             <div className="flex items-center gap-3">
               <span className="text-[12px]">识别已实现盈亏合计 <b style={{ color: sgn(csvPnl) }}>{fmtUsd(csvPnl)}</b></span>
               <button onClick={confirmImport} disabled={!csvFills.length}
-                className="ml-auto h-[30px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold hover:bg-[#25e889]/25 transition-colors disabled:opacity-40">
+                className="ml-auto h-[30px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold hover:bg-[var(--color-brand)]/25 transition-colors disabled:opacity-40">
                 确认导入 {csvFills.length} 笔
               </button>
               <button onClick={cancelImport} className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold text-white/65 hover:bg-white/[0.1]">取消</button>
@@ -326,6 +326,7 @@ export const AccountsHub = () => {
                   <option value="Hyperliquid">Hyperliquid（钱包地址）</option>
                   <option value="Bybit">Bybit（只读 API key）</option>
                   <option value="Deribit">Deribit（只读 API key）</option>
+                  <option value="Binance">Binance（只读 API key）</option>
                   {PENDING_VENUES.map(v => <option key={v} value={v} disabled>{v}（待接入）</option>)}
                 </select>
               </label>
@@ -335,9 +336,9 @@ export const AccountsHub = () => {
                   <input className={`${inputCls} font-mono`} placeholder="0x…" value={address} onChange={e => setAddress(e.target.value)} />
                 </label>
               )}
-              {(venue === 'Bybit' || venue === 'Deribit') && (
+              {(venue === 'Bybit' || venue === 'Deribit' || venue === 'Binance') && (
                 <div className="flex-1 min-w-[280px] text-[11px] text-white/45 leading-relaxed self-center">
-                  使用 .env 里配置的 <b className="text-white/65">{venue} 只读</b> API key（VITE_{venue === 'Bybit' ? 'BYBIT' : 'DERIBIT'}_API_KEY/SECRET）。添加后「全部同步」拉持仓 + 最近 1 年成交。
+                  使用 .env 里配置的 <b className="text-white/65">{venue} 只读</b> API key（VITE_{venue.toUpperCase()}_API_KEY/SECRET）。添加后「全部同步」拉持仓 + 最近 1 年成交。
                 </div>
               )}
               <label className="flex flex-col gap-1">
@@ -345,14 +346,14 @@ export const AccountsHub = () => {
                 <input className={inputCls} placeholder={venue === 'Hyperliquid' ? '主钱包' : '我的 Bybit'} value={label} onChange={e => setLabel(e.target.value)} />
               </label>
               <button onClick={submitAdd}
-                className="h-[32px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[#25e889]/25 transition-colors">
+                className="h-[32px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-brand)]/25 transition-colors">
                 <Plus size={14} /> 添加
               </button>
             </div>
             {noAccounts && (
               <div className="text-[11px] text-white/40 leading-relaxed pt-1">
                 还没有账户。Hyperliquid 最简单：把你的**钱包地址**粘进来即可——只读、不需要任何 API 密钥、最安全。
-                Bybit / Deribit / Binance 随后接入（需只读 API key）。
+                Bybit / Deribit / Binance 需只读 API key。
               </div>
             )}
           </div>

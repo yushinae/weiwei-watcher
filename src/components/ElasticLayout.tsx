@@ -80,7 +80,7 @@ export const ElasticLayout = React.forwardRef<HTMLDivElement, ElasticLayoutProps
     // Rubber-band: resistance grows with stretch
     const damped = MAX_EXTRA * (1 - Math.exp(-delta / 140));
     extra.set(damped);
-  }, [extra]);
+  }, [extra, detectionRef]);
 
   const handlePointerUp = useCallback(() => {
     if (!isDragging.current) return;

@@ -2,8 +2,7 @@
 // Tree-shaken ECharts: we only register the chart/component modules each widget
 // actually uses, so the bundle stays small.
 
-import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import {
@@ -18,6 +17,8 @@ import {
 } from 'echarts/components';
 import { LineChart, BarChart, BoxplotChart, ScatterChart, HeatmapChart, CustomChart, GaugeChart } from 'echarts/charts';
 import type { EChartsOption } from 'echarts';
+
+const ReactECharts = lazy(() => import('echarts-for-react'));
 
 // Register once. Adding a new chart type? Import it from 'echarts/charts' and
 // add it to this list. Keep imports narrow to keep bundle size in check.
@@ -81,15 +82,17 @@ export const EChart = React.memo(function EChart({ option, notMerge, onEvents, c
   }), [option]);
 
   return (
-    <ReactECharts
-      option={merged}
-      notMerge={notMerge}
-      onEvents={onEvents}
-      lazyUpdate
-      opts={{ renderer: 'canvas' }}
-      style={{ width: '100%', height: '100%', ...style }}
-      className={className}
-    />
+    <Suspense fallback={<div className={className} style={{ width: '100%', height: '100%', ...style }} />}>
+      <ReactECharts
+        option={merged}
+        notMerge={notMerge}
+        onEvents={onEvents}
+        lazyUpdate
+        opts={{ renderer: 'canvas' }}
+        style={{ width: '100%', height: '100%', ...style }}
+        className={className}
+      />
+    </Suspense>
   );
 });
 

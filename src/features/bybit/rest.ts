@@ -7,6 +7,7 @@
 
 import { getCredentials } from './auth';
 import { hmacSha256Hex } from './crypto';
+import { fetchWithRetry } from '../../lib/fetchRetry';
 
 const BASE = '/bybit-api';
 const RECV_WINDOW = '5000';
@@ -66,8 +67,10 @@ async function fallbackBybitGet<T>(path: string, params: Record<string, string |
   const signature   = await hmacSha256Hex(creds.secret, payload);
 
   const url = `${BASE}${path}${queryString ? `?${queryString}` : ''}`;
-  const resp = await fetch(url, {
+  const resp = await fetchWithRetry(url, {
     method: 'GET',
+    retries: 2,
+    timeoutMs: 12_000,
     headers: {
       'X-BAPI-API-KEY':     creds.apiKey,
       'X-BAPI-TIMESTAMP':   timestamp,
@@ -83,8 +86,8 @@ async function fallbackBybitGet<T>(path: string, params: Record<string, string |
 
 // ── Server time check — useful to detect clock skew ──────────────────────────
 export async function getBybitServerTime(): Promise<number> {
-  // 不需要签名的公开接口
-  const resp = await fetch(`${BASE}/v5/market/time`);
+  // 不需要签名的公开接口；保留重试/超时，避免临时网络抖动导致校时失败
+  const resp = await fetchWithRetry(`${BASE}/v5/market/time`, { retries: 2, timeoutMs: 8_000 });
   const json = await resp.json();
   return Number(json.result?.timeSecond ?? 0) * 1000;
 }

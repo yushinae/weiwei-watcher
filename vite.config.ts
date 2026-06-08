@@ -49,6 +49,16 @@ export default defineConfig(({mode}) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/binance-api/, ''),
         },
+        '/binance-spot-api': {
+          target: 'https://api.binance.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/binance-spot-api/, ''),
+        },
+        '/binance-fapi': {
+          target: 'https://fapi.binance.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/binance-fapi/, ''),
+        },
         // Hyperliquid 链上账户读取（info 端点，按钱包地址只读，无需密钥）
         '/hyperliquid-api': {
           target: 'https://api.hyperliquid.xyz',

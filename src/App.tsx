@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   TrendingUp,
   Wallet,
+  Zap,
 } from 'lucide-react';
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
@@ -430,6 +431,19 @@ const AppNavigationDropdown = () => {
           </div>
         )}
       </div>
+
+      {/* 极速 — 纯前端 Deribit 极速下单工具（public/quick-order.html），新标签打开 */}
+      <button
+        onClick={() => window.open('/quick-order.html', '_blank', 'noopener,noreferrer')}
+        title="Deribit 极速下单（新标签打开）"
+        className={cn(
+          "flex items-center gap-1.5 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          "bg-transparent text-brand/70 hover:bg-brand/[0.10] hover:text-brand",
+        )}
+      >
+        <Zap size={15} className="shrink-0" />
+        极速
+      </button>
 
     </div>
   );

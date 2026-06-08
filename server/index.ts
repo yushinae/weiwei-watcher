@@ -141,6 +141,19 @@ app.put('/api/journal', async (c) => {
   return c.json({ ok: true })
 })
 
+// ── 模拟期权账本（sim-options.json）─────────────────────────────────────────
+// 存全局模拟期权账本：positions / openOrders / orderHistory / fills
+app.get('/api/sim-options', async (c) => {
+  const data = await readJSON('sim-options.json', { positions: [], openOrders: [], orderHistory: [], fills: [] })
+  return c.json(data)
+})
+
+app.put('/api/sim-options', async (c) => {
+  const body = await c.req.json()
+  await writeJSON('sim-options.json', body)
+  return c.json({ ok: true })
+})
+
 // ── Bybit 凭证 ───────────────────────────────────────────────────────────────
 // 存 Key/Secret，不暴露给前端。前端只问"有没有配"、"隐藏显示 Key 前几位"
 interface BybitCreds { apiKey: string; apiSecret: string }

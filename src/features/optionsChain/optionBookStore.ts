@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { bookReducer, type BookState, type PlaceArgs, type SimPosition } from './simBook';
+import { get as apiGet, put as apiPut } from '../../api';
 
 const STORAGE_KEY = 'sim-option-book';
 
@@ -10,13 +11,21 @@ const initialState: BookState = {
   fills: [],
 };
 
-// 启动时从 localStorage 恢复
-function loadState(): BookState {
+// 启动时从后端恢复（优先），后端失败时从 localStorage 恢复
+async function loadState(): Promise<BookState> {
+  try {
+    // 优先后端（防关机丢失）
+    const data = await apiGet<BookState>('/api/sim-options');
+    if (data && Array.isArray(data.positions) && Array.isArray(data.openOrders)) {
+      return data;
+    }
+  } catch {
+    // 后端失败，从 localStorage 读
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return initialState;
     const parsed = JSON.parse(raw) as BookState;
-    // 基础验证（防御性）
     if (!Array.isArray(parsed.positions) || !Array.isArray(parsed.openOrders)) return initialState;
     return parsed;
   } catch {
@@ -24,16 +33,27 @@ function loadState(): BookState {
   }
 }
 
-// 每次 dispatch 后保存
+// 每次 dispatch 后保存：localStorage（快）+ 后端（持久）
 function saveState(s: BookState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   } catch (e) {
     console.warn('[optionBookStore] localStorage.setItem failed:', e);
   }
+  apiPut('/api/sim-options', s).catch((e) => {
+    console.warn('[optionBookStore] backend sync failed:', e);
+  });
 }
 
-let state: BookState = loadState();
+let state: BookState = initialState;
+// 异步初始化：启动时从后端/localStorage 恢复
+loadState().then(loaded => {
+  if (loaded !== initialState) {
+    state = loaded;
+    emit();
+  }
+});
+
 const listeners = new Set<() => void>();
 
 const emit = () => listeners.forEach(listener => listener());

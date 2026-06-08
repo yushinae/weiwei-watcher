@@ -18,7 +18,6 @@ export interface PollerEntry {
 
 const POLLERS = new Map<string, PollerEntry>();
 let _isHidden    = false;
-let _routeActive = true;
 let _focusLostAt: number | null = null;
 let _blurPauseTimer: ReturnType<typeof setTimeout> | null = null;
 const UNFOCUS_PAUSE_MS = 30_000;
@@ -53,7 +52,6 @@ export function _resetPollersForTest(): void {
   });
   POLLERS.clear();
   _isHidden = false;
-  _routeActive = true;
   _focusLostAt = null;
   if (_blurPauseTimer !== null) {
     clearTimeout(_blurPauseTimer);
@@ -90,18 +88,16 @@ export function _pauseAll(): void {
 }
 
 export function resumeMonitorPolling(): void {
-  _routeActive = true;
   _resumeAll();
 }
 
 export function pauseMonitorPolling(): void {
-  _routeActive = false;
-  _pauseAll();
+  markAllPaused(false);
 }
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () =>
-    document.hidden ? _pauseAll() : (_routeActive ? _resumeAll() : undefined)
+    document.hidden ? _pauseAll() : _resumeAll()
   );
 }
 

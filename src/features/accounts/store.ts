@@ -37,6 +37,7 @@ export function removeAccount(id: string): void {
 // 从 .env 自动建账户（幂等）：填好 .env 即出现，不用在界面手动加。
 //   VITE_HYPERLIQUID_ADDRESS=0x…（可逗号分隔多个）
 //   VITE_BYBIT_API_KEY/SECRET → 自动加一个 Bybit 账户
+//   VITE_BINANCE_API_KEY/SECRET → 自动加一个 Binance 账户
 // 注意：env 是来源，界面里删掉后下次刷新会再出现（改 .env 才是永久）。
 export function ensureEnvAccounts(): void {
   const has = (pred: (a: VenueAccount) => boolean) => ACCOUNTS.some(pred);
@@ -57,5 +58,9 @@ export function ensureEnvAccounts(): void {
 
   if (import.meta.env.VITE_DERIBIT_API_KEY?.trim() && !has(a => a.venue === 'Deribit')) {
     addAccount({ venue: 'Deribit', label: 'Deribit（.env）' });
+  }
+
+  if (import.meta.env.VITE_BINANCE_API_KEY?.trim() && !has(a => a.venue === 'Binance')) {
+    addAccount({ venue: 'Binance', label: 'Binance（.env）' });
   }
 }

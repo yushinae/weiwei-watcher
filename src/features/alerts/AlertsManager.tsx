@@ -6,6 +6,7 @@ import {
 } from '../../registry/monitorWidgetsBase';
 import type { Coin } from '../monitor/types';
 import { ALWAYS_ON_METRICS, BOOK_METRICS } from './engine';
+import { ensureAlertNotifications } from './notifications';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 const METRICS = Object.keys(METRIC_META) as AlertMetric[];
@@ -34,8 +35,7 @@ export const AlertsManager = () => {
   const onMetric = (m: AlertMetric) => { setMetric(m); setThreshold(String(METRIC_META[m].defaultVal)); };
 
   const requestPerm = async () => {
-    if (typeof Notification === 'undefined') return;
-    const p = await Notification.requestPermission();
+    const p = await ensureAlertNotifications();
     setPerm(p as Perm);
   };
 
@@ -58,7 +58,7 @@ export const AlertsManager = () => {
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06] shrink-0">
           {perm === 'granted' ? (
             <><CheckCircle2 size={18} className="text-[#28C840] shrink-0" />
-              <span className="text-[12px] text-white/75">浏览器通知已开启 —— 标签页在后台时也会弹出系统通知</span></>
+              <span className="text-[12px] text-white/75">浏览器通知已开启 —— 页面在后台时也会弹出系统通知；应用完全关闭后仍需后端常驻监控</span></>
           ) : perm === 'denied' ? (
             <><BellOff size={18} className="text-[#FF5F57] shrink-0" />
               <span className="text-[12px] text-white/75">浏览器通知被拒绝 —— 仍会在应用内弹 Toast；如需系统通知请在浏览器站点设置中允许</span></>
@@ -172,7 +172,7 @@ export const AlertsManager = () => {
             <b className="text-white/45">常驻</b> 指标（Spot / DVOL）经全局 WebSocket 实时评估，**离开本页、切到其它标签页时也持续判定并推送**。
             <b className="text-[#a78bfa]">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变）——需先到「账户」页同步过一次。
             其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，缓存新鲜时评估。
-            纯前端无后端：**应用完全关闭时无法后台推送**（需服务端推送，后续可加）。
+            浏览器后台通知已接入 Service Worker；但交易所行情仍由前端页面维护，应用完全关闭后的持续监控需本地/云端后端。
           </div>
         </div>
       </div>

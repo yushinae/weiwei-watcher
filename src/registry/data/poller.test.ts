@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _resetPollersForTest, pauseMonitorPolling, resumeMonitorPolling, subscribeData } from './poller';
+import {
+  _pauseAll,
+  _resetPollersForTest,
+  _resumeAll,
+  pauseMonitorPolling,
+  subscribeData,
+} from './poller';
 
 const flushMicrotasks = () => new Promise<void>(resolve => queueMicrotask(resolve));
 
@@ -61,20 +67,33 @@ describe('subscribeData', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it('does not poll while route-level polling is paused', async () => {
+  it('does not poll while globally paused', async () => {
     const fetcher = vi.fn(async () => 1);
     const subscriber = vi.fn();
 
-    pauseMonitorPolling();
+    _pauseAll();
     const unsub = subscribeData('route-paused', fetcher, 1000, subscriber);
     await vi.advanceTimersByTimeAsync(3000);
 
     expect(fetcher).not.toHaveBeenCalled();
 
-    resumeMonitorPolling();
+    _resumeAll();
     await flushMicrotasks();
 
     expect(fetcher).toHaveBeenCalledTimes(1);
+    unsub();
+  });
+
+  it('keeps shared data polling when monitor route polling is paused', async () => {
+    const fetcher = vi.fn(async () => 1);
+    const subscriber = vi.fn();
+
+    pauseMonitorPolling();
+    const unsub = subscribeData('shared-route-independent', fetcher, 1000, subscriber);
+    await flushMicrotasks();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(subscriber).toHaveBeenCalledWith(1);
     unsub();
   });
 });

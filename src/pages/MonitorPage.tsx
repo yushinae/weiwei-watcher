@@ -22,6 +22,8 @@ import {
   WatchlistWidget,
   IVCheapnessWidget,
   GlobalGradDefs,
+  pauseMonitorPolling,
+  resumeMonitorPolling,
 } from '../registry/monitorWidgets';
 import { VolHeadlineWidget, VolSmileCurveWidget, VolTermWidget } from '../features/monitor/VolRead';
 import { MarketHeadlineWidget, MarketSignalsWidget } from '../features/monitor/MarketRead';
@@ -33,6 +35,11 @@ export default function MonitorPage() {
   const { selection, setSelection, clearSelection, open } = useMonitorSelection();
 
   const onPickSkewCell  = (p: Extract<MonitorSelection, { type: 'skewCell' }>)   => setSelection(p);
+
+  React.useEffect(() => {
+    resumeMonitorPolling();
+    return () => pauseMonitorPolling();
+  }, []);
 
   return (
     <div

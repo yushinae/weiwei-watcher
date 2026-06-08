@@ -264,6 +264,9 @@ function TotalsBar({ totals, count }: { totals: { unrealized: number; delta: num
 function SimOptionsPositionsView({ book }: { book: ReturnType<typeof useGlobalOptionBook> }) {
   const totalPnL = useMemo(() => book.positions.reduce((s, p) => s + p.unrealizedPnL, 0), [book.positions]);
   const totalDelta = useMemo(() => book.positions.reduce((s, p) => s + p.delta, 0), [book.positions]);
+  const totalGamma = useMemo(() => book.positions.reduce((s, p) => s + p.gamma, 0), [book.positions]);
+  const totalTheta = useMemo(() => book.positions.reduce((s, p) => s + p.theta, 0), [book.positions]);
+  const totalVega = useMemo(() => book.positions.reduce((s, p) => s + p.vega, 0), [book.positions]);
 
   if (book.positions.length === 0) {
     return (
@@ -292,6 +295,18 @@ function SimOptionsPositionsView({ book }: { book: ReturnType<typeof useGlobalOp
             <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">净 Δ</span>
             <span className="text-[16px] font-mono font-bold tnum text-white/90">{totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(3)}</span>
           </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">净 Γ</span>
+            <span className="text-[16px] font-mono font-bold tnum text-white/90">{totalGamma.toFixed(4)}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">净 Θ/日</span>
+            <span className="text-[16px] font-mono font-bold tnum text-white/90">{totalTheta.toFixed(2)}</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-white/55 font-semibold uppercase tracking-wider">净 ν</span>
+            <span className="text-[16px] font-mono font-bold tnum text-white/90">{totalVega.toFixed(2)}</span>
+          </div>
           <div className="ml-auto text-[11px] text-white/40">模拟账本 · 不会真实下单</div>
         </div>
       </div>
@@ -309,6 +324,9 @@ function SimOptionsPositionsView({ book }: { book: ReturnType<typeof useGlobalOp
                 <Th align="right">标记</Th>
                 <Th align="right">未实现 PnL</Th>
                 <Th align="right">Δ</Th>
+                <Th align="right">Γ</Th>
+                <Th align="right">Θ</Th>
+                <Th align="right">ν</Th>
                 <Th align="right">操作</Th>
               </tr>
             </thead>
@@ -346,6 +364,9 @@ function SimPositionRow({ position, onClose }: { position: SimPosition; onClose:
         {position.unrealizedPnL >= 0 ? '+' : '-'}{Math.abs(position.unrealizedPnL).toFixed(2)}$
       </Td>
       <Td align="right" mono>{position.delta >= 0 ? '+' : ''}{position.delta.toFixed(3)}</Td>
+      <Td align="right" mono className="text-white/70">{position.gamma.toFixed(4)}</Td>
+      <Td align="right" mono className="text-white/70">{position.theta.toFixed(2)}</Td>
+      <Td align="right" mono className="text-white/70">{position.vega.toFixed(2)}</Td>
       <Td align="right">
         <button
           onClick={onClose}

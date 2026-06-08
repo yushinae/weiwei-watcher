@@ -1,6 +1,40 @@
 {
-  "positions": [],
+  "positions": [
+    {
+      "id": "jt130go",
+      "symbol": "ETH-9JUN2026-1675-P",
+      "side": "long",
+      "qty": 10,
+      "avgEntryPrice": 13.46,
+      "markPrice": 12.563451509999998,
+      "unrealizedPnL": -8.965484900000025,
+      "delta": -0.41626
+    }
+  ],
   "openOrders": [],
-  "orderHistory": [],
-  "fills": []
+  "fills": [
+    {
+      "id": "o2shb3d",
+      "symbol": "ETH-9JUN2026-1675-P",
+      "side": "buy",
+      "qty": 10,
+      "price": 13.46,
+      "fee": 0.06730000000000001,
+      "timestamp": 1780943949055
+    }
+  ],
+  "orderHistory": [
+    {
+      "id": "o2shb3d",
+      "symbol": "ETH-9JUN2026-1675-P",
+      "side": "buy",
+      "type": "limit",
+      "qty": 10,
+      "price": 13.46,
+      "optDelta": -0.41626,
+      "status": "filled",
+      "createdAt": 1780943709161,
+      "filledPrice": 13.46
+    }
+  ]
 }

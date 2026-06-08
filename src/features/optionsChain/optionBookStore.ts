@@ -70,15 +70,11 @@ function dispatch(action: Parameters<typeof bookReducer>[1]) {
   emit();
 }
 
-const inferOptionDelta = (position: SimPosition) => {
-  const magnitude = Math.abs(position.delta || 0);
-  if (position.symbol.endsWith('-P')) return -magnitude;
-  if (position.symbol.endsWith('-C')) return magnitude;
-  return position.delta;
-};
-
 export function closeSimPosition(position: SimPosition) {
   if (position.qty <= 0) return;
+  // 平仓 = 反向市价单。仓位里存的希腊字母是「单腿值 × 方向符号」，
+  // 除以 sign 还原单腿原值交给 applyFill，由新单的反向 side 重新定号、相互抵消。
+  const sign = position.side === 'long' ? 1 : -1;
   dispatch({
     t: 'place',
     a: {
@@ -88,7 +84,10 @@ export function closeSimPosition(position: SimPosition) {
       qty: position.qty,
       price: position.markPrice,
       mark: position.markPrice,
-      delta: inferOptionDelta(position),
+      delta: position.delta / sign,
+      gamma: position.gamma / sign,
+      theta: position.theta / sign,
+      vega: position.vega / sign,
     },
   });
 }

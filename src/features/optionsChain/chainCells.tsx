@@ -68,21 +68,25 @@ MarkCell.displayName = 'MarkCell';
 export interface SelectedCell { row: ChainRow; side: 'call' | 'put' }
 
 export const ChainRowComp = memo(({
-  row, cols, loading, isEven, isSelected, owned, onRowClick, showDist, spot, emBandStrikeMin, emBandStrikeMax,
+  row, cols, loading, isEven, selectedSide, ownedSide, onRowClick, showDist, spot, emBandStrikeMin, emBandStrikeMax,
 }: {
   row: ChainRow; cols: ViewCol[]; loading: boolean; isEven: boolean;
-  isSelected: boolean; owned?: boolean; onRowClick: (row: ChainRow, side: 'call' | 'put') => void;
+  selectedSide?: 'call' | 'put'; ownedSide?: 'call' | 'put' | 'both'; onRowClick: (row: ChainRow, side: 'call' | 'put') => void;
   showDist: boolean; spot: number; emBandStrikeMin: number; emBandStrikeMax: number;
 }) => {
   const { call: c, put: p, strike, isATM, isITM } = row;
   const callITM = isITM;
   const putITM = !isITM && !isATM;
+  const callOwned = ownedSide === 'call' || ownedSide === 'both';
+  const putOwned = ownedSide === 'put' || ownedSide === 'both';
+  const hasOwned = callOwned || putOwned;
 
   const stripeBg = isEven ? 'var(--db-bg-row-even)' : 'var(--db-bg-row-odd)';
+  const atmBg = isATM ? 'var(--db-bg-atm)' : stripeBg;
   const callItmBg = callITM ? 'rgba(40,200,64,0.05)' : stripeBg;
   const putItmBg = putITM ? 'rgba(255,95,87,0.05)' : stripeBg;
-  const callBg = isSelected ? 'var(--db-bg-selected)' : callItmBg;
-  const putBg = isSelected ? 'var(--db-bg-selected)' : putItmBg;
+  const callBg = selectedSide === 'call' ? 'var(--db-bg-selected)' : callOwned ? 'var(--db-bg-owned)' : isATM ? atmBg : callItmBg;
+  const putBg = selectedSide === 'put' ? 'var(--db-bg-selected)' : putOwned ? 'var(--db-bg-owned)' : isATM ? atmBg : putItmBg;
 
   const callCols = cols; // 两侧列序一致（买价在左、卖价在右，与 Deribit 期权链一致），不镜像
   const putCols = cols;
@@ -110,7 +114,7 @@ export const ChainRowComp = memo(({
 
   return (
     <div
-      className={`db-oc-row group grid${hoverSide ? ` is-hover-${hoverSide}` : ''}`}
+      className={cn('db-oc-row group grid', isATM && 'is-atm', hasOwned && 'is-owned', hoverSide && `is-hover-${hoverSide}`)}
       style={{ gridTemplateColumns: gridTpl, height: ROW_H, cursor: 'pointer', borderBottom: `1px solid ${BORDER_C}` }}
       onClick={handleClick}
       onMouseMove={onHoverMove}
@@ -121,6 +125,7 @@ export const ChainRowComp = memo(({
         const isLast = i === callCols.length - 1;
         return (
           <div key={`c-${col.id}`} data-side="call" className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
+            data-col={col.key}
             style={{ background: callBg, borderRight: isLast ? `1px solid ${BORDER_C}` : undefined }}>
             {col.key === 'mark'
               ? <MarkCell mark={c.mark} iv={c.iv} loading={loading} dimmed={!callITM && !isATM} />
@@ -131,11 +136,12 @@ export const ChainRowComp = memo(({
 
       <div className="db-oc-strike flex flex-col items-center justify-center transition-[filter] duration-75"
         style={{
-          background: owned ? 'rgba(37,232,137,0.10)' : (strike >= emBandStrikeMin && strike <= emBandStrikeMax) ? 'transparent' : 'var(--db-bg-strike)',
+          background: hasOwned ? 'var(--db-bg-owned)' : isATM ? 'var(--db-bg-atm-strong)' : (strike >= emBandStrikeMin && strike <= emBandStrikeMax) ? 'transparent' : 'var(--db-bg-strike)',
           borderLeft: `1px solid ${BORDER_STRONG}`, borderRight: `1px solid ${BORDER_STRONG}`, position: 'relative',
-          boxShadow: owned ? 'inset 0 0 0 1.5px var(--db-accent)' : undefined,
+          boxShadow: hasOwned ? 'inset 0 0 0 1.5px var(--db-accent)' : isATM ? 'inset 0 0 0 1px rgba(255,255,255,0.16)' : undefined,
         }}>
-        {owned && <span title="你在此行权价有模拟持仓" style={{ position: 'absolute', top: 2, right: 3, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
+        {callOwned && <span title="你在此看涨期权有模拟持仓" style={{ position: 'absolute', top: 3, left: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
+        {putOwned && <span title="你在此看跌期权有模拟持仓" style={{ position: 'absolute', top: 3, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
         <span style={{ ...TABNUM, fontSize: 14, fontWeight: isATM ? 800 : 700, color: '#FFFFFF', lineHeight: showDist ? 1.02 : undefined }}>
           {loading ? <Skeleton /> : strikeText}
         </span>
@@ -149,6 +155,7 @@ export const ChainRowComp = memo(({
         const isFirst = i === 0;
         return (
           <div key={`p-${col.id}`} data-side="put" className="db-oc-cell-wrap transition-[filter,background-color] duration-75"
+            data-col={col.key}
             style={{ background: putBg, borderLeft: isFirst ? `1px solid ${BORDER_C}` : undefined }}>
             {col.key === 'mark'
               ? <MarkCell mark={p.mark} iv={p.iv} loading={loading} dimmed={!putITM && !isATM} />

@@ -382,13 +382,15 @@ export function useDualHistory() {
   const [btc, setBtc]         = useState<HistoryData | null>(null);
   const [eth, setEth]         = useState<HistoryData | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const gotBtcRef = useRef(false);
+  const gotEthRef = useRef(false);
 
   useEffect(() => {
     let active = true;
     setTimedOut(false);
-    const timeout = setTimeout(() => { if (active && (!btc || !eth)) setTimedOut(true); }, 20_000);
-    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) { setBtc(d); setTimedOut(false); } });
-    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) { setEth(d); setTimedOut(false); } });
+    const timeout = setTimeout(() => { if (active && (!gotBtcRef.current || !gotEthRef.current)) setTimedOut(true); }, 20_000);
+    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) { gotBtcRef.current = true; setBtc(d); setTimedOut(false); } });
+    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) { gotEthRef.current = true; setEth(d); setTimedOut(false); } });
     return () => { active = false; clearTimeout(timeout); u1(); u2(); };
   }, []);
 

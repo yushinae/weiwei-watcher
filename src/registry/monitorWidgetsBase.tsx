@@ -490,30 +490,4 @@ export function useBlockTrades(coin: Coin, minUSD = BT_MIN_USD) {
   return { trades, loading: allTrades.length === 0 };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Periodic cache cleanup — call startCacheCleanup() once from App.tsx
-// ═══════════════════════════════════════════════════════════════════════════════
-
-import { DERIBIT_CACHE, CACHE_TTL, HIST_CACHE, HIST_TTL } from './data/deribit';
-import { FLOW_CACHE, FLOW_TTL } from './data/flow';
-import { TICKER_CACHE } from './data/ws';
-import { WATCH_CACHE } from './data/store';
-
-const CLEANUP_MS = 300_000;
-
-function _cleanExpired<K>(map: Map<K, { ts: number }>, ttl: number): void {
-  const cutoff = Date.now() - ttl;
-  for (const [k, v] of map) { if (v.ts < cutoff) map.delete(k); }
-}
-
-export function startCacheCleanup(): () => void {
-  const id = setInterval(() => {
-    if (document.hidden) return;
-    _cleanExpired(DERIBIT_CACHE, CACHE_TTL);
-    _cleanExpired(HIST_CACHE, HIST_TTL);
-    _cleanExpired(FLOW_CACHE, FLOW_TTL);
-    _cleanExpired(TICKER_CACHE, 300_000);
-    _cleanExpired(WATCH_CACHE, 600_000);
-  }, CLEANUP_MS);
-  return () => clearInterval(id);
-}
+export { startCacheCleanup } from './data/cacheCleanup';

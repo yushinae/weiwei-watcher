@@ -46,6 +46,21 @@ async function _pollOnce(key: string): Promise<void> {
 let _wsPauseFn: (() => void) | null = null;
 let _wsResumeFn: (() => void) | null = null;
 
+export function _resetPollersForTest(): void {
+  POLLERS.forEach(e => {
+    if (e.timerId != null) clearInterval(e.timerId);
+  });
+  POLLERS.clear();
+  _isHidden = false;
+  _focusLostAt = null;
+  if (_blurPauseTimer !== null) {
+    clearTimeout(_blurPauseTimer);
+    _blurPauseTimer = null;
+  }
+  _wsPauseFn = null;
+  _wsResumeFn = null;
+}
+
 export function _registerWSPauseResume(pause: () => void, resume: () => void): void {
   _wsPauseFn = pause;
   _wsResumeFn = resume;
@@ -70,6 +85,14 @@ export function _pauseAll(): void {
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
   });
   _wsPauseFn?.();
+}
+
+export function resumeMonitorPolling(): void {
+  _resumeAll();
+}
+
+export function pauseMonitorPolling(): void {
+  markAllPaused(false);
 }
 
 if (typeof document !== 'undefined') {

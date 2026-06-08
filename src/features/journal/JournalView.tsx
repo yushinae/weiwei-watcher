@@ -346,7 +346,7 @@ export const JournalView = () => {
                 value={draft.notes} onChange={e => setD({ notes: e.target.value })} />
             </label>
             <button onClick={addTrade}
-              className="h-[30px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[#25e889]/25 transition-colors">
+              className="h-[30px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-brand)]/25 transition-colors">
               <Plus size={14} /> 添加
             </button>
           </div>

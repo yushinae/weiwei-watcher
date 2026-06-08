@@ -127,7 +127,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
   const { data: opt } = useDeribitOptions(coin);
   const ticker = useTickerSnapshotWS(coin);
   const spot = ticker?.spot ?? opt?.spot ?? 0;
-  const expiries = opt?.expiries ?? [];
+  const expiries = useMemo(() => opt?.expiries ?? [], [opt?.expiries]);
 
   // ── 状态 ──
   const [strategyType, setStrategyType] = useState<StrategyType>('bear-call-spread');
@@ -138,13 +138,13 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
   useEffect(() => {
     const nearest = expiries.filter(e => e.daysToExp >= 2)[0];
     if (nearest && !expiryLabel) setExpiryLabel(nearest.label);
-  }, [expiries]);
+  }, [expiries, expiryLabel]);
 
-  const meta = getStrategyMeta(strategyType);
-  const paramDefs = getStrategyParams(strategyType);
+  const meta = useMemo(() => getStrategyMeta(strategyType), [strategyType]);
+  const paramDefs = useMemo(() => getStrategyParams(strategyType), [strategyType]);
 
   // 行权价状态数组
-  const initialStrikes = paramDefs.map(() => 0);
+  const initialStrikes = useMemo(() => paramDefs.map(() => 0), [paramDefs]);
   const [strikes, setStrikes] = useState<number[]>(initialStrikes);
 
   // Sync defaults when strategy or spot changes
@@ -169,7 +169,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
       type: strategyType, spot, strikes,
       expiryT, iv: atmIV, qty,
     });
-  }, [strategyType, spot, strikes.join(','), expiryT, atmIV, qty]);
+  }, [strategyType, spot, strikes, expiryT, atmIV, qty]);
 
   // ── ECharts ──
   const chartOption = useMemo(() => {

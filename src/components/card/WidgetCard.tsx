@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WidgetCardSkeleton } from './WidgetCardSkeleton';
@@ -107,12 +107,13 @@ export function WidgetCard({
 }) {
   const { actionsBaseOpacityClass } = useWidgetCardActions();
   const [headerRight, setHeaderRight] = useState<React.ReactNode>(null);
-  const setHeaderRightCb = useCallback(setHeaderRight, []);
+  const setHeaderRightCb = useCallback((node: React.ReactNode) => setHeaderRight(node), [setHeaderRight]);
+  const cardContext = useMemo(() => ({ setHeaderRight: setHeaderRightCb }), [setHeaderRightCb]);
 
   const showStatusPane = status.type !== 'ready' && status.type !== 'stale';
 
   return (
-    <CardContext.Provider value={{ setHeaderRight: setHeaderRightCb }}>
+    <CardContext.Provider value={cardContext}>
       <div className={cn(
         'w-full h-full @container relative rounded-xl overflow-hidden group/card',
         'widget-card',

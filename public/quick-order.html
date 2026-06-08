@@ -1,0 +1,2708 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Deribit 快捷下单 v2026-06-04e</title>
+  <style>
+    :root {
+      --bg: #16121f;
+      --panel: #211c2e;
+      --panel-2: #2c253d;
+      --text: #fdf4f6;
+      --muted: #a89fbc;
+      --line: rgba(255,255,255,0.06);
+      --green: #34d399;
+      --red: #fb7185;
+      --amber: #fbbf24;
+      --blue: #a78bfa;
+      --cyan: #22d3ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #231c36 0%, var(--bg) 45%);
+      color: var(--text);
+    }
+    .wrap {
+      width: min(1380px, calc(100vw - 24px));
+      margin: 18px auto 28px;
+      display: grid;
+      gap: 18px;
+    }
+    .topbar, .panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.24);
+    }
+    .topbar {
+      position: sticky;
+      top: 8px;
+      z-index: 10;
+      padding: 12px 14px;
+    }
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .row, .stats, .layout, .chips, .amounts, .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .layout {
+      align-items: flex-start;
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 340px minmax(0, 1fr);
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .stat {
+      min-width: 145px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+    }
+    .stat .k {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .stat .v {
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    button, input {
+      font: inherit;
+    }
+    .chip, .action, .danger, .ghost {
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }
+    .chip:active, .action:active, .danger:active, .ghost:active {
+      transform: scale(0.98);
+    }
+    .chip.active {
+      border-color: rgba(99,164,255,0.7);
+      background: rgba(99,164,255,0.18);
+      color: #d7e9ff;
+    }
+    .chip.active.tone-up {
+      border-color: rgba(52,211,153,0.4);
+      background: rgba(52,211,153,0.15);
+      color: #34d399;
+      box-shadow: 0 0 12px rgba(52,211,153,0.1);
+    }
+    .chip.active.tone-down {
+      border-color: rgba(251,113,133,0.4);
+      background: rgba(251,113,133,0.15);
+      color: #fb7185;
+      box-shadow: 0 0 12px rgba(251,113,133,0.1);
+    }
+    .chip.active.tone-taker {
+      border-color: rgba(251,113,133,0.4);
+      background: rgba(251,113,133,0.15);
+      color: #fb7185;
+    }
+    .chip.active.tone-maker {
+      border-color: rgba(167,139,250,0.4);
+      background: rgba(167,139,250,0.15);
+      color: #a78bfa;
+    }
+    .action {
+      border-radius: 16px;
+      padding: 12px 16px;
+      font-weight: 700;
+      border: none;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .action:active {
+      transform: scale(0.95);
+    }
+    .action.take_ask {
+      background: linear-gradient(135deg, #fb7185, #fba885);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(251,113,133,0.3);
+    }
+    .action.join_bid {
+      background: linear-gradient(135deg, #a78bfa, #818cf8);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(167,139,250,0.3);
+    }
+    .action.mark_clip {
+      background: linear-gradient(135deg, #fbbf24, #fcd34d);
+      color: #78350f;
+      box-shadow: 0 8px 24px rgba(251,191,36,0.3);
+    }
+    .ghost {
+      color: var(--muted);
+    }
+    .danger {
+      background: rgba(255,95,115,0.16);
+      border-color: rgba(255,95,115,0.45);
+      color: #ffd3d9;
+    }
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .field input[type="number"] {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 11px 12px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .message {
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .message.info {
+      background: rgba(99,164,255,0.14);
+      border: 1px solid rgba(99,164,255,0.28);
+      color: #d7e9ff;
+    }
+    .message.error {
+      background: rgba(255,95,115,0.14);
+      border: 1px solid rgba(255,95,115,0.28);
+      color: #ffd7dd;
+    }
+    .message.warn {
+      background: rgba(246,198,91,0.14);
+      border: 1px solid rgba(246,198,91,0.28);
+      color: #fbe6af;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+    .quote {
+      min-width: 250px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .quote .side-name {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .quote .strike {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .quote .intent {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .quote .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .quote .price-row, .close-modal .price-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .quote .price-pill, .close-modal .price-pill {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      padding: 10px;
+      transition: all 0.2s;
+    }
+    .quote .price-pill.mark-pill, .close-modal .price-pill.mark-pill {
+      background: rgba(251,191,36,0.05);
+      border-color: rgba(251,191,36,0.2);
+    }
+    .quote .price-pill.mark-pill .label, .close-modal .price-pill.mark-pill .label {
+      color: #fbbf24;
+    }
+    .quote .price-pill .label, .close-modal .price-pill .label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .quote .price-pill .value, .close-modal .price-pill .value {
+      margin-top: 4px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .quote .price-pill .subvalue, .close-modal .price-pill .subvalue {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .quote .mid {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .quote .mid strong { color: var(--text); }
+    .quote .delta-note {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .quote .primary {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+    .quote .primary .label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .quote .primary .value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .quote.call-card {
+      border-color: rgba(52,211,153,0.15);
+    }
+    .quote.call-card.selected {
+      background: rgba(52,211,153,0.08);
+      box-shadow: 0 0 0 1px rgba(52,211,153,0.3) inset;
+    }
+    .quote.put-card {
+      border-color: rgba(251,113,133,0.15);
+    }
+    .quote.put-card.selected {
+      background: rgba(251,113,133,0.08);
+      box-shadow: 0 0 0 1px rgba(251,113,133,0.3) inset;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+    }
+    .muted { color: var(--muted); }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .details-panel summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .details-panel summary::-webkit-details-marker {
+      display: none;
+    }
+    .details-panel summary::after {
+      content: '+';
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1;
+    }
+    .details-panel[open] summary::after {
+      content: '-';
+    }
+    .details-body {
+      margin-top: 14px;
+    }
+    .mode-panel {
+      display: grid;
+      gap: 12px;
+    }
+    .mode-label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .control-panel {
+      position: sticky;
+      top: 10px;
+    }
+    .quote.selectable {
+      cursor: pointer;
+    }
+    .quote.selected {
+      border-color: rgba(99,164,255,0.72);
+      box-shadow: 0 0 0 1px rgba(99,164,255,0.22), 0 16px 34px rgba(2,12,27,0.38);
+      background: linear-gradient(180deg, rgba(99,164,255,0.12), rgba(255,255,255,0.02));
+    }
+    .mobile-tradebar {
+      display: none;
+    }
+    .mobile-backdrop {
+      display: none;
+    }
+    .mini-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+    .mini-stepper button {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .mini-stepper-value {
+      min-width: 54px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--text);
+    }
+    @media (max-width: 760px) {
+      body {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 190px);
+      }
+      .wrap {
+        width: min(100vw, calc(100vw - 12px));
+        margin: 8px auto 18px;
+        gap: 12px;
+        min-width: 0;
+      }
+      .layout, .control-panel, .panel, .stack {
+        min-width: 0;
+      }
+      .topbar, .panel {
+        border-radius: 20px;
+        padding: 14px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .stat {
+        min-width: 0;
+        padding: 10px 12px;
+      }
+      .stat .v {
+        font-size: 17px;
+      }
+      .chips {
+        gap: 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+      }
+      .chips::-webkit-scrollbar,
+      .amounts::-webkit-scrollbar {
+        display: none;
+      }
+      .chip, .ghost, .danger {
+        padding: 8px 12px;
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+      .amounts {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .action {
+        padding: 12px 12px;
+        font-size: 13px;
+      }
+      .quote {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 16px;
+        align-items: center;
+      }
+      .quote .strike {
+        font-size: 20px;
+        font-weight: 800;
+        grid-column: 1;
+      }
+      .quote .side-name, .quote .intent, .quote .top, .quote > .action {
+        display: none;
+      }
+      .quote .price-row {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 4px;
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      .quote .price-row .price-pill {
+        align-items: center;
+        text-align: center;
+      }
+      .quote .delta-note {
+        grid-column: 1 / -1;
+        font-size: 12px;
+        margin-top: -4px;
+        color: var(--muted);
+      }
+      .quote .mid {
+        grid-column: 2;
+        justify-content: flex-start;
+        gap: 8px;
+        font-size: 12px;
+        flex-direction: column;
+      }
+      .quote .primary {
+        grid-column: 3;
+        padding: 0;
+        border: none;
+        background: transparent;
+        text-align: right;
+      }
+      .quote .primary .label {
+        display: none;
+      }
+      .quote .primary .value {
+        font-size: 18px;
+      }
+      .quote .primary .value {
+        font-size: 18px;
+      }
+      /* Remove old background override for .selected so our new card glow shows through */
+      table {
+        font-size: 12px;
+      }
+      th, td {
+        padding: 8px 6px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .layout {
+        gap: 12px;
+      }
+      .control-panel {
+        position: sticky;
+        top: 66px;
+        z-index: 9;
+        background: var(--bg);
+        margin-top: -10px;
+        padding-top: 10px;
+      }
+      .control-panel > .panel {
+        padding: 10px;
+      }
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .detail-table {
+        min-width: 640px;
+      }
+      .mobile-backdrop.open {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 30;
+        backdrop-filter: blur(4px);
+        opacity: 1;
+      }
+      .mobile-tradebar {
+        display: grid;
+        gap: 12px;
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 40;
+        padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+        border-radius: 28px 28px 0 0;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        background: var(--panel);
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      .mobile-tradebar.open {
+        transform: translateY(0);
+      }
+      .mobile-tradebar .bar-top {
+        display: grid;
+        gap: 6px;
+      }
+      .mobile-tradebar .bar-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .mobile-tradebar .bar-meta,
+      .mobile-tradebar .bar-empty {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .mobile-tradebar .bar-price {
+        font-size: 24px;
+        font-weight: 800;
+        margin-top: 8px;
+        color: var(--text);
+      }
+      .bar-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+        background: rgba(255,255,255,0.03);
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      .info-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+      }
+      .info-row span {
+        color: var(--muted);
+      }
+      .info-row strong {
+        color: var(--text);
+      }
+      .mobile-tradebar .bar-controls {
+        display: grid;
+        gap: 10px;
+      }
+      .mobile-tradebar .bar-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .mobile-tradebar .action {
+        min-height: 48px;
+        border-radius: 14px;
+        font-size: 16px;
+      }
+      .mobile-tradebar .ghost {
+        min-height: 48px;
+        border-radius: 14px;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+      .mobile-tradebar .bar-toggles {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+    }
+    .close-modal {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--panel);
+      padding: 24px;
+      border-radius: 20px;
+      z-index: 50;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .close-modal.open {
+      display: block;
+    }
+    .close-amounts {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .close-amounts button {
+      padding: 8px 4px;
+      font-size: 14px;
+    }
+    .close-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .close-actions button {
+      font-size: 14px;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+    .close-actions button .btn-title {
+      font-size: 12px;
+      opacity: 0.85;
+      font-weight: normal;
+    }
+    .close-actions button .btn-price {
+      font-size: 15px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mobile-backdrop" id="settingsBackdrop"></div>
+  <div class="close-modal" id="settingsModal" style="max-width: 400px; width: 90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:18px;">API 密钥设置</h3>
+      <button class="ghost" id="closeSettingsBtn" style="padding:4px 8px;">✕</button>
+    </div>
+    <div class="stack">
+      <div class="field">
+        <label>环境</label>
+        <div class="chips">
+          <button class="chip active" id="envTestnetBtn">测试网 (Testnet)</button>
+          <button class="chip" id="envMainnetBtn">正式网 (Mainnet)</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Client ID (必填)</label>
+        <input type="text" id="clientIdInput" placeholder="输入您的 Deribit Client ID" />
+      </div>
+      <div class="field">
+        <label>Client Secret (必填)</label>
+        <input type="password" id="clientSecretInput" placeholder="输入您的 Deribit Client Secret" />
+      </div>
+      <div class="message info" style="font-size:12px; margin-top:8px;">
+        🔐 您的密钥将仅保存在您本地浏览器的缓存中，绝不会发送给 GEXmonitor 或任何第三方服务器，仅用于向 Deribit 官方发起签名与鉴权请求。<br/>本看板是 100% 开源的纯本地运行客户端工具。
+      </div>
+      <button class="action buy" id="saveSettingsBtn" style="margin-top:10px;">保存并连接</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section class="topbar">
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div class="topbar-title">近端快单</div>
+          <div id="accountEquity" style="font-size:13px; font-weight:700; color:var(--cyan); background:rgba(10,132,255,0.1); padding:4px 10px; border-radius:6px; border:1px solid rgba(10,132,255,0.2); display:none;"></div>
+        </div>
+        <div class="chips">
+          <div id="assetChips" class="chips"></div>
+          <button class="ghost" id="openSettingsBtn" style="font-weight:700;">⚙️ 设置</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack control-panel">
+        <div class="panel">
+          <div class="mode-panel">
+            <div class="chips" id="optionTypeChips"></div>
+            <div class="chips" id="tradeIntentChips"></div>
+            <div class="chips" id="expiryChips"></div>
+            <div class="chips" id="quoteUnitChips"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="stack">
+            <div class="field">
+              <div class="amounts" id="amountPresets"></div>
+              <input id="amountInput" type="number" min="0.1" step="0.1" value="1" />
+            </div>
+            <label class="small"><input id="reduceOnly" type="checkbox" /> 仅减仓</label>
+            <button class="ghost" id="refreshBtn">刷新</button>
+            <div id="statusMsg"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <div class="row" style="justify-content:space-between;align-items:center;">
+            <div>
+              <strong id="chainTitle">当前模式报价卡片</strong>
+              <div class="small" id="chainMeta" style="margin-top:6px;"></div>
+            </div>
+          </div>
+          <div id="tradeCards" class="cards-grid" style="margin-top:14px;"></div>
+          <div class="footer-note" style="margin-top:12px;">当前卡片只显示符合目标 Delta 区间的合约。</div>
+        </div>
+
+        <details class="panel details-panel" id="openOrdersPanel">
+          <summary>挂单</summary>
+          <div class="details-body">
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>合约</th>
+                  <th>方向</th>
+                  <th>数量</th>
+                  <th>价格</th>
+                  <th>状态</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="openOrdersRows"></tbody>
+            </table>
+          </div>
+          </div>
+        </details>
+
+        <details class="panel details-panel" id="positionsPanel">
+          <summary>持仓</summary>
+          <div class="details-body">
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>合约</th>
+                  <th>方向</th>
+                  <th>数量</th>
+                  <th>均价</th>
+                  <th>标记价</th>
+                  <th>实时Delta (单张)</th>
+                  <th>PnL</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="positionsRows"></tbody>
+            </table>
+          </div>
+          </div>
+        </details>
+
+        <details class="panel details-panel">
+          <summary>成交历史</summary>
+          <div class="details-body">
+          <div class="table-wrap">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>合约</th>
+                  <th>方向</th>
+                  <th>数量</th>
+                  <th>价格</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="tradeHistoryRows"></tbody>
+            </table>
+          </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <footer style="margin-top:40px; padding:30px 20px 100px 20px; text-align:center; border-top:1px solid rgba(255,255,255,0.05);">
+      <div style="margin-bottom:12px;">
+        <a href="https://gexmonitor.com" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); text-decoration:none; font-weight:700; font-size:18px; letter-spacing:1px; text-shadow:0 0 10px rgba(6,182,212,0.4);">
+          Powered by GEXmonitor
+        </a>
+      </div>
+      <div style="color:var(--muted); font-size:12px; max-width:600px; margin:0 auto; line-height:1.6;">
+        Deribit Quick Order 是一个 100% 开源的纯前端期权极速下单面板。所有的 API Key 仅保存在您的本地浏览器缓存中，直接与 Deribit 官方建立 WebSocket 安全连接。虽然您的私钥不会经过任何第三方服务器，但为了您的资金安全，强烈建议您只授予 API Key "Read" 和 "Trade" 权限，切勿开启提现权限！
+      </div>
+      <div style="margin-top:16px; font-size:12px;">
+        <a href="https://github.com/gexmonitor-pixel/deribit-quick-order" target="_blank" rel="noopener noreferrer" style="color:var(--muted); text-decoration:none; margin:0 10px; transition:color 0.2s;">
+          <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>GitHub
+        </a>
+        <a href="https://gexmonitor.com" target="_blank" rel="noopener noreferrer" style="color:var(--muted); text-decoration:none; margin:0 10px; transition:color 0.2s;">
+          🌐 访问主站
+        </a>
+        <a href="https://t.me/Ljbp1008" target="_blank" rel="noopener noreferrer" style="color:var(--muted); text-decoration:none; margin:0 10px; transition:color 0.2s;">
+          ✈️ Telegram联系
+        </a>
+        <a href="https://www.youtube.com/@gexmonitor" target="_blank" rel="noopener noreferrer" style="color:var(--muted); text-decoration:none; margin:0 10px; transition:color 0.2s;">
+          ▶️ YouTube频道
+        </a>
+        <a href="https://www.deribit.com/action?reg=15541.6830" target="_blank" rel="noopener noreferrer" style="color:var(--muted); text-decoration:none; margin:0 10px; transition:color 0.2s;">
+          🎁 注册 Deribit 享9折手续费
+        </a>
+      </div>
+    </footer>
+
+    <div class="mobile-backdrop" id="closeModalBackdrop" onclick="hideCloseModal()"></div>
+    <div class="close-modal" id="closeModal">
+      <h3 id="closeModalTitle" style="margin:0 0 16px;font-size:20px;">平仓设置</h3>
+      <div id="closeModalInst" style="font-weight:700;margin-bottom:4px;font-size:16px;"></div>
+      <div id="closeModalDir" style="color:var(--muted);font-size:13px;margin-bottom:16px;"></div>
+      <div class="price-row" id="closeModalPrices" style="margin-bottom:12px;display:none;"></div>
+      
+      <div id="closeSetupSection">
+        <div class="close-amounts">
+          <button class="ghost" onclick="setClosePct(0.25)">25%</button>
+          <button class="ghost" onclick="setClosePct(0.50)">50%</button>
+          <button class="ghost" onclick="setClosePct(0.75)">75%</button>
+          <button class="ghost" onclick="setClosePct(1.00)">100%</button>
+        </div>
+        <input id="closeModalAmount" type="number" step="0.1" style="margin-top:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:18px;text-align:center;font-weight:700;border-radius:12px;" />
+        <div class="close-actions">
+          <button class="action join_bid" id="closeBtnMaker" onclick="executeClose('maker')">
+            <div class="btn-title" id="closeTitleMaker">排队挂单</div>
+            <div class="btn-price" id="closePriceMaker">--</div>
+          </button>
+          <button class="action mark_clip" id="closeBtnMark" onclick="executeClose('mark_clip')">
+            <div class="btn-title">标记</div>
+            <div class="btn-price" id="closePriceMark">--</div>
+          </button>
+          <button class="action optimal" id="closeBtnOptimal" onclick="executeClose('optimal')" style="background:var(--cyan);color:#111">
+            <div class="btn-title">最优价</div>
+            <div class="btn-price" id="closePriceOptimal">--</div>
+          </button>
+          <button class="action take_ask" id="closeBtnTaker" onclick="executeClose('taker')">
+            <div class="btn-title" id="closeTitleTaker">市价吃单</div>
+            <div class="btn-price" id="closePriceTaker">--</div>
+          </button>
+        </div>
+        <button class="ghost" id="closeSetupCancelBtn" style="margin-top:12px;width:100%;" onclick="hideCloseModal()">取消</button>
+      </div>
+
+      <div id="closeTrackingSection" style="display:none; margin-top:12px;">
+        <div id="closeTrackingContainer" style="background:linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02)); border:1px solid rgba(251,191,36,0.3); border-radius:16px; padding:20px; text-align:center;">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;">订单追踪雷达</div>
+            <div id="closeTrackStatus" style="font-size:22px;font-weight:800;margin-bottom:16px;color:var(--amber);text-shadow:0 0 12px rgba(251,191,36,0.4);">排队中 (Open)</div>
+            <div id="closeTrackDetails" style="font-size:15px;line-height:1.8;margin-bottom:24px;background:rgba(0,0,0,0.2);border-radius:12px;padding:12px;">--</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <button class="ghost" onclick="hideCloseModal()">隐藏面板</button>
+                <button class="danger" id="closeTrackCancelBtn" onclick="cancelTrackedOrder()" style="font-weight:700;">紧急撤单</button>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-backdrop" id="mobileBackdrop"></div>
+    <section class="mobile-tradebar" id="mobileTradeBar">
+      <div class="bar-top">
+        <div class="bar-title" id="mobileSelectionTitle">请选择一个卡片</div>
+        <div class="bar-meta" id="mobileSelectionMeta">点一下报价卡片，底部就能直接下单。</div>
+        <div class="bar-price" id="mobileSelectionPrice">--</div>
+        <div class="bar-info" id="mobileSelectionInfo"></div>
+        <div class="bar-empty" id="mobileSelectionEmpty">保留原有功能不变，只是把手机端下单动作放到底部更顺手。</div>
+      </div>
+      <div class="bar-controls">
+        <div class="amounts" id="mobileAmountPresets"></div>
+        <div class="bar-actions">
+          <div class="mini-stepper">
+            <button type="button" id="mobileAmountDecrement">-</button>
+            <div class="mini-stepper-value" id="mobileAmountValue">1</div>
+            <button type="button" id="mobileAmountIncrement">+</button>
+          </div>
+          <button class="ghost" id="mobileRefreshBtn">刷新</button>
+        </div>
+        <div class="bar-toggles">
+          <label class="small"><input id="mobileReduceOnly" type="checkbox" /> 仅减仓</label>
+          <button class="action buy" id="mobileBuyBtn">请选择卡片</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  
+<script>
+function safeGetItem(key, def) {
+  try { return window.localStorage ? (window.localStorage.getItem(key) || def) : def; } catch (e) { return def; }
+}
+function safeSetItem(key, val) {
+  try { if (window.localStorage) window.localStorage.setItem(key, val); } catch (e) {}
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const state = {
+  isTestnet: safeGetItem('qo_testnet', 'true') === 'true',
+  clientId: safeGetItem('qo_client_id', ''),
+  clientSecret: safeGetItem('qo_client_secret', ''),
+  asset: safeGetItem('qo_asset', 'BTC'),
+  expiry: '',
+  amount: Number(safeGetItem('qo_amount', 1)) || 1,
+  reduceOnly: safeGetItem('qo_reduceOnly', 'false') === 'true',
+  optionType: safeGetItem('qo_optionType', 'call'),
+  executionMode: safeGetItem('qo_execMode', 'take_ask'),
+  quoteUnit: safeGetItem('qo_quoteUnit', 'coin'),
+  selectedInstrument: '',
+  payload: null,
+};
+
+
+
+// Deribit WebSocket Client
+class DeribitWS {
+  constructor() {
+    this.ws = null;
+    this.msgId = 1;
+    this.resolvers = {};
+    this.connected = false;
+    this.authenticated = false;
+    this._isTestnet = true;
+    this._reconnectTimer = null;
+    this._heartbeatTimer = null;
+    this._connectPromise = null;
+    this._lastMessageAt = 0;
+    this._intentionalClose = false;
+    this._onSubscriptionHandler = null;
+    this._requestTimeoutMs = 15000;
+  }
+  
+  async connect(isTestnet) {
+    if (this._connectPromise) return this._connectPromise;
+    this._connectPromise = this._openConnection(isTestnet).finally(() => {
+      this._connectPromise = null;
+    });
+    return this._connectPromise;
+  }
+
+  async _openConnection(isTestnet) {
+    this._isTestnet = isTestnet;
+    this._intentionalClose = false;
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    if (this.ws) {
+      this._intentionalClose = true;
+      try { this.ws.close(); } catch(e) {}
+    }
+    this.connected = false;
+    this.authenticated = false;
+    this._stopHeartbeat();
+    const url = isTestnet ? 'wss://test.deribit.com/ws/api/v2' : 'wss://www.deribit.com/ws/api/v2';
+    
+    return new Promise((resolve, reject) => {
+      const socket = new WebSocket(url);
+      this.ws = socket;
+      this._intentionalClose = false;
+      socket.onopen = async () => {
+        if (this.ws !== socket) return;
+        this.connected = true;
+        this._lastMessageAt = Date.now();
+        setStatus('info', 'WebSocket 已连接，正在鉴权...');
+        if (state.clientId && state.clientSecret) {
+          try {
+            await this.auth();
+            this.authenticated = true;
+            this._startHeartbeat();
+            resolve();
+          } catch(e) {
+            this.authenticated = false;
+            reject(e);
+          }
+        } else {
+          reject(new Error("未配置 API Key"));
+        }
+      };
+      socket.onmessage = (msg) => {
+        if (this.ws !== socket) return;
+        this._lastMessageAt = Date.now();
+        const data = JSON.parse(msg.data);
+        // Handle subscription push notifications
+        if (data.method === 'subscription' && data.params) {
+          if (this._onSubscriptionHandler) {
+            this._onSubscriptionHandler(data.params.channel, data.params.data);
+          }
+          return;
+        }
+        // Handle RPC responses
+        if (data.id && this.resolvers[data.id]) {
+          if (data.error) {
+            this.resolvers[data.id].reject(data.error);
+          } else {
+            this.resolvers[data.id].resolve(data.result);
+          }
+          delete this.resolvers[data.id];
+        }
+      };
+      socket.onerror = (e) => {
+        if (this.ws !== socket) return;
+        if (!this.connected) reject(e);
+      };
+      socket.onclose = () => {
+        if (this.ws !== socket) return;
+        this.connected = false;
+        this.authenticated = false;
+        this._stopHeartbeat();
+        // Reject all pending requests so callers don't hang
+        for (const id of Object.keys(this.resolvers)) {
+          this.resolvers[id].reject(new Error('WebSocket 连接已断开'));
+          delete this.resolvers[id];
+        }
+        if (!this._intentionalClose && state.clientId && state.clientSecret) {
+          this._scheduleReconnect();
+        }
+      };
+    });
+  }
+
+  _scheduleReconnect(delayMs = 3000) {
+    if (this._reconnectTimer) return;
+    setStatus('warn', delayMs > 0 ? '⚠️ 连接已断开，3 秒后自动重连...' : '⚠️ 连接不可用，正在自动重连...');
+    this._reconnectTimer = setTimeout(async () => {
+      this._reconnectTimer = null;
+      setStatus('info', '🔄 正在重新连接...');
+      try {
+        await this.connect(this._isTestnet);
+        setStatus('info', '✅ 重连成功！正在恢复数据...');
+        _activeSubscriptions = [];
+        await loadData();
+      } catch(e) {
+        console.error('Reconnect failed:', e);
+        this._scheduleReconnect();
+      }
+    }, delayMs);
+  }
+
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    this._heartbeatTimer = setInterval(async () => {
+      if (!state.clientId || !state.clientSecret) return;
+      if (!this.connected || !this.authenticated || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        this._scheduleReconnect(0);
+        return;
+      }
+      try {
+        await this._sendRequest('public/get_time', {}, { timeoutMs: 8000 });
+      } catch(e) {
+        console.warn('Heartbeat failed:', e);
+        this._forceReconnect('⚠️ 连接心跳超时，正在自动重连...');
+      }
+    }, 25000);
+  }
+
+  _stopHeartbeat() {
+    if (this._heartbeatTimer) {
+      clearInterval(this._heartbeatTimer);
+      this._heartbeatTimer = null;
+    }
+  }
+
+  _rejectPendingRequests(message) {
+    for (const id of Object.keys(this.resolvers)) {
+      this.resolvers[id].reject(new Error(message));
+      delete this.resolvers[id];
+    }
+  }
+
+  _forceReconnect(message) {
+    if (message) setStatus('warn', message);
+    this.connected = false;
+    this.authenticated = false;
+    this._stopHeartbeat();
+    this._rejectPendingRequests('WebSocket 连接已断开');
+    const socket = this.ws;
+    this.ws = null;
+    if (socket) {
+      try { socket.close(); } catch(e) {}
+    }
+    if (state.clientId && state.clientSecret) {
+      this._scheduleReconnect(0);
+    }
+  }
+
+  async ensureConnected() {
+    if (!state.clientId || !state.clientSecret) {
+      throw new Error("未配置 API Key");
+    }
+    if (this.connected && this.authenticated && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+    setStatus('info', '连接不可用，正在自动重连...');
+    await this.connect(this._isTestnet);
+  }
+
+  async ensureFreshConnection() {
+    await this.ensureConnected();
+    if (Date.now() - this._lastMessageAt < 20000) return;
+    try {
+      await this._sendRequest('public/get_time', {}, { timeoutMs: 5000 });
+    } catch(e) {
+      await this.connect(this._isTestnet);
+      await this._sendRequest('public/get_time', {}, { timeoutMs: 5000 });
+    }
+  }
+
+  disconnect() {
+    this._intentionalClose = true;
+    stopPrivateRefreshLoop();
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    this._stopHeartbeat();
+    if (this.ws) {
+      try { this.ws.close(); } catch(e) {}
+    }
+  }
+
+  async request(method, params = {}, options = {}) {
+    if (!options.skipEnsure) {
+      await this.ensureConnected();
+    }
+    return this._sendRequest(method, params, options);
+  }
+
+  _sendRequest(method, params = {}, options = {}) {
+    return new Promise((resolve, reject) => {
+      if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return reject(new Error("WebSocket 未连接"));
+      const id = this.msgId++;
+      const timeoutMs = options.timeoutMs || this._requestTimeoutMs;
+      const timer = setTimeout(() => {
+        if (this.resolvers[id]) {
+          delete this.resolvers[id];
+          reject(new Error('WebSocket 请求超时，正在自动重连'));
+          this._forceReconnect('⚠️ 请求超时，正在自动重连...');
+        }
+      }, timeoutMs);
+      this.resolvers[id] = {
+        resolve: (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      };
+      try {
+        this.ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+      } catch(e) {
+        clearTimeout(timer);
+        delete this.resolvers[id];
+        reject(e);
+        this._forceReconnect('⚠️ 发送失败，正在自动重连...');
+      }
+    });
+  }
+
+  async auth() {
+    return await this.request('public/auth', {
+      grant_type: 'client_credentials',
+      client_id: state.clientId,
+      client_secret: state.clientSecret
+    }, { skipEnsure: true });
+  }
+
+  async subscribe(channels) {
+    if (!channels.length) return;
+    const publicChannels = channels.filter(c => !c.startsWith('user.'));
+    const privateChannels = channels.filter(c => c.startsWith('user.'));
+    if (publicChannels.length > 0) {
+      await this.request('public/subscribe', { channels: publicChannels });
+    }
+    if (privateChannels.length > 0) {
+      await this.request('private/subscribe', { channels: privateChannels });
+    }
+  }
+
+  async unsubscribe(channels) {
+    if (!channels.length) return;
+    try {
+      const publicChannels = channels.filter(c => !c.startsWith('user.'));
+      const privateChannels = channels.filter(c => c.startsWith('user.'));
+      if (publicChannels.length > 0) {
+        await this.request('public/unsubscribe', { channels: publicChannels });
+      }
+      if (privateChannels.length > 0) {
+        await this.request('private/unsubscribe', { channels: privateChannels });
+      }
+    } catch(e) { /* ignore errors during unsubscribe */ }
+  }
+
+  onSubscription(handler) {
+    this._onSubscriptionHandler = handler;
+  }
+}
+
+const api = new DeribitWS();
+// Register the global subscription handler (uses a wrapper so handleSubscriptionUpdate can be defined later)
+api.onSubscription(function(channel, data) {
+  handleSubscriptionUpdate(channel, data);
+});
+
+const QUICK_ORDER_AUTO_MAX_DTE_DAYS = 7;
+
+function getMs() { return new Date().getTime(); }
+
+// Instruments cache — avoid re-fetching the full contract list on every refresh
+let _instrumentsCache = null;
+let _instrumentsCacheKey = '';
+let _instrumentsCacheTime = 0;
+const INSTRUMENTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedInstruments() {
+  const cacheKey = `${state.asset}_option`;
+  const now = Date.now();
+  if (_instrumentsCache && _instrumentsCacheKey === cacheKey && (now - _instrumentsCacheTime) < INSTRUMENTS_CACHE_TTL) {
+    return _instrumentsCache;
+  }
+  const insts = await api.request('public/get_instruments', { currency: state.asset, kind: 'option', expired: false });
+  _instrumentsCache = insts;
+  _instrumentsCacheKey = cacheKey;
+  _instrumentsCacheTime = now;
+  return insts;
+}
+
+async function buildSnapshot() {
+  const nowMs = getMs();
+  const indexRes = await api.request('public/get_index_price', { index_name: `${state.asset.toLowerCase()}_usd` });
+  const spot = indexRes.index_price;
+
+  const insts = await getCachedInstruments();
+  
+  const expiryMap = {};
+  insts.forEach(inst => {
+    const parts = inst.instrument_name.split('-');
+    if (parts.length > 1) {
+      const exp = parts[1];
+      if (!expiryMap[exp]) expiryMap[exp] = [];
+      expiryMap[exp].push(inst);
+    }
+  });
+
+  // Calculate DTEs
+  const normalized = [];
+  for (const exp of Object.keys(expiryMap)) {
+    const inst = expiryMap[exp][0];
+    const dteDays = (inst.expiration_timestamp - nowMs) / (1000 * 60 * 60 * 24);
+    if (dteDays > 0) {
+      normalized.push({ expiry: exp, dte: dteDays });
+    }
+  }
+  normalized.sort((a,b) => a.dte - b.dte);
+
+  const nearTermOnly = normalized.filter(x => x.dte <= QUICK_ORDER_AUTO_MAX_DTE_DAYS);
+  let choices = [];
+  if (nearTermOnly.length > 0) {
+    choices = nearTermOnly.map(x => ({ expiry: x.expiry, label: `D${Math.max(0, Math.round(x.dte))}`, dte_days: x.dte }));
+  } else {
+    // simplified fallback
+    choices = normalized.slice(0, 4).map(x => ({ expiry: x.expiry, label: `D${Math.round(x.dte)}`, dte_days: x.dte }));
+  }
+
+  const selectedExpiry = state.expiry || (choices[0] ? choices[0].expiry : '');
+  state.expiry = selectedExpiry;
+  
+  const selectedInsts = expiryMap[selectedExpiry] || [];
+  
+  // Find strikes closest to spot
+  const uniqueStrikes = [...new Set(selectedInsts.map(i => i.strike))].sort((a,b) => Math.abs(a - spot) - Math.abs(b - spot));
+  const chosenStrikes = uniqueStrikes.slice(0, 11).sort((a,b) => a - b);
+  
+  const toFetch = selectedInsts.filter(i => chosenStrikes.includes(i.strike));
+  
+  // Parallel fetch tickers
+  const tickerPromises = toFetch.map(inst => api.request('public/ticker', { instrument_name: inst.instrument_name }).catch(e => null));
+  const tickers = await Promise.all(tickerPromises);
+
+  const strikeRows = {};
+  toFetch.forEach((inst, i) => {
+    const ticker = tickers[i];
+    if (!ticker) return;
+    const strike = inst.strike;
+    if (!strikeRows[strike]) strikeRows[strike] = { strike: strike, call: {}, put: {} };
+    const sideKey = inst.option_type === 'call' ? 'call' : 'put';
+    
+    const delta = (ticker.greeks && ticker.greeks.delta) ? ticker.greeks.delta : 0;
+    const absDelta = Math.abs(delta);
+    if (absDelta < 0.10 || absDelta > 0.60) return; // DELTA MIN MAX
+    
+    strikeRows[strike][sideKey] = {
+      instrument_name: inst.instrument_name,
+      bid: ticker.best_bid_price || 0,
+      ask: ticker.best_ask_price || 0,
+      mark: ticker.mark_price || 0,
+      iv: ticker.mark_iv || 0,
+      delta: delta
+    };
+  });
+
+  const rows = Object.values(strikeRows).filter(r => r.call.instrument_name || r.put.instrument_name).sort((a,b) => a.strike - b.strike);
+  
+  return {
+    snapshot: {
+      expiry: selectedExpiry,
+      spot_price: spot,
+      rows: rows
+    },
+    expiries: choices
+  };
+}
+
+// ── Subscription Infrastructure ──
+let _activeSubscriptions = [];
+let _renderPending = false;
+let _lastRenderTime = 0;
+const RENDER_THROTTLE_MS = 300;
+const PRIVATE_REFRESH_INTERVAL_MS = 8000;
+let _privateRefreshTimer = null;
+
+function scheduleThrottledRender() {
+  if (_renderPending) return;
+  const now = Date.now();
+  const elapsed = now - _lastRenderTime;
+  if (elapsed >= RENDER_THROTTLE_MS) {
+    _doThrottledRender();
+  } else {
+    _renderPending = true;
+    setTimeout(() => {
+      _renderPending = false;
+      _doThrottledRender();
+    }, RENDER_THROTTLE_MS - elapsed);
+  }
+}
+
+function _doThrottledRender() {
+  _lastRenderTime = Date.now();
+  if (state.payload) {
+    renderTradeCards(state.payload);
+    renderMobileTradeBar();
+  }
+}
+
+function handleSubscriptionUpdate(channel, data) {
+  if (!data) return;
+
+  // ── Ticker updates (real-time bid/ask/mark/iv/delta) ──
+  if (channel.startsWith('ticker.')) {
+    const instrumentName = channel.replace('ticker.', '').replace('.100ms', '');
+    if (state.payload && state.payload.snapshot && state.payload.snapshot.rows) {
+      for (const row of state.payload.snapshot.rows) {
+        let side = null;
+        if (row.call && row.call.instrument_name === instrumentName) side = 'call';
+        else if (row.put && row.put.instrument_name === instrumentName) side = 'put';
+        if (side) {
+          row[side].bid = data.best_bid_price || 0;
+          row[side].ask = data.best_ask_price || 0;
+          row[side].mark = data.mark_price || 0;
+          if (data.mark_iv != null) row[side].iv = data.mark_iv;
+          if (data.greeks && data.greeks.delta != null) row[side].delta = data.greeks.delta;
+          break;
+        }
+      }
+      // Keep spot price in sync
+      if (data.index_price) {
+        state.payload.snapshot.spot_price = data.index_price;
+      }
+      scheduleThrottledRender();
+    }
+    return;
+  }
+
+  // ── Account equity updates ──
+  if (channel.startsWith('user.portfolio.')) {
+    if (state.payload && data) {
+      state.payload.account.equity = data.equity;
+      state.payload.account.available_funds = data.available_funds;
+      state.payload.account.margin_balance = data.margin_balance;
+      renderAccountEquity(state.payload);
+    }
+    return;
+  }
+
+  // ── Order / Position / Trade changes ──
+  if (channel.startsWith('user.changes.')) {
+    refreshPrivateData();
+    return;
+  }
+}
+
+let _privateRefreshPending = false;
+async function refreshPrivateData() {
+  if (_privateRefreshPending || !api.authenticated) return;
+  if (document.visibilityState && document.visibilityState !== 'visible') return;
+  _privateRefreshPending = true;
+  try {
+    const [openOrders, positions, tradeHistory] = await Promise.all([
+      api.request('private/get_open_orders_by_currency', { currency: state.asset, kind: 'option' }),
+      api.request('private/get_positions', { currency: state.asset, kind: 'option' }),
+      api.request('private/get_user_trades_by_currency', { currency: state.asset, kind: 'option', count: 50 })
+    ]);
+    if (state.payload) {
+      state.payload.open_orders = openOrders;
+      state.payload.positions = positions.filter(p => Math.abs(p.size) > 0);
+      state.payload.trade_history = tradeHistory ? tradeHistory.trades : [];
+      renderOpenOrders(state.payload);
+      renderPositions(state.payload);
+      renderTradeHistory(state.payload);
+      renderExpiries(state.payload.expiries || []);
+    }
+  } catch(e) {
+    console.error('Private data refresh failed:', e);
+  } finally {
+    _privateRefreshPending = false;
+  }
+}
+
+function startPrivateRefreshLoop() {
+  if (_privateRefreshTimer) clearInterval(_privateRefreshTimer);
+  _privateRefreshTimer = setInterval(() => {
+    if (!state.payload || !api.authenticated) return;
+    refreshPrivateData();
+  }, PRIVATE_REFRESH_INTERVAL_MS);
+}
+
+function stopPrivateRefreshLoop() {
+  if (_privateRefreshTimer) {
+    clearInterval(_privateRefreshTimer);
+    _privateRefreshTimer = null;
+  }
+}
+
+async function setupSubscriptions() {
+  const channels = [];
+  // Subscribe to tickers for all instruments in the current snapshot
+  if (state.payload && state.payload.snapshot && state.payload.snapshot.rows) {
+    for (const row of state.payload.snapshot.rows) {
+      if (row.call && row.call.instrument_name) {
+        channels.push(`ticker.${row.call.instrument_name}.100ms`);
+      }
+      if (row.put && row.put.instrument_name) {
+        channels.push(`ticker.${row.put.instrument_name}.100ms`);
+      }
+    }
+  }
+  // Subscribe to user data channels
+  channels.push(`user.portfolio.${state.asset}`);
+  channels.push(`user.changes.${state.asset}.option`);
+
+  if (channels.length > 0) {
+    await api.subscribe(channels);
+    _activeSubscriptions = channels;
+  }
+}
+
+async function loadData() {
+  if (!state.clientId || !state.clientSecret) return;
+  if (!api.authenticated) {
+    try {
+      await api.ensureConnected();
+    } catch(e) {
+      setStatus('error', `连接失败: ${e.message}`);
+      return;
+    }
+  }
+  setStatus('info', '正在加载市场数据 ...');
+  try {
+    // Tear down previous subscriptions
+    if (_activeSubscriptions.length > 0) {
+      await api.unsubscribe(_activeSubscriptions);
+      _activeSubscriptions = [];
+    }
+
+    const base = await buildSnapshot();
+    // Fetch private data in parallel for speed
+    const [account, openOrders, positions, tradeHistory] = await Promise.all([
+      api.request('private/get_account_summary', { currency: state.asset, extended: true }),
+      api.request('private/get_open_orders_by_currency', { currency: state.asset, kind: 'option' }),
+      api.request('private/get_positions', { currency: state.asset, kind: 'option' }),
+      api.request('private/get_user_trades_by_currency', { currency: state.asset, kind: 'option', count: 50 })
+    ]);
+
+    const payload = {
+      success: true,
+      asset: state.asset,
+      expiries: base.expiries,
+      snapshot: base.snapshot,
+      account: {
+        currency: state.asset,
+        equity: account.equity,
+        available_funds: account.available_funds,
+        margin_balance: account.margin_balance
+      },
+      open_orders: openOrders,
+      positions: positions.filter(p => Math.abs(p.size) > 0),
+      trade_history: tradeHistory ? tradeHistory.trades : []
+    };
+
+    state.payload = payload;
+    renderAll();
+
+    // Establish real-time WebSocket subscriptions
+    await setupSubscriptions();
+    startPrivateRefreshLoop();
+
+    const pExpiry = (payload && payload.snapshot && payload.snapshot.expiry) || '--';
+    setStatus('info', `已加载 ${pExpiry}，实时推送已建立 ✓`);
+  } catch(e) {
+    console.error(e);
+    setStatus('error', `加载失败: ${e.message}`);
+  }
+}
+
+
+
+function renderAll() {
+  renderAssets();
+  renderOptionTypeMode();
+  renderTradeIntentMode();
+  renderQuoteUnitMode();
+  renderExpiries(state.payload.expiries || []);
+  renderAmountPresets();
+  renderTradeCards(state.payload);
+  renderOpenOrders(state.payload);
+  renderPositions(state.payload);
+  renderTradeHistory(state.payload);
+  renderAccountEquity(state.payload);
+}
+
+function renderAccountEquity(payload) {
+  if (payload && payload.account) {
+    const eq = Number(payload.account.equity || 0);
+    const cur = payload.account.currency || 'BTC';
+    const spotPrice = Number((payload && payload.snapshot && payload.snapshot.spot_price) || 0);
+    const eqUsd = eq * spotPrice;
+    const el = document.getElementById('accountEquity');
+    if (el) {
+      el.innerHTML = `账户权益: ${fmt(eq)} ${cur} <span style="opacity:0.7;font-weight:400;margin-left:4px;">(${fmtUsd(eqUsd)})</span>`;
+      el.style.display = 'block';
+    }
+  }
+}
+
+
+
+    
+
+    // ──── Sound Effects (Web Audio API) ────
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let _audioCtx;
+    function getAudioCtx() {
+      if (!_audioCtx) _audioCtx = new AudioCtx();
+      if (_audioCtx.state === 'suspended') _audioCtx.resume();
+      return _audioCtx;
+    }
+    function playTone(freqs, durations, type = 'sine', vol = 0.15) {
+      try {
+        const ctx = getAudioCtx();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.value = vol;
+        let t = ctx.currentTime;
+        freqs.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = type;
+          osc.frequency.value = f;
+          osc.connect(gain);
+          osc.start(t);
+          osc.stop(t + durations[i]);
+          t += durations[i] + 0.02;
+        });
+        gain.gain.setValueAtTime(vol, t - 0.05);
+        gain.gain.linearRampToValueAtTime(0, t + 0.1);
+      } catch(e) { /* silent fail */ }
+    }
+    function soundOrderPlaced()   { playTone([523, 659], [0.08, 0.12], 'sine', 0.12); }
+    function soundOrderFilled()   { playTone([659, 784, 1047], [0.08, 0.08, 0.16], 'sine', 0.18); }
+    function soundOrderCancelled(){ playTone([440, 330], [0.1, 0.15], 'triangle', 0.1); }
+    function soundOrderError()    { playTone([300, 200], [0.12, 0.2], 'sawtooth', 0.08); }
+
+    const assetChips = document.getElementById('assetChips');
+    const optionTypeChips = document.getElementById('optionTypeChips');
+    const tradeIntentChips = document.getElementById('tradeIntentChips');
+    const expiryChips = document.getElementById('expiryChips');
+    const quoteUnitChips = document.getElementById('quoteUnitChips');
+    const tradeCards = document.getElementById('tradeCards');
+    const openOrdersRows = document.getElementById('openOrdersRows');
+    const positionsRows = document.getElementById('positionsRows');
+    const tradeHistoryRows = document.getElementById('tradeHistoryRows');
+    const chainTitle = document.getElementById('chainTitle');
+    const chainMeta = document.getElementById('chainMeta');
+    const amountInput = document.getElementById('amountInput');
+    const amountPresets = document.getElementById('amountPresets');
+    const reduceOnly = document.getElementById('reduceOnly');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const mobileTradeBar = document.getElementById('mobileTradeBar');
+    const mobileSelectionTitle = document.getElementById('mobileSelectionTitle');
+    const mobileSelectionMeta = document.getElementById('mobileSelectionMeta');
+    const mobileSelectionPrice = document.getElementById('mobileSelectionPrice');
+    const mobileSelectionEmpty = document.getElementById('mobileSelectionEmpty');
+    const mobileAmountPresets = document.getElementById('mobileAmountPresets');
+    const mobileAmountValue = document.getElementById('mobileAmountValue');
+    const mobileAmountDecrement = document.getElementById('mobileAmountDecrement');
+    const mobileAmountIncrement = document.getElementById('mobileAmountIncrement');
+    const mobileReduceOnly = document.getElementById('mobileReduceOnly');
+    const mobileBuyBtn = document.getElementById('mobileBuyBtn');
+    const mobileRefreshBtn = document.getElementById('mobileRefreshBtn');
+    const mobileBackdrop = document.getElementById('mobileBackdrop');
+    const mobileSelectionInfo = document.getElementById('mobileSelectionInfo');
+
+    mobileBackdrop.addEventListener('click', () => {
+      mobileTradeBar.classList.remove('open');
+      mobileBackdrop.classList.remove('open');
+    });
+
+    function fmt(v, digits = 4) {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return '--';
+      return n.toFixed(digits);
+    }
+
+    function fmtNum(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '--';
+      return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function fmtSigned(v, digits = 2) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '--';
+      return n.toFixed(digits);
+    }
+
+    function fmtUsd(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) return '--';
+      return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
+
+    function fmtPnl(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '--';
+      return (n > 0 ? '+' : '') + n.toFixed(4);
+    }
+
+    function fmtPnlUsd(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '--';
+      const sign = n < 0 ? '-' : '+';
+      return `${sign}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function formatDisplay(value, spotPrice) {
+      const coin = fmt(value);
+      const usd = fmtUsd(Number(value || 0) * Number(spotPrice || 0));
+      if (state.quoteUnit === 'usd') {
+        return { primary: usd, secondary: coin };
+      }
+      return { primary: coin, secondary: usd };
+    }
+
+    function setStatus(kind, text) {
+      if (!text) {
+        statusMsg.innerHTML = '';
+        return;
+      }
+      statusMsg.innerHTML = `<div class="message ${kind}">${text}</div>`;
+    }
+
+    function roundAmount(value) {
+      const rounded = Math.round(Number(value || 0) * 10) / 10;
+      const minAmount = state.asset === 'ETH' ? 1 : 0.1;
+      return rounded >= minAmount ? rounded : minAmount;
+    }
+
+    function setAmount(nextAmount) {
+      state.amount = roundAmount(nextAmount);
+      safeSetItem('qo_amount', state.amount);
+      amountInput.value = String(state.amount);
+      mobileAmountValue.textContent = fmtNum(state.amount);
+      renderAmountPresets();
+      if (state.payload) {
+        renderTradeCards(state.payload);
+      }
+      renderMobileTradeBar();
+    }
+
+    function button(label, active, onClick, tone = '') {
+      const el = document.createElement('button');
+      el.className = `chip ${active ? `active ${tone}` : ''}`;
+      el.innerHTML = label;
+      el.onclick = onClick;
+      return el;
+    }
+
+    function renderAssets() {
+      assetChips.innerHTML = '';
+      ['BTC', 'ETH'].forEach((asset) => {
+        assetChips.appendChild(button(asset, state.asset === asset, async () => {
+          state.asset = asset;
+          safeSetItem('qo_asset', asset);
+          state.expiry = '';
+          
+          // Set default minimum amount based on asset
+          const defaultAmount = asset === 'ETH' ? 1 : 0.1;
+          state.amount = defaultAmount;
+          safeSetItem('qo_amount', defaultAmount);
+          amountInput.value = defaultAmount;
+          mobileAmountValue.textContent = fmtNum(defaultAmount);
+          
+          renderAssets();
+          renderAmountPresets();
+          renderExpiries([]);
+          setStatus('info', `切换到 ${asset}，正在刷新...`);
+          await loadData();
+        }));
+      });
+    }
+
+    function renderOptionTypeMode() {
+      optionTypeChips.innerHTML = '';
+      [
+        ['call', '看涨'],
+        ['put', '看跌'],
+      ].forEach(([value, label]) => {
+        optionTypeChips.appendChild(button(label, state.optionType === value, async () => {
+          state.optionType = value;
+          safeSetItem('qo_optionType', value);
+          renderOptionTypeMode();
+          renderTradeCards(state.payload);
+        }), value === 'call' ? 'tone-up' : 'tone-down');
+      });
+    }
+
+    function renderTradeIntentMode() {
+      tradeIntentChips.innerHTML = '';
+      [
+        ['take_ask', '吃卖一'],
+        ['mark_clip', '标记'],
+        ['optimal', '最优价'],
+        ['join_bid', '挂买一'],
+      ].forEach(([value, label]) => {
+        tradeIntentChips.appendChild(button(label, state.executionMode === value, async () => {
+          state.executionMode = value;
+          safeSetItem('qo_execMode', value);
+          renderTradeIntentMode();
+          renderTradeCards(state.payload);
+        }), value === 'take_ask' ? 'tone-taker' : (value === 'mark_clip' ? 'tone-up' : (value === 'optimal' ? 'tone-up' : 'tone-maker')));
+      });
+    }
+
+    function renderQuoteUnitMode() {
+      quoteUnitChips.innerHTML = '';
+      [
+        ['coin', '币本位'],
+        ['usd', '美元'],
+      ].forEach(([value, label]) => {
+        quoteUnitChips.appendChild(button(label, state.quoteUnit === value, async () => {
+          state.quoteUnit = value;
+          safeSetItem('qo_quoteUnit', value);
+          renderQuoteUnitMode();
+          renderTradeCards(state.payload);
+        }));
+      });
+    }
+
+    function renderAmountPresets() {
+      const renderPresetGroup = (container) => {
+        if (!container) return;
+        container.innerHTML = '';
+        const presets = state.asset === 'ETH' ? [1, 20, 50, 100, 500, 1000] : [0.1, 1, 2, 5, 10];
+        presets.forEach((preset) => {
+          container.appendChild(button(String(preset), state.amount === preset, () => {
+            setAmount(preset);
+          }));
+        });
+      };
+
+      renderPresetGroup(amountPresets);
+      renderPresetGroup(mobileAmountPresets);
+      mobileAmountValue.textContent = fmtNum(state.amount);
+    }
+
+    function renderExpiries(expiries) {
+      expiryChips.innerHTML = '';
+      expiries.forEach((item) => {
+        let activeCount = 0;
+        if (state.payload) {
+          const openOrders = state.payload.open_orders || [];
+          const positions = state.payload.positions || [];
+          const suffix = `-${item.expiry}-`;
+          const countOrders = openOrders.filter(o => o.instrument_name && o.instrument_name.includes(suffix)).length;
+          const countPositions = positions.filter(p => p.instrument_name && p.instrument_name.includes(suffix)).length;
+          activeCount = countOrders + countPositions;
+        }
+        let label = `${item.label} · ${item.expiry} · ${Math.round(item.dte_days)}D`;
+        if (activeCount > 0) {
+          label += ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px;line-height:1;box-shadow:0 0 8px rgba(255,59,48,0.4);">${activeCount}</span>`;
+        }
+        expiryChips.appendChild(button(label, state.expiry === item.expiry, async () => {
+          state.expiry = item.expiry;
+          renderExpiries(expiries);
+          setStatus('info', `切换到 ${item.expiry}，正在刷新...`);
+          await loadData();
+        }));
+      });
+    }
+
+    function createActionButton(text, className, handler) {
+      const btn = document.createElement('button');
+      btn.className = `action ${className}`;
+      btn.textContent = text;
+      btn.onclick = (event) => {
+        event.stopPropagation();
+        if (btn.disabled) return;
+        const originalText = btn.textContent;
+        btn.textContent = '提交中...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        handler(event).finally(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        });
+      };
+      return btn;
+    }
+
+    function getTradeRows(data) {
+      const snapshot = (data && data.snapshot) || {};
+      const targetMin = 0.28;
+      const targetMax = 0.42;
+      return (snapshot.rows || [])
+        .map((row) => ({
+          strike: row.strike,
+          sideData: state.optionType === 'call' ? (row.call || {}) : (row.put || {}),
+        }))
+        .filter((row) => row.sideData && row.sideData.instrument_name)
+        .filter((row) => {
+          const d = Math.abs(Number(row.sideData.delta || 0));
+          const isSelected = row.sideData.instrument_name === state.selectedInstrument;
+          return isSelected || (d >= targetMin && d <= targetMax);
+        });
+    }
+
+    function getSelectionDetails(sideData) {
+      const isTaker = state.executionMode === 'take_ask';
+      const isMarkClip = state.executionMode === 'mark_clip';
+      const isOptimal = state.executionMode === 'optimal';
+      const spotPrice = Number((state.payload && state.payload.snapshot && state.payload.snapshot.spot_price) || 0);
+      const amount = Number(amountInput.value || state.amount || 1);
+      const bid = Number(sideData.bid || 0);
+      const ask = Number(sideData.ask || 0);
+      const midPrice = (bid > 0 && ask > 0) ? (bid + ask) / 2 : 0;
+      const markPrice = Number(sideData.mark || 0);
+      const markClipRef = markPrice > 0 ? markPrice : midPrice;
+
+      function getTick(p) { return p >= 0.005 ? 0.0005 : 0.0001; }
+      function snapBuy(p) {
+        const t = getTick(p);
+        return Math.floor((p + 0.0001 + 1e-6) / t) * t;
+      }
+      function snapPrice(p) {
+        const t = getTick(p);
+        return Math.round(Math.round(p / t) * t * 10000) / 10000;
+      }
+
+      let activeRefPrice = 0;
+      if (isTaker) {
+        activeRefPrice = ask;
+      } else if (isOptimal) {
+        let ref = snapBuy(markClipRef);
+        if (bid > 0 && ask > 0 && bid < ask) {
+          let maxPrice = snapPrice(bid + getTick(bid));
+          activeRefPrice = Math.max(bid, Math.min(ref, Math.min(ask, maxPrice)));
+        } else {
+          activeRefPrice = ref || bid;
+        }
+      } else if (isMarkClip) {
+        let ref = snapBuy(markClipRef);
+        let tick = getTick(ref);
+        if (bid > 0 && ask > 0 && bid < ask) {
+          let lo = snapPrice(bid + tick);
+          let hi = snapPrice(ask - tick);
+          if (lo > hi) lo = hi;
+          activeRefPrice = Math.max(lo, Math.min(ref, hi));
+        } else {
+          activeRefPrice = ref;
+        }
+      } else {
+        activeRefPrice = bid;
+      }
+      const primaryDisplay = formatDisplay(activeRefPrice, spotPrice);
+      const premiumUsd = activeRefPrice * spotPrice * amount;
+      const deltaNotionalUsd = Math.abs(Number(sideData.delta || 0)) * spotPrice * amount;
+      const leverageRatio = premiumUsd > 0 ? deltaNotionalUsd / premiumUsd : 0;
+      return {
+        isTaker,
+        isMarkClip,
+        amount,
+        midPrice,
+        markPrice,
+        activeRefPrice,
+        primaryDisplay,
+        premiumUsd,
+        deltaNotionalUsd,
+        leverageRatio,
+      };
+    }
+
+    function ensureSelectedInstrument(rows) {
+      if (!rows.length) {
+        state.selectedInstrument = '';
+        return;
+      }
+      const matched = rows.find((row) => row.sideData.instrument_name === state.selectedInstrument);
+      if (!matched) {
+        state.selectedInstrument = rows[0].sideData.instrument_name;
+      }
+    }
+
+    function selectInstrument(instrumentName) {
+      state.selectedInstrument = instrumentName;
+      if (state.payload) {
+        renderTradeCards(state.payload);
+      }
+      renderMobileTradeBar();
+      if (window.innerWidth <= 760) {
+        mobileTradeBar.classList.add('open');
+        mobileBackdrop.classList.add('open');
+      }
+    }
+
+    function createTradeCard(strike, sideData, sideLabel) {
+      const wrap = document.createElement('div');
+      const details = getSelectionDetails(sideData);
+      const isSelected = state.selectedInstrument === sideData.instrument_name;
+      wrap.className = `quote selectable ${state.optionType === 'call' ? 'call-card' : 'put-card'} ${isSelected ? 'selected' : ''}`;
+      wrap.onclick = () => selectInstrument(sideData.instrument_name);
+      const spotPrice = Number((state.payload && state.payload.snapshot && state.payload.snapshot.spot_price) || 0);
+      const bidDisplay = formatDisplay(sideData.bid, spotPrice);
+      const markDisplay = formatDisplay(details.markPrice, spotPrice);
+      const askDisplay = formatDisplay(sideData.ask, spotPrice);
+      const midDisplay = formatDisplay(details.midPrice, spotPrice);
+      let myBuyAmount = 0, mySellAmount = 0;
+      const openOrders = (state.payload && state.payload.open_orders) || [];
+      for (const o of openOrders) {
+        if (o.instrument_name === sideData.instrument_name) {
+          if (o.direction === 'buy') myBuyAmount += o.amount;
+          else mySellAmount += o.amount;
+        }
+      }
+
+      const buyBadge = myBuyAmount > 0 ? `<div style="position:absolute;top:-8px;right:-8px;background:#34d399;color:#000;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:900;box-shadow:0 2px 10px rgba(52,211,153,0.6);border:1px solid rgba(0,0,0,0.5);z-index:10;">挂买 ${myBuyAmount}</div>` : '';
+      const sellBadge = mySellAmount > 0 ? `<div style="position:absolute;top:-8px;right:-8px;background:#fb7185;color:#000;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:900;box-shadow:0 2px 10px rgba(251,113,133,0.6);border:1px solid rgba(0,0,0,0.5);z-index:10;">挂卖 ${mySellAmount}</div>` : '';
+
+      wrap.innerHTML = `
+        <div class="side-name">${sideLabel}</div>
+        <div class="strike">${fmtNum(strike)}</div>
+        <div class="intent">${state.executionMode === 'take_ask' ? '当前模式: 吃卖一' : (state.executionMode === 'optimal' ? '当前模式: 最优价' : (state.executionMode === 'mark_clip' ? '当前模式: 标记' : '当前模式: 挂买一'))}${isSelected ? ' · 已选中' : ''}</div>
+        <div class="primary">
+          <div>
+            <div class="label">${state.executionMode === 'take_ask' ? '买入参考价' : (state.executionMode === 'optimal' ? '最优价' : (state.executionMode === 'mark_clip' ? '标记参考价' : '挂单参考价'))}</div>
+            <div class="value">${details.primaryDisplay.primary}</div>
+            <div class="small">${details.primaryDisplay.secondary}</div>
+          </div>
+          <div class="small">数量 ${fmtNum(details.amount)} · 权利金 ${fmtUsd(details.premiumUsd)}</div>
+        </div>
+        <div class="price-row">
+          <div class="price-pill" style="position:relative"><div class="label">买一</div><div class="value">${bidDisplay.primary}</div><div class="subvalue">${bidDisplay.secondary}</div>${buyBadge}</div>
+          <div class="price-pill mark-pill" style="position:relative"><div class="label">标记价</div><div class="value">${markDisplay.primary}</div><div class="subvalue">${markDisplay.secondary}</div></div>
+          <div class="price-pill" style="position:relative"><div class="label">卖一</div><div class="value">${askDisplay.primary}</div><div class="subvalue">${askDisplay.secondary}</div>${sellBadge}</div>
+        </div>
+        <div class="top"><span>中间价 ${midDisplay.primary}</span><span>${state.executionMode === 'take_ask' ? '立即买入' : (state.executionMode === 'optimal' ? '超买一抢单' : (state.executionMode === 'mark_clip' ? '贴近标记成交' : '排队挂买'))}</span></div>
+        <div class="mid"><span>IV <strong>${fmt(sideData.iv, 1)}%</strong></span><span>Δ <strong>${fmtSigned(sideData.delta, 2)}</strong></span></div>
+        <div class="delta-note">权利金总额: ${fmtUsd(details.premiumUsd)} · 杠杆 x${fmt(details.leverageRatio, 1)} · 按手数 Δ 名义: ${fmtUsd(details.deltaNotionalUsd)}</div>
+      `;
+      wrap.appendChild(createActionButton(
+        state.executionMode === 'take_ask' ? '买入吃卖一' : (state.executionMode === 'optimal' ? '最优价挂单' : (state.executionMode === 'mark_clip' ? '买入标记' : '买入挂买一')),
+        state.executionMode,
+        () => submitOrder(sideData.instrument_name, 'buy', details.activeRefPrice, state.executionMode),
+      ));
+      return wrap;
+    }
+
+    async function submitOrder(instrument, side, price, executionMode) {
+      setStatus('info', `正在提交 ${side.toUpperCase()} ${instrument} ...`);
+      const isTaker = executionMode === 'take_ask';
+      const isJoin = executionMode === 'join_bid';
+      
+      // Deribit Options do NOT support "market" orders.
+      // We must use "limit" and pass the crossed price (ask for buys).
+      let params = {
+        instrument_name: instrument,
+        amount: Number(amountInput.value || state.amount || 1),
+        type: 'limit',
+        time_in_force: isTaker ? 'immediate_or_cancel' : 'good_til_cancelled',
+        reduce_only: reduceOnly.checked,
+        price: price
+      };
+      if (isJoin) params.post_only = true;
+      
+      try {
+        await api.ensureFreshConnection();
+        const payload = await api.request(`private/${side}`, params);
+        const orderState = (payload && payload.order && payload.order.order_state) || '';
+        if (orderState === 'filled') {
+          soundOrderFilled();
+        } else {
+          soundOrderPlaced();
+        }
+        setStatus('info', `下单成功 | ${orderState}`);
+      } catch (e) {
+        setStatus('error', e.message || '下单失败');
+        soundOrderError();
+      }
+      
+      await refreshPrivateData();
+    }
+
+    async function cancelOrder(orderId) {
+      setStatus('info', `正在撤销 ${orderId} ...`);
+      try {
+        await api.request('private/cancel', { order_id: orderId });
+        soundOrderCancelled();
+        setStatus('info', `已撤销 ${orderId}`);
+      } catch (e) {
+        setStatus('error', e.message || '撤单失败');
+        soundOrderError();
+      }
+      await refreshPrivateData();
+    }
+
+    function renderTradeCards(data) {
+      const snapshot = data.snapshot || {};
+      const sideLabel = state.optionType === 'call' ? '看涨 Call' : '看跌 Put';
+      const modeLabel = `${state.optionType === 'call' ? '看涨' : '看跌'} / ${state.executionMode === 'take_ask' ? '吃卖一' : (state.executionMode === 'mark_clip' ? '标记' : '挂买一')}`;
+      chainTitle.textContent = `当前模式报价卡片`;
+      chainMeta.textContent = `${modeLabel} | ${snapshot.time_to_expiry || '--'} | 到期 ${snapshot.expiry || '--'} | 刷新时间 ${new Date().toLocaleTimeString()}`;
+      tradeCards.innerHTML = '';
+
+      const rows = getTradeRows(data);
+      ensureSelectedInstrument(rows);
+
+      if (rows.length === 0) {
+        tradeCards.innerHTML = '<div class="quote"><div class="side-name">No Match</div><div class="muted">当前模式下没有符合 Delta 范围的合约。</div></div>';
+        renderMobileTradeBar();
+        return;
+      }
+
+      rows.forEach((row) => {
+        tradeCards.appendChild(createTradeCard(row.strike, row.sideData, sideLabel));
+      });
+      renderMobileTradeBar();
+    }
+
+    function renderMobileTradeBar() {
+      if (!mobileTradeBar) return;
+      const rows = getTradeRows(state.payload);
+      const selected = rows.find((row) => row.sideData.instrument_name === state.selectedInstrument);
+
+      mobileReduceOnly.checked = reduceOnly.checked;
+      mobileAmountValue.textContent = fmtNum(state.amount);
+
+      if (!selected) {
+        mobileSelectionTitle.textContent = '请选择一个卡片';
+        mobileSelectionMeta.textContent = `当前模式 ${state.optionType === 'call' ? '看涨' : '看跌'} / ${state.executionMode === 'take_ask' ? '吃卖一' : (state.executionMode === 'optimal' ? '最优价' : (state.executionMode === 'mark_clip' ? '标记' : '挂买一'))}`;
+        mobileSelectionPrice.textContent = '--';
+        mobileSelectionInfo.innerHTML = '';
+        mobileSelectionEmpty.style.display = 'block';
+        mobileBuyBtn.disabled = true;
+        mobileBuyBtn.textContent = '请选择卡片';
+        return;
+      }
+
+      const details = getSelectionDetails(selected.sideData);
+      mobileSelectionTitle.textContent = selected.sideData.instrument_name;
+      mobileSelectionMeta.textContent = `${selected.strike} | ${state.executionMode === 'take_ask' ? '吃卖一' : (state.executionMode === 'optimal' ? '最优价' : (state.executionMode === 'mark_clip' ? '标记' : '挂买一'))} | ${state.expiry || '--'}`;
+      mobileSelectionPrice.textContent = details.primaryDisplay.primary;
+      mobileSelectionEmpty.style.display = 'none';
+      const spotPrice = Number((state.payload && state.payload.snapshot && state.payload.snapshot.spot_price) || 0);
+      const bidDisplay = formatDisplay(selected.sideData.bid, spotPrice);
+      const markDisplay = formatDisplay(details.markPrice, spotPrice);
+      const askDisplay = formatDisplay(selected.sideData.ask, spotPrice);
+
+      mobileSelectionInfo.innerHTML = `
+        <div class="info-row" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px"><span>💰 权利金总额:</span> <strong style="color:#fbbf24;font-size:16px">${fmtUsd(details.premiumUsd)}</strong></div>
+        <div class="info-row"><span>杠杆:</span> <strong>x${fmt(details.leverageRatio, 1)}</strong></div>
+        <div class="info-row"><span>按手数 Δ 名义:</span> <strong>${fmtUsd(details.deltaNotionalUsd)}</strong></div>
+        <div class="info-row"><span>当前 IV:</span> <strong>${fmt(selected.sideData.iv, 1)}%</strong></div>
+        <div class="info-row"><span>买一:</span> <strong>${bidDisplay.primary}</strong></div>
+        <div class="info-row"><span>标记:</span> <strong>${markDisplay.primary}</strong></div>
+        <div class="info-row"><span>卖一:</span> <strong>${askDisplay.primary}</strong></div>
+      `;
+      mobileBuyBtn.disabled = false;
+      mobileBuyBtn.className = `action ${state.executionMode}`;
+      mobileBuyBtn.textContent = state.executionMode === 'take_ask' ? '买入吃卖一' : (state.executionMode === 'optimal' ? '买入最优价' : (state.executionMode === 'mark_clip' ? '买入标记' : '买入挂买一'));
+      
+      mobileBuyBtn.onclick = () => {
+        submitOrder(selected.sideData.instrument_name, 'buy', details.activeRefPrice, state.executionMode);
+      };
+    }
+
+    function renderOpenOrders(data) {
+      openOrdersRows.innerHTML = '';
+      const orders = data.open_orders || [];
+      const panel = document.getElementById('openOrdersPanel');
+      if (orders.length > 0 && panel && !panel.open) panel.open = true;
+      if (orders.length === 0) {
+        openOrdersRows.innerHTML = '<tr><td colspan="6" class="muted">当前没有挂单。</td></tr>';
+        return;
+      }
+      orders.forEach((order) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHTML(order.instrument_name)}</td>
+          <td>${String(order.direction || '').toUpperCase()}</td>
+          <td>${fmtNum(order.amount)}</td>
+          <td>${fmt(order.price)}</td>
+          <td>${order.order_state || '--'}</td>
+          <td></td>
+        `;
+        const td = tr.children[5];
+        const btn = document.createElement('button');
+        btn.className = 'danger';
+        btn.textContent = '撤单';
+        btn.onclick = () => cancelOrder(order.order_id);
+        td.appendChild(btn);
+        openOrdersRows.appendChild(tr);
+      });
+    }
+
+    function renderPositions(data) {
+      positionsRows.innerHTML = '';
+      const positions = data.positions || [];
+      const panel = document.getElementById('positionsPanel');
+      if (positions.length > 0 && panel && !panel.open) panel.open = true;
+      if (positions.length === 0) {
+        positionsRows.innerHTML = '<tr><td colspan="8" class="muted">当前没有持仓。</td></tr>';
+        return;
+      }
+      const spotPrice = Number((data && data.snapshot && data.snapshot.spot_price) || 0);
+      positions.forEach((pos) => {
+        const pnl = Number(pos.total_profit_loss || 0);
+        const pnlUsd = pnl * spotPrice;
+        const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        
+        const posSize = Math.abs(Number(pos.size || 1));
+        const avgPrice = Number(pos.average_price || 0);
+        const costBasis = avgPrice * posSize;
+        let roiPct = 0;
+        if (costBasis > 0) {
+            roiPct = (pnl / costBasis) * 100;
+        }
+        const roiStr = (roiPct >= 0 ? '+' : '') + roiPct.toFixed(2) + '%';
+        
+        const posDelta = Number(pos.delta || 0);
+        const perContractDelta = Math.abs(posDelta / posSize);
+        const deltaPct = Math.min(100, Math.round(perContractDelta * 100));
+        let deltaColor = 'var(--cyan)';
+        if (deltaPct >= 80) deltaColor = 'var(--green)';
+        else if (deltaPct <= 20) deltaColor = 'var(--red)';
+        
+        const deltaHtml = `
+          <div style="width:80px; padding-right:10px;">
+            <div style="font-size:11px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+               <span style="color:var(--muted)">Δ ${fmtSigned(posDelta, 2)}</span>
+               <span style="color:${deltaColor};font-weight:700;">${deltaPct}%</span>
+            </div>
+            <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+               <div style="width:${deltaPct}%; height:100%; background:${deltaColor}; transition:width 0.3s ease;"></div>
+            </div>
+          </div>
+        `;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHTML(pos.instrument_name)}</td>
+            <td>${String(pos.direction || '').toUpperCase()}</td>
+            <td>${fmtNum(pos.size)}</td>
+            <td>${fmt(pos.average_price)}</td>
+            <td>${fmt(pos.mark_price)}</td>
+            <td>${deltaHtml}</td>
+            <td style="color:${pnlColor}">
+               <div style="font-weight:700;margin-bottom:2px;font-size:14px;">${roiStr}</div>
+               <div style="font-size:12px;opacity:0.85;">${fmtPnl(pos.total_profit_loss)} <span style="opacity:0.7">(${fmtPnlUsd(pnlUsd)})</span></div>
+            </td>
+            <td></td>
+        `;
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'danger';
+        closeBtn.textContent = '平仓';
+        closeBtn.style.fontSize = '12px';
+        closeBtn.style.padding = '6px 10px';
+        closeBtn.onclick = () => showCloseModal(pos.instrument_name, String(pos.direction || '').toLowerCase(), Math.abs(Number(pos.size || 0)));
+        tr.children[7].appendChild(closeBtn);
+        positionsRows.appendChild(tr);
+      });
+    }
+
+    let closeState = null;
+    let closeQuoteInterval = null;
+
+    async function updateCloseModalQuote() {
+      if (!closeState) return;
+      const pricesEl = document.getElementById('closeModalPrices');
+      try {
+        const res = await api.request('public/ticker', { instrument_name: closeState.instrument });
+        if (res) {
+          const bid = res.best_bid_price || 0;
+          const ask = res.best_ask_price || 0;
+          const mark = res.mark_price || 0;
+          const index = res.index_price || 0;
+          const bidDisp = formatDisplay(bid, index);
+          const markDisp = formatDisplay(mark, index);
+          const askDisp = formatDisplay(ask, index);
+          pricesEl.innerHTML = `
+            <div class="price-pill"><div class="label">买一</div><div class="value" style="font-size:14px">${bidDisp.primary}</div><div class="subvalue">${bidDisp.secondary}</div></div>
+            <div class="price-pill mark-pill"><div class="label">标记价</div><div class="value" style="font-size:14px">${markDisp.primary}</div><div class="subvalue">${markDisp.secondary}</div></div>
+            <div class="price-pill"><div class="label">卖一</div><div class="value" style="font-size:14px">${askDisp.primary}</div><div class="subvalue">${askDisp.secondary}</div></div>
+          `;
+
+          function calculateOrderPrice(mode, side, bid, ask, mark) {
+            function getT(p) { return p >= 0.005 ? 0.0005 : 0.0001; }
+            function s(p) { return Math.round(Math.round(p/getT(p))*getT(p)*10000)/10000; }
+            function sBuy(p) { return Math.floor((p+0.0001+1e-6)/getT(p))*getT(p); }
+            function sSell(p) { return Math.ceil((p-0.0001-1e-6)/getT(p))*getT(p); }
+            if (side === 'buy') {
+              if (mode === 'taker') return ask;
+              if (mode === 'optimal') {
+                let ref = sBuy(mark);
+                if (bid > 0 && ask > 0 && bid < ask) {
+                  let max_price = s(bid + getT(bid));
+                  return Math.max(bid, Math.min(ref, Math.min(ask, max_price)));
+                }
+                return ref || bid;
+              }
+              if (mode === 'mark_clip') {
+                let ref = sBuy(mark);
+                let tick = getT(ref);
+                if (bid > 0 && ask > 0 && bid < ask) {
+                  let lo = s(bid + tick);
+                  let hi = s(ask - tick);
+                  if (lo > hi) lo = hi;
+                  return Math.max(lo, Math.min(ref, hi));
+                }
+                return ref || bid;
+              }
+              return bid;
+            } else {
+              if (mode === 'taker') return bid;
+              if (mode === 'optimal') {
+                let ref = sSell(mark);
+                if (bid > 0 && ask > 0 && bid < ask) {
+                  let min_price = s(ask - getT(ask));
+                  return Math.min(ask, Math.max(ref, Math.max(bid, min_price)));
+                }
+                return ref || ask;
+              }
+              if (mode === 'mark_clip') {
+                let ref = sSell(mark);
+                let tick = getT(ref);
+                if (bid > 0 && ask > 0 && bid < ask) {
+                  let lo = s(bid + tick);
+                  let hi = s(ask - tick);
+                  if (lo > hi) lo = hi;
+                  return Math.max(lo, Math.min(ref, hi));
+                }
+                return ref || ask;
+              }
+              return ask;
+            }
+          }
+
+          const closeSide = closeState.direction === 'buy' ? 'sell' : 'buy';
+          const pMaker = calculateOrderPrice('maker', closeSide, bid, ask, mark);
+          const pMark = calculateOrderPrice('mark_clip', closeSide, bid, ask, mark);
+          const pOpt = calculateOrderPrice('optimal', closeSide, bid, ask, mark);
+          const pTaker = calculateOrderPrice('taker', closeSide, bid, ask, mark);
+
+          document.getElementById('closePriceMaker').textContent = fmt(pMaker);
+          document.getElementById('closePriceMark').textContent = fmt(pMark);
+          document.getElementById('closePriceOptimal').textContent = fmt(pOpt);
+          document.getElementById('closePriceTaker').textContent = fmt(pTaker);
+
+          // Update tracking info if needed
+          if (closeState.trackingOrderId && state.payload) {
+             const order = (state.payload.open_orders || []).find(o => o.order_id === closeState.trackingOrderId);
+             if (order) {
+                document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02))';
+                document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(251,191,36,0.3)';
+                document.getElementById('closeTrackStatus').textContent = '排队挂单中 (OPEN)';
+                document.getElementById('closeTrackStatus').style.color = 'var(--amber)';
+                document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(251,191,36,0.4)';
+                document.getElementById('closeTrackDetails').innerHTML = `委托价格：<b style="color:#fff">${order.price}</b><br>未成交量：<b style="color:#fff">${order.amount}</b>`;
+                document.getElementById('closeTrackCancelBtn').style.display = 'block';
+             } else {
+                document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(52,211,153,0.1), rgba(52,211,153,0.02))';
+                document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(52,211,153,0.3)';
+                document.getElementById('closeTrackStatus').textContent = '已被处理 (FILLED)';
+                document.getElementById('closeTrackStatus').style.color = 'var(--green)';
+                document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(52,211,153,0.4)';
+                document.getElementById('closeTrackDetails').innerHTML = `该订单已不在排队列表中。`;
+                document.getElementById('closeTrackCancelBtn').style.display = 'none';
+             }
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function showCloseModal(instrument, direction, maxSize) {
+      closeState = { instrument, direction, maxSize, trackingOrderId: null };
+      
+      document.getElementById('closeSetupSection').style.display = 'block';
+      document.getElementById('closeTrackingSection').style.display = 'none';
+      document.getElementById('closeModalTitle').textContent = '平仓设置';
+      document.querySelectorAll('.close-actions button').forEach(b => b.disabled = false);
+
+      const closeSide = direction === 'buy' ? 'sell' : 'buy';
+      document.getElementById('closeModalInst').textContent = instrument;
+      document.getElementById('closeModalDir').textContent = `即将发起方向: ${closeSide.toUpperCase()} (平 ${direction.toUpperCase()} 仓位)`;
+      const amtInput = document.getElementById('closeModalAmount');
+      amtInput.value = maxSize;
+      amtInput.max = maxSize;
+      amtInput.step = 0.1;
+      
+      const isSell = closeSide === 'sell';
+      document.getElementById('closeTitleMaker').textContent = isSell ? '排队挂卖' : '排队挂买';
+      document.getElementById('closeTitleTaker').textContent = isSell ? '市价吃买' : '市价吃卖';
+
+      const pricesEl = document.getElementById('closeModalPrices');
+      pricesEl.style.display = 'grid';
+      pricesEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0;">获取实时报价中...</div>';
+      
+      document.getElementById('closeModalBackdrop').classList.add('open');
+      document.getElementById('closeModal').classList.add('open');
+
+      await updateCloseModalQuote();
+      if (closeQuoteInterval) clearInterval(closeQuoteInterval);
+      closeQuoteInterval = setInterval(updateCloseModalQuote, 1000);
+    }
+
+    function hideCloseModal() {
+      if (closeQuoteInterval) clearInterval(closeQuoteInterval);
+      closeQuoteInterval = null;
+      document.getElementById('closeModalBackdrop').classList.remove('open');
+      document.getElementById('closeModal').classList.remove('open');
+      closeState = null;
+    }
+
+    function setClosePct(pct) {
+      if (!closeState) return;
+      let amt = closeState.maxSize * pct;
+      if (amt < 0.1) amt = 0.1;
+      document.getElementById('closeModalAmount').value = Math.round(amt * 10) / 10;
+    }
+
+    async function executeClose(executionMode) {
+      if (!closeState) return;
+      const { instrument, direction } = closeState;
+      const closeSide = direction === 'buy' ? 'sell' : 'buy';
+      let size = Number(document.getElementById('closeModalAmount').value);
+      if (isNaN(size) || size <= 0) size = closeState.maxSize;
+      
+      const modeLabel = executionMode === 'taker' ? '吃单' : (executionMode === 'mark_clip' ? '标记' : (executionMode === 'optimal' ? '最优价' : '挂单'));
+      setStatus('info', `正在提交平仓委托 (${modeLabel}) ...`);
+      
+      const buttons = document.querySelectorAll('.close-actions button');
+      buttons.forEach(b => b.disabled = true);
+
+      try {
+        let p = 0;
+        let isTaker = false;
+        let isMarkClip = false;
+        if (executionMode === 'maker') p = Number(document.getElementById('closePriceMaker').textContent.replace(/,/g, ''));
+        if (executionMode === 'mark_clip') { p = Number(document.getElementById('closePriceMark').textContent.replace(/,/g, '')); isMarkClip = true; }
+        if (executionMode === 'optimal') p = Number(document.getElementById('closePriceOptimal').textContent.replace(/,/g, ''));
+        if (executionMode === 'taker') { p = Number(document.getElementById('closePriceTaker').textContent.replace(/,/g, '')); isTaker = true; }
+        
+        const isBuy = closeSide === 'buy';
+        const method = isBuy ? 'private/buy' : 'private/sell';
+        const params = {
+          instrument_name: instrument,
+          amount: size,
+          type: isTaker ? 'market' : 'limit',
+          time_in_force: isTaker ? 'immediate_or_cancel' : 'good_til_cancelled',
+          reduce_only: true
+        };
+        if (!isTaker) {
+          params.price = p;
+          if (!isMarkClip) params.post_only = true;
+        }
+        
+        let payload;
+        try {
+          await api.ensureFreshConnection();
+          payload = await api.request(method, params);
+        } catch(e) {
+          setStatus('error', e.message || `平仓失败`);
+          soundOrderError();
+          buttons.forEach(b => b.disabled = false);
+          return;
+        }
+
+        const orderInfo = payload.order || {};
+        const stateStr = orderInfo.order_state || 'unknown';
+        closeState.trackingOrderId = orderInfo.order_id;
+        
+        document.getElementById('closeSetupSection').style.display = 'none';
+        document.getElementById('closeTrackingSection').style.display = 'block';
+        document.getElementById('closeModalTitle').textContent = '平仓追踪';
+
+        if (stateStr === 'filled') {
+           soundOrderFilled();
+           setStatus('info', payload.message || '平仓已完全成交');
+           document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(52,211,153,0.1), rgba(52,211,153,0.02))';
+           document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(52,211,153,0.3)';
+           document.getElementById('closeTrackStatus').textContent = '已完全成交 (FILLED)';
+           document.getElementById('closeTrackStatus').style.color = 'var(--green)';
+           document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(52,211,153,0.4)';
+           document.getElementById('closeTrackCancelBtn').style.display = 'none';
+        } else {
+           soundOrderPlaced();
+           setStatus('info', payload.message || '平仓委托已挂出');
+           document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02))';
+           document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(251,191,36,0.3)';
+           document.getElementById('closeTrackStatus').textContent = '排队挂单中 (OPEN)';
+           document.getElementById('closeTrackStatus').style.color = 'var(--amber)';
+           document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(251,191,36,0.4)';
+           document.getElementById('closeTrackCancelBtn').style.display = 'block';
+        }
+        document.getElementById('closeTrackDetails').innerHTML = `委托价格：<b style="color:#fff">${orderInfo.price || '--'}</b><br>委托数量：<b style="color:#fff">${orderInfo.amount || size}</b>`;
+
+        await refreshPrivateData();
+      } catch(e) {
+        setStatus('error', `平仓异常: ${e.message}`);
+        soundOrderError();
+        buttons.forEach(b => b.disabled = false);
+      }
+    }
+
+    async function cancelTrackedOrder() {
+      if (!closeState || !closeState.trackingOrderId) return;
+      const orderId = closeState.trackingOrderId;
+      const btn = document.getElementById('closeTrackCancelBtn');
+      btn.disabled = true;
+      btn.textContent = '撤单中...';
+      try {
+        await api.request('private/cancel', { order_id: orderId });
+        soundOrderCancelled();
+        setStatus('info', `已撤销平仓单`);
+        document.getElementById('closeSetupSection').style.display = 'block';
+        document.getElementById('closeTrackingSection').style.display = 'none';
+        document.getElementById('closeModalTitle').textContent = '平仓设置';
+        closeState.trackingOrderId = null;
+        document.querySelectorAll('.close-actions button').forEach(b => b.disabled = false);
+        await refreshPrivateData();
+      } catch(e) {
+         setStatus('error', '网络异常');
+      } finally {
+         btn.disabled = false;
+         btn.textContent = '撤销本单';
+      }
+    }
+
+    function renderTradeHistory(data) {
+      tradeHistoryRows.innerHTML = '';
+      const trades = data.trade_history || [];
+      if (trades.length === 0) {
+        tradeHistoryRows.innerHTML = '<tr><td colspan="5" class="muted">暂无成交记录。</td></tr>';
+        return;
+      }
+      const spotPrice = Number((data && data.snapshot && data.snapshot.spot_price) || 0);
+      trades.forEach((t) => {
+        const priceUsd = Number(t.price || 0) * spotPrice;
+        const ts = t.timestamp ? new Date(t.timestamp).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--';
+        tradeHistoryRows.innerHTML += `
+          <tr>
+            <td>${escapeHTML(t.instrument_name || '--')}</td>
+            <td>${String(t.direction || '').toUpperCase()}</td>
+            <td>${fmtNum(t.amount)}</td>
+            <td>${fmt(t.price)} <span class="small">(${fmtUsd(priceUsd)})</span></td>
+            <td class="small">${ts}</td>
+          </tr>
+        `;
+      });
+    }
+    amountInput.addEventListener('change', () => setAmount(amountInput.value || 1));
+    reduceOnly.addEventListener('change', () => {
+      state.reduceOnly = reduceOnly.checked;
+      safeSetItem('qo_reduceOnly', state.reduceOnly);
+      mobileReduceOnly.checked = reduceOnly.checked;
+    });
+    refreshBtn.addEventListener('click', () => loadData());
+    mobileAmountDecrement.addEventListener('click', () => setAmount(state.amount - 0.1));
+    mobileAmountIncrement.addEventListener('click', () => setAmount(state.amount + 0.1));
+    mobileReduceOnly.addEventListener('change', () => {
+      state.reduceOnly = mobileReduceOnly.checked;
+      safeSetItem('qo_reduceOnly', state.reduceOnly);
+      reduceOnly.checked = mobileReduceOnly.checked;
+    });
+    mobileRefreshBtn.addEventListener('click', () => loadData());
+
+    setAmount(state.amount);
+    reduceOnly.checked = state.reduceOnly;
+    mobileReduceOnly.checked = state.reduceOnly;
+
+    // Real-time data is now delivered via WebSocket subscriptions — no polling needed
+  
+
+
+// Settings Logic
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const envTestnetBtn = document.getElementById('envTestnetBtn');
+const envMainnetBtn = document.getElementById('envMainnetBtn');
+const clientIdInput = document.getElementById('clientIdInput');
+const clientSecretInput = document.getElementById('clientSecretInput');
+
+function updateEnvToggle() {
+  if (state.isTestnet) {
+    envTestnetBtn.classList.add('active', 'tone-up');
+    envMainnetBtn.classList.remove('active', 'tone-up');
+  } else {
+    envMainnetBtn.classList.add('active', 'tone-up');
+    envTestnetBtn.classList.remove('active', 'tone-up');
+  }
+}
+
+envTestnetBtn.onclick = () => { state.isTestnet = true; updateEnvToggle(); };
+envMainnetBtn.onclick = () => { state.isTestnet = false; updateEnvToggle(); };
+
+function openSettings() {
+  clientIdInput.value = state.clientId;
+  clientSecretInput.value = state.clientSecret;
+  updateEnvToggle();
+  settingsBackdrop.classList.add('open');
+  settingsModal.classList.add('open');
+}
+
+function closeSettings() {
+  settingsBackdrop.classList.remove('open');
+  settingsModal.classList.remove('open');
+}
+
+async function restoreConnectionIfNeeded(reason) {
+  if (!state.clientId || !state.clientSecret) return;
+  if (api.connected && api.authenticated && api.ws && api.ws.readyState === WebSocket.OPEN) {
+    await refreshPrivateData();
+    return;
+  }
+  try {
+    setStatus('info', reason || '正在检查连接...');
+    await api.ensureConnected();
+    _activeSubscriptions = [];
+    await loadData();
+  } catch(e) {
+    setStatus('error', `连接恢复失败: ${e.message}`);
+  }
+}
+
+openSettingsBtn.onclick = openSettings;
+closeSettingsBtn.onclick = closeSettings;
+
+saveSettingsBtn.onclick = async () => {
+  state.clientId = clientIdInput.value.trim();
+  state.clientSecret = clientSecretInput.value.trim();
+  safeSetItem('qo_client_id', state.clientId);
+  safeSetItem('qo_client_secret', state.clientSecret);
+  safeSetItem('qo_testnet', state.isTestnet);
+  
+  saveSettingsBtn.textContent = '连接中...';
+  try {
+    await api.connect(state.isTestnet);
+    saveSettingsBtn.textContent = '保存并连接';
+    closeSettings();
+    loadData();
+  } catch (e) {
+    saveSettingsBtn.textContent = '连接失败: ' + e.message;
+    setTimeout(() => { saveSettingsBtn.textContent = '保存并连接'; }, 2000);
+  }
+};
+
+// Initial Start
+window.addEventListener('load', async () => {
+  if (!state.clientId || !state.clientSecret) {
+    openSettings();
+  } else {
+    try {
+      await api.connect(state.isTestnet);
+      loadData();
+    } catch(e) {
+      openSettings();
+    }
+  }
+});
+
+window.addEventListener('focus', () => restoreConnectionIfNeeded('页面恢复，正在检查连接...'));
+window.addEventListener('online', () => restoreConnectionIfNeeded('网络恢复，正在重新连接...'));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    restoreConnectionIfNeeded('页面恢复，正在检查连接...');
+  }
+});
+
+</script>
+</body>
+</html>

@@ -16,31 +16,31 @@
   --lift-card: 1.5px;
 
   /* Brand */
-  --color-brand: #1E90FF;
-  --color-brand-blue: #1E90FF;
+  --color-brand: #3B9EFF;
+  --color-brand-blue: #3B9EFF;
 
-  /* 中性暗灰色阶（v5 — 4级清晰层次，步长 ≥7，L1/L2 色差提升至 +12 肉眼可辨） */
-  --color-bg-base:   #131313;  /* L1 页面底 (v5: +2 lift，给暗色投影呼吸空间) */
-  --color-bg-card:   #1F1F1F;  /* L2 卡片 (+12 from L1, 任何屏幕可见) */
-  --color-card:      #1F1F1F;  /* L2 widget-card */
-  --color-surface-1: #131313;  /* L1 页面底 */
-  --color-surface-2: #262626;  /* L3 卡片内块 tile (+7) */
-  --color-surface-3: #1F1F1F;  /* L2 chrome/header */
-  --color-surface-4: #262626;  /* L3 tile（surface-2 别名） */
-  --color-surface-5: #2E2E2E;  /* L4 hover (+8) */
-  --color-surface-6: #383838;  /* L4+ 高亮 (+10) */
-  --color-bg-hover:  #2E2E2E;  /* 全局 hover */
+  /* 冷色调深蓝灰色阶（v6 — slate 终端风，5级清晰纵深，每级带极轻蓝调） */
+  --color-bg-base:   #0D1117;  /* L1 页面底 */
+  --color-bg-card:   #161C26;  /* L2 卡片 (+from L1，明确浮起) */
+  --color-card:      #161C26;  /* L2 widget-card */
+  --color-surface-1: #0D1117;  /* L1 页面底 */
+  --color-surface-2: #1F2733;  /* L3 卡片内块 tile */
+  --color-surface-3: #131923;  /* L2- chrome/header（介于 L1/L2，含蓄存在感） */
+  --color-surface-4: #1F2733;  /* L3 tile（surface-2 别名） */
+  --color-surface-5: #29333F;  /* L4 hover */
+  --color-surface-6: #353F4D;  /* L4+ 高亮 */
+  --color-bg-hover:  #29333F;  /* 全局 hover */
 
-  /* 下拉菜单 / 浮层面板（v5 新增，统一替换硬编码 #141414） */
-  --color-dropdown:  #1F1F1F;  /* 与卡片同层 L2 */
+  /* 下拉菜单 / 浮层面板 */
+  --color-dropdown:  #1A212C;  /* 略高于卡片 L2，浮层更突出 */
 
   /* Borders */
-  --color-border-subtle: rgba(255,255,255,0.07);
-  --color-border-strong: #383838;
+  --color-border-subtle: rgba(150,180,225,0.09);
+  --color-border-strong: #353F4D;
 
   /* Input / Form */
-  --color-input-bg:  #1F1F1F;  /* L2 */
-  --color-text-muted: #888888;
+  --color-input-bg:  #161C26;  /* L2 */
+  --color-text-muted: #8593A6;
 
   /* Trade colors — macOS traffic light */
   --color-trade-up:   #28C840;
@@ -67,7 +67,7 @@
 /* ===== 中性暗灰色阶（v5 — 纯色差，无毛玻璃） ===== */
 
 html {
-  background: #0A0A0A;  /* L0 最底层，滚动回弹露出（v5: 比纯黑亮10，有“边界感”） */
+  background: #05070B;  /* L0 最底层，滚动回弹露出（冷调近黑，有“边界感”） */
 }
 
 body {
@@ -240,15 +240,15 @@ html.is-scrolling * {
 
 :root {
   /* 品牌 & 语义（直接值，方便 JS 读取） */
-  --nexus-accent:    #1E90FF;
+  --nexus-accent:    #3B9EFF;
   --nexus-green:     #28C840;
   --nexus-red:       #FF5F57;
   --nexus-yellow:    #FEBC2E;
 
-  /* 文字层级（WCAG AA 全部达标） */
-  --nexus-text-pri:  #F0F0EE;                  /* white/90 等价，13.9:1 */
-  --nexus-text-sec:  rgba(255, 255, 255, 0.80); /* 11.3:1 */
-  --nexus-text-dim:  rgba(255, 255, 255, 0.55); /* 6.0:1 — 最低可用标签 */
+  /* 文字层级（WCAG AA 全部达标，冷白带极轻蓝调） */
+  --nexus-text-pri:  #EDF1F7;                       /* 主文字，冷白 */
+  --nexus-text-sec:  rgba(226, 233, 244, 0.78);     /* 次级 */
+  --nexus-text-dim:  rgba(214, 224, 240, 0.52);     /* 最低可用标签 */
 
   /* 兼容别名 — 指向 @theme 权威变量（勿在新代码中直接使用） */
   --widget-glass:     var(--color-bg-card);   /* #1F1F1F L2 */

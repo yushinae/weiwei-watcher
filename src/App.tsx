@@ -595,8 +595,8 @@ export default function App() {
       <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]" style={{ background: 'var(--base-strong)' }}>
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
-            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(37,232,137,0.4)] group-hover:shadow-[0_0_22px_rgba(37,232,137,0.6)] transition-shadow duration-500" />
-            <span className="font-bold text-sm tracking-tight text-[#25e889]">
+            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(30,144,255,0.35)] group-hover:shadow-[0_0_22px_rgba(30,144,255,0.55)] transition-shadow duration-500" />
+            <span className="font-bold text-sm text-[var(--color-brand)]">
               薇薇看板
             </span>
           </div>
@@ -669,7 +669,7 @@ export default function App() {
                     <span className="text-[14px] leading-none">✕</span>
                   </button>
                 </div>
-                <UISettings onClose={() => setSettingsOpen(false)} />
+                <UISettings />
               </div>
             </>
           )}

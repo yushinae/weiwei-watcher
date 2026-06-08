@@ -37,7 +37,7 @@ const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset rin
 // 账户筛选 chip 样式
 const chipCls = (active: boolean) =>
   `h-[28px] px-3 rounded-full text-[12px] font-medium flex items-center gap-1.5 ring-1 ring-inset transition-colors ${
-    active ? 'bg-[#25e889]/15 text-[#25e889] ring-[#25e889]/40'
+    active ? 'bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-[var(--color-brand)]/40'
            : 'bg-white/[0.04] text-white/65 ring-white/10 hover:bg-white/[0.08]'}`;
 
 const Card = ({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) => (
@@ -252,7 +252,7 @@ export const AccountsHub = () => {
             <div className="flex items-center gap-3">
               <span className="text-[12px]">识别已实现盈亏合计 <b style={{ color: sgn(csvPnl) }}>{fmtUsd(csvPnl)}</b></span>
               <button onClick={confirmImport} disabled={!csvFills.length}
-                className="ml-auto h-[30px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold hover:bg-[#25e889]/25 transition-colors disabled:opacity-40">
+                className="ml-auto h-[30px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold hover:bg-[var(--color-brand)]/25 transition-colors disabled:opacity-40">
                 确认导入 {csvFills.length} 笔
               </button>
               <button onClick={cancelImport} className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold text-white/65 hover:bg-white/[0.1]">取消</button>
@@ -346,7 +346,7 @@ export const AccountsHub = () => {
                 <input className={inputCls} placeholder={venue === 'Hyperliquid' ? '主钱包' : '我的 Bybit'} value={label} onChange={e => setLabel(e.target.value)} />
               </label>
               <button onClick={submitAdd}
-                className="h-[32px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[#25e889]/25 transition-colors">
+                className="h-[32px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-brand)]/25 transition-colors">
                 <Plus size={14} /> 添加
               </button>
             </div>

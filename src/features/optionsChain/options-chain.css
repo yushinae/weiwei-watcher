@@ -1,4 +1,4 @@
-/* Deribit-style options chain — recolored to the app's mint-green / dark theme.
+/* Deribit-style options chain — recolored to the app's brand-blue / dark theme.
    Scope: only applies inside .db-oc-root */
 
 .db-oc-root {
@@ -11,6 +11,9 @@
   --db-bg-strike: #262626;        /* L3 内块 — 中央执行价列 */
   --db-bg-hover: rgba(255, 255, 255, 0.05);
   --db-bg-selected: rgba(30, 144, 255, 0.14);
+  --db-bg-atm: rgba(255, 255, 255, 0.045);
+  --db-bg-atm-strong: rgba(255, 255, 255, 0.085);
+  --db-bg-owned: rgba(30, 144, 255, 0.12);
 
   /* Lines */
   --db-border: rgba(255, 255, 255, 0.07);
@@ -26,12 +29,12 @@
   --db-down: #ff5f57;
   --db-warn: #febc2e;
 
-  /* Accent — mint brand (replaces Deribit blue) */
+  /* Accent — app brand blue */
   --db-accent: #1E90FF;
   --db-accent-soft: rgba(30, 144, 255, 0.35);
   --db-accent-weak: rgba(30, 144, 255, 0.12);
 
-  /* Spot / strike marker — brand green (replaces Deribit purple) */
+  /* Spot / strike marker — app brand blue */
   --db-spot: #1E90FF;
   --db-spot-soft: rgba(30, 144, 255, 0.35);
   --db-spot-weak: rgba(30, 144, 255, 0.16);
@@ -177,6 +180,14 @@
 .db-oc-root .db-oc-row.is-hover-put  > .db-oc-cell-wrap[data-side="put"] {
   box-shadow: inset 0 0 0 9999px rgba(120, 170, 255, 0.16);
   filter: brightness(1.12);
+}
+
+.db-oc-root .db-oc-row.is-atm > .db-oc-cell-wrap[data-col="mark"] {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.08);
+}
+
+.db-oc-root .db-oc-row.is-owned > .db-oc-cell-wrap {
+  box-shadow: inset 0 0 0 1px rgba(30, 144, 255, 0.16);
 }
 
 /* Scrollbars */

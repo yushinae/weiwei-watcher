@@ -167,6 +167,23 @@ export default function OptionsChainView() {
     updateMarks(marks);
   }, [expiry, coin, updateMarks]);
 
+  const ownedSidesByStrike = useMemo(() => {
+    if (!expiry) return new Map<number, 'call' | 'put' | 'both'>();
+    const next = new Map<number, 'call' | 'put' | 'both'>();
+    for (const p of book.positions) {
+      const side = p.symbol.endsWith('-C') ? 'call' : p.symbol.endsWith('-P') ? 'put' : null;
+      if (!side) continue;
+      for (const r of expiry.rows) {
+        const expected = optionSymbol(coin, expiry.dateLabel, r.strike, side === 'call' ? 'C' : 'P');
+        if (p.symbol !== expected) continue;
+        const prev = next.get(r.strike);
+        next.set(r.strike, prev && prev !== side ? 'both' : side);
+        break;
+      }
+    }
+    return next;
+  }, [book.positions, coin, expiry]);
+
   const { emLower, emUpper } = useMemo(() => {
     const days = expiry?.daysToExp ?? 0;
     const em = spot * (atmIV / 100) * Math.sqrt(days / 365);
@@ -458,11 +475,12 @@ export default function OptionsChainView() {
               <div className="relative z-10" style={{ height: rows.length * ROW_H }}>
                 {liveRows.slice(winRange.start, winRange.end).map((row, i) => {
                   const idx = winRange.start + i;
-                  const isSelected = selectedCell?.row.strike === row.strike;
+                  const selectedSide = selectedCell?.row.strike === row.strike ? selectedCell.side : undefined;
                   return (
                     <div key={row.strike} style={{ position: 'absolute', top: idx * ROW_H, left: 0, width: '100%', height: ROW_H }}>
                       <ChainRowComp row={row} cols={cols} loading={false} isEven={idx % 2 === 0}
-                        isSelected={!!isSelected} onRowClick={handleRowClick} showDist={showDist} spot={spot}
+                        selectedSide={selectedSide} ownedSide={ownedSidesByStrike.get(row.strike)}
+                        onRowClick={handleRowClick} showDist={showDist} spot={spot}
                         emBandStrikeMin={emBandStrikeMin} emBandStrikeMax={emBandStrikeMax} />
                     </div>
                   );

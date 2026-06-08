@@ -65,7 +65,7 @@ export const AccountSummaryCard: React.FC = () => {
         <Wallet size={20} className="text-white/30" />
         <span className="text-[12px] text-white/55">还没接入交易所账户</span>
         <button onClick={() => navigate('/accounts')}
-          className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-md bg-[#25e889]/15 text-[#25e889] ring-1 ring-inset ring-[#25e889]/30 text-[11px] font-semibold hover:bg-[#25e889]/25 transition-colors">
+          className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[11px] font-semibold hover:bg-[var(--color-brand)]/25 transition-colors">
           去「账户」接入 <ArrowRight size={12} />
         </button>
       </div>

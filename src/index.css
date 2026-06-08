@@ -16,8 +16,8 @@
   --lift-card: 1.5px;
 
   /* Brand */
-  --color-brand: #1E51FF;
-  --color-brand-blue: #1E51FF;
+  --color-brand: #1E90FF;
+  --color-brand-blue: #1E90FF;
 
   /* 中性暗灰色阶（v5 — 4级清晰层次，步长 ≥7，L1/L2 色差提升至 +12 肉眼可辨） */
   --color-bg-base:   #131313;  /* L1 页面底 (v5: +2 lift，给暗色投影呼吸空间) */
@@ -126,7 +126,7 @@ body {
     @apply text-slate-400 font-sans antialiased font-normal;
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -165,7 +165,7 @@ body {
 
 /* Monitor page local theme scope (避免污染全局 token) */
 .monitor-scope {
-  --monitor-signal-glow: rgba(37, 232, 137, 0.65);
+  --monitor-signal-glow: rgba(30, 144, 255, 0.55);
   --monitor-accent-btc: #F59E0B;
   --monitor-accent-eth: #25e889;
   --monitor-gridline: rgba(42, 42, 42, 0.9);
@@ -177,7 +177,7 @@ body {
   font-family: "Inter", "PingFang SC", sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 /* Strike 执行价：稍粗，Inter 600 */
@@ -186,7 +186,7 @@ body {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 /* Custom Scrollbar — hidden at rest, blue when scrolling */
@@ -240,7 +240,7 @@ html.is-scrolling * {
 
 :root {
   /* 品牌 & 语义（直接值，方便 JS 读取） */
-  --nexus-accent:    #25e889;
+  --nexus-accent:    #1E90FF;
   --nexus-green:     #28C840;
   --nexus-red:       #FF5F57;
   --nexus-yellow:    #FEBC2E;
@@ -435,7 +435,7 @@ html.is-scrolling * {
 }
 
 .widget-icon.ico-brand {
-  background: rgba(37, 232, 137, 0.18);
+  background: rgba(30, 144, 255, 0.16);
   color: var(--nexus-accent);
 }
 
@@ -588,7 +588,7 @@ html.is-scrolling * {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 8px;
-  background: rgba(37, 232, 137, 0.10);  /* 无 backdrop-filter */
+  background: rgba(30, 144, 255, 0.10);  /* 无 backdrop-filter */
   margin-bottom: 12px;
   position: relative;
   z-index: 1;
@@ -926,7 +926,7 @@ html.is-scrolling * {
 }
 
 .glow-brand {
-  text-shadow: 0 0 14px rgba(37, 232, 137, 0.55);
+  text-shadow: 0 0 14px rgba(30, 144, 255, 0.55);
 }
 
 /* ── Chart helpers ── */

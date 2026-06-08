@@ -125,6 +125,7 @@ const SCENARIO_PRESETS: { label: string; desc: string; spotPct: number; ivAdj: n
 // ── Greeks Heatmap axis configuration ────────────────────────────────────────
 const HEATMAP_SPOT = [-30, -20, -10, 0, 10, 20, 30];
 const HEATMAP_IV   = [0.40, 0.20, 0, -0.20, -0.40];
+const LADDER_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatHours(h: number) {
@@ -248,6 +249,7 @@ export function PositionBuilder() {
   const [instrumentsLoading, setInstrumentsLoading] = useState(false);
 
   const [livePrice, setLivePrice] = useState<number | null>(null);
+  const livePriceRef = useRef<number | null>(null);
   const [priceDir, setPriceDir] = useState<'up' | 'down' | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const prevPriceRef = useRef<number | null>(null);
@@ -265,6 +267,10 @@ export function PositionBuilder() {
     deferredTimersRef.current.forEach(clearTimeout);
     deferredTimersRef.current = [];
   }, []);
+
+  useEffect(() => {
+    livePriceRef.current = livePrice;
+  }, [livePrice]);
 
   const plChartRef = useRef<ReactECharts>(null);
   const dgChartRef = useRef<ReactECharts>(null);
@@ -588,23 +594,23 @@ export function PositionBuilder() {
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }, []);
 
-  function legCurrentValue(leg: Leg, S: number, hf: number, ivAdj: number) {
+  const legCurrentValue = useCallback((leg: Leg, S: number, hf: number, ivAdj: number) => {
     const remH = Math.max(0, leg.hoursToExpiry - hf);
     const T = hoursToYears(remH);
     const sig = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdj);
     return bsPrice(S, leg.K, T, sig, leg.type);
-  }
+  }, [baseIv]);
 
-  function legPL(leg: Leg, S: number, hf: number, ivAdj: number) {
+  const legPL = useCallback((leg: Leg, S: number, hf: number, ivAdj: number) => {
     const cur = legCurrentValue(leg, S, hf, ivAdj);
     return leg.side * leg.qty * (cur - leg.entryPremium);
-  }
+  }, [legCurrentValue]);
 
-  function positionPL(S: number, hf: number, ivAdj: number) {
+  const positionPL = useCallback((S: number, hf: number, ivAdj: number) => {
     return legs.reduce((sum, l) => sum + legPL(l, S, hf, ivAdj), 0);
-  }
+  }, [legs, legPL]);
 
-  function positionGreeks(S: number, hf: number, ivAdj: number) {
+  const positionGreeks = useCallback((S: number, hf: number, ivAdj: number) => {
     let d = 0, g = 0, t = 0, v = 0, va = 0, vo = 0, ch = 0, sp = 0;
     for (const leg of legs) {
       const remH = Math.max(0, leg.hoursToExpiry - hf);
@@ -622,7 +628,7 @@ export function PositionBuilder() {
       sp += scale * grk.speed;
     }
     return { delta: d, gamma: g, theta: t, vega: v, vanna: va, volga: vo, charm: ch, speed: sp };
-  }
+  }, [baseIv, legs]);
 
   const chartXs = useMemo(() => {
     const strikes = legs.map(l => l.K).filter(k => k > 0);
@@ -634,41 +640,39 @@ export function PositionBuilder() {
   const expiryPL = useMemo(() => {
     const maxH = legs.reduce((m, l) => Math.max(m, l.hoursToExpiry), 0);
     return chartXs.map(x => positionPL(x, maxH, 0));
-  }, [legs, chartXs, baseIv]);
+  }, [legs, chartXs, positionPL]);
 
   const currentPL = useMemo(() => {
     return chartXs.map(x => positionPL(x, hoursForward, ivAdjust));
-  }, [legs, chartXs, hoursForward, ivAdjust, baseIv]);
+  }, [chartXs, hoursForward, ivAdjust, positionPL]);
 
   // Time slice curves: pure theta decay at entry spot range, no IV stress
   const timePL_25 = useMemo(() =>
     showTimeSlices && legs.length > 0
       ? chartXs.map(x => positionPL(x, maxHours * 0.25, 0))
       : [],
-  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+  [showTimeSlices, legs.length, chartXs, maxHours, positionPL]);
 
   const timePL_50 = useMemo(() =>
     showTimeSlices && legs.length > 0
       ? chartXs.map(x => positionPL(x, maxHours * 0.50, 0))
       : [],
-  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+  [showTimeSlices, legs.length, chartXs, maxHours, positionPL]);
 
   const timePL_75 = useMemo(() =>
     showTimeSlices && legs.length > 0
       ? chartXs.map(x => positionPL(x, maxHours * 0.75, 0))
       : [],
-  [showTimeSlices, legs, chartXs, maxHours, baseIv]);
+  [showTimeSlices, legs.length, chartXs, maxHours, positionPL]);
 
   // Delta and Gamma profiles (for the secondary chart)
   const deltaProfile = useMemo(() =>
     legs.length > 0 ? chartXs.map(x => positionGreeks(x, hoursForward, ivAdjust).delta) : [],
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [legs, chartXs, hoursForward, ivAdjust, baseIv]);
+  [legs.length, chartXs, hoursForward, ivAdjust, positionGreeks]);
 
   const gammaProfile = useMemo(() =>
     legs.length > 0 ? chartXs.map(x => positionGreeks(x, hoursForward, ivAdjust).gamma) : [],
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [legs, chartXs, hoursForward, ivAdjust, baseIv]);
+  [legs.length, chartXs, hoursForward, ivAdjust, positionGreeks]);
 
   // Daily theta calendar: P/L change each day from entry to max expiry (spot unchanged)
   const thetaCalendar = useMemo(() => {
@@ -680,17 +684,16 @@ export function PositionBuilder() {
       return { day: d + 1, daily, cumPL };
     });
     return rows;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, spot, baseIv, maxHours]);
+  }, [legs.length, spot, maxHours, positionPL]);
 
-  const grk = useMemo(() => positionGreeks(currentS, hoursForward, ivAdjust), [legs, currentS, hoursForward, ivAdjust, baseIv]);
-  const pl  = useMemo(() => positionPL(currentS, hoursForward, ivAdjust), [legs, currentS, hoursForward, ivAdjust, baseIv]);
+  const grk = useMemo(() => positionGreeks(currentS, hoursForward, ivAdjust), [currentS, hoursForward, ivAdjust, positionGreeks]);
+  const pl  = useMemo(() => positionPL(currentS, hoursForward, ivAdjust), [currentS, hoursForward, ivAdjust, positionPL]);
 
   // Live mark-to-market P/L using real-time index price, no scenario offsets
   const livePL = useMemo(() => {
     if (livePrice === null || legs.length === 0) return null;
     return positionPL(livePrice, 0, 0);
-  }, [livePrice, legs, baseIv]);
+  }, [livePrice, legs.length, positionPL]);
 
   // Max profit / max loss within chart range (expiry curve)
   const maxProfit = useMemo(() => legs.length === 0 ? null : Math.max(...expiryPL), [expiryPL, legs]);
@@ -721,7 +724,7 @@ export function PositionBuilder() {
 
   const varCvar = useMemo(() => {
     if (legs.length === 0) return null;
-    const baseS = livePrice ?? spot; // use live price if available, but don't re-run on every tick
+    const baseS = livePriceRef.current ?? spot;
     const N = 5000;
     const T1 = hoursToYears(24);
     const sig = sigma;
@@ -755,8 +758,7 @@ export function PositionBuilder() {
     }
     const histEdges = Array.from({ length: HIST_N }, (_, i) => hMin + i * hWidth);
     return { var95, var99, cvar95, cvar99, baseS, histEdges, histCounts, hWidth };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, spot, sigma, baseIv, varSeed]);
+  }, [legs.length, spot, sigma, varSeed, positionPL]);
   // Auto-bump seed when legs or spot change (but NOT on live price ticks)
   const prevLegsKey = useRef('');
   useEffect(() => {
@@ -785,11 +787,9 @@ export function PositionBuilder() {
       prob += pdf * dS;
     }
     return Math.min(0.999, Math.max(0.001, prob));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, chartXs, expiryPL, spot, sigma, baseIv, maxHours]);
+  }, [legs.length, chartXs, expiryPL, spot, sigma, maxHours]);
 
   // Greeks sensitivity ladder: P/L, Δ, Γ at ±15% spot levels
-  const LADDER_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
   const greeksLadder = useMemo(() => {
     if (legs.length === 0) return null;
     return LADDER_OFFSETS.map(pct => {
@@ -798,8 +798,7 @@ export function PositionBuilder() {
       const p = positionPL(S, hoursForward, ivAdjust);
       return { pct, S, pl: p, delta: g.delta, gamma: g.gamma, theta: g.theta };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, spot, hoursForward, ivAdjust, baseIv]);
+  }, [legs.length, spot, hoursForward, ivAdjust, positionGreeks, positionPL]);
 
   // IV skew / term structure data from fetched leg IVs
   // Skew: legs with the same (approx) expiry grouped by strike
@@ -845,8 +844,7 @@ export function PositionBuilder() {
     const plTotal  = pl;
     const plResidual = plTotal - plDelta - plGamma - plTheta - plVega;
     return { plDelta, plGamma, plTheta, plVega, plResidual, plTotal };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, spot, currentS, hoursForward, ivAdjust, baseIv]);
+  }, [legs.length, spot, currentS, hoursForward, ivAdjust, pl, positionGreeks]);
 
   // ── Strategy auto-detection ───────────────────────────────────────────────
   const strategyName = useMemo(() => {
@@ -912,7 +910,6 @@ export function PositionBuilder() {
         vega:        sc * g.vega,
       };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [legs, currentS, hoursForward, ivAdjust, baseIv]);
 
   // ── IV Rank: current IV percentile within user-supplied historical range ──
@@ -934,8 +931,7 @@ export function PositionBuilder() {
              : g.vega;
       })
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [legs, spot, baseIv, heatmapMetric]);
+  }, [legs.length, spot, heatmapMetric, positionGreeks]);
 
   // ── Jump-diffusion VaR (Merton: GBM + Poisson jumps) ─────────────────────
   const jumpVaR = useMemo(() => {
@@ -965,8 +961,7 @@ export function PositionBuilder() {
       cvar95: pls.slice(0, Math.floor(N * 0.05)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.05),
       cvar99: pls.slice(0, Math.floor(N * 0.01)).reduce((s, v) => s + v, 0) / Math.floor(N * 0.01),
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showJumpRisk, legs, spot, sigma, baseIv, varSeed, jumpLambda, jumpMuPct, jumpSigPct, livePrice]);
+  }, [showJumpRisk, legs.length, spot, sigma, varSeed, jumpLambda, jumpMuPct, jumpSigPct, livePrice, positionPL]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // Entry friction: half-spread × qty per leg (cost vs mid-market to enter)
@@ -985,7 +980,7 @@ export function PositionBuilder() {
     return IV_OFFSETS.map(ivOff =>
       SPOT_OFFSETS.map(spotOff => positionPL(spot * (1 + spotOff / 100), 0, ivOff))
     );
-  }, [legs, spot, baseIv]);
+  }, [legs.length, spot, positionPL]);
 
   const matrixAbsMax = useMemo(() => {
     if (!scenarioMatrix) return 1;

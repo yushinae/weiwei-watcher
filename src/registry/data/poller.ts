@@ -18,6 +18,7 @@ export interface PollerEntry {
 
 const POLLERS = new Map<string, PollerEntry>();
 let _isHidden    = false;
+let _routeActive = true;
 let _focusLostAt: number | null = null;
 let _blurPauseTimer: ReturnType<typeof setTimeout> | null = null;
 const UNFOCUS_PAUSE_MS = 30_000;
@@ -46,6 +47,22 @@ async function _pollOnce(key: string): Promise<void> {
 let _wsPauseFn: (() => void) | null = null;
 let _wsResumeFn: (() => void) | null = null;
 
+export function _resetPollersForTest(): void {
+  POLLERS.forEach(e => {
+    if (e.timerId != null) clearInterval(e.timerId);
+  });
+  POLLERS.clear();
+  _isHidden = false;
+  _routeActive = true;
+  _focusLostAt = null;
+  if (_blurPauseTimer !== null) {
+    clearTimeout(_blurPauseTimer);
+    _blurPauseTimer = null;
+  }
+  _wsPauseFn = null;
+  _wsResumeFn = null;
+}
+
 export function _registerWSPauseResume(pause: () => void, resume: () => void): void {
   _wsPauseFn = pause;
   _wsResumeFn = resume;
@@ -72,9 +89,19 @@ export function _pauseAll(): void {
   _wsPauseFn?.();
 }
 
+export function resumeMonitorPolling(): void {
+  _routeActive = true;
+  _resumeAll();
+}
+
+export function pauseMonitorPolling(): void {
+  _routeActive = false;
+  _pauseAll();
+}
+
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () =>
-    document.hidden ? _pauseAll() : _resumeAll()
+    document.hidden ? _pauseAll() : (_routeActive ? _resumeAll() : undefined)
   );
 }
 

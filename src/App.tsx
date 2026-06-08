@@ -50,10 +50,9 @@ const preload = {
 // 全局告警引擎 + 应用内 Toast（始终挂载，不随页面卸载）
 import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
-// Lightweight import: only the WebSocket singleton + cache GC, not the full widget registry
-import { DERIBIT_WS, startCacheCleanup } from './registry/monitorWidgetsBase';
-// Monitor polling control — pause when monitor page is hidden, resume when shown
-import { pauseMonitorPolling, resumeMonitorPolling } from './registry/monitorWidgets';
+import { startCacheCleanup } from './registry/data/cacheCleanup';
+import { pauseMonitorPolling, resumeMonitorPolling } from './registry/data/poller';
+import { DERIBIT_WS } from './registry/data/ws';
 
 // ── Deribit index price hook — via shared WebSocket, no REST polling ───────────
 

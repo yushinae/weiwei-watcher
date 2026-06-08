@@ -9,6 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { subscribeData } from '../../registry/data/poller';
+import { fetchWithRetry } from '../../lib/fetchRetry';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ const BASE = '/bybit-api';
 
 export async function fetchBybitTickers(coin: 'BTC' | 'ETH'): Promise<BybitOptionTicker[]> {
   const url = `${BASE}/v5/market/tickers?category=option&baseCoin=${coin}`;
-  const resp = await fetch(url);
+  const resp = await fetchWithRetry(url, { retries: 2, timeoutMs: 12_000 });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
   if (json.retCode !== 0) throw new Error(`Bybit ${json.retCode}: ${json.retMsg}`);

@@ -7,6 +7,7 @@ import {
 import { getBook } from '../accounts/bookStore';
 import { fromAccounts, buildBooks } from '../portfolioRisk/aggregate';
 import type { Coin } from '../monitor/types';
+import { notifyAlert } from './notifications';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 
@@ -55,6 +56,7 @@ export const AlertToastHost: React.FC = () => {
   useEffect(() => subscribeAlertTriggers(e => {
     const key = Date.now() + Math.random();
     setToasts(t => [...t.slice(-4), { ...e, key }]);
+    void notifyAlert(e);
     setTimeout(() => setToasts(t => t.filter(x => x.key !== key)), 9000);
   }), []);
 

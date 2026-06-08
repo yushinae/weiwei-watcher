@@ -51,7 +51,6 @@ const preload = {
 import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
 import { startCacheCleanup } from './registry/data/cacheCleanup';
-import { pauseMonitorPolling, resumeMonitorPolling } from './registry/data/poller';
 import { DERIBIT_WS } from './registry/data/ws';
 
 // ── Deribit index price hook — via shared WebSocket, no REST polling ───────────
@@ -389,111 +388,88 @@ const PageFallback = () => (
 // - 其他轻量页面正常按需挂载
 // - 预加载（hover）保留
 function AppRoutes() {
-  const { pathname } = useLocation();
-  const [monitorMounted, setMonitorMounted] = React.useState(false);
-
-  // 首次访问监控页时挂载，之后永不卸载
-  // 切走时暂停所有轮询 + WS，切回来时恢复
-  React.useEffect(() => {
-    if (pathname === '/monitor') {
-      setMonitorMounted(true);
-      resumeMonitorPolling();
-    } else {
-      pauseMonitorPolling();
-    }
-  }, [pathname]);
-
-  const isMonitor = pathname === '/monitor';
-
   return (
-    <>
-      {/* 监控页 keep-alive：挂载后只用 display 切换 */}
-      {monitorMounted && (
-        <div className="absolute inset-0" style={{ display: isMonitor ? 'block' : 'none' }}>
+    <Routes>
+      <Route path="/monitor" element={
+        <div className="absolute inset-0">
           <Suspense fallback={<PageFallback />}>
             <MonitorPage />
           </Suspense>
         </div>
-      )}
-
-      {/* 其他页面正常路由 */}
-      {!isMonitor && (
-        <Routes>
-          <Route path="/dashboard" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <DashboardPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/position-builder" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PositionBuilderPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/bybit/positions" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <BybitPositionsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/options-chain" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <OptionsChainPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/price-chart" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PriceChartPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/journal" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <JournalPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/portfolio-risk" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <PortfolioRiskPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/vol-history" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <VolHistoryPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/alerts" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <AlertsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/accounts" element={
-            <div className="absolute inset-0">
-              <Suspense fallback={<PageFallback />}>
-                <AccountsPage />
-              </Suspense>
-            </div>
-          } />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      )}
-    </>
+      } />
+      <Route path="/dashboard" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <DashboardPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/position-builder" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PositionBuilderPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/bybit/positions" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <BybitPositionsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/options-chain" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <OptionsChainPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/price-chart" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PriceChartPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/journal" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <JournalPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/portfolio-risk" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <PortfolioRiskPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/vol-history" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <VolHistoryPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/alerts" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <AlertsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/accounts" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <AccountsPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
 

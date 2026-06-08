@@ -379,6 +379,7 @@ function useDeribitOptions(coin: Coin) {
   const [data, setData] = useState<DeribitData | null>(null);
   const [loading, setLoading] = useState(true);
   const lastFetchedRef = useRef(0);
+  const hasDataRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -389,8 +390,9 @@ function useDeribitOptions(coin: Coin) {
       CACHE_TTL,
       d => {
         if (!active) return;
-        if (d.fetchedAt === lastFetchedRef.current && data !== null) return;
+        if (d.fetchedAt === lastFetchedRef.current && hasDataRef.current) return;
         lastFetchedRef.current = d.fetchedAt;
+        hasDataRef.current = true;
         setData(d);
         setLoading(false);
       },
@@ -541,20 +543,22 @@ function useDeribitHistory(coin: Coin) {
   const [data, setData]       = useState<HistoryData | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const lastFetchedRef = useRef(0);
+  const hasDataRef = useRef(false);
 
   useEffect(() => {
     let active = true;
     setTimedOut(false);
     // Show "load failed" hint if no data after 20 s
-    const timeout = setTimeout(() => { if (active && !data) setTimedOut(true); }, 20_000);
+    const timeout = setTimeout(() => { if (active && !hasDataRef.current) setTimedOut(true); }, 20_000);
     const unsub = subscribeData<HistoryData>(
       `history-${coin}`,
       () => fetchDeribitHistory(coin),
       HIST_TTL,
       d => {
         if (!active) return;
-        if (d.fetchedAt === lastFetchedRef.current && data !== null) return;
+        if (d.fetchedAt === lastFetchedRef.current && hasDataRef.current) return;
         lastFetchedRef.current = d.fetchedAt;
+        hasDataRef.current = true;
         setTimedOut(false);
         setData(d);
       },
@@ -1557,7 +1561,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   const { setHeaderRight } = useCardHeader();
   const [expFilter, setExpFilter] = useState<'all' | string>('all');
 
-  const expiries = data?.expiries.slice(0, 6) ?? [];
+  const expiries = useMemo(() => data?.expiries.slice(0, 6) ?? [], [data?.expiries]);
 
   useEffect(() => {
     setHeaderRight(
@@ -1571,31 +1575,35 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
   const spot = data?.spot ?? 0;
-  const targetExps = expFilter === 'all'
-    ? expiries
-    : expiries.filter(e => e.label === expFilter);
-
-  const callOI = new Map<number, number>();
-  const putOI  = new Map<number, number>();
-  for (const e of targetExps) {
-    for (const o of e.calls) {
-      callOI.set(o.strike, (callOI.get(o.strike) ?? 0) + o.oi);
+  const { callOI, putOI, strikes, maxPain, totalCallOI, totalPutOI } = useMemo(() => {
+    const targetExps = expFilter === 'all'
+      ? expiries
+      : expiries.filter(e => e.label === expFilter);
+    const nextCallOI = new Map<number, number>();
+    const nextPutOI  = new Map<number, number>();
+    for (const e of targetExps) {
+      for (const o of e.calls) {
+        nextCallOI.set(o.strike, (nextCallOI.get(o.strike) ?? 0) + o.oi);
+      }
+      for (const o of e.puts) {
+        nextPutOI.set(o.strike, (nextPutOI.get(o.strike) ?? 0) + o.oi);
+      }
     }
-    for (const o of e.puts) {
-      putOI.set(o.strike, (putOI.get(o.strike) ?? 0) + o.oi);
-    }
-  }
 
-  const strikes = [...new Set([...callOI.keys(), ...putOI.keys()])]
-    .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
-    .sort((a, b) => a - b);
-
-  const callArr = strikes.map(k => ({ strike: k, oi: callOI.get(k) ?? 0 }));
-  const putArr  = strikes.map(k => ({ strike: k, oi: putOI.get(k)  ?? 0 }));
-  const maxPain = computeMaxPain(callArr, putArr, strikes);
-
-  const totalCallOI = [...callOI.values()].reduce((s, o) => s + o, 0);
-  const totalPutOI  = [...putOI.values()].reduce((s, o) => s + o, 0);
+    const nextStrikes = [...new Set([...nextCallOI.keys(), ...nextPutOI.keys()])]
+      .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
+      .sort((a, b) => a - b);
+    const callArr = nextStrikes.map(k => ({ strike: k, oi: nextCallOI.get(k) ?? 0 }));
+    const putArr  = nextStrikes.map(k => ({ strike: k, oi: nextPutOI.get(k)  ?? 0 }));
+    return {
+      callOI: nextCallOI,
+      putOI: nextPutOI,
+      strikes: nextStrikes,
+      maxPain: computeMaxPain(callArr, putArr, nextStrikes),
+      totalCallOI: [...nextCallOI.values()].reduce((s, o) => s + o, 0),
+      totalPutOI: [...nextPutOI.values()].reduce((s, o) => s + o, 0),
+    };
+  }, [expFilter, expiries, spot]);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
   const fmtOI = (v: number) => {
@@ -1947,7 +1955,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   const { setHeaderRight } = useCardHeader();
   const [expFilter, setExpFilter] = useState<'all' | string>('all');
 
-  const expiries = data?.expiries.slice(0, 6) ?? [];
+  const expiries = useMemo(() => data?.expiries.slice(0, 6) ?? [], [data?.expiries]);
 
   useEffect(() => {
     setHeaderRight(
@@ -1961,39 +1969,46 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   useEffect(() => { setExpFilter('all'); }, [coin]);
 
   const spot = data?.spot ?? 0;
-  const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
-
-  const gexMap = new Map<number, { cGex: number; pGex: number }>();
-  if (spot > 0) {
-    for (const exp of targetExps) {
-      for (const opt of [...exp.calls, ...exp.puts]) {
-        const g = bsGamma(spot, opt.strike, opt.T, opt.iv) * spot * spot / 100;
-        if (!gexMap.has(opt.strike)) gexMap.set(opt.strike, { cGex: 0, pGex: 0 });
-        const e = gexMap.get(opt.strike)!;
-        if (opt.type === 'C') e.cGex += g * opt.oi;
-        else                   e.pGex += g * opt.oi;
+  const { gexMap, strikes, netGex, totalNet, zeroGamma } = useMemo(() => {
+    const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
+    const nextGexMap = new Map<number, { cGex: number; pGex: number }>();
+    if (spot > 0) {
+      for (const exp of targetExps) {
+        for (const opt of [...exp.calls, ...exp.puts]) {
+          const g = bsGamma(spot, opt.strike, opt.T, opt.iv) * spot * spot / 100;
+          if (!nextGexMap.has(opt.strike)) nextGexMap.set(opt.strike, { cGex: 0, pGex: 0 });
+          const e = nextGexMap.get(opt.strike)!;
+          if (opt.type === 'C') e.cGex += g * opt.oi;
+          else                   e.pGex += g * opt.oi;
+        }
       }
     }
-  }
 
-  const strikes = [...gexMap.keys()]
-    .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
-    .sort((a, b) => a - b);
+    const nextStrikes = [...nextGexMap.keys()]
+      .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
+      .sort((a, b) => a - b);
+    const nextNetGex = nextStrikes.map(k => {
+      const e = nextGexMap.get(k)!;
+      return e.pGex - e.cGex;
+    });
 
-  const netGex = strikes.map(k => {
-    const e = gexMap.get(k)!;
-    return e.pGex - e.cGex;
-  });
-  const totalNet = netGex.reduce((s, g) => s + g, 0);
-
-  let zeroGamma: number | null = null;
-  for (let i = 1; i < strikes.length; i++) {
-    if (netGex[i - 1] * netGex[i] < 0) {
-      const frac = Math.abs(netGex[i - 1]) / (Math.abs(netGex[i - 1]) + Math.abs(netGex[i]));
-      zeroGamma = strikes[i - 1] + frac * (strikes[i] - strikes[i - 1]);
-      break;
+    let nextZeroGamma: number | null = null;
+    for (let i = 1; i < nextStrikes.length; i++) {
+      if (nextNetGex[i - 1] * nextNetGex[i] < 0) {
+        const frac = Math.abs(nextNetGex[i - 1]) / (Math.abs(nextNetGex[i - 1]) + Math.abs(nextNetGex[i]));
+        nextZeroGamma = nextStrikes[i - 1] + frac * (nextStrikes[i] - nextStrikes[i - 1]);
+        break;
+      }
     }
-  }
+
+    return {
+      gexMap: nextGexMap,
+      strikes: nextStrikes,
+      netGex: nextNetGex,
+      totalNet: nextNetGex.reduce((s, g) => s + g, 0),
+      zeroGamma: nextZeroGamma,
+    };
+  }, [expFilter, expiries, spot]);
 
   const fmtGex = (v: number) => {
     const abs = Math.abs(v);
@@ -2069,7 +2084,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
           (params as { value: number }).value >= 0 ? [0, 2, 2, 0] : [2, 0, 0, 2],
       },
     }],
-  }), [strikes, netGex, spot, zeroGamma]);
+  }), [gexMap, strikes, netGex, spot, zeroGamma]);
 
   if (loading && !data) return <Skeleton />;
   if (!data) return <div className="p-4 text-[11px] text-white/55">暂无数据</div>;
@@ -4048,13 +4063,15 @@ function useDualHistory() {
   const [btc, setBtc]         = useState<HistoryData | null>(null);
   const [eth, setEth]         = useState<HistoryData | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const gotBtcRef = useRef(false);
+  const gotEthRef = useRef(false);
 
   useEffect(() => {
     let active = true;
     setTimedOut(false);
-    const timeout = setTimeout(() => { if (active && (!btc || !eth)) setTimedOut(true); }, 20_000);
-    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) { setBtc(d); setTimedOut(false); } });
-    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) { setEth(d); setTimedOut(false); } });
+    const timeout = setTimeout(() => { if (active && (!gotBtcRef.current || !gotEthRef.current)) setTimedOut(true); }, 20_000);
+    const u1 = subscribeData<HistoryData>('history-BTC', () => fetchDeribitHistory('BTC'), HIST_TTL, d => { if (active) { gotBtcRef.current = true; setBtc(d); setTimedOut(false); } });
+    const u2 = subscribeData<HistoryData>('history-ETH', () => fetchDeribitHistory('ETH'), HIST_TTL, d => { if (active) { gotEthRef.current = true; setEth(d); setTimedOut(false); } });
     return () => { active = false; clearTimeout(timeout); u1(); u2(); };
   }, []);
 
@@ -4991,13 +5008,14 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   // Flash when spot price changes
   useEffect(() => {
     if (!snap) return;
-    if (prevSpotRef.current !== undefined && snap.spot !== prevSpotRef.current) {
-      setFlash(snap.spot > prevSpotRef.current ? 'up' : 'down');
+    const nextSpot = snap.spot;
+    if (prevSpotRef.current !== undefined && nextSpot !== prevSpotRef.current) {
+      setFlash(nextSpot > prevSpotRef.current ? 'up' : 'down');
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       flashTimerRef.current = setTimeout(() => setFlash(null), 500);
     }
-    prevSpotRef.current = snap.spot;
-  }, [snap?.spot]);
+    prevSpotRef.current = nextSpot;
+  }, [snap]);
 
   if (!snap) return (
     <div className="w-full h-full flex items-center justify-center text-[11px] text-white/55">加载中…</div>
@@ -6723,6 +6741,8 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const [hist, setHist]   = useState<HistoryData | null>(null);
   const [loading, setLoading]     = useState(true);
   const [timedOut, setTimedOut]   = useState(false);
+  const gotOptRef = useRef(false);
+  const gotHistRef = useRef(false);
 
   useEffect(() => {
 
@@ -6735,18 +6755,20 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     let gotHist = false;
     setLoading(true);
     setTimedOut(false);
-    const timeout = setTimeout(() => { if (alive && (!opt || !hist)) setTimedOut(true); }, 20_000);
+    gotOptRef.current = false;
+    gotHistRef.current = false;
+    const timeout = setTimeout(() => { if (alive && (!gotOptRef.current || !gotHistRef.current)) setTimedOut(true); }, 20_000);
     const u1 = subscribeData<DeribitData>(
       `options-${coin}`,
       () => fetchDeribitOptions(coin),
       CACHE_TTL,
-      d => { if (!alive) return; setOpt(d); gotOpt = true; if (gotHist) setLoading(false); },
+      d => { if (!alive) return; gotOptRef.current = true; setOpt(d); gotOpt = true; if (gotHist) setLoading(false); },
     );
     const u2 = subscribeData<HistoryData>(
       `history-${coin}`,
       () => fetchDeribitHistory(coin),
       HIST_TTL,
-      d => { if (!alive) return; setHist(d); gotHist = true; setTimedOut(false); if (gotOpt) setLoading(false); },
+      d => { if (!alive) return; gotHistRef.current = true; setHist(d); gotHist = true; setTimedOut(false); if (gotOpt) setLoading(false); },
     );
     return () => { alive = false; clearTimeout(timeout); u1(); u2(); };
   }, [coin]);

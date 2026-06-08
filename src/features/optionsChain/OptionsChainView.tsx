@@ -28,6 +28,20 @@ import { FrameControls, PositionsPanel, TradingPanel } from './TradingPanel';
 import './options-chain.css';
 
 type FilterKey = 'all' | 'atm5' | 'atm10';
+type TabState = {
+  expiryIdx: number;
+  filterKey: FilterKey;
+  showDist: boolean;
+  visibleColIds: string[];
+};
+
+const DEFAULT_VISIBLE_COL_IDS = SIDE_COLS.map(c => c.id);
+const DEFAULT_TAB_STATE: TabState = {
+  expiryIdx: 0,
+  filterKey: 'all',
+  showDist: false,
+  visibleColIds: DEFAULT_VISIBLE_COL_IDS,
+};
 
 export default function OptionsChainView() {
   // ── Tabs: multiple underlying tabs, click to switch ─────────────────────
@@ -36,18 +50,20 @@ export default function OptionsChainView() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   // Per-tab remembered state (expiryIdx, filter, columns, dist) keyed by underlying.
-  const [tabStates, setTabStates] = useState<Record<string, { expiryIdx: number; filterKey: FilterKey; showDist: boolean; visibleColIds: string[] }>>({});
+  const [tabStates, setTabStates] = useState<Record<string, TabState>>({});
 
   const activeUnderlying = tabs[activeTabIdx] ?? 'BTC_USDC';
   const coin = coinOf(activeUnderlying);
   const source = sourceOf(activeUnderlying);
 
-  const _defaultVisIds = SIDE_COLS.map(c => c.id);
-  const tabState = tabStates[activeUnderlying] ?? { expiryIdx: 0, filterKey: 'all' as FilterKey, showDist: false, visibleColIds: _defaultVisIds };
+  const tabState = tabStates[activeUnderlying] ?? DEFAULT_TAB_STATE;
 
   const setTabState = useCallback((patch: Partial<typeof tabState>) => {
-    setTabStates(prev => ({ ...prev, [activeUnderlying]: { ...tabState, ...patch } }));
-  }, [activeUnderlying, tabState]);
+    setTabStates(prev => ({
+      ...prev,
+      [activeUnderlying]: { ...(prev[activeUnderlying] ?? DEFAULT_TAB_STATE), ...patch },
+    }));
+  }, [activeUnderlying]);
 
   // Sync the shared store so the global nav "期权" hover stays in sync.
   useEffect(() => { ocStore.setUnderlying(activeUnderlying); }, [activeUnderlying]);
@@ -76,7 +92,7 @@ export default function OptionsChainView() {
   const expiryIdx = tabState.expiryIdx;
   const filterKey = tabState.filterKey;
   const showDist = tabState.showDist;
-  const visibleColIds = new Set(tabState.visibleColIds);
+  const visibleColIds = useMemo(() => new Set(tabState.visibleColIds), [tabState.visibleColIds]);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [expiryMenuOpen, setExpiryMenuOpen] = useState(false);
@@ -105,11 +121,11 @@ export default function OptionsChainView() {
   const liveSpot = useLiveSpot(coin);
   const spot = liveSpot ?? expiry?.spot ?? 0;
 
-  const cols = useMemo(() => SIDE_COLS.filter(c => visibleColIds.has(c.id)), [tabState.visibleColIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cols = useMemo(() => SIDE_COLS.filter(c => visibleColIds.has(c.id)), [visibleColIds]);
   const colsWidth = cols.reduce((s, c) => s + c.w, 0);
   const totalWidth = colsWidth * 2 + STRIKE_W;
 
-  const allRows = expiry?.rows ?? [];
+  const allRows = useMemo(() => expiry?.rows ?? [], [expiry]);
   const rows = useMemo(() => {
     if (filterKey === 'all') return allRows;
     const ai = allRows.findIndex(r => r.isATM);

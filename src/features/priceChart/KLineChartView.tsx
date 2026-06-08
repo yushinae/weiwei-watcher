@@ -77,7 +77,8 @@ export const KLineChartView = () => {
   // 1) 初始化
   useEffect(()=>{
     if (!containerRef.current) return;
-    const chart = init(containerRef.current,{styles:'dark'});
+    const container = containerRef.current;
+    const chart = init(container,{styles:'dark'});
     if (!chart) return;
     chartRef.current = chart;
     chart.setTimezone('America/New_York');
@@ -99,7 +100,7 @@ export const KLineChartView = () => {
       }
       setHoverCandle(null);
     });
-    return ()=>{ dispose(containerRef.current!); chartRef.current = null; };
+    return ()=>{ dispose(container); chartRef.current = null; };
   },[]);
 
   // 2) 喂数据 + 重建
@@ -134,7 +135,6 @@ export const KLineChartView = () => {
       add('priceLine',[{value:spot-levels.emSigma}],{line:{color:EM_C,size:1}});
     }
     levelIdsRef.current = ids;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[showLevels,showEM,levels.callWall,levels.putWall,levels.maxPain,levels.emSigma,spot]);
 
   // 4) 倒计时 + 页面隐藏 5min 暂停

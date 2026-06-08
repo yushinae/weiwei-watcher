@@ -161,14 +161,19 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
       }
       let positions = s.positions;
       for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, o.optDelta);
-      // Mark-to-market the open positions.
-      positions = positions.map(p => {
+      // Mark-to-market the open positions — only allocate a new object when the
+      // mark actually moved, so an unchanged tick keeps reference equality and
+      // doesn't trigger a redundant store write / re-render.
+      let positionsChanged = positions !== s.positions;
+      const remarked = positions.map(p => {
         const m = marks[p.symbol];
-        if (m == null) return p;
+        if (m == null || m === p.markPrice) return p;
+        positionsChanged = true;
         const sign = p.side === 'long' ? 1 : -1;
         return { ...p, markPrice: m, unrealizedPnL: (m - p.avgEntryPrice) * p.qty * sign };
       });
-      if (filled.length === 0 && positions === s.positions) return s;
+      positions = positionsChanged ? remarked : s.positions;
+      if (filled.length === 0 && !positionsChanged) return s;
       const now = Date.now();
       return {
         positions,

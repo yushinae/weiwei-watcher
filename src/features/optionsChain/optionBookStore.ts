@@ -1,6 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { bookReducer, type BookState, type PlaceArgs, type SimPosition } from './simBook';
 
+const STORAGE_KEY = 'sim-option-book';
+
 const initialState: BookState = {
   positions: [],
   openOrders: [],
@@ -8,7 +10,30 @@ const initialState: BookState = {
   fills: [],
 };
 
-let state: BookState = initialState;
+// 启动时从 localStorage 恢复
+function loadState(): BookState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return initialState;
+    const parsed = JSON.parse(raw) as BookState;
+    // 基础验证（防御性）
+    if (!Array.isArray(parsed.positions) || !Array.isArray(parsed.openOrders)) return initialState;
+    return parsed;
+  } catch {
+    return initialState;
+  }
+}
+
+// 每次 dispatch 后保存
+function saveState(s: BookState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch (e) {
+    console.warn('[optionBookStore] localStorage.setItem failed:', e);
+  }
+}
+
+let state: BookState = loadState();
 const listeners = new Set<() => void>();
 
 const emit = () => listeners.forEach(listener => listener());
@@ -21,6 +46,7 @@ function dispatch(action: Parameters<typeof bookReducer>[1]) {
   const next = bookReducer(state, action);
   if (next === state) return;
   state = next;
+  saveState(state);
   emit();
 }
 

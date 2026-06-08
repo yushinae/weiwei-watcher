@@ -432,13 +432,15 @@ const AppNavigationDropdown = () => {
         )}
       </div>
 
-      {/* 极速 — 纯前端 Deribit 极速下单工具（public/quick-order.html），新标签打开 */}
+      {/* 极速 — 纯前端 Deribit 极速下单工具，内嵌在看板内（iframe 路由 /quick-order） */}
       <button
-        onClick={() => window.open('/quick-order.html', '_blank', 'noopener,noreferrer')}
-        title="Deribit 极速下单（新标签打开）"
+        onClick={() => navigate('/quick-order')}
+        title="Deribit 极速下单"
         className={cn(
           "flex items-center gap-1.5 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          "bg-transparent text-brand/70 hover:bg-brand/[0.10] hover:text-brand",
+          location.pathname === '/quick-order'
+            ? "bg-brand/[0.14] text-brand"
+            : "bg-transparent text-brand/70 hover:bg-brand/[0.10] hover:text-brand",
         )}
       >
         <Zap size={15} className="shrink-0" />
@@ -542,6 +544,15 @@ function AppRoutes() {
           <Suspense fallback={<PageFallback />}>
             <AccountsPage />
           </Suspense>
+        </div>
+      } />
+      <Route path="/quick-order" element={
+        <div className="absolute inset-0">
+          <iframe
+            src="/quick-order.html"
+            title="Deribit 极速下单"
+            className="w-full h-full border-0 block"
+          />
         </div>
       } />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

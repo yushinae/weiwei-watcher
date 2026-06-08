@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Sun, Moon } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import React, { useState, useEffect } from 'react';
 
 const THEME_KEY = 'ui-theme';
 
 function getStoredTheme(): 'dark' | 'light' {
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored === 'light') return 'light';
-  } catch {}
   return 'dark';
 }
 
@@ -25,21 +19,14 @@ export function useTheme() {
 
   useEffect(() => {
     applyTheme(theme);
+    try { localStorage.setItem(THEME_KEY, 'dark'); } catch {}
   }, [theme]);
 
-  const toggleTheme = useCallback(() => {
-    setThemeState(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem(THEME_KEY, next); } catch {}
-      return next;
-    });
-  }, []);
-
-  return { theme, toggleTheme } as const;
+  return { theme, setTheme: setThemeState } as const;
 }
 
-export function UISettings(_props: { onClose?: () => void }) {
-  const { theme, toggleTheme } = useTheme();
+export function UISettings() {
+  const { theme } = useTheme();
 
   return (
     <div className="flex flex-col gap-4 min-w-[260px]">
@@ -50,30 +37,9 @@ export function UISettings(_props: { onClose?: () => void }) {
             {theme === 'dark' ? '暗色模式' : '亮色模式'}
           </span>
         </div>
-        <button
-          onClick={toggleTheme}
-          className={cn(
-            'relative w-[52px] h-[28px] rounded-full transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
-            'ring-1 ring-inset',
-            theme === 'dark'
-              ? 'bg-white/[0.06] ring-white/[0.12]'
-              : 'bg-brand/25 ring-brand/40',
-          )}
-        >
-          <div
-            className={cn(
-              'absolute top-[3px] flex items-center justify-center w-[22px] h-[22px] rounded-full',
-              'transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
-              'bg-white shadow-[0_2px_6px_rgba(0,0,0,0.30)]',
-              theme === 'dark' ? 'left-[3px]' : 'translate-x-[24px] left-[3px]',
-            )}
-          >
-            {theme === 'dark'
-              ? <Moon size={13} className="text-slate-400" />
-              : <Sun size={13} className="text-amber-400" />
-            }
-          </div>
-        </button>
+        <span className="h-[24px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[11px] font-semibold text-white/55 flex items-center">
+          固定
+        </span>
       </div>
     </div>
   );

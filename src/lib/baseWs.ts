@@ -77,6 +77,10 @@ export abstract class BaseWS<S extends string = WsStatus> {
     if (this.feedKey && s === 'disconnected') _wsActivityReporter?.(this.feedKey, 'disconnected');
   }
 
+  subscriptionCount(): number {
+    return this.subs.size;
+  }
+
   // ── Channel subscriptions (ref-counted) ──────────────────────────────────────
 
   subscribe<T>(channel: string, cb: (data: T) => void): () => void {

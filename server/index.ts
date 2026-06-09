@@ -16,13 +16,14 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHmac } from 'node:crypto'
 
 // ── 数据目录 ────────────────────────────────────────────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, 'data')
+const ROOT_DIR = resolve(__dirname, '..')
 
 // 确保数据目录存在
 await mkdir(DATA_DIR, { recursive: true })
@@ -47,6 +48,33 @@ async function readMap(file: string): Promise<Record<string, unknown>> {
 
 async function writeMap(file: string, data: Record<string, unknown>): Promise<void> {
   return writeJSON(file, data)
+}
+
+async function readDotEnv(): Promise<Record<string, string>> {
+  try {
+    const raw = await readFile(join(ROOT_DIR, '.env'), 'utf-8')
+    const out: Record<string, string> = {}
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq < 0) continue
+      const key = trimmed.slice(0, eq).trim()
+      const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '')
+      out[key] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+async function readBybitCreds(): Promise<BybitCreds | null> {
+  const env = await readDotEnv()
+  const envKey = process.env.VITE_BYBIT_API_KEY?.trim() || env.VITE_BYBIT_API_KEY?.trim()
+  const envSecret = process.env.VITE_BYBIT_API_SECRET?.trim() || env.VITE_BYBIT_API_SECRET?.trim()
+  if (envKey && envSecret) return { apiKey: envKey, apiSecret: envSecret }
+  return readJSON<BybitCreds | null>('credentials.json', null)
 }
 
 // ── 服务器 ──────────────────────────────────────────────────────────────────
@@ -159,7 +187,7 @@ app.put('/api/sim-options', async (c) => {
 interface BybitCreds { apiKey: string; apiSecret: string }
 
 app.get('/api/credentials/bybit', async (c) => {
-  const creds = await readJSON<BybitCreds | null>('credentials.json', null)
+  const creds = await readBybitCreds()
   return c.json({ configured: !!creds, apiKey: creds?.apiKey ?? null })
 })
 
@@ -186,7 +214,7 @@ interface ProxyRequest {
 const BYBIT_REST = 'https://api.bybit.com'
 
 app.post('/api/proxy/bybit', async (c) => {
-  const creds = await readJSON<BybitCreds | null>('credentials.json', null)
+  const creds = await readBybitCreds()
   if (!creds) return c.json({ retCode: 10001, retMsg: '后端未配置 Bybit Key' }, 401)
 
   const { path, params = {} } = await c.req.json() as ProxyRequest

@@ -14,7 +14,7 @@ import { ChevronDown, Check, SlidersHorizontal, Filter, Plus, X } from 'lucide-r
 import { cn } from '../../lib/utils';
 import { useOptionChain } from './bybitTickers';
 import { useLiveSpot, useChainStream } from './liveData';
-import { useDeribitOptions } from '../../registry/data/deribit';
+import { useDeribitChainOptions } from '../../registry/data/deribit';
 import { buildBybitExpiry, buildDeribitExpiry, dteLabel } from './chainModel';
 import type { ChainExpiry, ChainRow } from './chainModel';
 import { ocStore, useOCStore, coinOf, sourceOf, underlyingFor, UNDERLYING_GROUPS } from './store';
@@ -128,7 +128,8 @@ export default function OptionsChainView() {
   const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
 
   const bybit = useOptionChain(coin);
-  const deribit = useDeribitOptions(coin);
+  const deribitUniverse = activeUnderlying.endsWith('USDC') ? 'linear-usdc' : 'inverse';
+  const deribit = useDeribitChainOptions(coin, deribitUniverse);
   const error = source === 'bybit' ? bybit.error : null;
 
   const book = useGlobalOptionBook();
@@ -592,7 +593,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : `options-${coin}`} marketQuotes={marketQuotes} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : deribitUniverse === 'linear-usdc' ? `deribit-usdc-chain-${coin}` : `deribit-chain-${coin}`} marketQuotes={marketQuotes} />
               </motion.div>
             </div>
           </>

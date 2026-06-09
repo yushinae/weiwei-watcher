@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { DERIBIT_WS } from '../registry/data/ws';
 import { BYBIT_PRIVATE_WS } from '../features/bybit/ws';
+import { hasBrowserWsCredentials, hasCredentials, subscribeAuthState } from '../features/bybit/auth';
 import { BYBIT_OPTION_WS } from '../features/optionsChain/bybitOptionWs';
 import {
   useGlobalHealth, useAllFreshness, freshStateText, FRESH_COLOR,
@@ -16,23 +17,38 @@ import {
 //   • 下拉：上段「连接」(WS) + 下段「数据新鲜度」(每个 feed 多久没更新)。
 // ═══════════════════════════════════════════════════════════════════════════════
 
-type WsStatus = 'disconnected' | 'connecting' | 'connected';
+type WsStatus = 'idle' | 'rest' | 'missing' | 'disconnected' | 'connecting' | 'connected';
 
 const STATUS_COLORS: Record<WsStatus, string> = {
+  idle:         '#8A8F98',
+  rest:         '#22C55E',
+  missing:      '#8A8F98',
   disconnected: '#EF4444',
   connecting:   '#F59E0B',
   connected:    '#22C55E',
 };
 const STATUS_LABELS: Record<WsStatus, string> = {
+  idle:         '按需打开',
+  rest:         'REST 代理',
+  missing:      '未配置',
   disconnected: '已断连',
   connecting:   '连接中…',
   connected:    '已连接',
 };
 
+const STATUS_HINTS: Record<WsStatus, string> = {
+  idle: '没有打开这个页面/合约时不会连接',
+  rest: '密钥在本地后端，账户数据走代理',
+  missing: '没有配置 API key',
+  disconnected: '已尝试连接，但当前断开',
+  connecting: '正在建立连接或鉴权',
+  connected: 'WebSocket 已打开',
+};
+
 export default function DataHealthIndicator() {
   const [deribit, setDeribit]   = useState<WsStatus>('disconnected');
   const [bybitOpt, setBybitOpt] = useState<WsStatus>('disconnected'); // 期权行情（公有）
-  const [bybitAcct, setBybitAcct] = useState<WsStatus>('disconnected'); // 账户/持仓（私有，需 API key）
+  const [bybitAcct, setBybitAcct] = useState<WsStatus>('missing'); // 账户/持仓（私有，需 API key）
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -41,9 +57,20 @@ export default function DataHealthIndicator() {
 
   useEffect(() => {
     const u1 = DERIBIT_WS.subscribeStatus(setDeribit);
-    const u2 = BYBIT_OPTION_WS.subscribeStatus(setBybitOpt);
-    const u3 = BYBIT_PRIVATE_WS.subscribeStatus(s => setBybitAcct(s === 'auth' ? 'connected' : (s as WsStatus)));
-    return () => { u1(); u2(); u3(); };
+    const u2 = BYBIT_OPTION_WS.subscribeStatus(s => {
+      setBybitOpt(s === 'disconnected' && BYBIT_OPTION_WS.subscriptionCount() === 0 ? 'idle' : s);
+    });
+    const updateBybitAccount = (s?: string) => {
+      if (hasBrowserWsCredentials()) {
+        setBybitAcct(s === 'auth' ? 'connected' : (s as WsStatus | undefined) ?? 'disconnected');
+        return;
+      }
+      void hasCredentials().then(ok => setBybitAcct(ok ? 'rest' : 'missing'));
+    };
+    const u3 = BYBIT_PRIVATE_WS.subscribeStatus(updateBybitAccount);
+    const u4 = subscribeAuthState(() => updateBybitAccount());
+    updateBybitAccount();
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   // 整体严重度 = 新鲜度护栏（只看「当前活跃」的关键 feed；闲置 feed 不报警）。
@@ -59,6 +86,12 @@ export default function DataHealthIndicator() {
   const freshRows = feeds
     .filter(f => f.active && (f.critical || degradedKinds.includes(f.kind)))
     .sort((a, b) => (FRESH_COLOR[b.kind] === '#EF4444' ? 1 : 0) - (FRESH_COLOR[a.kind] === '#EF4444' ? 1 : 0));
+
+  const connectionRows = useMemo(() => ([
+    { name: 'Deribit 行情 WS', status: deribit, note: '现价、DVOL、Deribit 合约推送' },
+    { name: 'Bybit 期权 WS', status: bybitOpt, note: '只在 Bybit 期权页订阅合约时打开' },
+    { name: 'Bybit 账户通道', status: bybitAcct, note: STATUS_HINTS[bybitAcct] },
+  ]), [deribit, bybitOpt, bybitAcct]);
 
   const open = () => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); setShowTooltip(true); };
   const close = () => { tooltipTimer.current = setTimeout(() => setShowTooltip(false), 250); };
@@ -85,18 +118,19 @@ export default function DataHealthIndicator() {
         <div
           onMouseEnter={open}
           onMouseLeave={close}
-          className="bb-top-popover absolute right-0 top-full mt-1.5 z-[300] w-[230px] p-3"
+          className="bb-top-popover absolute right-0 top-full mt-1.5 z-[300] w-[300px] p-3"
         >
           {/* 连接 */}
-          <div className="text-[10px] font-bold uppercase tracking-wide text-white/35 mb-1.5">连接</div>
-          <div className="flex flex-col gap-1.5">
-            {([['Deribit', deribit], ['Bybit 期权', bybitOpt], ['Bybit 账户', bybitAcct]] as const).map(([name, st]) => (
-              <div key={name} className="flex items-center justify-between gap-3">
-                <span className="text-[12px] text-white/60">{name}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[st] }} />
-                  <span className="text-[11px] font-semibold text-white/80">{STATUS_LABELS[st]}</span>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-white/35 mb-1.5">WS / 账户通道</div>
+          <div className="flex flex-col gap-2">
+            {connectionRows.map(row => (
+              <div key={row.name} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5">
+                <span className="text-[12px] text-white/65">{row.name}</span>
+                <div className="flex items-center gap-1.5 justify-end">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[row.status] }} />
+                  <span className="text-[11px] font-semibold text-white/85">{STATUS_LABELS[row.status]}</span>
                 </div>
+                <span className="col-span-2 text-[10px] text-white/32 leading-snug">{row.note}</span>
               </div>
             ))}
           </div>
@@ -104,7 +138,7 @@ export default function DataHealthIndicator() {
           {/* 数据新鲜度 */}
           {freshRows.length > 0 && (
             <>
-              <div className="text-[10px] font-bold uppercase tracking-wide text-white/35 mt-3 mb-1.5">数据新鲜度</div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-white/35 mt-3 mb-1.5">正在使用的数据</div>
               <div className="flex flex-col gap-1.5">
                 {freshRows.map(fr => (
                   <div key={fr.key} className="flex items-center justify-between gap-3" title={fr.error ?? undefined}>
@@ -122,7 +156,7 @@ export default function DataHealthIndicator() {
           )}
 
           <div className="mt-2.5 pt-2 border-t border-white/[0.06] text-[10px] text-white/35 leading-snug">
-            绿=实时 · 黄=延迟/暂停 · 红=中断 · 灰=示例
+            上半区是通道是否打开；下半区是当前页面正在用的数据多久前成功更新。灰色通常代表暂未用到。
           </div>
         </div>
       )}

@@ -51,6 +51,9 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+const isDeribitLinearUsdc = (instrument?: string) =>
+  instrument?.startsWith('BTC_USDC-') || instrument?.startsWith('ETH_USDC-');
+
 function normalizeBybit(d: Record<string, unknown>): Partial<Side> | null {
   const out: Partial<Side> = {};
   const mark = num(d.markPrice); if (mark != null) out.mark = mark;
@@ -68,10 +71,19 @@ function normalizeBybit(d: Record<string, unknown>): Partial<Side> | null {
   return Object.keys(out).length ? out : null;
 }
 
-function normalizeDeribit(d: Record<string, any>): Partial<Side> | null {
+function normalizeDeribit(d: Record<string, any>, instrument?: string): Partial<Side> | null {
   const fwd = num(d.underlying_price);
-  const toUsd = (c: unknown) => { const n = num(c); return n != null && fwd != null && fwd > 0 ? n * fwd : n; };
-  const quote = (c: unknown) => { const n = num(c); return n != null && n > 0 && fwd != null && fwd > 0 ? n * fwd : null; };
+  const linearUsdc = isDeribitLinearUsdc(instrument ?? d.instrument_name);
+  const toUsd = (c: unknown) => {
+    const n = num(c);
+    if (n == null) return n;
+    return !linearUsdc && fwd != null && fwd > 0 ? n * fwd : n;
+  };
+  const quote = (c: unknown) => {
+    const n = num(c);
+    if (n == null || n <= 0) return null;
+    return !linearUsdc && fwd != null && fwd > 0 ? n * fwd : n;
+  };
   const g = (d.greeks ?? d) as Record<string, unknown>;
   const out: Partial<Side> = {};
   const mark = toUsd(d.mark_price); if (mark != null) out.mark = mark;
@@ -127,7 +139,7 @@ export function useOrderBook(instrument: string | undefined, source: DataSource,
           const r = await fetch(`https://www.deribit.com/api/v2/public/get_order_book?instrument_name=${encodeURIComponent(instrument)}&depth=10`);
           const j = await r.json();
           const res = j?.result ?? {};
-          const u = (res.underlying_price ?? res.index_price ?? spotRef.current) || 1; // 币价→USD
+          const u = isDeribitLinearUsdc(instrument) ? 1 : (res.underlying_price ?? res.index_price ?? spotRef.current) || 1; // 反向币本位才 ×spot
           rawBids = (res.bids ?? []).map((x: number[]) => [x[0] * u, x[1]] as [number, number]);
           rawAsks = (res.asks ?? []).map((x: number[]) => [x[0] * u, x[1]] as [number, number]);
         }
@@ -174,7 +186,10 @@ export function useRecentTrades(instrument: string | undefined, source: DataSour
           const r = await fetch(`https://www.deribit.com/api/v2/public/get_last_trades_by_instrument?instrument_name=${encodeURIComponent(instrument)}&count=30&sorting=desc`);
           const j = await r.json();
           const list: Array<Record<string, any>> = j?.result?.trades ?? [];
-          out = list.map(t => { const u = (t.index_price ?? spotRef.current) || 1; return { price: (Number(t.price) || 0) * u, size: Number(t.amount) || 0, side: t.direction === 'buy' ? 'buy' as const : 'sell' as const, ts: Number(t.timestamp) || 0 }; });
+          out = list.map(t => {
+            const u = isDeribitLinearUsdc(instrument) ? 1 : (t.index_price ?? spotRef.current) || 1;
+            return { price: (Number(t.price) || 0) * u, size: Number(t.amount) || 0, side: t.direction === 'buy' ? 'buy' as const : 'sell' as const, ts: Number(t.timestamp) || 0 };
+          });
         }
         out = out.filter(t => t.price > 0 && Number.isFinite(t.price)).sort((a, b) => b.ts - a.ts).slice(0, 30);
         if (alive) setTrades(out);
@@ -193,7 +208,10 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
   const [ticks, setTicks] = useState<LiveTicks>({});
 
   // (instrument, row-key) targets for the active expiry; re-subscribe on expiry change.
-  const targetSig = expiry ? `${expiry.key}:${expiry.rows.length}` : '';
+  const lastRow = expiry?.rows[expiry.rows.length - 1];
+  const targetSig = expiry
+    ? `${expiry.key}:${expiry.rows.length}:${expiry.rows[0]?.call.instrument ?? expiry.rows[0]?.put.instrument ?? ''}:${lastRow?.call.instrument ?? lastRow?.put.instrument ?? ''}`
+    : '';
   const targets = useMemo(() => {
     if (!expiry) return [] as { instrument: string; key: string }[];
     const rows = expiry.rows;
@@ -230,7 +248,7 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
           }));
         } else {
           unsubs.push(DERIBIT_WS.subscribe<Record<string, any>>(`ticker.${instrument}.100ms`, d => {
-            const s = normalizeDeribit(d); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
+            const s = normalizeDeribit(d, instrument); if (s) { buf[key] = { ...buf[key], ...s }; dirty = true; }
           }));
         }
       }

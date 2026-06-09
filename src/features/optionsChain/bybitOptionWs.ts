@@ -67,6 +67,13 @@ class BybitOptionWS extends BaseWS {
   protected sendSubscribe(topic: string): void { this.rawSend({ op: 'subscribe', args: [topic] }); }
   protected sendUnsubscribe(topic: string): void { this.rawSend({ op: 'unsubscribe', args: [topic] }); }
 
+  protected onLastUnsubscribe(topic: string): void {
+    super.onLastUnsubscribe(topic);
+    if (this.subs.size === 0) this.disconnect();
+  }
+
+  disconnect(): void { this.closeSocket(); }
+
   // Only keep reconnecting while something is still listening.
   protected shouldReconnect(): boolean { return this.subs.size > 0; }
 

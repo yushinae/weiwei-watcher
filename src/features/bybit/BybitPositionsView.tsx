@@ -67,7 +67,7 @@ const pnlColor = (v: string | number | undefined) => {
 
 export default function BybitPositionsView() {
   const navigate = useNavigate();
-  const unlocked = useBybitAuthState();
+  const configured = useBybitAuthState();
   const [settingsOpen, setSettingsOpen] = useState(false);
   useEscapeKey(settingsOpen, () => setSettingsOpen(false));
   const [demo, setDemo] = useState(false);
@@ -118,13 +118,13 @@ export default function BybitPositionsView() {
            style={{ background: 'var(--color-surface-3)' }}>
         <span className="text-[14px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
         {/* Tab 切换 pill */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E] mr-3">
+        <div className="flex h-8 items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E] mr-3">
           {([['positions', '当前持仓'], ['history', '历史记录'], ['sim-options', `模拟期权${optionBook.positions.length ? ` ${optionBook.positions.length}` : ''}`]] as const).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
               className={cn(
-                'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
+                'h-7 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
                 tab === key
                   ? 'bg-[#3A3F40] text-[var(--nexus-accent)]'
                   : 'text-white/55 hover:bg-[#3A3B40] hover:text-white/80',
@@ -138,7 +138,7 @@ export default function BybitPositionsView() {
             <button onClick={() => setDemo(false)} className="opacity-70 hover:opacity-100">✕</button>
           </span>
         )}
-        {unlocked && !demo && (
+        {configured && !demo && (
           <>
             <span className="text-[11px] text-white/55">
               {fetchedAt > 0 ? `更新于 ${new Date(fetchedAt).toLocaleTimeString()}` : '—'}
@@ -184,7 +184,7 @@ export default function BybitPositionsView() {
                 </div>
               )}
               <BybitSettingsPanel onClose={() => setSettingsOpen(false)} />
-              {!unlocked && (
+              {!configured && (
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">
                   <button
                     onClick={() => { setDemo(true); setSettingsOpen(false); }}
@@ -195,14 +195,14 @@ export default function BybitPositionsView() {
             </div>
           )}
 
-          {tab === 'positions' && !unlocked && !demo && !settingsOpen && (
+          {tab === 'positions' && !configured && !demo && !settingsOpen && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-[14px] text-white/65 mb-1">暂无持仓</div>
-              <div className="text-[12px] text-white/55">连接 Bybit API 后自动显示实时持仓</div>
+              <div className="text-[12px] text-white/55">配置 Bybit API 后自动显示实时持仓</div>
             </div>
           )}
 
-          {(tab === 'positions' && ((unlocked || demo))) && (
+          {(tab === 'positions' && ((configured || demo))) && (
             <>
               <TotalsBar totals={totals} count={positions.length} />
               {error && !demo && (

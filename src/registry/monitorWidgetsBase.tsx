@@ -103,9 +103,12 @@ export {
   PFLOW_ACC, PFLOW_SERIES, PFLOW_LAST, processPremiumFlow,
   LARGE_BUF, LARGE_SEEN_IDS, processLargeTrades,
   loadWatchlist, saveWatchlist, WATCHLIST_SET, WATCH_OI_SNAP, WATCH_CACHE,
+  hydrateWatchlistFromBackend,
   loadPositions, savePositions, POS_STORE, POS_TICKER_CACHE, buildLiveFromCache,
+  hydratePositionsFromBackend,
   subscribePositions, addPosition, removePositionById,
   loadAlerts, saveAlerts, ALERTS_STORE, METRIC_META, evalAlerts,
+  hydrateAlertsFromBackend,
   addAlert, removeAlert, toggleAlert, subscribeAlerts,
   subscribeAlertTriggers, emitAlertTrigger,
 } from './data/store';

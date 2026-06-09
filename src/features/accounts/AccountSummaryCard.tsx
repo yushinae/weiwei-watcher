@@ -3,10 +3,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, ArrowRight } from 'lucide-react';
-import { getAccounts } from './store';
+import { getAccounts, hydrateAccountsFromBackend } from './store';
 import { getBook } from './bookStore';
 import { fetchAllPositions } from './sync';
-import { loadAllFills } from './fillStore';
+import { loadAllFills, hydrateFillsFromBackend } from './fillStore';
 import { fromAccounts, buildBooks, totals } from '../portfolioRisk/aggregate';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { UnifiedPosition } from './types';
@@ -39,9 +39,15 @@ export const AccountSummaryCard: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    if (hasAccounts) {
-      void fetchAllPositions().then(p => { if (alive) { setPositions(p); setFills(loadAllFills()); } });
-    }
+    void (async () => {
+      await Promise.all([hydrateAccountsFromBackend(), hydrateFillsFromBackend()]);
+      if (!alive) return;
+      setFills(loadAllFills());
+      if (getAccounts().length > 0) {
+        const p = await fetchAllPositions();
+        if (alive) setPositions(p);
+      }
+    })();
     return () => { alive = false; };
   }, [hasAccounts]);
 

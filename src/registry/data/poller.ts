@@ -11,36 +11,51 @@ export type DataSub<T> = (data: T) => void;
 export interface PollerEntry {
   intervalMs: number;
   subscribers: Set<DataSub<unknown>>;
+  errorSubscribers: Set<(err: unknown) => void>;
   lastData: unknown;
   fetcher: () => Promise<unknown>;
   timerId: ReturnType<typeof setInterval> | null;
+  inFlight: Promise<void> | null;
+  requestSeq: number;
+  pollOnMonitorRoute: boolean;
 }
 
 const POLLERS = new Map<string, PollerEntry>();
 let _isHidden    = false;
+let _monitorRoutePaused = false;
 let _focusLostAt: number | null = null;
 let _blurPauseTimer: ReturnType<typeof setTimeout> | null = null;
 const UNFOCUS_PAUSE_MS = 30_000;
 
-export function _shouldSkip(): boolean {
+export function _shouldSkip(options?: { monitorScoped?: boolean }): boolean {
   if (_isHidden) return true;
+  if (options?.monitorScoped && _monitorRoutePaused) return true;
   if (_focusLostAt !== null && Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS) return true;
   return false;
 }
 
 async function _pollOnce(key: string): Promise<void> {
-  if (_shouldSkip()) return;
   const e = POLLERS.get(key);
   if (!e || e.subscribers.size === 0) return;
-  try {
-    const d = await e.fetcher();
-    if (_shouldSkip()) return;
-    e.lastData = d;
-    e.subscribers.forEach(fn => fn(d));
-    markOk(key, e.intervalMs);
-  } catch (err) {
-    markError(key, err);
-  }
+  if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute })) return;
+  if (e.inFlight) return e.inFlight;
+  const seq = ++e.requestSeq;
+  e.inFlight = (async () => {
+    try {
+      const d = await e.fetcher();
+      if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute })) return;
+      if (seq !== e.requestSeq) return;
+      e.lastData = d;
+      e.subscribers.forEach(fn => fn(d));
+      markOk(key, e.intervalMs);
+    } catch (err) {
+      markError(key, err);
+      e.errorSubscribers.forEach(fn => fn(err));
+    } finally {
+      if (e.inFlight) e.inFlight = null;
+    }
+  })();
+  return e.inFlight;
 }
 
 let _wsPauseFn: (() => void) | null = null;
@@ -52,6 +67,7 @@ export function _resetPollersForTest(): void {
   });
   POLLERS.clear();
   _isHidden = false;
+  _monitorRoutePaused = false;
   _focusLostAt = null;
   if (_blurPauseTimer !== null) {
     clearTimeout(_blurPauseTimer);
@@ -70,7 +86,7 @@ export function _resumeAll(): void {
   _isHidden = false;
   markAllPaused(false);
   POLLERS.forEach((e, key) => {
-    if (e.subscribers.size > 0 && e.timerId == null) {
+    if (e.subscribers.size > 0 && e.timerId == null && !(_monitorRoutePaused && e.pollOnMonitorRoute)) {
       _pollOnce(key);
       e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
     }
@@ -88,11 +104,20 @@ export function _pauseAll(): void {
 }
 
 export function resumeMonitorPolling(): void {
-  _resumeAll();
+  _monitorRoutePaused = false;
+  POLLERS.forEach((e, key) => {
+    if (!e.pollOnMonitorRoute || e.subscribers.size === 0 || e.timerId != null || _isHidden) return;
+    _pollOnce(key);
+    e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
+  });
 }
 
 export function pauseMonitorPolling(): void {
-  markAllPaused(false);
+  _monitorRoutePaused = true;
+  POLLERS.forEach(e => {
+    if (!e.pollOnMonitorRoute) return;
+    if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
+  });
 }
 
 if (typeof document !== 'undefined') {
@@ -140,32 +165,46 @@ export function subscribeData<T>(
   fetcher: () => Promise<T>,
   intervalMs: number,
   subscriber: DataSub<T>,
+  onErrorOrOptions?: ((err: unknown) => void) | { onError?: (err: unknown) => void; monitorScoped?: boolean },
 ): () => void {
   let e = POLLERS.get(key);
+  const onError = typeof onErrorOrOptions === 'function' ? onErrorOrOptions : onErrorOrOptions?.onError;
+  const monitorScoped = typeof onErrorOrOptions === 'object' ? onErrorOrOptions.monitorScoped === true : false;
   if (!e) {
     e = {
       intervalMs,
       subscribers: new Set(),
+      errorSubscribers: new Set(),
       lastData: undefined,
       fetcher: fetcher as () => Promise<unknown>,
       timerId: null,
+      inFlight: null,
+      requestSeq: 0,
+      pollOnMonitorRoute: monitorScoped,
     };
     POLLERS.set(key, e);
+  } else {
+    if (e.intervalMs !== intervalMs) {
+      console.warn(`[poller] subscribeData("${key}") reused with different interval (${e.intervalMs}ms → ${intervalMs}ms); keeping the first interval.`);
+    }
+    e.pollOnMonitorRoute = e.pollOnMonitorRoute || monitorScoped;
   }
   const entry = e;
   const wasEmpty = entry.subscribers.size === 0;
   entry.subscribers.add(subscriber as DataSub<unknown>);
+  if (onError) entry.errorSubscribers.add(onError);
   if (wasEmpty) setActive(key, true);
 
   if (entry.lastData !== undefined) subscriber(entry.lastData as T);
 
-  if (entry.timerId == null && !_isHidden) {
+  if (entry.timerId == null && !_isHidden && !(entry.pollOnMonitorRoute && _monitorRoutePaused)) {
     if (entry.lastData === undefined) _pollOnce(key);
     entry.timerId = setInterval(() => _pollOnce(key), intervalMs);
   }
 
   return () => {
     entry.subscribers.delete(subscriber as DataSub<unknown>);
+    if (onError) entry.errorSubscribers.delete(onError);
     if (entry.subscribers.size === 0) {
       setActive(key, false); // 无人消费 → 不再计入「冻住」告警
       if (entry.timerId != null) { clearInterval(entry.timerId); entry.timerId = null; }

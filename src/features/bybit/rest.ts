@@ -1,11 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Bybit V5 REST client.
 //
-// 现在所有签名请求走后端代理（/api/proxy/bybit），Key 不出浏览器。
-// 后端没跑时仍回退到本地签名（从 .env / localStorage 读 Key）。
+// .env 配置时直接本地签名；否则走后端代理（/api/proxy/bybit）。
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { getCredentials } from './auth';
+import { getEnvCredentials, isEnvConfigured } from './auth';
 import { hmacSha256Hex } from './crypto';
 import { fetchWithRetry } from '../../lib/fetchRetry';
 
@@ -13,7 +12,7 @@ const BASE = '/bybit-api';
 const RECV_WINDOW = '5000';
 
 export class BybitAuthError extends Error {
-  constructor() { super('Bybit credentials locked or missing'); }
+  constructor() { super('Bybit credentials missing'); }
 }
 
 export class BybitApiError extends Error {
@@ -30,11 +29,9 @@ function paramsToQuery(params: Record<string, string | number | undefined>): str
   return entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
 }
 
-/**
- * 优先走后端代理（安全），后端不可用时回退到本地签名（env/localStorage）。
- */
 export async function bybitGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  // 尝试后端代理
+  if (isEnvConfigured()) return localBybitGet<T>(path, params);
+
   try {
     const resp = await fetch('/api/proxy/bybit', {
       method: 'POST',
@@ -50,15 +47,13 @@ export async function bybitGet<T>(path: string, params: Record<string, string | 
     if (json.retCode !== 0) throw new BybitApiError(json.retCode, json.retMsg ?? 'unknown error');
     return json.result as T;
   } catch (e) {
-    // 网络错误（后端没跑）→ 回退本地签名
     if (e instanceof BybitAuthError || e instanceof BybitApiError) throw e;
-    return fallbackBybitGet<T>(path, params);
+    throw new BybitAuthError();
   }
 }
 
-/** 本地签名版（后端不可用时的退路） */
-async function fallbackBybitGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  const creds = await getCredentials();
+async function localBybitGet<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+  const creds = getEnvCredentials();
   if (!creds) throw new BybitAuthError();
 
   const queryString = paramsToQuery(params);

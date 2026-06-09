@@ -1,0 +1,34 @@
+[
+  {
+    "id": "1779570856079",
+    "coin": "BTC",
+    "metric": "dvol",
+    "op": ">",
+    "threshold": 60,
+    "active": true
+  },
+  {
+    "id": "1779621817137",
+    "coin": "BTC",
+    "metric": "spot",
+    "op": ">",
+    "threshold": 78000,
+    "active": false
+  },
+  {
+    "id": "al_1780747081507_y9ir",
+    "coin": "BTC",
+    "metric": "netDelta",
+    "op": ">",
+    "threshold": 50000,
+    "active": false
+  },
+  {
+    "id": "al_1780984615513_5ezw",
+    "coin": "BTC",
+    "metric": "spot",
+    "op": ">",
+    "threshold": 90000,
+    "active": true
+  }
+]

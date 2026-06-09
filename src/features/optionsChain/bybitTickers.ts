@@ -233,6 +233,11 @@ export function useOptionChain(coin: 'BTC' | 'ETH') {
         setError(null);
         setData(prev => (prev && prev.fetchedAt === d.fetchedAt ? prev : d));
       },
+      err => {
+        if (!active) return;
+        setLoading(false);
+        setError(err instanceof Error ? err.message : String(err ?? '加载失败'));
+      },
     );
 
     return () => { active = false; unsub(); };

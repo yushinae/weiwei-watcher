@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useSyncExternalStore, useRef } from 'react';
 import { fetchBybitOptionPositions, BybitAuthError, type BybitOptionPosition } from './rest';
-import { isUnlocked, subscribeAuthState } from './auth';
+import { hasBrowserWsCredentials, isConfigured, subscribeAuthState } from './auth';
 import { BYBIT_PRIVATE_WS } from './ws';
 
 // Polling interval — WS handles incremental updates, REST keeps us honest if a
@@ -10,7 +10,7 @@ const POLL_MS = 30_000;
 const WS_FLUSH_MS = 400;
 
 export function useBybitAuthState() {
-  return useSyncExternalStore(subscribeAuthState, isUnlocked, isUnlocked);
+  return useSyncExternalStore(subscribeAuthState, isConfigured, isConfigured);
 }
 
 interface State {
@@ -35,20 +35,20 @@ function mergePositions(prev: BybitOptionPosition[], updates: BybitOptionPositio
 }
 
 export function useBybitPositions(): State & { refresh: () => void } {
-  const unlocked = useBybitAuthState();
+  const configured = useBybitAuthState();
   const [state, setState] = useState<State>({ positions: [], loading: false, error: null, fetchedAt: 0 });
   const wsBufferRef = useRef<BybitOptionPosition[]>([]);
   const wsFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!isUnlocked()) return;
+    if (!isConfigured()) return;
     setState(s => ({ ...s, loading: true, error: null }));
     try {
       const positions = await fetchBybitOptionPositions();
       setState({ positions, loading: false, error: null, fetchedAt: Date.now() });
     } catch (e) {
       if (e instanceof BybitAuthError) {
-        setState(s => ({ ...s, loading: false, error: '请先解锁 API key' }));
+        setState(s => ({ ...s, loading: false, error: '请先在 .env 或本地后端配置 Bybit API key' }));
       } else {
         setState(s => ({ ...s, loading: false, error: e instanceof Error ? e.message : String(e) }));
       }
@@ -57,16 +57,16 @@ export function useBybitPositions(): State & { refresh: () => void } {
 
   // REST: initial snapshot + safety-net poll
   useEffect(() => {
-    if (!unlocked) return;
+    if (!configured) return;
     refresh();
     const id = setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
     return () => clearInterval(id);
-  }, [unlocked, refresh]);
+  }, [configured, refresh]);
 
   // WS: subscribe to `position` topic; buffer & flush so a flurry of updates
   // doesn't cause one render per push.
   useEffect(() => {
-    if (!unlocked) return;
+    if (!configured || !hasBrowserWsCredentials()) return;
     const flush = () => {
       wsFlushTimerRef.current = null;
       const updates = wsBufferRef.current;
@@ -98,7 +98,7 @@ export function useBybitPositions(): State & { refresh: () => void } {
       }
       wsBufferRef.current = [];
     };
-  }, [unlocked]);
+  }, [configured]);
 
   return { ...state, refresh };
 }

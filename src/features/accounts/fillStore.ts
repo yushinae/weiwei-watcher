@@ -2,7 +2,7 @@
 // 同时同步到后端，清缓存不丢。
 // 容量：localStorage 约 5MB，后端无此限制。
 import type { UnifiedFill, Venue } from './types';
-import { put as apiPut } from '../../api';
+import { get as apiGet, put as apiPut } from '../../api';
 
 const FILLS_KEY = 'weiwei.fills.v1';
 const SYNC_KEY = 'weiwei.fills.sync.v1';
@@ -19,6 +19,25 @@ function save(k: string, v: unknown): void {
 
 export function loadAllFills(): UnifiedFill[] {
   return Object.values(load<FillMap>(FILLS_KEY, {})).sort((a, b) => a.time - b.time);
+}
+
+export async function hydrateFillsFromBackend(): Promise<number> {
+  try {
+    const remote = await apiGet<UnifiedFill[]>('/api/fills');
+    if (!Array.isArray(remote) || remote.length === 0) return 0;
+    const m = load<FillMap>(FILLS_KEY, {});
+    let added = 0;
+    for (const f of remote) {
+      if (!f?.venue || !f?.id) continue;
+      const key = `${f.venue}:${f.id}`;
+      if (!(key in m)) added++;
+      m[key] = f;
+    }
+    if (added > 0) save(FILLS_KEY, m);
+    return added;
+  } catch {
+    return 0;
+  }
 }
 
 // 返回本次新增（去重后）数量

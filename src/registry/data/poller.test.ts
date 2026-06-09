@@ -96,4 +96,41 @@ describe('subscribeData', () => {
     expect(subscriber).toHaveBeenCalledWith(1);
     unsub();
   });
+
+  it('does not overlap slow requests for the same key', async () => {
+    let resolveFetch!: (v: number) => void;
+    const fetcher = vi.fn(() => new Promise<number>(resolve => { resolveFetch = resolve; }));
+    const subscriber = vi.fn();
+
+    const unsub = subscribeData('slow', fetcher, 1000, subscriber);
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    resolveFetch(7);
+    await flushMicrotasks();
+
+    expect(subscriber).toHaveBeenCalledWith(7);
+    unsub();
+  });
+
+  it('pauses only monitor-scoped pollers on monitor route pause', async () => {
+    const sharedFetcher = vi.fn(async () => 'shared');
+    const monitorFetcher = vi.fn(async () => 'monitor');
+    const sharedSub = vi.fn();
+    const monitorSub = vi.fn();
+
+    const unsubShared = subscribeData('route-shared', sharedFetcher, 1000, sharedSub);
+    const unsubMonitor = subscribeData('route-monitor', monitorFetcher, 1000, monitorSub, { monitorScoped: true });
+    await flushMicrotasks();
+
+    pauseMonitorPolling();
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(sharedFetcher).toHaveBeenCalledTimes(4);
+    expect(monitorFetcher).toHaveBeenCalledTimes(1);
+
+    unsubShared();
+    unsubMonitor();
+  });
 });

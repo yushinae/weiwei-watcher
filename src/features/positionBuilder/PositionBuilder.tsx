@@ -137,8 +137,8 @@ const RIGHT_TABS: { id: RightTab; label: string; icon: string }[] = [
   { id: 'structure', label: '结构',   icon: '📅' },
 ];
 
-const INPUT_CLS = 'bg-[#2B2D35] rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] w-full';
-const SELECT_CLS = 'bg-[#2B2D35] rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] cursor-pointer w-full';
+const INPUT_CLS = 'h-7 bg-[#2B2D35] rounded-lg px-2 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] w-full';
+const SELECT_CLS = 'h-7 bg-[#2B2D35] rounded-lg px-2 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] cursor-pointer w-full';
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatHours(h: number) {

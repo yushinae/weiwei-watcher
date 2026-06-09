@@ -3,7 +3,7 @@ import type { Coin } from '../../features/monitor/types';
 import { DERIBIT_CACHE, HIST_CACHE } from './deribit';
 import { FLOW_CACHE } from './flow';
 import { TICKER_CACHE, type RawOptionTrade } from './ws';
-import { put as apiPut } from '../../api';
+import { get as apiGet, put as apiPut } from '../../api';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Premium flow accumulators
@@ -86,6 +86,24 @@ export function saveWatchlist(): void {
 
 export const WATCHLIST_SET = loadWatchlist();
 
+export async function hydrateWatchlistFromBackend(): Promise<void> {
+  try {
+    const remote = await apiGet<string[]>('/api/watchlist');
+    if (!Array.isArray(remote)) return;
+    let changed = false;
+    for (const inst of remote) {
+      if (typeof inst !== 'string' || WATCHLIST_SET.has(inst)) continue;
+      WATCHLIST_SET.add(inst);
+      changed = true;
+    }
+    if (changed) {
+      try { localStorage.setItem('ww_watchlist', JSON.stringify([...WATCHLIST_SET])); } catch { /* ignore */ }
+    }
+  } catch {
+    /* backend is optional */
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Position tracker
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -137,6 +155,26 @@ export function removePositionById(id: string): void {
   POS_STORE.splice(idx, 1);
   savePositions();
   _notifyPositions();
+}
+
+export async function hydratePositionsFromBackend(): Promise<void> {
+  try {
+    const remote = await apiGet<UserPosition[]>('/api/positions');
+    if (!Array.isArray(remote)) return;
+    const ids = new Set(POS_STORE.map(p => p.id));
+    let changed = false;
+    for (const p of remote) {
+      if (!p?.id || ids.has(p.id)) continue;
+      POS_STORE.push(p);
+      ids.add(p.id);
+      changed = true;
+    }
+    if (!changed) return;
+    try { localStorage.setItem('ww_positions', JSON.stringify(POS_STORE)); } catch { /* ignore */ }
+    _notifyPositions();
+  } catch {
+    /* backend is optional */
+  }
 }
 
 export const POS_TICKER_CACHE = new Map<string, any>();
@@ -196,6 +234,35 @@ export function saveAlerts(): void {
 }
 
 export const ALERTS_STORE: UserAlert[] = loadAlerts();
+
+export async function hydrateAlertsFromBackend(): Promise<void> {
+  try {
+    const remote = await apiGet<UserAlert[]>('/api/alerts');
+    if (!Array.isArray(remote)) return;
+    const ids = new Set(ALERTS_STORE.map(a => a.id));
+    let changed = false;
+    for (const a of remote) {
+      if (!a?.id || ids.has(a.id)) continue;
+      ALERTS_STORE.push({
+        ...a,
+        triggered: false,
+        lastValue: null,
+        triggeredAt: null,
+      });
+      ids.add(a.id);
+      changed = true;
+    }
+    if (!changed) return;
+    try {
+      localStorage.setItem('ww_alerts', JSON.stringify(ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
+        ({ id, coin, metric, op, threshold, active, triggered: false, lastValue: null, triggeredAt: null })
+      )));
+    } catch { /* ignore */ }
+    _notifyAlerts();
+  } catch {
+    /* backend is optional */
+  }
+}
 
 export const METRIC_META: Record<AlertMetric, { label: string; unit: string; defaultVal: number }> = {
   spot:      { label: 'Spot 价格',    unit: '$',    defaultVal: 90000 },

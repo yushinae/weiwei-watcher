@@ -7,9 +7,22 @@ import { setBook } from './bookStore';
 import type { UnifiedPosition } from './types';
 
 const BACKFILL_MS = 365 * 86_400_000;
+export interface AccountSyncError {
+  accountId: string;
+  venue: string;
+  label?: string;
+  error: string;
+}
+
+let LAST_SYNC_ERRORS: AccountSyncError[] = [];
+
+export function getLastAccountSyncErrors(): AccountSyncError[] {
+  return LAST_SYNC_ERRORS;
+}
 
 export async function fetchAllPositions(): Promise<UnifiedPosition[]> {
   const out: UnifiedPosition[] = [];
+  const errors: AccountSyncError[] = [];
   for (const acct of getAccounts()) {
     const adapter = ADAPTERS[acct.venue];
     if (!adapter) continue;
@@ -19,10 +32,16 @@ export async function fetchAllPositions(): Promise<UnifiedPosition[]> {
       mergeFills(res.fills);
       setLastSync(acct.venue, acct.id, Date.now() - 60_000);
       out.push(...res.positions);
-    } catch {
-      /* 单账户失败不影响其它 */
+    } catch (err) {
+      errors.push({
+        accountId: acct.id,
+        venue: acct.venue,
+        label: acct.label,
+        error: err instanceof Error ? err.message : String(err ?? '同步失败'),
+      });
     }
   }
+  LAST_SYNC_ERRORS = errors;
   setBook(out); // 供全局告警引擎评估盯持仓告警
   return out;
 }

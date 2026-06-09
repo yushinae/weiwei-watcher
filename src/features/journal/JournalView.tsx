@@ -25,7 +25,7 @@ const pnlColor = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : MUTE);
 // ── 小组件 ───────────────────────────────────────────────────────────────────
 
 const StatCard: React.FC<{ label: string; children: React.ReactNode; sub?: React.ReactNode }> = ({ label, children, sub }) => (
-  <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+  <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
     <span className="text-[10px] uppercase tracking-wider text-white/45">{label}</span>
     <span className="text-[22px] font-bold tabular-nums leading-none">{children}</span>
     {sub && <span className="text-[11px] text-white/45 mt-0.5">{sub}</span>}
@@ -33,7 +33,7 @@ const StatCard: React.FC<{ label: string; children: React.ReactNode; sub?: React
 );
 
 const Card = ({ title, right, children, className = '' }: { title: string; right?: React.ReactNode; children: React.ReactNode; className?: string }) => (
-  <div className={`flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] ${className}`}>
+  <div className={`flex flex-col rounded-xl bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)] ${className}`}>
     <div className="flex items-center px-4 pt-3 pb-2 shrink-0">
       <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">{title}</span>
       {right && <div className="ml-auto">{right}</div>}
@@ -42,7 +42,7 @@ const Card = ({ title, right, children, className = '' }: { title: string; right
   </div>
 );
 
-const inputCls = 'h-[30px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[12px] text-white/85 outline-none focus:ring-white/20';
+const inputCls = 'h-[30px] px-2 rounded-md bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] text-white/85 outline-none focus:ring-[var(--nexus-accent)]/40';
 
 // ── 主视图 ───────────────────────────────────────────────────────────────────
 
@@ -262,7 +262,7 @@ export const JournalView = () => {
               实盘数据来自「账户」页同步的真实成交（closedPnl 扣费）。下方「手动记录」用于补充策略标签 / 复盘备注。
               注：严格的 Δ/Vega/Theta 归因需逐日希腊快照，历史成交无法回溯，后续可从现在起累积。
             </div>
-            <div className="h-px bg-white/[0.06] my-1 shrink-0" />
+            <div className="h-px bg-[var(--color-border-subtle)] my-1 shrink-0" />
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[13px] font-semibold text-white/55">手动记录 · 策略标注 / 复盘</span>
             </div>
@@ -356,7 +356,7 @@ export const JournalView = () => {
         <Card title={`交易记录 · ${trades.length}`} className="flex-1"
           right={empty ? (
             <button onClick={() => update(sampleTrades())}
-              className="h-[26px] px-2.5 rounded-md bg-white/[0.06] text-white/65 ring-1 ring-inset ring-white/10 text-[11px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors">
+              className="h-[26px] px-2.5 rounded-md bg-[var(--color-surface-2)] text-white/65 ring-1 ring-inset ring-[var(--color-border-subtle)] text-[11px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-surface-5)] transition-colors">
               <FlaskConical size={13} /> 加载示例
             </button>
           ) : undefined}
@@ -383,13 +383,13 @@ export const JournalView = () => {
                 </thead>
                 <tbody>
                   {trades.map(t => (
-                    <tr key={t.id} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                    <tr key={t.id} className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]">
                       <td className="py-1.5 px-2 tabular-nums text-white/60 whitespace-nowrap">{t.openDate}</td>
                       <td className="py-1.5 px-2 tabular-nums text-white/60 whitespace-nowrap">{t.closeDate ?? '—'}</td>
                       <td className="py-1.5 px-2 font-semibold text-white/75">{t.coin}</td>
                       <td className="py-1.5 px-2 text-white/75 whitespace-nowrap">{t.strategy}</td>
                       <td className="py-1.5 px-2">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${t.status === 'open' ? 'bg-[#4ea1ff]/15 text-[#4ea1ff]' : 'bg-white/[0.06] text-white/55'}`}>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${t.status === 'open' ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]' : 'bg-[var(--color-surface-5)] text-white/55'}`}>
                           {t.status === 'open' ? '持仓中' : '已平仓'}
                         </span>
                       </td>

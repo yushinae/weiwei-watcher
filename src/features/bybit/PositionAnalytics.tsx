@@ -236,7 +236,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <span className="text-[12px] text-white/50">视图</span>
-        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-[#111111]">
+        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
           {([['combined', '合并'], ['expiry', '按到期']] as const).map(([key, label]) => {
             const active = (key === 'expiry') === byExpiry;
             return (
@@ -245,7 +245,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
                 onClick={() => setByExpiry(key === 'expiry')}
                 className={cn(
                   'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
-                  active ? 'bg-[#242424] text-white/90' : 'text-white/55 hover:text-white/80',
+                  active ? 'bg-[var(--color-surface-5)] text-white/90' : 'text-white/55 hover:text-white/80',
                 )}
               >{label}</button>
             );

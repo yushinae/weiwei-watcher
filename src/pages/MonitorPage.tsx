@@ -120,7 +120,7 @@ export default function MonitorPage() {
                 <WidgetCard title="Gamma 敞口（GEX by Strike）" headerDensity="compact" className="col-span-6 h-[500px]">
                   <GEXWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[320px]">
+                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[124px]">
                   <DollarGreeksWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="到期日日历（OI · Max Pain · PCR）" headerDensity="compact" className="col-span-12 h-[400px]">
@@ -132,7 +132,7 @@ export default function MonitorPage() {
               </div>
             )}
 
-            {/* ── 资金流 ────────────────────────────────────────────────────── */}
+            {/* ── 资金流 ────────────────────────────��───────────────────────── */}
             {tab === 'flow' && (
               <div className="grid grid-cols-12 gap-2">
                 {/* 分层阅读：① 资金面速读（结论先行）*/}

@@ -244,7 +244,7 @@ export function InspectorDrawer({
                   <Row
                     label="ν Vega (每 1% IV)"
                     value={`$${greeks.vega.toFixed(2)}`}
-                    color="text-[#4ea1ff]"
+                    color="text-[#4F93DD]"
                   />
                   <Row
                     label="理论价格 (近似)"

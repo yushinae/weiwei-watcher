@@ -607,7 +607,7 @@ const GRID   = 'rgba(255,255,255,0.07)';
 const TXT    = 'rgba(255,255,255,0.32)';
 const BRAND  = 'rgba(37,232,137,0.92)';
 const YELLOW = '#FEBC2E';
-const BLUE   = '#4ea1ff';
+const BLUE   = '#4F93DD';
 
 // ── Global SVG gradient defs (render once in MonitorPage) ─────────────────────
 // Chromium / Electron: cross-SVG url() references work within the same document.
@@ -634,8 +634,8 @@ export function GlobalGradDefs() {
           <stop offset="100%" stopColor="#FEBC2E" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-blue" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4ea1ff" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="#4ea1ff" stopOpacity="0" />
+          <stop offset="0%" stopColor="#4F93DD" stopOpacity="0.20" />
+          <stop offset="100%" stopColor="#4F93DD" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-purple" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.20" />
@@ -659,7 +659,7 @@ function pcrLabel(p: number) { return p < 0.7 ? '偏多' : p < 1.0 ? '中性' : 
 // ── 静态币种标签（只读，显示当前 BTC/ETH）──────────────────────────────────────────
 
 const CoinLabel = ({ coin }: { coin: Coin }) => (
-  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/[0.06] text-white/55 uppercase tracking-wider">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[var(--color-surface-5)] text-white/55 uppercase tracking-wider">
     {coin}
   </span>
 );
@@ -691,7 +691,7 @@ const StaleRibbon = () => (
 const Skeleton = () => (
   <div className="w-full h-full flex flex-col gap-2 p-3 overflow-hidden">
     {/* shimmer sweep */}
-    <div className="relative flex-1 min-h-0 rounded-[10px] overflow-hidden bg-white/[0.03]">
+        <div className="relative flex-1 min-h-0 rounded-[10px] overflow-hidden bg-[var(--color-surface-1)]">
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-shimmer" />
       <div className="flex flex-col gap-2 p-3">
         <div className="h-2 w-1/3 rounded-full skel-block" />
@@ -1452,7 +1452,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
               'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
               i === selectedExp
                 ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
+                : 'text-white/55 hover:text-white/60 hover:bg-[var(--color-surface-5)]',
             )}
           >
             {e.label}
@@ -1464,18 +1464,18 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-[11px]">
           <thead className="sticky top-0" style={{ background: 'var(--base-dim)' }}>
-            <tr className="border-b border-white/[0.06]">
+            <tr className="border-b border-[var(--color-border-subtle)]">
               <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">IV%</th>
               <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">Δ</th>
               <th className="text-right px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">OI</th>
-              <th className="text-center px-3 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-semibold bg-white/[0.03]">行权价</th>
+              <th className="text-center px-3 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-semibold bg-[var(--color-surface-2)]">行权价</th>
               <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">OI</th>
               <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">Δ</th>
               <th className="text-left px-2 py-1.5 text-[9px] uppercase tracking-wider text-white/55 font-normal">IV%</th>
             </tr>
-            <tr className="border-b border-white/[0.03]">
+            <tr className="border-b border-[var(--color-border-subtle)]">
               <th colSpan={3} className="text-center py-0.5 text-[9px] text-[var(--nexus-green)]/40 font-normal">CALL</th>
-              <th className="bg-white/[0.03]" />
+              <th className="bg-[var(--color-surface-2)]" />
               <th colSpan={3} className="text-center py-0.5 text-[9px] text-[var(--nexus-red)]/40 font-normal">PUT</th>
             </tr>
           </thead>
@@ -1489,8 +1489,8 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
                 <tr
                   key={strike}
                   className={cn(
-                    'border-b border-white/[0.03] transition-colors hover:bg-white/[0.03]',
-                    isAtm && 'bg-[var(--nexus-accent)]/[0.04]',
+                    'border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-surface-5)]',
+                    isAtm && 'bg-[var(--nexus-accent)]/[0.06]',
                   )}
                 >
                   {/* Call side */}
@@ -1505,7 +1505,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
                   </td>
                   {/* Strike */}
                   <td className={cn(
-                    'text-center px-3 py-1.5 font-mono font-bold bg-white/[0.03]',
+                    'text-center px-3 py-1.5 font-mono font-bold bg-[var(--color-surface-2)]',
                     isAtm ? 'text-[var(--nexus-accent)]' : 'text-white/70',
                   )}>
                     {strike.toLocaleString()}
@@ -1528,7 +1528,7 @@ export const LiveOptionsChainWidget = ({ coin: coinProp, onCoinChange }: CoinCon
         </table>
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         现货 {spot > 0 ? spot.toLocaleString() : '—'} · {exp.label} 到期 · OI 单位：张
       </div>
     </div>
@@ -1695,7 +1695,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
             'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
             expFilter === 'all'
               ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-              : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
+              : 'text-white/55 hover:text-white/60 hover:bg-[var(--color-surface-5)]',
           )}
         >全部</button>
         {expiries.map(e => (
@@ -1706,7 +1706,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
               'px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
               expFilter === e.label
                 ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
+                : 'text-white/55 hover:text-white/60 hover:bg-[var(--color-surface-5)]',
             )}
           >
             {e.label}
@@ -1722,7 +1722,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           { label: 'PCR', val: pcr.toFixed(2), color: pcr >= 1.2 ? '#FF5F57' : pcr <= 0.7 ? '#25e889' : '#FEBC2E' },
           { label: '最大痛点', val: maxPain.toLocaleString(), color: 'rgba(37,232,137,0.9)' },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.35)] transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_6px_14px_-4px_rgba(0,0,0,0.50)] hover:brightness-110">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5 transition-colors duration-150 ease-out hover:border-[var(--nexus-accent)]/25 hover:bg-[var(--color-surface-5)]">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[14px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -1737,7 +1737,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         }
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         ◆ 现货价  ★ 最大痛点  数据来源：Deribit · {expFilter === 'all' ? '全部到期日' : expFilter}
       </div>
     </div>
@@ -1945,7 +1945,7 @@ function useFearGreed() {
   return { data, loading };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════��═══════════════════
 // GEXWidget — Gamma Exposure by Strike
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2098,7 +2098,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
             className={cn('px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors shrink-0',
               expFilter === f
                 ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/55 hover:text-white/60 hover:bg-white/[0.04]'
+                : 'text-white/55 hover:text-white/60 hover:bg-[var(--color-surface-5)]'
             )}>
             {f === 'all' ? '全部' : f}
           </button>
@@ -2112,7 +2112,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
           { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#FEBC2E' },
           { label: '现货', val: fmtPx(spot), color: 'rgba(255,255,255,0.6)' },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.35)] transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-[0_6px_14px_-4px_rgba(0,0,0,0.50)] hover:brightness-110">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5 transition-colors duration-150 ease-out hover:border-[var(--nexus-accent)]/25 hover:bg-[var(--color-surface-5)]">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[14px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -2124,14 +2124,14 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         <EChart option={option} notMerge style={{ height: chartH }} />
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         ◆ 现货  ○ 零Gamma  GEX = Γ × OI × S² / 100（每1%标的波动）· Deribit
       </div>
     </div>
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════��══════════════
 // DVOLSeriesWidget — DVOL 90D 时间序列
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2181,7 +2181,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           { label: 'RV30 当前', val: `${currRv.toFixed(1)}%`, color: BLUE },
           { label: 'VRP', val: `${vrp >= 0 ? '+' : ''}${vrp.toFixed(1)}%`, color: vrp >= 0 ? '#25e889' : '#FF5F57' },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[13px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -2276,7 +2276,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           { label: '当前 8H 费率', val: fmtRate(data.currentFunding8h), color: fundColor },
           { label: '年化费率', val: `${data.annFunding >= 0 ? '+' : ''}${data.annFunding.toFixed(1)}%`, color: fundColor },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[13px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -2355,13 +2355,13 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
           const color = b.annBasis >= 0 ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)';
           const px = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
           return (
-            <div key={i} className="flex items-center gap-3 py-1 border-b border-white/[0.04] last:border-0">
+            <div key={i} className="flex items-center gap-3 py-1 border-b border-[var(--color-border-subtle)] last:border-0">
               <div className="w-[72px] shrink-0">
                 <div className="text-[11px] font-mono font-semibold text-white/70">{b.label}</div>
                 <div className="text-[9px] text-white/55">{b.daysToExp}天 · ${px(b.futurePx)}</div>
               </div>
               <div className="flex-1 flex items-center gap-2">
-                <div className="flex-1 h-[8px] bg-white/[0.04] rounded-full overflow-hidden">
+                <div className="flex-1 h-[8px] bg-[var(--color-surface-1)] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{ width: `${(barW / BAR_MAX) * 100}%`, background: color }}
@@ -2411,7 +2411,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const volRatio = callVol > 0 ? putVol / callVol : 1;
 
   const fmtVol = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
-  const sentiment = callPct > 55 ? { label: '看涨偏向', color: '#25e889' }
+  const sentiment = callPct > 55 ? { label: '看涨偏��', color: '#25e889' }
                   : callPct < 45 ? { label: '看跌偏向', color: '#FF5F57' }
                   : { label: '中性', color: '#FEBC2E' };
 
@@ -2433,7 +2433,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           { label: 'P/C 比', val: volRatio.toFixed(2), color: '#FEBC2E' },
           { label: '方向', val: sentiment.label, color: sentiment.color },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
             <div className="font-mono text-[12px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -2446,7 +2446,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           <span>Call {callPct.toFixed(0)}%</span>
           <span>Put {putPct.toFixed(0)}%</span>
         </div>
-        <div className="flex h-[6px] rounded-full overflow-hidden bg-white/[0.05]">
+          <div className="flex h-[6px] rounded-full overflow-hidden bg-[var(--color-surface-1)]">
           <div className="h-full bg-[#25e889]/70 transition-all" style={{ width: `${callPct}%` }} />
           <div className="h-full bg-[#FF5F57]/70 flex-1" />
         </div>
@@ -2462,7 +2462,7 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           return (
             <div key={i} className="flex items-center gap-2 mb-1.5">
               <div className="w-[32px] text-[10px] font-mono text-white/55 shrink-0">{e.label}</div>
-              <div className="flex-1 flex h-[12px] rounded-[3px] overflow-hidden bg-white/[0.04]" style={{ maxWidth: `${barTotal}%` }}>
+              <div className="flex-1 flex h-[12px] rounded-[3px] overflow-hidden bg-[var(--color-surface-1)]" style={{ maxWidth: `${barTotal}%` }}>
                 <div className="h-full bg-[#25e889]/60" style={{ width: `${cPct}%` }} />
                 <div className="h-full bg-[#FF5F57]/60 flex-1" />
               </div>
@@ -2645,7 +2645,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Header row */}
-      <div className="grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
+      <div className="grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-[var(--color-border-subtle)]">
         {['时间', '合约', '方向', 'IV', '规模', '名义金额'].map(h => (
           <span key={h} className="text-[9px] uppercase tracking-[0.06em] text-white/55 font-bold">{h}</span>
         ))}
@@ -2660,13 +2660,13 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           {filtered.map((t, i) => {
             const isBuy = t.direction === 'buy';
             const dirColor = isBuy ? '#25e889' : '#FF5F57';
-            const typeColor = t.optType === 'C' ? '#4ea1ff' : '#FEBC2E';
+            const typeColor = t.optType === 'C' ? '#4F93DD' : '#FEBC2E';
             const sizeEmphasis = t.notionalUSD >= 1_000_000;
             return (
               <div
                 key={t.tradeId}
                 className={cn(
-                  'grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-2 border-b border-white/[0.025] transition-colors hover:bg-white/[0.02]',
+                    'grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-2 border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-surface-5)]',
                   i === 0 && 'bg-white/[0.015]', // highlight newest
                 )}
               >
@@ -2703,7 +2703,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         </div>
       )}
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         名义金额 = 合约数 × 指数价格 · 仅显示 ≥ {fmtUSD(minUSD)} 的成交 · Deribit
       </div>
     </div>
@@ -2997,7 +2997,7 @@ function generateSignals(
       value: `${slope >= 0 ? '+' : ''}${slope.toFixed(1)}pp`,
       desc: slope <= -8 ? '强倒挂 — 近端 IV 极度拥挤，事件驱动风险高'
           : slope <= -3 ? '轻度倒挂 — 近端 IV 抬升，市场情绪偏紧张'
-          : slope >= 8  ? '显著正斜 — 远端溢价高，日历价差受益'
+          : slope >= 8  ? '显著正斜 — 远端溢价高，���历价差受益'
           : slope >= 3  ? '正常正斜 — 结构健康'
           : '平坦期限结构',
       severity: slope <= -8 ? 'bearish' : slope <= -3 ? 'warning'
@@ -3121,7 +3121,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Column headers */}
-      <div className="grid grid-cols-[52px_1fr_60px_56px_60px_70px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
+      <div className="grid grid-cols-[52px_1fr_60px_56px_60px_70px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-[var(--color-border-subtle)]">
         {['到期日', 'OI 分布（Call ▶ ◀ Put）', 'PCR', 'ATM IV', 'Max Pain', '偏离现货'].map(h => (
           <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
@@ -3196,7 +3196,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
       </div>
 
       {/* Legend */}
-      <div className="px-3 py-1.5 shrink-0 border-t border-white/[0.04] flex items-center gap-4">
+          <div className="px-3 py-1.5 shrink-0 border-t border-[var(--color-border-subtle)] flex items-center gap-4">
         <span className="text-[9px] text-white/55">
           Max Pain = 期权卖方总损失最小的到期价
         </span>
@@ -3280,13 +3280,13 @@ export const DEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Summary */}
       <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
-        <div className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+        <div className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
           <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">净 DEX</div>
           <div className="font-mono text-[13px] font-bold" style={{ color: netColor }}>
             {netDEX >= 0 ? '+' : ''}{fmtM(netDEX)}
           </div>
         </div>
-        <div className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5">
+        <div className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
           <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">方向</div>
           <div className="font-mono text-[12px] font-bold" style={{ color: netColor }}>
             {netDEX < 0 ? '做市商净空 → 助涨' : '做市商净多 → 阻涨'}
@@ -3429,7 +3429,7 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     { label: '现货', price: spot, color: '#FEBC2E', desc: '当前指数价格' },
     ...(gammaFlip ? [{ label: 'Gamma Flip', price: gammaFlip, color: gammaFlip < spot ? '#FF5F57' : '#25e889', desc: gammaFlip < spot ? '跌破此位 → 负 Gamma 区' : '站上此位 → 正 Gamma 区' }] : []),
     ...(mpPrice !== null ? [{ label: `Max Pain (${nearestExp!.label})`, price: mpPrice, color: '#a78bfa', desc: '期权卖方总损失最小到期价' }] : []),
-    { label: '最大 OI 行权价', price: biggestOI, color: '#4ea1ff', desc: '全部到期日合并最大持仓量行权价' },
+    { label: '最大 OI 行权价', price: biggestOI, color: '#4F93DD', desc: '全部到期日合并最大持仓量行权价' },
   ].sort((a, b) => a.price - b.price); // ascending = leftmost card matches leftmost dot on ruler
 
   // Price ruler: map levels onto a horizontal bar
@@ -3535,10 +3535,10 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     <div className="w-full h-full flex items-stretch gap-1.5 px-3 py-2 overflow-x-auto">
       {rows.map(r => {
         const barFill = (r.movePct / maxMove) * 100;
-        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#4ea1ff';
+        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#4F93DD';
         return (
           <div key={r.label}
-            className="flex-1 min-w-[96px] flex flex-col justify-between bg-white/[0.025] border border-white/[0.06] rounded-[10px] px-2.5 py-2 shrink-0"
+            className="flex-1 min-w-[96px] flex flex-col justify-between bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-2.5 py-2 shrink-0"
           >
             {/* Tenor label + IV */}
             <div className="flex items-center justify-between mb-1">
@@ -3558,7 +3558,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             </div>
 
             {/* Bar proportional to move size */}
-            <div className="h-[3px] rounded-full overflow-hidden bg-white/[0.06]">
+            <div className="h-[3px] rounded-full overflow-hidden bg-[var(--color-surface-1)]">
               <div className="h-full rounded-full" style={{ width: `${barFill}%`, background: urgency, opacity: 0.7 }} />
             </div>
           </div>
@@ -3641,7 +3641,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: '$Vega / 1% IV',
       val: `${sign(dollarVega)}${fmtM(dollarVega)}`,
       sub: '全市场 IV 涨 1% 的盈亏',
-      color: '#4ea1ff',
+      color: '#4F93DD',
       tip: '隐含波动率每涨1%全体OI的价值变化',
     },
     {
@@ -3664,7 +3664,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     <div className="w-full h-full flex items-stretch gap-2 px-3 py-2">
       {stats.map(s => (
         <div key={s.label}
-          className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[10px] px-3 py-2 flex flex-col justify-between"
+          className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-3 py-2.5 flex flex-col justify-between transition-colors hover:border-[var(--nexus-accent)]/25"
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{s.label}</span>
@@ -3747,7 +3747,7 @@ export const RVvsIVTenorWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           const vrp = vrpByTenor[i];
           const col = vrp >= 8 ? '#FF5F57' : vrp >= 3 ? '#FEBC2E' : vrp <= 0 ? '#25e889' : 'rgba(255,255,255,0.4)';
           return (
-            <div key={lbl} className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.06] rounded-[6px] px-2 py-0.5">
+            <div key={lbl} className="flex items-center gap-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[6px] px-2 py-0.5">
               <span className="text-[9px] text-white/55">{lbl}</span>
               <span className="font-mono text-[10px] font-bold" style={{ color: col }}>
                 VRP {vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}
@@ -3870,7 +3870,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Header */}
-      <div className="grid grid-cols-[40px_60px_56px_48px_56px_56px_1fr] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
+      <div className="grid grid-cols-[40px_60px_56px_48px_56px_56px_1fr] gap-x-2 px-3 py-1.5 shrink-0 border-b border-[var(--color-border-subtle)]">
         {['#', '行权价', '到期', '类型', 'IV', 'Delta', sortBy === 'oi' ? '持仓量 OI' : '成交量 Vol'].map(h => (
           <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
@@ -3880,7 +3880,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         {sorted.map((o, i) => {
           const val = sortBy === 'oi' ? o.oi : o.volume;
           const barW = (val / maxVal) * 100;
-          const typeColor = o.type === 'C' ? '#4ea1ff' : '#FEBC2E';
+          const typeColor = o.type === 'C' ? '#4F93DD' : '#FEBC2E';
           const m = moneyness(o);
           return (
             <div key={i}
@@ -3900,7 +3900,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
 
               {/* Bar + value */}
               <div className="flex items-center gap-2 min-w-0">
-                <div className="flex-1 h-[6px] rounded-full overflow-hidden bg-white/[0.04]">
+                <div className="flex-1 h-[6px] rounded-full overflow-hidden bg-[var(--color-surface-1)]">
                   <div className="h-full rounded-full" style={{ width: `${barW}%`, background: typeColor, opacity: 0.6 }} />
                 </div>
                 <span className="font-mono text-[10px] text-white/50 shrink-0 w-[36px] text-right">{fmtN(val)}</span>
@@ -3910,7 +3910,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         })}
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         按{sortBy === 'oi' ? '持仓量' : '成交量'}排序 · 全到期日 · Deribit
       </div>
     </div>
@@ -3981,7 +3981,7 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {/* Column headers */}
-      <div className="grid grid-cols-[48px_56px_72px_1fr_1fr_1fr_72px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-white/[0.05]">
+      <div className="grid grid-cols-[48px_56px_72px_1fr_1fr_1fr_72px] gap-x-2 px-3 py-1.5 shrink-0 border-b border-[var(--color-border-subtle)]">
         {['到期', 'ATM IV', 'Straddle', '上行 BE', '下行 BE', '25δ Strangle', 'RR25'].map(h => (
           <span key={h} className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{h}</span>
         ))}
@@ -4045,7 +4045,7 @@ export const StrategyPricerWidget = ({ coin: coinProp, onCoinChange }: CoinContr
         })}
       </div>
 
-      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-white/[0.04]">
+      <div className="px-3 py-1.5 text-[9px] text-white/55 shrink-0 border-t border-[var(--color-border-subtle)]">
         Straddle = 2× ATM Call（BS，r=0）· 25δ Strangle = 25δCall + 25δPut · BE = 现货 ± Straddle% · Deribit
       </div>
     </div>
@@ -4134,12 +4134,12 @@ export const BTCETHSpreadWidget = () => {
       <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
         {[
           { label: 'BTC DVOL', val: `${currentBTC.toFixed(1)}%`, color: '#FEBC2E' },
-          { label: 'ETH DVOL', val: `${currentETH.toFixed(1)}%`, color: '#4ea1ff' },
+          { label: 'ETH DVOL', val: `${currentETH.toFixed(1)}%`, color: '#4F93DD' },
           { label: 'Spread (BTC−ETH)', val: `${currentSpread >= 0 ? '+' : ''}${currentSpread.toFixed(1)}pp`, color: spreadColor },
           { label: '价差百分位', val: `${pctile.toFixed(0)}%ile`, color: spreadColor },
           { label: '解读', val: spreadLabel, color: spreadColor },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1.5 min-w-0">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5 min-w-0">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
             <div className="font-mono text-[11px] font-bold truncate" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -4153,13 +4153,13 @@ export const BTCETHSpreadWidget = () => {
           <div className="text-[8.5px] text-white/55 mb-0.5 uppercase tracking-wider">DVOL 历史（90D）</div>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
             <path d={area(ethPts, H, PY)} fill="url(#wg-blue)" />
-            <polyline points={poly(ethPts)} fill="none" stroke="#4ea1ff" strokeWidth={1.2} opacity={0.7} />
+            <polyline points={poly(ethPts)} fill="none" stroke="#4F93DD" strokeWidth={1.2} opacity={0.7} />
             <path d={area(btcPts, H, PY)} fill="url(#wg-yellow)" />
             <polyline points={poly(btcPts)} fill="none" stroke="#FEBC2E" strokeWidth={1.4} opacity={0.85} />
             {/* Legend */}
             <line x1={PX} y1={8} x2={PX + 12} y2={8} stroke="#FEBC2E" strokeWidth={1.4} />
             <text x={PX + 15} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">BTC</text>
-            <line x1={PX + 36} y1={8} x2={PX + 48} y2={8} stroke="#4ea1ff" strokeWidth={1.2} />
+            <line x1={PX + 36} y1={8} x2={PX + 48} y2={8} stroke="#4F93DD" strokeWidth={1.2} />
             <text x={PX + 51} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">ETH</text>
           </svg>
         </div>
@@ -4189,7 +4189,7 @@ export const BTCETHSpreadWidget = () => {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VolRegimeWidget — 波动率区间分类器
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════��═══════════════════════════════════════════
 //
 // Synthesises IV rank, VRP, term structure slope, skew, and funding
 // into a named vol regime with a confidence score and playbook suggestion.
@@ -4300,7 +4300,7 @@ function classifyRegime(
     },
     'vol-compression': {
       label: '波动率收缩',
-      color: '#4ea1ff',
+      color: '#4F93DD',
       description: `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
       playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
     },
@@ -4656,7 +4656,7 @@ export const EWMAForecastWidget = ({ coin: coinProp, onCoinChange }: CoinControl
           { label: '均值回归速度 β', val: beta.toFixed(3), color: BLUE },
           { label: '偏差', val: `${(current - mu >= 0 ? '+' : '')}${(current - mu).toFixed(1)}pp`, color: current > mu ? '#FF5F57' : '#25e889' },
         ].map(s => (
-          <div key={s.label} className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[8px] px-2 py-1">
+          <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5 truncate">{s.label}</div>
             <div className="font-mono text-[11px] font-bold" style={{ color: s.color }}>{s.val}</div>
           </div>
@@ -5074,7 +5074,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 // OIDeltaWidget removed — session-only, always empty on page load
 
 
-// ── GreeksScenarioWidget ──────────────────────────────────────────────────
+// ── GreeksScenarioWidget ───────────────────────────────────────────────���──
 // ATM Straddle P&L scenario matrix: rows = spot %, cols = IV additive shift
 const SCEN_SPOT = [-15, -10, -7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15];
 const SCEN_IV   = [-20, -10, -5, 0, 5, 10, 20];

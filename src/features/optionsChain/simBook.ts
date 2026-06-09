@@ -9,8 +9,8 @@
 import { useReducer, useCallback, useEffect, useRef } from 'react';
 import { soundOrderCancelled, soundOrderFilled, soundOrderPlaced } from './orderSounds';
 
-export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; optGamma?: number; optTheta?: number; optVega?: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
-export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number; gamma: number; theta: number; vega: number }
+export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; optGamma?: number; optTheta?: number; optVega?: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number; source?: 'bybit' | 'deribit'; instrument?: string }
+export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number; gamma: number; theta: number; vega: number; source?: 'bybit' | 'deribit'; instrument?: string }
 export interface SimFill { id: string; symbol: string; side: 'buy' | 'sell'; qty: number; price: number; fee: number; timestamp: number }
 
 // ── 真实盘口（喂给撮合，让市价单吃单滑点、限价单按真盘口成交） ──────────────────
@@ -55,7 +55,7 @@ export function fillAgainstBook(book: DepthBook, side: 'buy' | 'sell', qty: numb
   return { filledQty: filled, avgPrice, bestPrice: best, worstPrice: worst, slippagePct, restQty: remaining };
 }
 
-export interface PlaceArgs { side: 'buy' | 'sell'; type: 'limit' | 'market' | 'stop'; symbol: string; qty: number; price: number; mark: number; delta: number; gamma?: number; theta?: number; vega?: number; book?: DepthBook }
+export interface PlaceArgs { side: 'buy' | 'sell'; type: 'limit' | 'market' | 'stop'; symbol: string; qty: number; price: number; mark: number; delta: number; gamma?: number; theta?: number; vega?: number; book?: DepthBook; source?: 'bybit' | 'deribit'; instrument?: string }
 
 export interface BookState { positions: SimPosition[]; openOrders: SimOrder[]; orderHistory: SimOrder[]; fills: SimFill[] }
 
@@ -65,19 +65,19 @@ const hasDepth = (b?: DepthBook): b is DepthBook => !!b && (b.bids.length + b.as
 const mkFill = (id: string, a: PlaceArgs, qty: number, px: number, now: number): SimFill =>
   ({ id, symbol: a.symbol, side: a.side, qty, price: px, fee: px * qty * FEE_RATE, timestamp: now });
 const mkHist = (id: string, a: PlaceArgs, qty: number, px: number, now: number): SimOrder =>
-  ({ id, symbol: a.symbol, side: a.side, type: a.type, qty, price: px, optDelta: a.delta, status: 'filled', createdAt: now, filledPrice: px });
+  ({ id, symbol: a.symbol, side: a.side, type: a.type, qty, price: px, optDelta: a.delta, status: 'filled', createdAt: now, filledPrice: px, source: a.source, instrument: a.instrument });
 
 /** 期权希腊字母（不含 delta 方向特殊性，gamma/theta/vega 按 long/short 取符号）。 */
 export interface Greeks { delta: number; gamma: number; theta: number; vega: number }
 
 /** Apply a fill to the positions list — proper average price + realized close. */
-export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell', qty: number, px: number, greeks: Greeks): SimPosition[] {
+export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell', qty: number, px: number, greeks: Greeks, meta: Pick<PlaceArgs, 'source' | 'instrument'> = {}): SimPosition[] {
   const { delta: optDelta, gamma: g = 0, theta: t = 0, vega: v = 0 } = greeks;
   const signed = side === 'buy' ? qty : -qty;
   const ex = ps.find(p => p.symbol === symbol);
   if (!ex) {
     const sign = signed > 0 ? 1 : -1;
-    return [...ps, { id: rid(), symbol, side: sign > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: px, unrealizedPnL: 0, delta: optDelta * sign, gamma: g * sign, theta: t * sign, vega: v * sign }];
+    return [...ps, { id: rid(), symbol, side: sign > 0 ? 'long' : 'short', qty: Math.abs(signed), avgEntryPrice: px, markPrice: px, unrealizedPnL: 0, delta: optDelta * sign, gamma: g * sign, theta: t * sign, vega: v * sign, source: meta.source, instrument: meta.instrument }];
   }
   const cur = ex.side === 'long' ? ex.qty : -ex.qty;
   const next = cur + signed;
@@ -89,7 +89,7 @@ export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell
   else if (flipped) avg = px; // remaining qty opens fresh at fill price
   const sign = next > 0 ? 1 : -1;
   return ps.map(p => p.symbol === symbol
-    ? { ...p, side: sign > 0 ? 'long' : 'short', qty: Math.abs(next), avgEntryPrice: avg, markPrice: px, unrealizedPnL: (px - avg) * Math.abs(next) * sign, delta: optDelta * sign, gamma: g * sign, theta: t * sign, vega: v * sign }
+    ? { ...p, side: sign > 0 ? 'long' : 'short', qty: Math.abs(next), avgEntryPrice: avg, markPrice: px, unrealizedPnL: (px - avg) * Math.abs(next) * sign, delta: optDelta * sign, gamma: g * sign, theta: t * sign, vega: v * sign, source: meta.source ?? p.source, instrument: meta.instrument ?? p.instrument }
     : p);
 }
 
@@ -121,7 +121,7 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         const id = rid();
         return {
           ...s,
-          positions: applyFill(s.positions, a.symbol, a.side, a.qty, px, { delta: a.delta, gamma: a.gamma ?? 0, theta: a.theta ?? 0, vega: a.vega ?? 0 }),
+          positions: applyFill(s.positions, a.symbol, a.side, a.qty, px, { delta: a.delta, gamma: a.gamma ?? 0, theta: a.theta ?? 0, vega: a.vega ?? 0 }, a),
           fills: [...s.fills, mkFill(id, a, a.qty, px, now)],
           orderHistory: [...s.orderHistory, mkHist(id, a, a.qty, px, now)],
         };
@@ -132,11 +132,11 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         const r = fillAgainstBook(a.book, a.side, a.qty, a.price);
         if (r.filledQty > 1e-9) {
           const fid = rid();
-          const positions = applyFill(s.positions, a.symbol, a.side, r.filledQty, r.avgPrice, { delta: a.delta, gamma: a.gamma ?? 0, theta: a.theta ?? 0, vega: a.vega ?? 0 });
+          const positions = applyFill(s.positions, a.symbol, a.side, r.filledQty, r.avgPrice, { delta: a.delta, gamma: a.gamma ?? 0, theta: a.theta ?? 0, vega: a.vega ?? 0 }, a);
           const fills = [...s.fills, mkFill(fid, a, r.filledQty, r.avgPrice, now)];
           const orderHistory = [...s.orderHistory, mkHist(fid, a, r.filledQty, r.avgPrice, now)];
           if (r.restQty > 1e-9) {
-            const order: SimOrder = { id: rid(), symbol: a.symbol, side: a.side, type: a.type, qty: r.restQty, price: a.price, optDelta: a.delta, optGamma: a.gamma, optTheta: a.theta, optVega: a.vega, status: 'pending', createdAt: now };
+            const order: SimOrder = { id: rid(), symbol: a.symbol, side: a.side, type: a.type, qty: r.restQty, price: a.price, optDelta: a.delta, optGamma: a.gamma, optTheta: a.theta, optVega: a.vega, status: 'pending', createdAt: now, source: a.source, instrument: a.instrument };
             return { positions, openOrders: [...s.openOrders, order], orderHistory: [...orderHistory, order], fills };
           }
           return { ...s, positions, fills, orderHistory };
@@ -145,7 +145,7 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
 
       // ── 不可立即成交（或无盘口）：整单挂出 ──
       const id = rid();
-      const order: SimOrder = { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, optDelta: a.delta, optGamma: a.gamma, optTheta: a.theta, optVega: a.vega, status: 'pending', createdAt: now };
+      const order: SimOrder = { id, symbol: a.symbol, side: a.side, type: a.type, qty: a.qty, price: a.price, optDelta: a.delta, optGamma: a.gamma, optTheta: a.theta, optVega: a.vega, status: 'pending', createdAt: now, source: a.source, instrument: a.instrument };
       return { ...s, openOrders: [...s.openOrders, order], orderHistory: [...s.orderHistory, order] };
     }
     case 'cancel': {
@@ -183,7 +183,7 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         else stillOpen.push(o);
       }
       let positions = s.positions;
-      for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, { delta: o.optDelta, gamma: o.optGamma ?? 0, theta: o.optTheta ?? 0, vega: o.optVega ?? 0 });
+      for (const o of filled) positions = applyFill(positions, o.symbol, o.side, o.qty, o.price, { delta: o.optDelta, gamma: o.optGamma ?? 0, theta: o.optTheta ?? 0, vega: o.optVega ?? 0 }, o);
       // Mark-to-market the open positions — only allocate a new object when the
       // mark actually moved, so an unchanged tick keeps reference equality and
       // doesn't trigger a redundant store write / re-render.

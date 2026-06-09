@@ -82,7 +82,7 @@ export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggle
 
 export function PositionsPanel({ book, style, className, embedded, onSymbolClick, marketQuotes }: {
   book: ReturnType<typeof useLocalBook> | GlobalOptionBook; style?: React.CSSProperties; className?: string; embedded?: boolean;
-  onSymbolClick?: (symbol: string) => void;
+  onSymbolClick?: (symbol: string, position?: SimPosition) => void;
   marketQuotes?: Map<string, PositionMarketQuote>;
 }) {
   const [btab, setBtab] = useState<BookTab>('position');
@@ -163,6 +163,8 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
       gamma: (closingQuote?.gamma ?? position.gamma / sign),
       theta: (closingQuote?.theta ?? position.theta / sign),
       vega: (closingQuote?.vega ?? position.vega / sign),
+      source: closingQuote?.source ?? position.source,
+      instrument: closingQuote?.instrument ?? position.instrument,
       book: closingBook ?? undefined,
     });
     setClosingPosition(null);
@@ -297,7 +299,7 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
             {onSymbolClick ? (
               <button
                 type="button"
-                onClick={() => onSymbolClick(p.symbol)}
+                onClick={() => onSymbolClick(p.symbol, p)}
                 className="block max-w-full truncate text-left font-mono font-bold text-white/88 transition-colors hover:text-[var(--db-accent)]"
                 title={`跳转到 ${p.symbol}`}
               >
@@ -925,6 +927,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
       side: s, type: orderType, symbol, qty: nQty,
       price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
       gamma: opt.gamma, theta: opt.theta, vega: opt.vega,
+      source, instrument: opt.instrument,
       book: usdBook ?? undefined,
     });
   };

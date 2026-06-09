@@ -24,7 +24,9 @@ import {
 import { Popover, ChainRowComp, ColHeaderRow, SectionRow } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import { useGlobalOptionBook } from './optionBookStore';
+import { useBookMarkFeed } from './useBookMarkFeed';
 import { FrameControls, PositionsPanel, TradingPanel, type PositionMarketQuote } from './TradingPanel';
+import type { SimPosition } from './simBook';
 import './options-chain.css';
 
 type FilterKey = 'all' | 'atm5' | 'atm10';
@@ -212,6 +214,7 @@ export default function OptionsChainView() {
   }, [liveRows, coin, expiry, source, dec]);
 
   const updateMarks = book.updateMarks;
+  useBookMarkFeed(book.positions, updateMarks);
   useEffect(() => {
     if (!expiry) return;
     const marks: Record<string, number> = {};
@@ -314,11 +317,19 @@ export default function OptionsChainView() {
   useEffect(() => { recalcWindow(); }, [recalcWindow, rows.length, expiry?.key, filterKey]);
   useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); }, []);
 
-  const jumpToSymbol = useCallback((symbol: string) => {
+  const jumpToSymbol = useCallback((symbol: string, position?: SimPosition) => {
     const m = symbol.match(/^(BTC|ETH)-([0-9]{1,2}[A-Z]{3}[0-9]{4})-([0-9.]+)-(C|P)$/);
     if (!m) return;
     const [, jumpCoin, expiryCompact, strikeRaw] = m;
-    const jumpUnderlying = coinOf(activeUnderlying) === jumpCoin ? activeUnderlying : underlyingFor(jumpCoin as 'BTC' | 'ETH', source);
+    const jumpSource = position?.source ?? source;
+    const preferredDeribitUnderlying = position?.instrument?.startsWith(`${jumpCoin}_USDC-`)
+      ? `${jumpCoin}_USDC`
+      : jumpCoin;
+    const jumpUnderlying = coinOf(activeUnderlying) === jumpCoin && sourceOf(activeUnderlying) === jumpSource
+      ? activeUnderlying
+      : jumpSource === 'deribit'
+        ? preferredDeribitUnderlying
+        : underlyingFor(jumpCoin as 'BTC' | 'ETH', jumpSource);
     const targetTabIdx = tabs.indexOf(jumpUnderlying);
     if (targetTabIdx >= 0) {
       setActiveTabIdx(targetTabIdx);

@@ -32,7 +32,7 @@ export const UNDERLYING_GROUPS: { title: string; tag: string; source: DataSource
 export const coinOf = (u: string): Coin => (u.startsWith('ETH') ? 'ETH' : 'BTC');
 export const sourceOf = (u: string): DataSource => (u.endsWith('USDT') ? 'bybit' : 'deribit');
 export const tagColor = (tag: string) =>
-  tag === 'Bybit' ? '#f7a600' : tag === 'Deribit' ? '#1E90FF' : 'rgba(255,255,255,0.45)';
+  tag === 'Bybit' ? '#f7a600' : tag === 'Deribit' ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.45)';
 
 /** Canonical underlying for a (coin, source) pair — used by the source toggle. */
 export const underlyingFor = (coin: Coin, source: DataSource) =>

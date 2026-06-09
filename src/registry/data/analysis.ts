@@ -306,7 +306,7 @@ export function classifyRegime(
     },
     'vol-compression': {
       label: '波动率收缩',
-      color: '#4F93DD',
+      color: '#ff9c2e',
       description: `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
       playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
     },

@@ -7,7 +7,7 @@ import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { Coin } from '../monitor/types';
 
-const UP = '#28C840'; const YELLOW = '#FEBC2E'; const CALL = '#28C840'; const PUT = '#FF5F57'; const EM_C = '#4F93DD';
+const UP = '#28C840'; const YELLOW = '#FEBC2E'; const CALL = '#28C840'; const PUT = '#FF5F57'; const EM_C = '#ff9c2e';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 const RESOLUTIONS: Resolution[] = ['5m', '15m', '1h', '4h', '1d', '1w'];
@@ -23,13 +23,13 @@ const RES_TO_PERIOD: Record<Resolution,{type:string;span:number}> = {
 const Pill: React.FC<{active:boolean;onClick:()=>void;children:React.ReactNode}> = ({active,onClick,children}) => (
   <button onClick={onClick}
     className={`px-2.5 h-[26px] rounded-md text-[12px] font-semibold transition-colors duration-[120ms] ${
-      active?'bg-[var(--nexus-accent)]/15 text-white ring-1 ring-inset ring-[var(--nexus-accent)]/30':'bg-transparent text-white/50 hover:bg-[var(--color-surface-5)] hover:text-white/80'}`}>
+      active?'bg-[#3A3F40] text-[var(--nexus-accent)]':'bg-transparent text-white/50 hover:bg-[#3A3B40] hover:text-white/80'}`}>
     {children}
   </button>
 );
 
 const LevelChip = ({label,value,sub,color}:{label:string;value:string;sub?:string;color:string}) => (
-  <div className="flex items-center gap-2 px-3 h-[42px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] shrink-0">
+  <div className="flex items-center gap-2 px-3 h-[42px] rounded-lg bg-[#2B2D35] hover:bg-[#3A3B40] transition-colors duration-[120ms] shrink-0">
     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{backgroundColor:color}}/>
     <div className="flex flex-col leading-tight">
       <span className="text-[9px] uppercase tracking-wider text-white/45">{label}</span>
@@ -177,19 +177,19 @@ export const KLineChartView = () => {
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col p-3 gap-2.5 text-white/85">
+    <div className="price-chart-page absolute inset-0 flex flex-col p-3 gap-2.5 text-white/85">
       <div className="flex items-center gap-2 flex-wrap shrink-0">
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#17181E]">
           {COINS.map(c=><Pill key={c} active={coin===c} onClick={()=>setCoin(c)}>{c}</Pill>)}
         </div>
-        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#17181E]">
           {RESOLUTIONS.map(r=><Pill key={r} active={res===r} onClick={()=>setRes(r)}>{RES_LABEL[r]}</Pill>)}
         </div>
         <div className="w-px h-5 bg-[var(--color-border-subtle)] mx-0.5"/>
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] text-white/40">到期</span>
           <select value={expirySel} onChange={e=>setExpirySel(e.target.value)}
-            className="h-[26px] px-2 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] font-semibold text-white/80 outline-none cursor-pointer hover:bg-[var(--color-surface-5)]">
+            className="h-[26px] px-2 rounded-md bg-[#2B2D35] text-[12px] font-semibold text-white/80 outline-none cursor-pointer hover:bg-[#3A3B40] transition-colors duration-[120ms]">
             <option value="NEAREST">最近 ({nearest||'—'})</option>
             <option value="ALL">全部聚合</option>
             {expiries.map(e=><option key={e.label} value={e.label}>{e.label}·{Math.round(e.daysToExp)}d</option>)}
@@ -215,17 +215,17 @@ export const KLineChartView = () => {
           {OVERLAY_TOOLS.map(t=>(
             <button key={t.name} onClick={()=>handleDrawTool(t.name)}
               className={`w-[36px] h-[36px] flex items-center justify-center rounded-md text-[10px] font-medium transition-colors duration-[120ms] ${
-                drawTool===t.name?'bg-brand text-white':'bg-[var(--color-surface-2)] text-white/50 hover:bg-[var(--color-surface-5)] hover:text-white/80'}`} title={t.label}>
+                drawTool===t.name?'bg-[#3A3F40] text-[var(--nexus-accent)]':'bg-[#2B2D35] text-white/50 hover:bg-[#3A3B40] hover:text-white/80'}`} title={t.label}>
               {t.label}
             </button>
           ))}
         </div>
         <button onClick={()=>setShowDrawTools(v=>!v)}
-          className="shrink-0 w-[18px] self-center flex items-center justify-center h-[40px] rounded-md bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-5)] text-white/30 hover:text-white/60 transition-colors duration-[120ms] text-[8px]"
+          className="shrink-0 w-[18px] self-center flex items-center justify-center h-[40px] rounded-md bg-[#2B2D35] hover:bg-[#3A3B40] text-white/30 hover:text-white/60 transition-colors duration-[120ms] text-[8px]"
           title={showDrawTools?'收起画线':'展开画线'}>
           {showDrawTools?'◀':'▶'}
         </button>
-        <div className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)] p-1.5 relative overflow-hidden">
+        <div className="flex-1 min-w-0 rounded-xl bg-[#17181E] p-1.5 relative overflow-hidden">
           <div ref={containerRef} className="absolute inset-1.5"/>
           {candles.length>0 && !loading && (
             <div className="absolute bottom-2 right-3 z-10 text-[10px] font-mono tabular-nums text-white/35 pointer-events-none select-none">

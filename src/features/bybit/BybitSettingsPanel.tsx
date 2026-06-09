@@ -37,11 +37,11 @@ function Field({ label, children, hint }: { label: string; children: React.React
 }
 
 const inputCls =
-  'w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-[12px] font-mono text-slate-200 outline-none focus:border-white/30 placeholder:text-slate-700';
+  'w-full bg-[#2B2D35] rounded-lg px-3 py-2 text-[12px] font-mono text-slate-200 outline-none focus:bg-[#3A3B40] placeholder:text-white/30 transition-colors';
 const btnPrimary =
   'h-9 px-4 rounded-lg text-[12px] font-semibold bg-brand/15 border border-brand/40 text-brand hover:bg-brand/25 transition-colors';
 const btnGhost =
-  'h-9 px-4 rounded-lg text-[12px] font-semibold border border-white/12 text-white/70 hover:bg-white/8 transition-colors';
+  'h-9 px-4 rounded-lg text-[12px] font-semibold bg-[#2B2D35] text-white/70 hover:bg-[#3A3B40] transition-colors';
 
 function SetupForm({ onSaved }: { onSaved?: () => void }) {
   const [apiKey, setApiKey] = useState('');
@@ -63,7 +63,7 @@ function SetupForm({ onSaved }: { onSaved?: () => void }) {
 
   return (
     <div className="flex flex-col gap-3 max-w-[420px]">
-      <div className="text-[11px] leading-relaxed text-white/55 bg-white/[0.03] border border-white/10 rounded-lg p-3">
+      <div className="text-[11px] leading-relaxed text-white/55 bg-[#2B2D35] rounded-lg p-3">
         到 Bybit → API → 创建 key，<strong>只勾 Read 权限</strong>，强烈建议绑定 IP 白名单。
         Key 存在本地后端（server/data/credentials.json），不出浏览器。
       </div>

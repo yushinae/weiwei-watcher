@@ -191,7 +191,7 @@ const PriceTicker = ({ symbol, price, up }: { symbol: string; price: string; up:
   const formattedPrice = `$${displayPrice}`;
 
   return (
-    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-white/[0.06] hover:bg-white/[0.10] ring-1 ring-inset ring-white/[0.07] hover:scale-[1.02] active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
+    <div className="flex items-center gap-0.5 px-2 h-[36px] bg-white/15 hover:bg-white/20 active:scale-[0.98] transition-all duration-[120ms] ease-[cubic-bezier(0.22,1,0.36,1)] rounded-[8px] cursor-pointer shrink-0">
       <TokenIcon symbol={symbol} />
       <span className={cn(
         "text-[16px] font-bold font-mono tnum transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ml-1.5",
@@ -285,10 +285,10 @@ const AppNavigationDropdown = () => {
       >
         <button
           className={cn(
-            "flex items-center justify-center w-[32px] h-[32px] shrink-0 rounded-[8px] transition-colors duration-[120ms]",
+            "bb-grid-trigger flex items-center justify-center w-[32px] h-[32px] shrink-0 rounded-[8px] transition-colors duration-[120ms]",
             navOpen
-              ? "bg-white/[0.10] text-white"
-              : "bg-transparent text-white hover:bg-white/[0.08]",
+              ? "is-open text-white"
+              : "bg-transparent text-white",
           )}
         >
           <NineDots size={22} />
@@ -298,8 +298,7 @@ const AppNavigationDropdown = () => {
           <div
             onMouseEnter={openNav}
             onMouseLeave={closeNav}
-            className="absolute top-full left-0 mt-1 w-[160px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
-                       shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+            className="bb-top-popover absolute top-full left-0 mt-1 w-[160px] p-1.5 z-[200]"
           >
             {navGroups.map((group, gi) => (
               <div key={group.title} className={gi > 0 ? 'mt-1 pt-1 border-t border-white/[0.06]' : ''}>
@@ -313,12 +312,12 @@ const AppNavigationDropdown = () => {
                       onClick={() => { navigate(it.to); setNavOpen(false); }}
                       onMouseEnter={it.preload}
                       className={cn(
-                        'flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left transition-colors',
-                        active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.07]',
+                        'bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left',
+                        active && 'bb-top-menu-item-active',
                       )}
                     >
-                      <Icon size={16} className={cn('shrink-0', active ? 'text-white/85' : 'text-white/55')} />
-                      <span className={cn('text-[13px] font-semibold', active ? 'text-white' : 'text-white/80')}>{it.label}</span>
+                      <Icon size={16} className={cn('shrink-0', active ? 'text-[var(--bb-orange)]' : 'text-white/55')} />
+                      <span className={cn('text-[13px] font-semibold', active ? 'text-[var(--bb-orange)]' : 'text-white/80')}>{it.label}</span>
                     </button>
                   );
                 })}
@@ -332,8 +331,8 @@ const AppNavigationDropdown = () => {
         onClick={() => navigate('/monitor')}
         onMouseEnter={preload.monitor}
         className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isMonitor ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85"
+          "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isMonitor ? "is-selected text-[var(--bb-orange)]" : "bg-transparent text-white/55 hover:text-white/85"
         )}>
         监控
       </button>
@@ -342,8 +341,8 @@ const AppNavigationDropdown = () => {
         onClick={() => navigate('/dashboard')}
         onMouseEnter={preload.dashboard}
         className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isDashboard ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isDashboard ? "is-selected text-[var(--bb-orange)]" : "bg-transparent text-white/55 hover:text-white/85",
         )}
       >
         决策
@@ -353,8 +352,12 @@ const AppNavigationDropdown = () => {
         <button
           onClick={() => navigate('/options-chain')}
           className={cn(
-            "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-            isOptionsChain || optOpen ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+            "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+            isOptionsChain
+              ? "is-selected text-[var(--bb-orange)]"
+              : optOpen
+                ? "is-open text-white/85"
+                : "bg-transparent text-white/55 hover:text-white/85",
           )}
         >
           期权
@@ -374,8 +377,8 @@ const AppNavigationDropdown = () => {
         onClick={() => navigate('/price-chart')}
         onMouseEnter={preload.priceChart}
         className={cn(
-          "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isPriceChart ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+          "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          isPriceChart ? "is-selected text-[var(--bb-orange)]" : "bg-transparent text-white/55 hover:text-white/85",
         )}
       >
         图表
@@ -392,8 +395,12 @@ const AppNavigationDropdown = () => {
           onClick={() => navigate('/bybit/positions')}
           onFocus={() => { openPosition(); preload.bybitPositions(); preload.positionBuilder(); }}
           className={cn(
-            "flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-            isPositionNav || positionOpen ? "bg-white/[0.10] text-white" : "bg-transparent text-white/55 hover:bg-white/[0.07] hover:text-white/85",
+            "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+            isPositionNav
+              ? "is-selected text-[var(--bb-orange)]"
+              : positionOpen
+                ? "is-open text-white/85"
+                : "bg-transparent text-white/55 hover:text-white/85",
           )}
         >
           头寸
@@ -404,8 +411,7 @@ const AppNavigationDropdown = () => {
             onPointerEnter={openPosition}
             onMouseMove={openPosition}
             onMouseLeave={closePosition}
-            className="absolute top-full left-0 mt-1 w-[176px] bg-[var(--color-dropdown)] rounded-xl p-1.5 z-[200] ring-1 ring-white/[0.08]
-                       shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+            className="bb-top-popover bb-position-popover absolute top-full left-0 mt-1 w-[176px] p-1.5 z-[200]"
           >
             {([
               { label: '头寸可视化', icon: Eye, to: '/bybit/positions', preload: preload.bybitPositions },
@@ -419,12 +425,12 @@ const AppNavigationDropdown = () => {
                   onClick={() => { navigate(it.to); setPositionOpen(false); }}
                   onMouseEnter={it.preload}
                   className={cn(
-                    'flex items-center gap-3 px-3 h-9 w-full rounded-lg text-left transition-colors',
-                    active ? 'bg-white/[0.08]' : 'hover:bg-white/[0.07]',
+                    'bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left',
+                    active && 'bb-top-menu-item-active',
                   )}
                 >
-                  <Icon size={16} className={cn('shrink-0', active ? 'text-white/85' : 'text-white/55')} />
-                  <span className={cn('text-[13px] font-semibold', active ? 'text-white' : 'text-white/80')}>{it.label}</span>
+                  <Icon size={16} className={cn('shrink-0', active ? 'text-[var(--bb-orange)]' : 'text-white/55')} />
+                  <span className={cn('text-[13px] font-semibold', active ? 'text-[var(--bb-orange)]' : 'text-white/80')}>{it.label}</span>
                 </button>
               );
             })}
@@ -437,10 +443,10 @@ const AppNavigationDropdown = () => {
         onClick={() => navigate('/quick-order')}
         title="Deribit 极速下单"
         className={cn(
-          "flex items-center gap-1.5 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+          "bb-topbar-button flex items-center gap-1.5 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
           location.pathname === '/quick-order'
-            ? "bg-brand/[0.14] text-brand"
-            : "bg-transparent text-brand/70 hover:bg-brand/[0.10] hover:text-brand",
+            ? "is-selected text-[var(--bb-orange)]"
+            : "bg-transparent text-white/55 hover:text-white/85",
         )}
       >
         <Zap size={15} className="shrink-0" />
@@ -620,7 +626,7 @@ export default function App() {
       <header className="h-[44px] flex items-center px-2 glass-bar glass-bar-shadow shrink-0 relative z-[150]" style={{ background: 'var(--base-strong)' }}>
         <div className="flex items-center gap-6 shrink-0">
           <div className="flex items-center justify-center gap-2 cursor-pointer group">
-            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(79,147,221,0.35)] group-hover:shadow-[0_0_22px_rgba(79,147,221,0.55)] transition-shadow duration-500" />
+            <img src="/avatar.png" alt="avatar" className="w-8 h-8 rounded-[6px] object-cover shadow-[0_0_15px_rgba(255,156,46,0.30)] group-hover:shadow-[0_0_22px_rgba(255,156,46,0.45)] transition-shadow duration-500" />
             <span className="font-bold text-sm text-[var(--color-brand)]">
               薇薇看板
             </span>
@@ -641,10 +647,10 @@ export default function App() {
             <button
               onClick={() => setSettingsOpen(o => !o)}
               className={cn(
-                'w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                'bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
                 settingsOpen
-                  ? 'bg-white/[0.10] text-white'
-                  : 'text-white/55 hover:text-white/85 hover:bg-white/[0.08]',
+                  ? 'is-open text-[var(--bb-orange)]'
+                  : 'text-white/55 hover:text-white/85',
               )}
               title="UI 设置"
               aria-label="UI 设置"
@@ -655,7 +661,7 @@ export default function App() {
             <button
               onClick={() => navigate('/alerts')}
               onMouseEnter={preload.alerts}
-              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              className="bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 transition-colors duration-[120ms]"
               title="告警"
               aria-label="告警"
             >
@@ -665,7 +671,7 @@ export default function App() {
             <button
               onClick={() => navigate('/accounts')}
               onMouseEnter={preload.accounts}
-              className="w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/[0.08] transition-colors duration-[120ms]"
+              className="bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 transition-colors duration-[120ms]"
               title="账户"
               aria-label="账户"
             >
@@ -682,14 +688,13 @@ export default function App() {
                 onClick={() => setSettingsOpen(false)}
               />
               <div
-                className="absolute top-full right-0 mt-2 w-[300px] p-4 bg-[var(--color-dropdown)] rounded-xl z-[200] ring-1 ring-white/[0.08]
-                           shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+                className="bb-top-popover absolute top-full right-0 mt-2 w-[300px] p-4 z-[200]"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="bb-top-menu-card flex items-center justify-between mb-3 px-2.5 py-2">
                   <span className="text-[13px] font-semibold text-white/80">UI 设置</span>
                   <button
                     onClick={() => setSettingsOpen(false)}
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                    className="bb-top-menu-item w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70"
                   >
                     <span className="text-[14px] leading-none">✕</span>
                   </button>

@@ -80,7 +80,7 @@ export default function DataHealthIndicator() {
       {shout && (
         <span className="absolute right-full mr-1.5 text-[11px] font-bold whitespace-nowrap top-1/2 -translate-y-1/2 pointer-events-none" style={{ color }}>{shout}</span>
       )}
-      <div className="flex items-center justify-center rounded-full w-[30px] h-[30px] bg-white/[0.06] hover:bg-white/[0.10] active:scale-[0.98] transition-all duration-[120ms] cursor-pointer">
+      <div className="bb-topbar-button flex items-center justify-center rounded-full w-[30px] h-[30px] active:scale-[0.98] transition-all duration-[120ms] cursor-pointer">
         <span className="relative flex h-4 w-4 items-center justify-center">
           <span className={`absolute inline-flex h-full w-full rounded-full ${animClass}`} style={{ backgroundColor: color }} />
           <span className="relative h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
@@ -91,7 +91,7 @@ export default function DataHealthIndicator() {
         <div
           onMouseEnter={open}
           onMouseLeave={close}
-          className="absolute right-0 top-full mt-1.5 z-[300] w-[230px] bg-[var(--color-dropdown)] rounded-xl p-3 ring-1 ring-white/[0.08] shadow-[0_24px_60px_rgba(0,0,0,0.70)]"
+          className="bb-top-popover absolute right-0 top-full mt-1.5 z-[300] w-[230px] p-3"
         >
           {/* 连接 */}
           <div className="text-[10px] font-bold uppercase tracking-wide text-white/35 mb-1.5">连接</div>

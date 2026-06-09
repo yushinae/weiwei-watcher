@@ -11,12 +11,12 @@ import type { TickerSnapshot } from './data/ws';
 // Card shell
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const DashCard = ({ icon: Icon, title, right, children }: {
+export const DashCard = ({ icon: Icon, title, right, children, className }: {
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string; right?: React.ReactNode; children: React.ReactNode;
+  title: string; right?: React.ReactNode; children: React.ReactNode; className?: string;
 }) => (
-  <div className="widget-card dash-card !p-0 flex flex-col h-full">
-    <div className="flex items-center gap-2.5 px-[18px] pt-[14px] pb-[10px] shrink-0">
+  <div className={`widget-card dash-card !p-0 flex flex-col h-full ${className ?? ''}`}>
+    <div className="dash-card-head flex items-center gap-2.5 px-[18px] pt-[14px] pb-[10px] shrink-0">
       <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55">
         <Icon size={15} />
       </span>
@@ -234,7 +234,7 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
           { label: 'Put 墙',  value: levels?.putWall  ?? spot, color: 'var(--color-trade-down)' },
           { label: 'GEX 总量', value: null, color: 'var(--color-text-muted)', text: levels?.gexUsd ?? '—' },
         ].map((item, i) => (
-          <Tile key={i} className="flex flex-col gap-0.5 px-2.5 py-1.5">
+          <Tile key={i} className="gex-key-tile flex flex-col gap-0.5 px-2.5 py-1.5">
             <span className="text-[10px] text-white/55 uppercase tracking-wider">{item.label}</span>
             <span className="text-[15px] font-bold tabular-nums" style={{ color: item.color }}>
               {item.text != null
@@ -247,19 +247,19 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
 
       {/* Support / Resistance zones */}
       <div className="flex gap-1.5">
-        <Tile className="flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
+        <Tile className="gex-key-tile flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">支撑区</span>
           <span className="text-[13px] font-bold tabular-nums text-trade-down">
             {levels ? `${fmtPx(levels.supportL)} – ${fmtPx(levels.supportH)}` : (
-              <span className="text-white/40">—</span>
+              <span className="text-white/45">—</span>
             )}
           </span>
         </Tile>
-        <Tile className="flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
+        <Tile className="gex-key-tile flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">阻力区</span>
           <span className="text-[13px] font-bold tabular-nums text-trade-up">
             {levels ? `${fmtPx(levels.resistL)} – ${fmtPx(levels.resistH)}` : (
-              <span className="text-white/40">—</span>
+              <span className="text-white/45">—</span>
             )}
           </span>
         </Tile>
@@ -267,10 +267,10 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
 
       {/* GEX tilt */}
       {levels && (
-        <Tile className={`p-2 text-[12px] font-semibold border-l-[3px] ${
-          levels.gexTilt === 'bearish' ? 'text-trade-down border-trade-down' :
-          levels.gexTilt === 'bullish' ? 'text-trade-up border-trade-up' :
-          'text-white/50 border-white/20'
+        <Tile className={`gex-key-tile p-2 text-[12px] font-semibold ${
+          levels.gexTilt === 'bearish' ? 'text-trade-down' :
+          levels.gexTilt === 'bullish' ? 'text-trade-up' :
+          'text-white/50'
         }`}>
           {levels.gexTilt === 'bearish' ? '↓ GEX倾向: 空头聚集' : levels.gexTilt === 'bullish' ? '↑ GEX倾向: 多头主导' : 'GEX 中性'}
         </Tile>
@@ -310,21 +310,17 @@ export const EventCalendarStrip = React.memo(() => {
 
   return (
     <div className="flex flex-col w-full h-full min-h-0">
-      <div className="flex items-center py-1 px-1.5 -mx-1.5 gap-3 shrink-0 rounded-lg
-                      hover:bg-[var(--color-bg-hover)] hover:translate-y-[-1px] hover:shadow-[0_5px_14px_-6px_rgba(0,0,0,0.55)]
-                      transition-all duration-[160ms]">
+      <div className="dashboard-inner-row flex items-center py-1 px-1.5 -mx-1.5 gap-3 shrink-0 rounded-lg transition-colors duration-[160ms]">
         <span className="text-[11px] font-semibold tabular-nums text-white/55 min-w-[42px]">今天</span>
         <span className="text-[13px] text-white/75 flex-1">{todayEvent ? todayEvent.title : '无事件'}</span>
         {todayEvent?.timeET && <span className="text-[10px] tabular-nums text-white/50">{formatEventTime(todayEvent.timeET)}</span>}
-        {todayEvent ? <TagBadge e={todayEvent} /> : <span className="text-[9px] text-white/30">—</span>}
+        {todayEvent ? <TagBadge e={todayEvent} /> : <span className="text-[9px] text-white/45">—</span>}
       </div>
 
       {/* 事件列表 — 超出 ~5 条时上下滚动 */}
       <div className="min-h-0 max-h-[170px] overflow-y-auto dash-scroll flex flex-col gap-1">
         {events.filter(e => e.date !== todayStr).map((e, i) => (
-          <div key={i} className="flex items-center py-1.5 px-1.5 -mx-1.5 gap-3 rounded-lg
-                                 hover:bg-[var(--color-bg-hover)] hover:translate-y-[-1px] hover:shadow-[0_5px_14px_-6px_rgba(0,0,0,0.55)]
-                                 transition-all duration-[160ms]">
+          <div key={i} className="dashboard-inner-row flex items-center py-1.5 px-1.5 -mx-1.5 gap-3 rounded-lg transition-colors duration-[160ms]">
             <span className="text-[11px] font-semibold tabular-nums text-white/55 min-w-[42px]">{e.date}</span>
             <span className="text-[13px] text-white/80 flex-1">{e.title}</span>
             {e.timeET && <span className="text-[10px] tabular-nums text-white/50">{formatEventTime(e.timeET)}</span>}
@@ -361,7 +357,7 @@ export const StrategyBottom = ({ coin }: { coin: Coin }) => {
   return (
     <div className="widget-card dash-card !p-0 flex h-full">
       <div className="flex gap-5 p-5 w-full">
-        <Tile className="flex-1 p-4 bg-[var(--nexus-accent)]/[0.08] border-l-[3px] border-[var(--nexus-accent)]/60">
+        <Tile className="flex-1 p-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-white/55 mb-2">主力推荐</div>
           <div className="text-[17px] font-bold text-[var(--nexus-accent)] mb-1.5">{regime.playbook[0] ?? '等待信号'}</div>
           <div className="text-[12px] text-white/55 leading-relaxed mb-1">{regime.description}</div>

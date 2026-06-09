@@ -24,10 +24,10 @@ const sgn = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : MUTE);
 const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
 const Tile = ({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) => (
-  <div className="flex-1 min-w-[110px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
-    <span className="text-[9px] uppercase tracking-wider text-white/40">{label}</span>
+  <div className="dashboard-inner-tile flex-1 min-w-[110px] flex flex-col gap-0.5 px-3 py-2 rounded-lg">
+    <span className="text-[9px] uppercase tracking-wider text-white/50">{label}</span>
     <span className="text-[16px] font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
-    {sub && <span className="text-[9px] text-white/35">{sub}</span>}
+    {sub && <span className="text-[9px] text-white/45">{sub}</span>}
   </div>
 );
 
@@ -62,7 +62,7 @@ export const AccountSummaryCard: React.FC = () => {
   if (!hasAccounts) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-5 text-center">
-        <Wallet size={20} className="text-white/30" />
+        <Wallet size={20} className="text-white/45" />
         <span className="text-[12px] text-white/55">还没接入交易所账户</span>
         <button onClick={() => navigate('/accounts')}
           className="inline-flex items-center gap-1.5 h-[28px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[11px] font-semibold hover:bg-[var(--color-brand)]/25 transition-colors">
@@ -87,14 +87,14 @@ export const AccountSummaryCard: React.FC = () => {
 
       {/* 真实持仓 */}
       {positions.length === 0 ? (
-        <div className="text-[11px] text-white/40 text-center py-2">无持仓</div>
+        <div className="text-[11px] text-white/50 text-center py-2">无持仓</div>
       ) : (
         <div className="flex flex-col gap-1">
           {sorted.map((p, i) => (
-            <div key={`${p.venue}-${p.coin}-${i}`} className="flex items-center gap-2.5 px-2 py-1 rounded-md hover:bg-[var(--color-surface-5)] text-[11px]">
+            <div key={`${p.venue}-${p.coin}-${i}`} className="dashboard-inner-row flex items-center gap-2.5 px-2 py-1 rounded-md text-[11px]">
               <span className="text-white/45 w-[64px] shrink-0">{p.venue}</span>
               <span className="font-bold text-white/80 w-[40px]">{p.coin}</span>
-              <span className="text-white/40 w-[36px]">{p.kind === 'perp' ? '永续' : p.kind === 'option' ? '期权' : '现货'}</span>
+              <span className="text-white/50 w-[36px]">{p.kind === 'perp' ? '永续' : p.kind === 'option' ? '期权' : '现货'}</span>
               <span className="tabular-nums w-[60px]" style={{ color: p.size >= 0 ? UP : DOWN }}>{p.size > 0 ? '+' : ''}{p.size}</span>
               <span className="text-white/45 tabular-nums ml-auto">名义 {fmtUsd(p.notionalUsd).replace('+', '')}</span>
               <span className="tabular-nums font-semibold w-[64px] text-right" style={{ color: p.unrealizedPnl != null ? sgn(p.unrealizedPnl) : MUTE }}>
@@ -103,7 +103,7 @@ export const AccountSummaryCard: React.FC = () => {
             </div>
           ))}
           <button onClick={() => navigate('/accounts')}
-            className="self-end inline-flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors mt-0.5">
+            className="self-end inline-flex items-center gap-1 text-[10px] text-white/50 hover:text-white/70 transition-colors mt-0.5">
             全部账户 <ArrowRight size={11} />
           </button>
         </div>

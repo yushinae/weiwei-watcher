@@ -126,6 +126,19 @@ const SCENARIO_PRESETS: { label: string; desc: string; spotPct: number; ivAdj: n
 const HEATMAP_SPOT = [-30, -20, -10, 0, 10, 20, 30];
 const HEATMAP_IV   = [0.40, 0.20, 0, -0.20, -0.40];
 const LADDER_OFFSETS = [-15, -10, -5, 0, 5, 10, 15];
+
+type RightTab = 'chart' | 'scenario' | 'greeks' | 'risk' | 'structure';
+
+const RIGHT_TABS: { id: RightTab; label: string; icon: string }[] = [
+  { id: 'chart',     label: '行情',   icon: '📊' },
+  { id: 'scenario',  label: '情景',   icon: '🎛' },
+  { id: 'greeks',    label: '希腊',   icon: '⚡' },
+  { id: 'risk',      label: '风险',   icon: '📉' },
+  { id: 'structure', label: '结构',   icon: '📅' },
+];
+
+const INPUT_CLS = 'bg-[#2B2D35] rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] w-full';
+const SELECT_CLS = 'bg-[#2B2D35] rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none focus:bg-[#3A3B40] transition-colors duration-[120ms] cursor-pointer w-full';
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatHours(h: number) {
@@ -292,16 +305,7 @@ export function PositionBuilder() {
   const [showJumpRisk, setShowJumpRisk] = useState(false);
   // Greeks heatmap metric toggle
   const [heatmapMetric, setHeatmapMetric] = useState<'delta' | 'gamma' | 'vega'>('gamma');
-  // Right-panel active tab
-  type RightTab = 'chart' | 'scenario' | 'greeks' | 'risk' | 'structure';
   const [activeTab, setActiveTab] = useState<RightTab>('chart');
-  const RIGHT_TABS: { id: RightTab; label: string; icon: string }[] = [
-    { id: 'chart',     label: '行情',   icon: '📊' },
-    { id: 'scenario',  label: '情景',   icon: '🎛' },
-    { id: 'greeks',    label: '希腊',   icon: '⚡' },
-    { id: 'risk',      label: '风险',   icon: '📉' },
-    { id: 'structure', label: '结构',   icon: '📅' },
-  ];
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Deribit index price WebSocket ──────────────────────────────────────────
@@ -1003,7 +1007,7 @@ export function PositionBuilder() {
     legs.forEach(l => {
       const k = `${l.K}-${l.type}`;
       if (seen.has(k)) return; seen.add(k);
-      strikeMLines.push({ xAxis: l.K, lineStyle: { color: l.type === 'call' ? 'rgba(78,161,255,0.35)' : 'rgba(251,191,36,0.35)', width: 1, type: 'solid' as const }, label: { show: false } });
+      strikeMLines.push({ xAxis: l.K, lineStyle: { color: l.type === 'call' ? 'rgba(247,166,0,0.35)' : 'rgba(251,191,36,0.35)', width: 1, type: 'solid' as const }, label: { show: false } });
     });
 
     const tooltipFmt = (params: any[]) => {
@@ -1028,7 +1032,7 @@ export function PositionBuilder() {
       grid: { left: 58, right: 16, top: 8, bottom: 38 },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#181B21', color: '#ECEEF1', fontSize: 10 } },
+        axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#17181E', color: '#ECEEF1', fontSize: 10 } },
         backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
         padding: [6, 10], textStyle: { color: '#ECEEF1', fontSize: 11 }, formatter: tooltipFmt,
       },
@@ -1049,7 +1053,7 @@ export function PositionBuilder() {
           ]},
         },
         // 3: Current P/L
-        { name: '当前 P/L', type: 'line' as const, data: chartXs.map((x, i) => [x, currentPL[i]]), lineStyle: { color: '#4F93DD', width: 2.5 }, symbol: 'none' },
+        { name: '当前 P/L', type: 'line' as const, data: chartXs.map((x, i) => [x, currentPL[i]]), lineStyle: { color: '#ff9c2e', width: 2.5 }, symbol: 'none' },
         // 4: Breakevens
         { name: '盈亏平衡', type: 'scatter' as const, data: breakevens.map(b => [b, 0]), symbol: 'diamond', symbolSize: 10, itemStyle: { color: '#28C840', borderColor: '#16191E', borderWidth: 1.5 } },
         // 5: Scenario marker
@@ -1057,9 +1061,9 @@ export function PositionBuilder() {
         // 6: Live price marker
         { name: '实时', type: 'scatter' as const, data: livePrice !== null ? [[livePrice, positionPL(livePrice, 0, 0)]] : [], symbol: 'emptyCircle', symbolSize: 10, itemStyle: { borderColor: '#ffffff', borderWidth: 2, color: 'transparent' } },
         // 7-9: Time slices (always present, empty when off)
-        { name: `T+${formatHours(maxHours * 0.25)}`, type: 'line' as const, data: showTimeSlices && timePL_25.length ? chartXs.map((x, i) => [x, timePL_25[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.55)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
-        { name: `T+${formatHours(maxHours * 0.50)}`, type: 'line' as const, data: showTimeSlices && timePL_50.length ? chartXs.map((x, i) => [x, timePL_50[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.38)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
-        { name: `T+${formatHours(maxHours * 0.75)}`, type: 'line' as const, data: showTimeSlices && timePL_75.length ? chartXs.map((x, i) => [x, timePL_75[i]]) : [], lineStyle: { color: 'rgba(78,161,255,0.22)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+        { name: `T+${formatHours(maxHours * 0.25)}`, type: 'line' as const, data: showTimeSlices && timePL_25.length ? chartXs.map((x, i) => [x, timePL_25[i]]) : [], lineStyle: { color: 'rgba(255,255,255,0.55)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+        { name: `T+${formatHours(maxHours * 0.50)}`, type: 'line' as const, data: showTimeSlices && timePL_50.length ? chartXs.map((x, i) => [x, timePL_50[i]]) : [], lineStyle: { color: 'rgba(255,255,255,0.38)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
+        { name: `T+${formatHours(maxHours * 0.75)}`, type: 'line' as const, data: showTimeSlices && timePL_75.length ? chartXs.map((x, i) => [x, timePL_75[i]]) : [], lineStyle: { color: 'rgba(255,255,255,0.22)', width: 1.5, type: 'dotted' as const }, symbol: 'none' },
       ],
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1084,7 +1088,7 @@ export function PositionBuilder() {
       backgroundColor: 'transparent', animation: false,
       grid: { left: 55, right: 55, top: 6, bottom: 38 },
       tooltip: {
-        trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#181B21', color: '#ECEEF1', fontSize: 10 } },
+        trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#17181E', color: '#ECEEF1', fontSize: 10 } },
         backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
         padding: [6, 10], textStyle: { color: '#ECEEF1', fontSize: 11 }, formatter: tooltipFmt2,
       },
@@ -1095,14 +1099,14 @@ export function PositionBuilder() {
         { type: 'value' as const, name: 'Gamma', nameLocation: 'middle' as const, nameGap: 44, position: 'right' as const, splitLine: { show: false }, axisLine: { lineStyle: { color: '#2e2e2e' } }, axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10 }, nameTextStyle: { color: 'rgba(167,139,250,0.6)', fontSize: 10 } },
       ],
       series: [
-        { name: 'Delta', type: 'line' as const, yAxisIndex: 0, data: chartXs.map((x, i) => [x, deltaProfile[i]]), lineStyle: { color: '#4F93DD', width: 2 }, symbol: 'none',
+        { name: 'Delta', type: 'line' as const, yAxisIndex: 0, data: chartXs.map((x, i) => [x, deltaProfile[i]]), lineStyle: { color: '#ff9c2e', width: 2 }, symbol: 'none',
           markLine: { silent: true, symbol: ['none', 'none'], data: [
             { yAxis: 0, lineStyle: { color: '#2e2e2e', width: 1 }, label: { show: false } },
             { xAxis: spot, lineStyle: { color: '#8a8a8a', type: 'dotted' as const, width: 1 }, label: { show: false } },
           ]}
         },
         { name: 'Gamma', type: 'line' as const, yAxisIndex: 1, data: chartXs.map((x, i) => [x, gammaProfile[i]]), lineStyle: { color: '#a78bfa', width: 2, type: 'dotted' as const }, symbol: 'none' },
-        { name: '情景Δ', type: 'scatter' as const, yAxisIndex: 0, data: [[currentS, grk.delta]], symbol: 'circle',  symbolSize: 9, itemStyle: { color: '#4F93DD', borderColor: '#fff', borderWidth: 2 } },
+        { name: '情景Δ', type: 'scatter' as const, yAxisIndex: 0, data: [[currentS, grk.delta]], symbol: 'circle',  symbolSize: 9, itemStyle: { color: '#ff9c2e', borderColor: '#fff', borderWidth: 2 } },
         { name: '情景Γ', type: 'scatter' as const, yAxisIndex: 1, data: [[currentS, grk.gamma]], symbol: 'diamond', symbolSize: 9, itemStyle: { color: '#a78bfa', borderColor: '#fff', borderWidth: 2 } },
       ],
     };
@@ -1126,12 +1130,8 @@ export function PositionBuilder() {
 
   const gClass = (val: number) => val > 0 ? 'text-[var(--nexus-green)]' : (val < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55');
 
-  // v4 表单元素：实色凹陷底 + 细内描边，focus 改用薄荷品牌环（DESIGN.md §十一 Fieldset）
-  const inputCls = 'bg-black/25 rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none ring-1 ring-inset ring-white/[0.08] focus:ring-2 focus:ring-inset focus:ring-[var(--color-brand)] transition-shadow duration-[120ms] w-full';
-  const selectCls = 'bg-black/25 rounded-lg px-2 py-1 text-[14px] text-white/85 outline-none ring-1 ring-inset ring-white/[0.08] focus:ring-2 focus:ring-inset focus:ring-[var(--color-brand)] transition-shadow duration-[120ms] cursor-pointer w-full';
-
   return (
-    <div className="absolute inset-0 flex flex-col font-medium">
+    <div className="position-builder-page absolute inset-0 flex flex-col font-medium">
       <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10" style={{ background: 'var(--color-surface-3)' }}>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[17px] font-semibold text-white/90 tracking-[-0.01em]">头寸压力测试</span>
@@ -1156,7 +1156,7 @@ export function PositionBuilder() {
               </span>
               <button
                 onClick={() => { setSpot(livePrice); setLegs(prev => prev.map(l => repriceEntry(l))); }}
-                className="px-2 py-0.5 rounded-[6px] bg-white/[0.04] border border-white/[0.08] text-[11px] text-white/55 hover:text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="px-2 py-0.5 rounded-[6px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors"
               >
                 用实时价
               </button>
@@ -1181,7 +1181,7 @@ export function PositionBuilder() {
 
         <div className="flex items-center gap-3">
           <span className="text-[12px] text-white/65 uppercase tracking-[0.06em]">标的</span>
-          <select value={symbol} onChange={e => changeSymbol(e.target.value)} className={cn(selectCls, '!w-24')}>
+          <select value={symbol} onChange={e => changeSymbol(e.target.value)} className={cn(SELECT_CLS, '!w-24')}>
             <option value="BTC">BTC</option>
             <option value="ETH">ETH</option>
             <option value="SOL">SOL</option>
@@ -1197,7 +1197,7 @@ export function PositionBuilder() {
               <Panel title="策略组合" subtitle="期权腿组合"
                 actions={legs.some(l => l.instrumentName) ? (
                   <button onClick={refreshAllTickers}
-                    className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-white/[0.04] border border-white/[0.07] text-[11px] text-white/55 hover:text-white/70 hover:bg-white/[0.07] transition-colors">
+                    className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors">
                     ↺ 刷新全部
                   </button>
                 ) : undefined}
@@ -1211,7 +1211,7 @@ export function PositionBuilder() {
                         type="number"
                         value={spot}
                         onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setSpot(v); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
-                        className={cn(inputCls, 'flex-1')}
+                        className={cn(INPUT_CLS, 'flex-1')}
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -1220,7 +1220,7 @@ export function PositionBuilder() {
                         type="number"
                         value={(baseIv * 100).toFixed(0)}
                         onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setBaseIv(v / 100); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
-                        className={cn(inputCls, 'flex-1')}
+                        className={cn(INPUT_CLS, 'flex-1')}
                       />
                       <span className="text-[12px] text-white/65 shrink-0">%</span>
                     </div>
@@ -1228,7 +1228,7 @@ export function PositionBuilder() {
                   {/* ── 模板 + 清空 ─────────────────────────────────────────── */}
                   <div className="flex items-center gap-2">
                     <select onChange={e => { if (e.target.value) { applyTemplate(e.target.value); e.target.value = ''; } }}
-                      className={cn(selectCls, 'flex-1 text-xs')}>
+                      className={cn(SELECT_CLS, 'flex-1 text-xs')}>
                       <option value="">— 选择模板 —</option>
                       <option value="longCall">单腿看涨</option>
                       <option value="longPut">单腿看跌</option>
@@ -1313,7 +1313,7 @@ export function PositionBuilder() {
                               <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">方向</label>
                               <select value={leg.side}
                                 onChange={e => updateLeg(leg.id, { side: parseInt(e.target.value) as 1 | -1 })}
-                                className={selectCls}>
+                                className={SELECT_CLS}>
                                 <option value="1">买入 (Long)</option>
                                 <option value="-1">卖出 (Short)</option>
                               </select>
@@ -1328,7 +1328,7 @@ export function PositionBuilder() {
                                   clearDeferred();
                                   defer(() => resolveInstrument(leg.id, { ...leg, type }), 0);
                                 }}
-                                className={selectCls}>
+                                className={SELECT_CLS}>
                                 <option value="call">看涨 Call</option>
                                 <option value="put">看跌 Put</option>
                               </select>
@@ -1352,7 +1352,7 @@ export function PositionBuilder() {
                                   clearDeferred();
                                   defer(() => resolveInstrument(leg.id, { ...leg, expiryTs: ts, K: atmK }), 0);
                                 }}
-                                className={selectCls}
+                                className={SELECT_CLS}
                               >
                                 <option value="">— 选择到期日 —</option>
                                 {expiryGroups.map(eg => (
@@ -1372,7 +1372,7 @@ export function PositionBuilder() {
                                     clearDeferred();
                                     defer(() => resolveInstrument(leg.id, { ...leg, K }), 0);
                                   }}
-                                  className={selectCls}
+                                  className={SELECT_CLS}
                                 >
                                   {availStrikes.map(k => {
                                     const pct = ((k - spot) / spot * 100);
@@ -1389,7 +1389,7 @@ export function PositionBuilder() {
                               ) : (
                                 <input type="number" step="any" value={leg.K}
                                   onChange={e => updateLeg(leg.id, { K: parseFloat(e.target.value) })}
-                                  className={inputCls} />
+                                  className={INPUT_CLS} />
                               )}
                             </div>
                             {/* 数量 */}
@@ -1397,7 +1397,7 @@ export function PositionBuilder() {
                               <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">数量</label>
                               <input type="number" step="0.1" min="0.1" value={leg.qty}
                                 onChange={e => updateLeg(leg.id, { qty: parseFloat(e.target.value) })}
-                                className={inputCls} />
+                                className={INPUT_CLS} />
                             </div>
                             {/* 入场权利金 */}
                             <div className="col-span-2 flex items-center justify-between pt-1">
@@ -1475,7 +1475,7 @@ export function PositionBuilder() {
                   </div>
 
                   <button onClick={() => addLeg()}
-                    className="w-full py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-[14px] font-semibold text-white/60 hover:bg-white/[0.07] hover:text-white/80 hover:border-white/[0.12] transition-colors">
+                    className="w-full py-2 rounded-lg bg-[#2B2D35] text-[14px] font-semibold text-white/60 hover:bg-[#3A3B40] hover:text-white/80 transition-colors">
                     + 添加一腿
                   </button>
 
@@ -1554,7 +1554,7 @@ export function PositionBuilder() {
               {activeTab === 'chart' && <Panel title="损益曲线" noPadding noScroll
                   subtitle={
                     <span className="flex items-center gap-3 flex-wrap text-[12px] text-white/65">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4F93DD]" />当前情景</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[var(--nexus-accent)]" />当前情景</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed border-white/30" />到期</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full border-2 border-white bg-transparent" />实时</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rotate-45 bg-[#28C840]" />盈亏平衡</span>
@@ -1564,8 +1564,8 @@ export function PositionBuilder() {
                           className={cn(
                             'inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[11px] transition-colors',
                             showTimeSlices
-                              ? 'border-[#4F93DD]/40 text-[#4F93DD]/80 bg-[#4F93DD]/10'
-                              : 'border-white/[0.08] text-white/65 hover:text-white/50 hover:border-white/20',
+                              ? 'border-[var(--nexus-accent)]/40 text-[var(--nexus-accent)]/80 bg-[var(--nexus-accent)]/10'
+                              : 'border-transparent bg-[#2B2D35] text-white/65 hover:bg-[#3A3B40] hover:text-white/80',
                           )}
                         >
                           <span className="inline-block w-3 border-t border-dotted border-current" />
@@ -1585,7 +1585,7 @@ export function PositionBuilder() {
                 </Panel>}
 
               {/* ── 始终可见：三滑杆 ──────────────────────────────────── */}
-              <div className="bg-[var(--color-card)] ring-1 ring-inset ring-white/[0.07] rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-3 items-center">
+              <div className="bg-[#17181E] rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-3 items-center">
                 <div className="flex items-center gap-3 flex-1 min-w-[160px]">
                   <span className="text-[11px] text-white/65 uppercase tracking-[0.06em] shrink-0 w-14">时间快进</span>
                   <input type="range" min="0" max={maxHours || 720} step="1" value={hoursForward}
@@ -1623,8 +1623,8 @@ export function PositionBuilder() {
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] transition-colors border',
                       activeTab === tab.id
-                        ? 'bg-white/[0.08] border-white/[0.14] text-white/85'
-                        : 'bg-transparent border-transparent text-white/55 hover:text-white/60 hover:bg-white/[0.04]',
+                        ? 'bg-[#3A3F40] border-transparent text-[var(--nexus-accent)]'
+                        : 'bg-transparent border-transparent text-white/55 hover:text-white/80 hover:bg-[#3A3B40]',
                     )}>
                     <span>{tab.icon}</span>
                     <span>{tab.label}</span>
@@ -1635,7 +1635,7 @@ export function PositionBuilder() {
               {activeTab === 'chart' && <Panel title="Delta / Gamma 曲线" noPadding noScroll
                 subtitle={
                   <span className="flex items-center gap-3 text-[12px] text-white/65">
-                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4F93DD]" />Delta（左轴）</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[var(--nexus-accent)]" />Delta（左轴）</span>
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dotted border-[#a78bfa]" />Gamma（右轴）</span>
                   </span>
                 }
@@ -1652,7 +1652,7 @@ export function PositionBuilder() {
               {activeTab === 'scenario' && <Panel title="情景参数"
                 actions={
                   <button onClick={resetScenario}
-                    className="flex items-center gap-1 px-3 py-1 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/50 hover:bg-white/[0.07] hover:text-white/70 transition-colors">
+                    className="flex items-center gap-1 px-3 py-1 rounded-[8px] bg-[#2B2D35] text-[12px] text-white/50 hover:bg-[#3A3B40] hover:text-white/70 transition-colors">
                     <span>↺</span> 重置情景
                   </button>
                 }>
@@ -1667,7 +1667,7 @@ export function PositionBuilder() {
                           'px-3 py-1.5 rounded-[8px] border text-[12px] transition-colors',
                           p.historical
                             ? 'bg-[var(--nexus-yellow)]/[0.06] border-[var(--nexus-yellow)]/[0.15] text-[var(--nexus-yellow)]/60 hover:bg-[var(--nexus-yellow)]/[0.12] hover:text-[var(--nexus-yellow)]/80 hover:border-[var(--nexus-yellow)]/[0.25]'
-                            : 'bg-white/[0.04] border-white/[0.07] text-white/50 hover:bg-white/[0.08] hover:text-white/75 hover:border-white/[0.12]',
+                            : 'bg-[#2B2D35] border-transparent text-white/50 hover:bg-[#3A3B40] hover:text-white/75',
                         )}
                       >
                         {p.historical && <span className="mr-1 text-[10px] text-[var(--nexus-yellow)]/50">历史</span>}
@@ -1703,12 +1703,12 @@ export function PositionBuilder() {
                       onChange={e => setScenarioName(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && saveScenario()}
                       placeholder="命名当前情景后保存…"
-                      className={cn(inputCls, '!w-44 text-[12px]')}
+                      className={cn(INPUT_CLS, '!w-44 text-[12px]')}
                     />
                     <button
                       onClick={saveScenario}
                       disabled={!scenarioName.trim()}
-                      className="px-3 py-1.5 rounded-[8px] bg-white/[0.04] border border-white/[0.08] text-[12px] text-white/50 hover:text-white/70 hover:bg-white/[0.07] disabled:opacity-30 transition-colors"
+                      className="px-3 py-1.5 rounded-[8px] bg-[#2B2D35] text-[12px] text-white/50 hover:text-white/70 hover:bg-[#3A3B40] disabled:opacity-30 transition-colors"
                     >
                       保存情景
                     </button>
@@ -1720,11 +1720,11 @@ export function PositionBuilder() {
                     <span className="text-white/55 text-[11px] shrink-0">历史低</span>
                     <input type="number" value={ivRankLow}
                       onChange={e => setIvRankLow(parseFloat(e.target.value) || 0)}
-                      className="w-14 bg-white/[0.04] border border-white/[0.08] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center" />
+                      className="w-14 bg-[#2B2D35] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center focus:bg-[#3A3B40]" />
                     <span className="text-white/55">–</span>
                     <input type="number" value={ivRankHigh}
                       onChange={e => setIvRankHigh(parseFloat(e.target.value) || 0)}
-                      className="w-14 bg-white/[0.04] border border-white/[0.08] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center" />
+                      className="w-14 bg-[#2B2D35] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center focus:bg-[#3A3B40]" />
                     <span className="text-white/55 text-[11px]">% (52w 范围)</span>
                     {ivRankPct !== null && (
                       <div className="flex items-center gap-2 ml-2">
@@ -1967,7 +1967,7 @@ export function PositionBuilder() {
                   subtitle={<span>1日 · 对数正态 MC 5000条路径 · 基准价 {varCvar.baseS.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
                   actions={
                     <button onClick={() => setVarSeed(s => s + 1)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-white/[0.04] border border-white/[0.07] text-[11px] text-white/55 hover:text-white/70 hover:bg-white/[0.07] transition-colors">
+                      className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors">
                       ↺ 重算
                     </button>
                   }
@@ -2121,7 +2121,7 @@ export function PositionBuilder() {
                       <div key={label} className={cn(
                         'rounded-[8px] p-2.5 border',
                         label === '合计'
-                          ? 'bg-white/[0.04] border-white/[0.10]'
+                          ? 'bg-[#3A3F40] border-transparent'
                           : 'bg-[var(--color-surface-2)] border-white/[0.05]',
                       )}>
                         <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">{label}</div>
@@ -2136,7 +2136,7 @@ export function PositionBuilder() {
                   {(() => {
                     const { plDelta, plGamma, plTheta, plVega, plResidual, plTotal } = plAttribution;
                     const segs = [
-                      { label: 'Δ', val: plDelta,    col: '#4F93DD' },
+                      { label: 'Δ', val: plDelta,    col: '#ff9c2e' },
                       { label: 'Γ', val: plGamma,    col: '#a78bfa' },
                       { label: 'Θ', val: plTheta,    col: '#FEBC2E' },
                       { label: 'ν', val: plVega,     col: '#28C840' },
@@ -2206,7 +2206,7 @@ export function PositionBuilder() {
                   })()}
                   <div className="flex gap-3 mt-1.5 flex-wrap text-[10px] text-white/65">
                     {[
-                      { label: 'Delta', color: '#4F93DD' },
+                      { label: 'Delta', color: '#ff9c2e' },
                       { label: 'Gamma', color: '#a78bfa' },
                       { label: 'Theta', color: '#FEBC2E' },
                       { label: 'Vega',  color: '#28C840' },
@@ -2270,7 +2270,7 @@ export function PositionBuilder() {
                                   className={cn(
                                     'text-center py-1 px-1.5 font-mono rounded-[4px] cursor-pointer transition-all',
                                     val > 0 ? 'text-green-200' : val < 0 ? 'text-red-200' : 'text-white/55',
-                                    isActive && 'ring-1 ring-white/50 ring-inset',
+                                    isActive && 'ring-1 ring-[var(--nexus-accent)]/70 ring-inset',
                                     isCorrelated && !isActive && 'ring-1 ring-[var(--nexus-yellow)]/50 ring-inset',
                                   )}
                                   onClick={() => { setSpotPctOffset(spotOff); setIvAdjust(ivOff); }}
@@ -2311,7 +2311,7 @@ export function PositionBuilder() {
                               className={cn(
                                 'rounded-[4px] cursor-pointer transition-colors',
                                 isCurrent ? 'bg-white/[0.05]' : 'hover:bg-white/[0.03]',
-                                isNearCurrent && !isCurrent && 'ring-1 ring-inset ring-white/10',
+                                isNearCurrent && !isCurrent && 'ring-1 ring-inset ring-[var(--nexus-accent)]/35',
                               )}
                               onClick={() => setSpotPctOffset(row.pct)}
                             >
@@ -2399,7 +2399,7 @@ export function PositionBuilder() {
                                       className={cn(
                                         'text-center py-1 px-1.5 font-mono rounded-[4px]',
                                         val > 0 ? 'text-green-200' : val < 0 ? 'text-red-200' : 'text-white/55',
-                                        nearSpot && nearIv && 'ring-1 ring-white/50 ring-inset',
+                                        nearSpot && nearIv && 'ring-1 ring-[var(--nexus-accent)]/70 ring-inset',
                                       )}
                                       title={`Spot ${HEATMAP_SPOT[ci] >= 0 ? '+' : ''}${HEATMAP_SPOT[ci]}% / IV ${ivOff >= 0 ? '+' : ''}${(ivOff * 100).toFixed(0)}%  →  ${heatmapMetric}=${fmt(val)}`}
                                     >
@@ -2513,7 +2513,7 @@ export function PositionBuilder() {
                           const ivMin = Math.max(0, Math.min(...ivs) - 5), ivMax = Math.max(...ivs) + 5;
                           const sx = (s: number) => ((s - sMin) / (sMax - sMin || 1)) * 220 + 10;
                           const sy = (iv: number) => 110 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 100;
-                          const COLORS = ['#4F93DD', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+                          const COLORS = ['#ff9c2e', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
                           return ivSkewData.expiries.map((exp, ei) => {
                             if (exp.points.length === 0) return null;
                             const color = COLORS[ei % COLORS.length];
@@ -2542,7 +2542,7 @@ export function PositionBuilder() {
                       </svg>
                       <div className="flex gap-2 flex-wrap mt-1">
                         {ivSkewData.expiries.map((exp, ei) => {
-                          const COLORS = ['#4F93DD', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+                          const COLORS = ['#ff9c2e', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
                           return (
                             <span key={exp.ts} className="flex items-center gap-1 text-[10px] text-white/65">
                               <span className="inline-block w-2 h-0.5" style={{ backgroundColor: COLORS[ei % COLORS.length] }} />
@@ -2603,7 +2603,7 @@ export function PositionBuilder() {
           .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--nexus-accent); border-radius: 50%; cursor: pointer; border: 2px solid rgba(0,0,0,0.4); }
           input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
           input[type="number"] { -moz-appearance: textfield; }
-          select option { background: #1c1c1c; color: rgba(255,255,255,0.8); }
+          select option { background: #17181E; color: rgba(255,255,255,0.85); }
           .price-flash-up { color: var(--nexus-green); }
           .price-flash-down { color: var(--nexus-red); }
         `}</style>

@@ -236,7 +236,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <span className="text-[12px] text-white/50">视图</span>
-        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
+        <div className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E]">
           {([['combined', '合并'], ['expiry', '按到期']] as const).map(([key, label]) => {
             const active = (key === 'expiry') === byExpiry;
             return (
@@ -245,7 +245,7 @@ export default function PositionAnalytics({ positions }: { positions: BybitOptio
                 onClick={() => setByExpiry(key === 'expiry')}
                 className={cn(
                   'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
-                  active ? 'bg-[var(--color-surface-5)] text-white/90' : 'text-white/55 hover:text-white/80',
+                  active ? 'bg-[#3A3F40] text-[var(--nexus-accent)]' : 'text-white/55 hover:bg-[#3A3B40] hover:text-white/80',
                 )}
               >{label}</button>
             );
@@ -270,7 +270,7 @@ function CoinCard({ m, liveSpot }: { m: CoinModel; liveSpot: number | undefined;
       {/* Stats header */}
       <div className="flex items-center flex-wrap gap-x-7 gap-y-3 px-[18px] pt-[14px] pb-[12px]">
         <div className="flex items-center gap-2.5 mr-1">
-          <span className="h-7 inline-flex items-center px-2 rounded-md bg-white/[0.06] text-[13px] font-bold text-white/80 gap-1.5">
+          <span className="h-7 inline-flex items-center px-2 rounded-md bg-[#2B2D35] text-[13px] font-bold text-white/80 gap-1.5">
             {m.coin}
             {m.expiryLabel && (
               <span className="text-[12px] font-semibold text-brand/90">{m.expiryLabel}</span>

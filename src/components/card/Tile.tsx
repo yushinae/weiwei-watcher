@@ -1,11 +1,8 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-// Inner data block used inside cards. Solid surface-2 (#242424), 8px radius, no
-// border — relies on pure color difference per the design system. Hover gives a
-// subtle 1px lift + brightness (see `.dash-tile` in index.css). Padding/layout
-// are left to the caller via className; the default `bg-surface-2` can be
-// overridden (twMerge keeps the last bg-* class) for accent tiles.
+// Inner data block used inside cards. Bybit-style L3 surface with a faint 1px
+// inset line; padding/layout are left to the caller via className.
 export function Tile({
   className,
   interactive = false,

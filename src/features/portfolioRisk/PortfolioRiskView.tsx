@@ -43,7 +43,7 @@ const GreekCell = ({ label, val, hint }: { label: string; val: number; hint: str
 );
 
 const Card = ({ title, right, children, className = '' }: { title: string; right?: React.ReactNode; children: React.ReactNode; className?: string }) => (
-  <div className={`flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] ${className}`}>
+  <div className={`flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] ${className}`}>
     <div className="flex items-center px-4 pt-3 pb-2 shrink-0">
       <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">{title}</span>
       {right && <div className="ml-auto">{right}</div>}
@@ -146,7 +146,7 @@ export const PortfolioRiskView = () => {
 
   const attribOption = useMemo<EChartsOption>(() => {
     const comps = [
-      { name: 'Delta（方向）', key: 'delta' as const, color: '#4F93DD' },
+      { name: 'Delta（方向）', key: 'delta' as const, color: '#ff9c2e' },
       { name: 'Gamma（凸性）', key: 'gamma' as const, color: '#25e889' },
       { name: 'Vega（波动）', key: 'vega' as const, color: '#a78bfa' },
       { name: 'Theta（时间）', key: 'theta' as const, color: '#FEBC2E' },
@@ -256,7 +256,7 @@ export const PortfolioRiskView = () => {
           lineStyle: { color: 'rgba(255,255,255,0.5)', width: 1.5 },
           markLine: { symbol: 'none', silent: true, lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed', width: 1 }, data: [{ yAxis: 0 }, { xAxis: xs.indexOf(0) }] } },
         { name: `IV +${ivLine}pt`, type: 'line', smooth: 0.2, showSymbol: false, data: shocked,
-          lineStyle: { color: '#4F93DD', width: 2 }, areaStyle: { color: 'rgba(79,147,221,0.08)' } },
+          lineStyle: { color: '#ff9c2e', width: 2 }, areaStyle: { color: 'rgba(247,166,0,0.08)' } },
       ],
     };
   }, [books, ivLine]);
@@ -265,7 +265,7 @@ export const PortfolioRiskView = () => {
   const worstPnl = Math.min(...matrix.cells.map(c => c[2]));
 
   return (
-    <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
+    <div className="portfolio-risk-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
         {/* ── 提示条 ── */}
@@ -298,7 +298,7 @@ export const PortfolioRiskView = () => {
         {/* ── 净美元希腊（总 + 分币种）── */}
         <Card title="全账户净美元希腊" className="shrink-0">
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-6 px-3 py-2.5 rounded-lg bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+            <div className="flex items-center gap-6 px-3 py-2.5 rounded-[6px] bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
               <span className="text-[11px] font-bold text-white/70 w-[40px]">合计</span>
               <GreekCell label="$Δ" val={tot.netDelta} hint="净美元 Delta（名义方向敞口）" />
               <GreekCell label="$Γ / 1%" val={tot.netGamma} hint="每 1% spot 的 Dollar Gamma" />
@@ -332,7 +332,7 @@ export const PortfolioRiskView = () => {
               <div className="flex items-center gap-1">
                 {[10, 20, 30].map(v => (
                   <button key={v} onClick={() => setIvLine(v)}
-                    className={`px-1.5 h-[22px] rounded text-[10px] font-semibold ${ivLine === v ? 'bg-[#4F93DD]/20 text-[#4F93DD] ring-1 ring-inset ring-[#4F93DD]/40' : 'text-white/45 hover:text-white/75'}`}>
+                    className={`px-1.5 h-[22px] rounded text-[10px] font-semibold ${ivLine === v ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)] ring-1 ring-inset ring-[var(--nexus-accent)]/35' : 'text-white/45 hover:text-white/75'}`}>
                     IV+{v}
                   </button>
                 ))}

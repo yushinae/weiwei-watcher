@@ -52,16 +52,16 @@ function Stepper({ value, onChange, step = 1000, min = 1000, max = 200000, label
   return (
     <label className="flex flex-col gap-0.5 shrink-0">
       <span className="text-[10px] text-white/55 font-medium">{label}</span>
-      <div className="flex items-center h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] overflow-hidden">
+      <div className="dashboard-control-block flex items-center h-[28px] rounded-lg overflow-hidden">
         <button onClick={() => onChange(Math.max(min, value - step))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
+          className="dashboard-control-button w-6 h-full flex items-center justify-center text-white/55 hover:text-white/80 transition-colors text-[13px] shrink-0"
         >−</button>
         <input type="text" value={value.toLocaleString('en-US')}
           onChange={(e) => { const n = parseInt(e.target.value.replace(/,/g, '')); if (!isNaN(n) && n >= min && n <= max) onChange(n); }}
           className="w-[64px] h-full bg-transparent text-center text-[13px] font-bold tabular-nums text-white/85 outline-none"
         />
         <button onClick={() => onChange(Math.min(max, value + step))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
+          className="dashboard-control-button w-6 h-full flex items-center justify-center text-white/55 hover:text-white/80 transition-colors text-[13px] shrink-0"
         >+</button>
       </div>
     </label>
@@ -74,13 +74,13 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
   return (
     <label className="flex flex-col gap-0.5 shrink-0 min-w-[48px]">
       <span className="text-[10px] text-white/55 font-medium">数量</span>
-      <div className="flex items-center h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] overflow-hidden">
+      <div className="dashboard-control-block flex items-center h-[28px] rounded-lg overflow-hidden">
         <button onClick={() => onChange(Math.max(1, value - 1))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
+          className="dashboard-control-button w-6 h-full flex items-center justify-center text-white/55 hover:text-white/80 transition-colors text-[13px] shrink-0"
         >−</button>
         <span className="w-6 text-center text-[13px] font-bold tabular-nums text-white/85">{value}</span>
         <button onClick={() => onChange(Math.min(100, value + 1))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
+          className="dashboard-control-button w-6 h-full flex items-center justify-center text-white/55 hover:text-white/80 transition-colors text-[13px] shrink-0"
         >+</button>
       </div>
     </label>
@@ -96,10 +96,10 @@ function Select<T extends string>({ label, value, options, onChange }: {
     <label className="flex flex-col gap-0.5 shrink-0">
       <span className="text-[10px] text-white/55 font-medium">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value as T)}
-        className="h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] text-white/80 font-medium px-2 outline-none appearance-none cursor-pointer hover:bg-[var(--color-surface-5)] transition-colors"
+        className="dashboard-control-block h-[28px] rounded-lg text-[12px] text-white/80 font-medium px-2 outline-none appearance-none cursor-pointer transition-colors"
       >
         {options.map(o => (
-          <option key={o.value} value={o.value} className="bg-[var(--color-surface-2)] text-white/80">{o.label}</option>
+          <option key={o.value} value={o.value} className="bg-[#2B2D35] text-white/80">{o.label}</option>
         ))}
       </select>
     </label>
@@ -112,8 +112,8 @@ function GreekBadge({ label, value, fmt, color }: {
   label: string; value: number; fmt: (v: number) => string; color: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[10px] font-semibold tabular-nums" style={{ color }}>
-      <span className="text-white/40">{label}</span>
+    <span className="dashboard-inner-tile inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold tabular-nums" style={{ color }}>
+      <span className="text-white/50">{label}</span>
       {fmt(value)}
     </span>
   );
@@ -191,13 +191,13 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
       grid: { left: 50, right: 14, top: 16, bottom: 28 },
       xAxis: {
         type: 'value', min: payoff[0].price, max: payoff[payoff.length - 1].price,
-        axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 9, formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString() },
+        axisLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 9, formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toString() },
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }, splitLine: { show: false }, axisTick: { show: false },
       },
       yAxis: {
         type: 'value', min: yMin, max: yMax,
         axisLabel: {
-          color: 'rgba(255,255,255,0.35)', fontSize: 9,
+          color: 'rgba(255,255,255,0.45)', fontSize: 9,
           formatter: (v: number) => v >= 0 ? `+${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v.toFixed(0)}` : `${v >= -1000 ? v.toFixed(0) : `${(v / 1000).toFixed(0)}K`}`,
         },
         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisTick: { show: false },
@@ -240,7 +240,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
 <div style="font-size:15px;font-weight:700;margin:2px 0">${fmtPx(price)}</div>
 <div style="color:${color};font-weight:600">PnL: ${fmtDollar(pnl)}</div></div>`;
         },
-        extraCssText: 'border-radius: 10px; background: #181B21; border: 1px solid rgba(168,184,206,0.10);',
+        extraCssText: 'border-radius: 8px; background: #17181E; border: 1px solid rgba(255,255,255,0.08);',
       },
     };
   }, [result]);
@@ -293,7 +293,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
 
       {/* ── Chart + Metrics ── */}
       <div className="flex-1 grid grid-cols-12 gap-2.5 min-h-0">
-        <div className="col-span-8 bg-[var(--color-surface-1)] rounded-lg ring-1 ring-inset ring-[var(--color-border-subtle)] min-h-0">
+        <div className="dashboard-chart-panel col-span-8 rounded-lg min-h-0">
           {chartOption && <EChart option={chartOption} />}
         </div>
 
@@ -346,7 +346,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
           <GreekBadge label="Γ" value={result.gamma} fmt={(v) => v.toFixed(4)} color="var(--color-sev-mid)" />
           <GreekBadge label="Θ" value={result.theta} fmt={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`} color={result.theta >= 0 ? 'var(--color-trade-up)' : 'var(--color-trade-down)'} />
           <GreekBadge label="V" value={result.vega} fmt={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`} color="var(--color-sev-high)" />
-          <span className="ml-auto text-[10px] text-white/35 font-mono">
+          <span className="ml-auto text-[10px] text-white/45 font-mono">
             {coin} · IV {atmIV.toFixed(1)}% · {(expiryT * 365).toFixed(0)}d
           </span>
         </div>

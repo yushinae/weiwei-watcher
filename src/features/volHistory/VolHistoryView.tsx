@@ -10,7 +10,7 @@ import {
 } from './store';
 
 const BRAND = '#25e889';
-const BLUE = '#4F93DD';
+const BLUE = '#ff9c2e';
 const YELLOW = '#FEBC2E';
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -25,13 +25,13 @@ const fmtPp = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`;
 const Pill: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button onClick={onClick}
     className={'px-2.5 h-[26px] rounded-md text-[12px] font-semibold transition-colors duration-[120ms] ' +
-      (active ? 'bg-white/[0.12] text-white ring-1 ring-inset ring-white/[0.14]' : 'bg-transparent text-white/50 hover:bg-white/[0.07] hover:text-white/80')}>
+      (active ? 'bg-[var(--bb-orange-soft-1)] text-[var(--bb-orange)] ring-1 ring-inset ring-[var(--nexus-accent)]/25' : 'bg-transparent text-white/50 hover:bg-white/[0.07] hover:text-white/80')}>
     {children}
   </button>
 );
 
 const StatCard = ({ label, value, color, hint }: { label: string; value: string; color: string; hint: string }) => (
-  <div className="flex-1 min-w-[130px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]" title={hint}>
+  <div className="flex-1 min-w-[130px] flex flex-col gap-1 px-4 py-3 rounded-[8px] bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]" title={hint}>
     <span className="text-[10px] uppercase tracking-wider text-white/45">{label}</span>
     <span className="text-[20px] font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
     <span className="text-[10px] text-white/40">{hint}</span>
@@ -39,7 +39,7 @@ const StatCard = ({ label, value, color, hint }: { label: string; value: string;
 );
 
 const Card = ({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) => (
-  <div className="flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] h-[230px]">
+  <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] h-[230px]">
     <div className="flex items-baseline gap-2 px-4 pt-3 pb-1 shrink-0">
       <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">{title}</span>
       {sub && <span className="text-[10px] text-white/35">{sub}</span>}
@@ -113,7 +113,7 @@ export const VolHistoryView = () => {
   const cur = series[series.length - 1];
 
   return (
-    <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
+    <div className="vol-history-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
         {/* 工具栏 */}

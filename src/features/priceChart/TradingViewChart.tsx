@@ -44,7 +44,7 @@ export const TradingViewChart: React.FC<{ coin: Coin }> = ({ coin }) => {
         autosize: true,
         hide_side_toolbar: false,
         allow_symbol_change: true,
-        backgroundColor: '#131313',
+        backgroundColor: '#16191E',
         withdateranges: true,
       });
     }).catch(() => {

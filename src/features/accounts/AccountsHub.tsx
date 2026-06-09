@@ -32,16 +32,16 @@ const fmtTime = (ms: number) => {
   return `${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[12px] text-white/85 outline-none focus:ring-white/20';
+const inputCls = 'h-[32px] px-2 rounded-md bg-[var(--color-surface-1)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] text-white/85 outline-none focus:ring-[var(--nexus-accent)]/40';
 
 // 账户筛选 chip 样式
 const chipCls = (active: boolean) =>
   `h-[28px] px-3 rounded-full text-[12px] font-medium flex items-center gap-1.5 ring-1 ring-inset transition-colors ${
     active ? 'bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-[var(--color-brand)]/40'
-           : 'bg-white/[0.04] text-white/65 ring-white/10 hover:bg-white/[0.08]'}`;
+           : 'bg-[var(--color-surface-2)] text-white/65 ring-[var(--color-border-subtle)] hover:bg-[var(--color-surface-5)]'}`;
 
 const Card = ({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) => (
-  <div className="flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06]">
+  <div className="flex flex-col rounded-xl bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]">
     <div className="flex items-center px-4 pt-3 pb-2 shrink-0">
       <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">{title}</span>
       {right && <div className="ml-auto">{right}</div>}
@@ -190,15 +190,15 @@ export const AccountsHub = () => {
         <div className="flex items-center gap-2 flex-wrap shrink-0">
           <span className="text-[13px] font-semibold text-white/75">全账户总览</span>
           <button onClick={() => void syncAll()} disabled={syncing || noAccounts}
-            className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors disabled:opacity-40">
+            className="h-[30px] px-3 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-surface-5)] transition-colors disabled:opacity-40">
             <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} /> {syncing ? '同步中…' : '全部同步'}
           </button>
           <button onClick={exportFillsJson} disabled={fills.length === 0}
-            className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors disabled:opacity-40">
+            className="h-[30px] px-3 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-surface-5)] transition-colors disabled:opacity-40">
             <Download size={13} /> 导出备份
           </button>
           <button onClick={() => fileRef.current?.click()}
-            className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors">
+            className="h-[30px] px-3 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-surface-5)] transition-colors">
             <Upload size={13} /> 导入 CSV
           </button>
           <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
@@ -255,7 +255,7 @@ export const AccountsHub = () => {
                 className="ml-auto h-[30px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold hover:bg-[var(--color-brand)]/25 transition-colors disabled:opacity-40">
                 确认导入 {csvFills.length} 笔
               </button>
-              <button onClick={cancelImport} className="h-[30px] px-3 rounded-md bg-white/[0.06] ring-1 ring-inset ring-white/10 text-[12px] font-semibold text-white/65 hover:bg-white/[0.1]">取消</button>
+              <button onClick={cancelImport} className="h-[30px] px-3 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] font-semibold text-white/65 hover:bg-[var(--color-surface-5)]">取消</button>
             </div>
             <div className="text-[10px] text-white/35 leading-relaxed">
               用于补齐 API 够不到的更早历史。⚠️ 与「全部同步」已拉到的同期数据可能重复计入（两者去重 id 不同），建议只导入 API 窗口之外的时段；同一文件重复导入会自动去重。
@@ -268,7 +268,7 @@ export const AccountsHub = () => {
           title="我的账户"
           right={!noAccounts && (
             <button onClick={() => setShowManage(v => !v)}
-              className="h-[26px] px-2.5 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/10 text-[11px] font-semibold text-white/55 flex items-center gap-1.5 hover:bg-white/[0.1] transition-colors">
+              className="h-[26px] px-2.5 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[11px] font-semibold text-white/55 flex items-center gap-1.5 hover:bg-[var(--color-surface-5)] transition-colors">
               <Settings size={12} /> {showManage ? '收起' : '管理'}
             </button>
           )}
@@ -304,7 +304,7 @@ export const AccountsHub = () => {
             {accounts.map(a => {
               const st = status[a.id];
               return (
-                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/[0.03] ring-1 ring-inset ring-white/[0.05]">
+                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
                   <Wallet size={14} className="text-white/45 shrink-0" />
                   <span className="text-[12px] font-semibold text-white/80 w-[80px]">{a.venue}</span>
                   <span className="text-[12px] text-white/60 font-mono truncate flex-1">{a.label}{a.address ? `  ${a.address.slice(0, 8)}…${a.address.slice(-6)}` : ''}</span>
@@ -364,14 +364,14 @@ export const AccountsHub = () => {
         {!isSim && viewFills.length > 0 && (
           <Card title={`已实现盈亏${filterAcctId ? `（${accounts.find(a => a.id === filterAcctId)?.venue ?? ''}）` : '（累计自本地记录）'}`}>
             <div className="flex gap-2.5 flex-wrap">
-              <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+              <div className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
                 <span className="text-[10px] uppercase tracking-wider text-white/45">{filterAcctId ? '净盈亏（扣费）' : '合计净盈亏（扣费）'}</span>
                 <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color: sgn(totalClosed - totalFee) }}>{fmtUsd(totalClosed - totalFee)}</span>
                 <span className="text-[10px] text-white/40">毛 {fmtUsd(totalClosed)} · 手续费 {fmtUsdPlain(totalFee)} · {viewFills.length} 笔</span>
               </div>
               {/* 仅「全部」时展开各所拆解；筛选到单账户时上面那张已是该所合计 */}
               {filterAcctId === null && [...pnlByVenue.entries()].map(([v, e]) => (
-                <div key={v} className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+                <div key={v} className="flex-1 min-w-[150px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
                   <span className="text-[10px] uppercase tracking-wider text-white/45">{v}</span>
                   <span className="text-[18px] font-bold tabular-nums leading-none" style={{ color: sgn(e.closed - e.fee) }}>{fmtUsd(e.closed - e.fee)}</span>
                   <span className="text-[10px] text-white/40">{e.count} 笔 · 手续费 {fmtUsdPlain(e.fee)}</span>
@@ -405,7 +405,7 @@ export const AccountsHub = () => {
                 </thead>
                 <tbody>
                   {viewPositions.map((p, i) => (
-                    <tr key={`${p.venue}-${p.coin}-${i}`} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                    <tr key={`${p.venue}-${p.coin}-${i}`} className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]">
                       <td className="py-1.5 px-2 text-white/50">{p.venue}</td>
                       <td className="py-1.5 px-2 font-bold text-white/80">{p.coin}</td>
                       <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: p.size >= 0 ? UP : DOWN }}>{p.size > 0 ? '+' : ''}{p.size}</td>
@@ -442,7 +442,7 @@ export const AccountsHub = () => {
                 </thead>
                 <tbody>
                   {recentFills.map(f => (
-                    <tr key={`${f.venue}:${f.id}`} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                    <tr key={`${f.venue}:${f.id}`} className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]">
                       <td className="py-1.5 px-2 tabular-nums text-white/55 whitespace-nowrap">{fmtTime(f.time)}</td>
                       <td className="py-1.5 px-2 text-white/50">{f.venue}</td>
                       <td className="py-1.5 px-2 font-semibold text-white/75">{f.coin}</td>
@@ -469,13 +469,13 @@ export const AccountsHub = () => {
             <Card title="模拟仓概览" right={
               (sim.positions.length > 0 || sim.fills.length > 0) ? (
                 <button onClick={() => { if (window.confirm('清空所有模拟持仓 / 挂单 / 成交？不可撤销。')) sim.clearBook(); }}
-                  className="h-[26px] px-2.5 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/10 text-[11px] font-semibold text-white/55 hover:text-[#FF5F57] hover:bg-white/[0.1] transition-colors">
+                  className="h-[26px] px-2.5 rounded-md bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[11px] font-semibold text-white/55 hover:text-[#FF5F57] hover:bg-[var(--color-surface-5)] transition-colors">
                   清空模拟
                 </button>
               ) : null
             }>
               <div className="flex gap-2.5 flex-wrap">
-                <div className="flex-1 min-w-[160px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+                <div className="flex-1 min-w-[160px] flex flex-col gap-1 px-4 py-3 rounded-xl bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
                   <span className="text-[10px] uppercase tracking-wider text-white/45">浮动盈亏（盯市）</span>
                   <span className="text-[22px] font-bold tabular-nums leading-none" style={{ color: sgn(simNetPnl) }}>{fmtUsd(simNetPnl)}</span>
                   <span className="text-[10px] text-white/40">{sim.positions.length} 持仓 · {sim.openOrders.length} 挂单 · 手续费 {fmtUsdPlain(simFee)}</span>
@@ -509,7 +509,7 @@ export const AccountsHub = () => {
                     </thead>
                     <tbody>
                       {sim.positions.map(p => (
-                        <tr key={p.id} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                        <tr key={p.id} className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]">
                           <td className="py-1.5 px-2 font-semibold text-white/80">{p.symbol}</td>
                           <td className="py-1.5 px-2" style={{ color: p.side === 'long' ? UP : DOWN }}>{p.side === 'long' ? '多' : '空'}</td>
                           <td className="py-1.5 px-2 text-right tabular-nums text-white/70">{p.qty}</td>
@@ -540,7 +540,7 @@ export const AccountsHub = () => {
                     </thead>
                     <tbody>
                       {sim.openOrders.map(o => (
-                        <tr key={o.id} className="border-t border-white/[0.05]">
+                        <tr key={o.id} className="border-t border-[var(--color-border-subtle)]">
                           <td className="py-1.5 px-2 font-semibold text-white/75">{o.symbol}</td>
                           <td className="py-1.5 px-2" style={{ color: o.side === 'buy' ? UP : DOWN }}>{o.side === 'buy' ? '买' : '卖'}</td>
                           <td className="py-1.5 px-2 text-white/50">{o.type}</td>
@@ -570,7 +570,7 @@ export const AccountsHub = () => {
                     </thead>
                     <tbody>
                       {simRecent.map(f => (
-                        <tr key={f.id} className="border-t border-white/[0.05]">
+                        <tr key={f.id} className="border-t border-[var(--color-border-subtle)]">
                           <td className="py-1.5 px-2 tabular-nums text-white/55 whitespace-nowrap">{fmtTime(f.timestamp)}</td>
                           <td className="py-1.5 px-2 font-semibold text-white/75">{f.symbol}</td>
                           <td className="py-1.5 px-2" style={{ color: f.side === 'buy' ? UP : DOWN }}>{f.side === 'buy' ? '买' : '卖'}</td>

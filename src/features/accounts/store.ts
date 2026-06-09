@@ -1,7 +1,7 @@
 // 已配置账户列表（存哪些账户：Hyperliquid 地址 / 交易所 key 引用）。
 // 数据同时存 localStorage（快速访问）和后端（持久化，清缓存不丢）。
 import type { VenueAccount } from './types';
-import { put as apiPut } from '../../api';
+import { get as apiGet, put as apiPut } from '../../api';
 
 const KEY = 'weiwei.accounts.v1';
 const listeners = new Set<() => void>();
@@ -19,11 +19,35 @@ function persist(): void {
   listeners.forEach(f => f());
 }
 
+function notify(): void {
+  listeners.forEach(f => f());
+}
+
 export function getAccounts(): VenueAccount[] { return ACCOUNTS; }
 
 export function subscribeAccounts(fn: () => void): () => void {
   listeners.add(fn);
   return () => { listeners.delete(fn); };
+}
+
+export async function hydrateAccountsFromBackend(): Promise<void> {
+  try {
+    const remote = await apiGet<VenueAccount[]>('/api/accounts');
+    if (!Array.isArray(remote)) return;
+    const localKeys = new Set(ACCOUNTS.map(a => a.id));
+    const merged = [...ACCOUNTS];
+    for (const acct of remote) {
+      if (!acct?.id || localKeys.has(acct.id)) continue;
+      merged.push(acct);
+      localKeys.add(acct.id);
+    }
+    if (merged.length === ACCOUNTS.length) return;
+    ACCOUNTS = merged;
+    try { localStorage.setItem(KEY, JSON.stringify(ACCOUNTS)); } catch { /* ignore */ }
+    notify();
+  } catch {
+    /* backend is optional; localStorage remains the fast path */
+  }
 }
 
 export function addAccount(a: Omit<VenueAccount, 'id'>): VenueAccount {

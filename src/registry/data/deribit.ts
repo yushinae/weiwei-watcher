@@ -47,6 +47,8 @@ export interface DeribitData {
   fetchedAt: number;
 }
 
+export type DeribitOptionUniverse = 'inverse' | 'linear-usdc';
+
 export interface VolConeSlice {
   tenors: number[];
   p10: number[];
@@ -99,7 +101,12 @@ export function closestDeltaIV(opts: ParsedOption[], targetAbsDelta: number): nu
 // minGroupDays / perOptFloor 让监控页与期权链共用解析但各取所需：
 //   监控页 = (0, 0.02)：放开 0DTE/末日，只挡掉 ~30 分钟内即将到期的；
 //   期权链 = (0, 0.02)：放开末日/临期期权，只挡掉 ~30 分钟内即将到期的。
-export function processDeribitResponse(results: any[], minGroupDays = 0, perOptFloor = 0.02): DeribitData {
+export function processDeribitResponse(
+  results: any[],
+  minGroupDays = 0,
+  perOptFloor = 0.02,
+  priceUnit: 'coin' | 'usd' = 'coin',
+): DeribitData {
   const now = Date.now();
   const parsed: ParsedOption[] = [];
 
@@ -122,7 +129,11 @@ export function processDeribitResponse(results: any[], minGroupDays = 0, perOptF
     if (Math.abs(delta) < deltaFloor || Math.abs(delta) > 0.96) continue;
 
     // Real USD prices — Deribit inverse options quote in coin, so ×underlying (forward).
-    const toUsd = (c: unknown) => { const n = c as number; return Number.isFinite(n) && n > 0 ? n * spot : null; };
+    const toUsd = (c: unknown) => {
+      const n = c as number;
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return priceUnit === 'coin' ? n * spot : n;
+    };
 
     parsed.push({
       strike, type, daysToExp, T,
@@ -279,28 +290,37 @@ export function useDeribitOptions(coin: Coin) {
 // ── 期权链专用：含末日/临期期权（独立缓存，不影响监控页的 GEX/速读）──
 const DERIBIT_CHAIN_CACHE = new Map<string, { data: DeribitData; ts: number }>();
 
-export async function fetchDeribitChainOptions(currency: 'BTC' | 'ETH'): Promise<DeribitData> {
-  const cached = DERIBIT_CHAIN_CACHE.get(currency);
+export async function fetchDeribitChainOptions(currency: 'BTC' | 'ETH', universe: DeribitOptionUniverse = 'inverse'): Promise<DeribitData> {
+  const cacheKey = `${universe}-${currency}`;
+  const cached = DERIBIT_CHAIN_CACHE.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-  const url = `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${currency}&kind=option`;
+  const apiCurrency = universe === 'linear-usdc' ? 'USDC' : currency;
+  const url = `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${apiCurrency}&kind=option`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const json = await resp.json();
   if (json.error) throw new Error(json.error.message ?? 'API error');
-  const rawResults: any[] = json.result ?? [];
+  const rawResults: any[] = universe === 'linear-usdc'
+    ? (json.result ?? []).filter((b: any) =>
+        b.base_currency === currency &&
+        b.quote_currency === 'USDC' &&
+        typeof b.instrument_name === 'string' &&
+        b.instrument_name.startsWith(`${currency}_USDC-`)
+      )
+    : json.result ?? [];
 
   const totalOptOI        = rawResults.reduce((s, b) => s + (b.open_interest ?? 0), 0);
   const totalOptVol24hUSD = rawResults.reduce((s, b) => s + (b.volume_usd      ?? 0), 0);
 
-  const data = processDeribitResponse(rawResults, 0, 0.02); // 放开 0DTE/末日
+  const data = processDeribitResponse(rawResults, 0, 0.02, universe === 'linear-usdc' ? 'usd' : 'coin'); // 放开 0DTE/末日
   data.totalOptOI        = totalOptOI;
   data.totalOptVol24hUSD = totalOptVol24hUSD;
-  DERIBIT_CHAIN_CACHE.set(currency, { data, ts: Date.now() });
+  DERIBIT_CHAIN_CACHE.set(cacheKey, { data, ts: Date.now() });
   return data;
 }
 
-export function useDeribitChainOptions(coin: Coin) {
+export function useDeribitChainOptions(coin: Coin, universe: DeribitOptionUniverse = 'inverse') {
   const [data, setData] = useState<DeribitData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -308,8 +328,8 @@ export function useDeribitChainOptions(coin: Coin) {
     let active = true;
     setLoading(true);
     const unsub = subscribeData<DeribitData>(
-      `options-chain-${coin}`,
-      () => fetchDeribitChainOptions(coin),
+      universe === 'linear-usdc' ? `deribit-usdc-chain-${coin}` : `deribit-chain-${coin}`,
+      () => fetchDeribitChainOptions(coin, universe),
       CACHE_TTL,
       d => {
         if (!active) return;
@@ -318,7 +338,7 @@ export function useDeribitChainOptions(coin: Coin) {
       },
     );
     return () => { active = false; unsub(); };
-  }, [coin]);
+  }, [coin, universe]);
 
   return { data, loading };
 }

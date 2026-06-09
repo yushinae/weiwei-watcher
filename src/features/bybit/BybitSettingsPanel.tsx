@@ -3,17 +3,18 @@ import { cn } from '../../lib/utils';
 import {
   hasCredentials,
   saveCredentials, clearCredentials,
-  getApiKey,
+  getApiKey, isEnvConfigured,
 } from './auth';
 import { useBybitAuthState } from './usePositions';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Simplified settings: just API key + secret, no PIN, no lock/unlock.
+// Simplified settings: just API key + secret. .env is the preferred path.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function BybitSettingsPanel({ onClose }: { onClose?: () => void }) {
   useBybitAuthState();
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const envConfigured = isEnvConfigured();
 
   useEffect(() => {
     hasCredentials().then(setConfigured);
@@ -22,6 +23,7 @@ export function BybitSettingsPanel({ onClose }: { onClose?: () => void }) {
   }, []);
 
   if (configured === null) return <div className="text-[11px] text-white/40 p-3">检查凭证状态…</div>;
+  if (envConfigured) return <ManageForm onClose={onClose} env />;
   if (!configured) return <SetupForm onSaved={() => { setConfigured(true); onClose?.(); }} />;
   return <ManageForm onClose={onClose} />;
 }
@@ -65,7 +67,7 @@ function SetupForm({ onSaved }: { onSaved?: () => void }) {
     <div className="flex flex-col gap-3 max-w-[420px]">
       <div className="text-[11px] leading-relaxed text-white/55 bg-[#2B2D35] rounded-lg p-3">
         到 Bybit → API → 创建 key，<strong>只勾 Read 权限</strong>，强烈建议绑定 IP 白名单。
-        Key 存在本地后端（server/data/credentials.json），不出浏览器。
+        推荐直接写在 .env。这里保存时会写入本地后端（server/data/credentials.json）。
       </div>
       <Field label="API Key">
         <input className={inputCls} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="xxxxxxxxxxxxxxxxxxxx" />
@@ -81,21 +83,23 @@ function SetupForm({ onSaved }: { onSaved?: () => void }) {
   );
 }
 
-function ManageForm({ onClose }: { onClose?: () => void }) {
+function ManageForm({ onClose, env = false }: { onClose?: () => void; env?: boolean }) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   useEffect(() => { getApiKey().then(setApiKey); }, []);
 
   return (
     <div className="flex flex-col gap-3 max-w-[360px]">
       <div className="text-[11px] text-white/55">
-        已连接 · key <span className="font-mono text-white/50">{apiKey?.slice(0, 6)}…{apiKey?.slice(-4)}</span>
+        {env ? '已从 .env 读取' : '已保存到本地后端'} · key <span className="font-mono text-white/50">{apiKey?.slice(0, 6)}…{apiKey?.slice(-4)}</span>
       </div>
-      <div className="flex gap-2">
-        <button
-          className={cn(btnGhost, 'text-rose-300/80 border-rose-400/30')}
-          onClick={async () => { if (confirm('清除已保存的 key？')) { await clearCredentials(); onClose?.(); } }}
-        >清除 key</button>
-      </div>
+      {!env && (
+        <div className="flex gap-2">
+          <button
+            className={cn(btnGhost, 'text-rose-300/80 border-rose-400/30')}
+            onClick={async () => { if (confirm('清除已保存的 key？')) { await clearCredentials(); onClose?.(); } }}
+          >清除 key</button>
+        </div>
+      )}
     </div>
   );
 }

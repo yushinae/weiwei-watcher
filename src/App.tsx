@@ -54,6 +54,13 @@ import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
 import { startCacheCleanup } from './registry/data/cacheCleanup';
 import { DERIBIT_WS } from './registry/data/ws';
+import {
+  hydrateAlertsFromBackend,
+  hydratePositionsFromBackend,
+  hydrateWatchlistFromBackend,
+} from './registry/monitorWidgetsBase';
+import { hydrateAccountsFromBackend } from './features/accounts/store';
+import { hydrateFillsFromBackend } from './features/accounts/fillStore';
 
 // ── Deribit index price hook — via shared WebSocket, no REST polling ───────────
 
@@ -592,6 +599,13 @@ export default function App() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     let lastScrollTs = 0;
+    void Promise.all([
+      hydrateAccountsFromBackend(),
+      hydrateFillsFromBackend(),
+      hydrateAlertsFromBackend(),
+      hydratePositionsFromBackend(),
+      hydrateWatchlistFromBackend(),
+    ]);
     const onScroll = () => {
       const now = Date.now();
       if (now - lastScrollTs < 100) return;

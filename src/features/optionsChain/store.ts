@@ -88,9 +88,11 @@ export function useUnderlyingExpiries(): ExpiryMap {
   useEffect(() => {
     let active = true;
     (async () => {
-      const [dBTC, dETH, bBTC, bETH] = await Promise.all([
+      const [dBTC, dETH, dBTC_USDC, dETH_USDC, bBTC, bETH] = await Promise.all([
         fetchDeribitChainOptions('BTC').catch(() => null),
         fetchDeribitChainOptions('ETH').catch(() => null),
+        fetchDeribitChainOptions('BTC', 'linear-usdc').catch(() => null),
+        fetchDeribitChainOptions('ETH', 'linear-usdc').catch(() => null),
         fetchOptionChain('BTC').catch(() => null),
         fetchOptionChain('ETH').catch(() => null),
       ]);
@@ -100,8 +102,8 @@ export function useUnderlyingExpiries(): ExpiryMap {
       const fromBybit = (d: Awaited<ReturnType<typeof fetchOptionChain>> | null): ExpiryMeta[] =>
         d ? d.expiries.map(e => ({ key: e.label, label: e.label, daysToExp: e.daysToExp, dateLabel: fmtShortDate(e.expiryTs) })) : [];
       const next: ExpiryMap = {
-        BTC: fromDeribit(dBTC), BTC_USDC: fromDeribit(dBTC),
-        ETH: fromDeribit(dETH), ETH_USDC: fromDeribit(dETH),
+        BTC: fromDeribit(dBTC), BTC_USDC: fromDeribit(dBTC_USDC),
+        ETH: fromDeribit(dETH), ETH_USDC: fromDeribit(dETH_USDC),
         BTC_USDT: fromBybit(bBTC), ETH_USDT: fromBybit(bETH),
       };
       expiryCache = next;

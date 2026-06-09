@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, RefreshCw, Download, Wallet, Upload, X, Settings } from 'lucide-react';
 import {
-  getAccounts, subscribeAccounts, addAccount, removeAccount, ensureEnvAccounts,
+  getAccounts, subscribeAccounts, addAccount, removeAccount, ensureEnvAccounts, hydrateAccountsFromBackend,
 } from './store';
 import {
-  loadAllFills, mergeFills, getLastSync, setLastSync, clearAccountData, exportFillsJson,
+  loadAllFills, mergeFills, getLastSync, setLastSync, clearAccountData, exportFillsJson, hydrateFillsFromBackend,
 } from './fillStore';
 import { setBook } from './bookStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
@@ -73,7 +73,12 @@ export const AccountsHub = () => {
   const [label, setLabel] = useState('');
 
   useEffect(() => {
-    ensureEnvAccounts();            // 从 .env 自动建账户（HL 地址 / Bybit key）
+    void hydrateAccountsFromBackend().then(() => {
+      ensureEnvAccounts();          // 从 .env 自动建账户（HL 地址 / Bybit key）
+      setAccounts([...getAccounts()]);
+    });
+    void hydrateFillsFromBackend().then(() => setFills(loadAllFills()));
+    ensureEnvAccounts();
     setAccounts([...getAccounts()]);
     return subscribeAccounts(() => setAccounts([...getAccounts()]));
   }, []);

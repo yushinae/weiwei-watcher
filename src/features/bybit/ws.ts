@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Bybit V5 Private WebSocket — singleton, connects when credentials unlock.
+// Bybit V5 Private WebSocket — singleton, connects when .env credentials exist.
 //
 // Auth handshake (V5):
 //   1. WS opens
@@ -12,10 +12,10 @@
 // All traffic goes through /bybit-ws Vite proxy → wss://stream.bybit.com/v5/private
 //
 // Shared plumbing (status / subs ref-counting / reconnect / ping) lives in BaseWS;
-// this file only adds the auth handshake + unlock-gated connect.
+// this file only adds the auth handshake + .env-gated connect.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { getCredentials, isUnlocked, subscribeAuthState } from './auth';
+import { getEnvCredentials, hasBrowserWsCredentials, subscribeAuthState } from './auth';
 import { hmacSha256Hex } from './crypto';
 import { BaseWS, type WsStatus } from '../../lib/baseWs';
 
@@ -51,8 +51,8 @@ class BybitPrivateWS extends BaseWS<WsStatus | 'auth'> {
     return `${proto}://${location.host}${PROXY_PATH}`;
   }
 
-  /** Only open the socket once credentials are unlocked. */
-  protected canConnect(): boolean { return isUnlocked(); }
+  /** Only open the socket when the browser can sign locally; backend-managed keys use REST proxy. */
+  protected canConnect(): boolean { return hasBrowserWsCredentials(); }
 
   /** Keep reconnecting only while a consumer still wants the connection. */
   protected shouldReconnect(): boolean { return this.wantConnected; }
@@ -60,7 +60,7 @@ class BybitPrivateWS extends BaseWS<WsStatus | 'auth'> {
   protected handleOpen(): void { void this.authenticate(); }
 
   private async authenticate(): Promise<void> {
-    const creds = await getCredentials();
+    const creds = getEnvCredentials();
     if (!creds || !this.ws) return;
     const expires = (Date.now() + AUTH_EXPIRES_MS).toString();
     const sig = await hmacSha256Hex(creds.secret, `GET/realtime${expires}`);
@@ -99,10 +99,10 @@ class BybitPrivateWS extends BaseWS<WsStatus | 'auth'> {
 
 export const BYBIT_PRIVATE_WS = new BybitPrivateWS();
 
-// Auto-connect on unlock, disconnect on lock or credential clear.
+// Auto-connect when .env credentials are available.
 subscribeAuthState(() => {
-  if (isUnlocked()) BYBIT_PRIVATE_WS.connect();
+  if (hasBrowserWsCredentials()) BYBIT_PRIVATE_WS.connect();
   else BYBIT_PRIVATE_WS.disconnect();
 });
-// If credentials are already unlocked when this module first loads, connect now.
-if (isUnlocked()) BYBIT_PRIVATE_WS.connect();
+// If .env credentials are already available when this module first loads, connect now.
+if (hasBrowserWsCredentials()) BYBIT_PRIVATE_WS.connect();

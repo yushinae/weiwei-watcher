@@ -54,9 +54,6 @@ export default function DataHealthIndicator() {
   const color = sev >= 3 ? '#EF4444' : sev >= 2 ? '#F59E0B' : '#22C55E';
   const animClass = sev >= 3 ? 'anim-alert' : sev >= 2 ? 'anim-ping' : 'anim-breathe';
 
-  // 降级时旁边喊一声（安静绿不喊）
-  const shout = sev >= 3 ? '数据中断' : sev >= 2 ? '数据延迟' : null;
-
   // 新鲜度清单：只列「当前活跃」的 feed —— 关键 feed 全列 + 已降级的非关键 feed。
   const degradedKinds: FreshKind[] = ['aging', 'stale', 'error', 'paused'];
   const freshRows = feeds
@@ -67,7 +64,7 @@ export default function DataHealthIndicator() {
   const close = () => { tooltipTimer.current = setTimeout(() => setShowTooltip(false), 250); };
 
   return (
-    <div className="relative flex items-center shrink-0 self-stretch" onMouseEnter={open} onMouseLeave={close}>
+    <div className="relative inline-flex items-center shrink-0 self-stretch" onMouseEnter={open} onMouseLeave={close}>
       <style>{`
         @keyframes ws-breathe { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.2;transform:scale(1.35);} }
         @keyframes ws-ping { 0%{transform:scale(1);opacity:.7;} 50%{transform:scale(1.8);opacity:.3;} 100%{transform:scale(2.2);opacity:0;} }
@@ -77,10 +74,7 @@ export default function DataHealthIndicator() {
         .anim-alert   { animation: ws-alert 1.2s ease-in-out infinite; }
       `}</style>
 
-      {shout && (
-        <span className="absolute right-full mr-1.5 text-[11px] font-bold whitespace-nowrap top-1/2 -translate-y-1/2 pointer-events-none" style={{ color }}>{shout}</span>
-      )}
-      <div className="bb-topbar-button flex items-center justify-center rounded-full w-[30px] h-[30px] active:scale-[0.98] transition-all duration-[120ms] cursor-pointer">
+      <div className="bb-topbar-button flex h-[30px] w-[30px] items-center justify-center rounded-full active:scale-[0.98] transition-all duration-[120ms] cursor-pointer">
         <span className="relative flex h-4 w-4 items-center justify-center">
           <span className={`absolute inline-flex h-full w-full rounded-full ${animClass}`} style={{ backgroundColor: color }} />
           <span className="relative h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />

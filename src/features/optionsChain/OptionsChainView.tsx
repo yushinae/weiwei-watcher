@@ -24,7 +24,7 @@ import {
 import { Popover, ChainRowComp, ColHeaderRow, SectionRow } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import { useGlobalOptionBook } from './optionBookStore';
-import { FrameControls, PositionsPanel, TradingPanel } from './TradingPanel';
+import { FrameControls, PositionsPanel, TradingPanel, type PositionMarketQuote } from './TradingPanel';
 import './options-chain.css';
 
 type FilterKey = 'all' | 'atm5' | 'atm10';
@@ -34,6 +34,7 @@ type TabState = {
   showDist: boolean;
   visibleColIds: string[];
 };
+type PendingJump = { coin: 'BTC' | 'ETH'; expiryCompact: string; strike: number };
 
 const DEFAULT_VISIBLE_COL_IDS = SIDE_COLS.map(c => c.id);
 const DEFAULT_TAB_STATE: TabState = {
@@ -124,6 +125,7 @@ export default function OptionsChainView() {
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [maximized, setMaximized] = useState(false);
   const [chainCollapsed, setChainCollapsed] = useState(false);
+  const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
 
   const bybit = useOptionChain(coin);
   const deribit = useDeribitOptions(coin);
@@ -161,14 +163,31 @@ export default function OptionsChainView() {
 
   const liveTicks = useChainStream(source, expiry);
   const liveRows = useMemo(() => {
-    if (Object.keys(liveTicks).length === 0) return rows;
-    return rows.map(r => {
+    const withTicks = Object.keys(liveTicks).length === 0 ? rows : rows.map(r => {
       const c = liveTicks[`C-${r.strike}`];
       const p = liveTicks[`P-${r.strike}`];
       if (!c && !p) return r;
       return { ...r, call: c ? { ...r.call, ...c } : r.call, put: p ? { ...r.put, ...p } : r.put };
     });
-  }, [rows, liveTicks]);
+    if (!expiry || book.positions.length === 0) return withTicks;
+
+    const posBySymbol = new Map<string, number>();
+    for (const p of book.positions) {
+      const signedQty = p.side === 'long' ? p.qty : -p.qty;
+      posBySymbol.set(p.symbol, (posBySymbol.get(p.symbol) ?? 0) + signedQty);
+    }
+
+    return withTicks.map(r => {
+      const callPos = posBySymbol.get(optionSymbol(coin, expiry.dateLabel, r.strike, 'C'));
+      const putPos = posBySymbol.get(optionSymbol(coin, expiry.dateLabel, r.strike, 'P'));
+      if (callPos === undefined && putPos === undefined) return r;
+      return {
+        ...r,
+        call: callPos === undefined ? r.call : { ...r.call, pos: callPos },
+        put: putPos === undefined ? r.put : { ...r.put, pos: putPos },
+      };
+    });
+  }, [rows, liveTicks, book.positions, coin, expiry]);
 
   const liveSelected = useMemo<SelectedCell | null>(() => {
     if (!selectedCell) return null;
@@ -181,16 +200,26 @@ export default function OptionsChainView() {
   const spotDp = dec;
   const dte = expiry ? dteLabel(expiry.daysToExp) : '—';
 
+  const marketQuotes = useMemo(() => {
+    const next = new Map<string, PositionMarketQuote>();
+    if (!expiry) return next;
+    for (const r of liveRows) {
+      next.set(optionSymbol(coin, expiry.dateLabel, r.strike, 'C'), { ...r.call, source, dec });
+      next.set(optionSymbol(coin, expiry.dateLabel, r.strike, 'P'), { ...r.put, source, dec });
+    }
+    return next;
+  }, [liveRows, coin, expiry, source, dec]);
+
   const updateMarks = book.updateMarks;
   useEffect(() => {
     if (!expiry) return;
     const marks: Record<string, number> = {};
-    for (const r of expiry.rows) {
+    for (const r of liveRows) {
       if (r.call.mark > 0) marks[optionSymbol(coin, expiry.dateLabel, r.strike, 'C')] = r.call.mark;
       if (r.put.mark > 0) marks[optionSymbol(coin, expiry.dateLabel, r.strike, 'P')] = r.put.mark;
     }
     updateMarks(marks);
-  }, [expiry, coin, updateMarks]);
+  }, [expiry, liveRows, coin, updateMarks]);
 
   const ownedSidesByStrike = useMemo(() => {
     if (!expiry) return new Map<number, 'call' | 'put' | 'both'>();
@@ -283,6 +312,45 @@ export default function OptionsChainView() {
 
   useEffect(() => { recalcWindow(); }, [recalcWindow, rows.length, expiry?.key, filterKey]);
   useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); }, []);
+
+  const jumpToSymbol = useCallback((symbol: string) => {
+    const m = symbol.match(/^(BTC|ETH)-([0-9]{1,2}[A-Z]{3}[0-9]{4})-([0-9.]+)-(C|P)$/);
+    if (!m) return;
+    const [, jumpCoin, expiryCompact, strikeRaw] = m;
+    const jumpUnderlying = coinOf(activeUnderlying) === jumpCoin ? activeUnderlying : underlyingFor(jumpCoin as 'BTC' | 'ETH', source);
+    const targetTabIdx = tabs.indexOf(jumpUnderlying);
+    if (targetTabIdx >= 0) {
+      setActiveTabIdx(targetTabIdx);
+    } else {
+      setTabs(prev => [...prev, jumpUnderlying]);
+      setActiveTabIdx(tabs.length);
+    }
+    setPendingJump({ coin: jumpCoin as 'BTC' | 'ETH', expiryCompact, strike: Number(strikeRaw) });
+    setSelectedCell(null);
+    setChainCollapsed(false);
+  }, [activeUnderlying, source, tabs]);
+
+  useEffect(() => {
+    if (!pendingJump || pendingJump.coin !== coin || expiries.length === 0) return;
+    const idx = expiries.findIndex(e => e.dateLabel.replace(/\s+/g, '').toUpperCase() === pendingJump.expiryCompact);
+    if (idx < 0) return;
+    if (idx !== expiryIdx) {
+      setTabState({ expiryIdx: idx, filterKey: 'all' });
+      return;
+    }
+
+    const sc = dataRef.current;
+    const rowIdx = rows.findIndex(r => r.strike === pendingJump.strike);
+    if (rowIdx < 0 && filterKey !== 'all' && allRows.some(r => r.strike === pendingJump.strike)) {
+      setTabState({ filterKey: 'all' });
+      return;
+    }
+    if (!sc || rowIdx < 0) return;
+    const left = colsWidth + STRIKE_W / 2 - sc.clientWidth / 2;
+    const top = rowIdx * ROW_H + 70 - sc.clientHeight / 2;
+    sc.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
+    setPendingJump(null);
+  }, [pendingJump, coin, expiries, expiryIdx, rows, allRows, filterKey, colsWidth, setTabState]);
 
   // Available underlyings not yet added as tabs
   const availableUnderlyings = UNDERLYING_GROUPS.flatMap(g => g.items)
@@ -441,26 +509,6 @@ export default function OptionsChainView() {
 
           <div className="flex-1" />
 
-          {(() => {
-            const c = source === 'bybit' ? '#f7a600' : 'var(--db-accent)';
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  const newSrc = source === 'bybit' ? 'deribit' : 'bybit';
-                  const newU = underlyingFor(coin, newSrc);
-                  setTabs(prev => prev.map((t, i) => i === activeTabIdx ? newU : t));
-                }}
-                className="flex items-center gap-1.5 h-7 px-2.5 rounded-full border transition-[filter] hover:brightness-125 shrink-0"
-                style={{ borderColor: `color-mix(in srgb, ${c} 45%, transparent)`, background: `color-mix(in srgb, ${c} 12%, transparent)` }}
-                aria-label={`切换数据源（当前 ${source === 'bybit' ? 'Bybit' : 'Deribit'}）`}
-                title="切换数据源"
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-                <span className="text-[11px] font-extrabold" style={{ color: c }}>{source === 'bybit' ? 'Bybit' : 'Deribit'}</span>
-              </button>
-            );
-          })()}
         </div>
 
         {/* ── Chain card ────────────────────────────────────────────────── */}
@@ -528,7 +576,7 @@ export default function OptionsChainView() {
         </div>
 
         <div className="mt-1 overflow-auto shrink-0 w-full">
-          <PositionsPanel book={book} embedded />
+          <PositionsPanel book={book} embedded onSymbolClick={jumpToSymbol} marketQuotes={marketQuotes} />
         </div>
       </div>
 
@@ -544,7 +592,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : `options-${coin}`} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : `options-${coin}`} marketQuotes={marketQuotes} />
               </motion.div>
             </div>
           </>

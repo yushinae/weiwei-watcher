@@ -4,14 +4,14 @@ import { MONITOR_TABS, type MonitorTabId, type Coin } from '../types';
 
 function CoinSeg({ value, onChange }: { value: Coin; onChange: (c: Coin) => void }) {
   return (
-    <div className="bb-coin-toggle inline-flex gap-0.5 rounded-md p-0.5">
+    <div className="bb-coin-toggle inline-flex h-7 items-center gap-0.5 rounded-[4px] p-0.5">
       {(['BTC', 'ETH'] as Coin[]).map(c => (
         <button
           key={c}
           type="button"
           onClick={() => onChange(c)}
           className={cn(
-            'bb-coin-toggle-item rounded-[5px] px-2.5 py-0.5 text-[11px] font-semibold transition-colors duration-[120ms]',
+            'bb-coin-toggle-item h-6 rounded-[4px] px-3 text-[11px] font-semibold transition-colors duration-[120ms]',
             value === c
               ? 'is-selected'
               : 'text-white/48 hover:text-white/72',
@@ -45,21 +45,20 @@ export function MonitorLayout({
         <div className="w-px h-4 bg-[var(--color-border-subtle)] mr-2 shrink-0" />
 
         {/* Tabs */}
-        <div className="flex items-end h-full gap-0.5">
+        <div className="flex h-7 items-center gap-0.5 rounded-[4px] bg-[#2B2D35] p-0.5">
           {MONITOR_TABS.map(t => (
             <button
               key={t.id}
               type="button"
               onClick={() => onTabChange(t.id)}
               className={cn(
-                'relative h-full px-3 text-[12px] font-semibold tracking-normal transition-colors select-none outline-none focus-visible:text-white/90',
-                tab === t.id ? 'text-white/88' : 'text-white/45 hover:text-white/70',
+                'h-6 min-w-[52px] rounded-[4px] px-3 text-[12px] font-semibold tracking-normal transition-colors duration-[120ms] select-none outline-none active:translate-y-px',
+                tab === t.id
+                  ? 'bg-[#3A3F40] text-[var(--nexus-accent)]'
+                  : 'text-white/50 hover:bg-[#3A3B40] hover:text-white/82 focus-visible:bg-[#3A3B40] focus-visible:text-white/82',
               )}
             >
               {t.label}
-              {tab === t.id && (
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full bg-[var(--nexus-accent)] shadow-[0_0_10px_rgba(255,156,46,0.38)]" />
-              )}
             </button>
           ))}
         </div>

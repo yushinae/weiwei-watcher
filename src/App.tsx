@@ -16,6 +16,7 @@ import {
 import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
 
 import { cn } from './lib/utils';
+import { useEscapeKey } from './lib/useEscapeKey';
 import { OptionsHoverMenu } from './features/optionsChain/OptionsHoverMenu';
 import DigitalClock from './components/DigitalClock';
 import DataHealthIndicator from './components/DataHealthIndicator';
@@ -586,6 +587,7 @@ export default function App() {
   useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEscapeKey(settingsOpen, () => setSettingsOpen(false));
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;

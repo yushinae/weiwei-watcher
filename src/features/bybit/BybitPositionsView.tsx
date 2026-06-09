@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 import { BybitSettingsPanel } from './BybitSettingsPanel';
 import { useGlobalOptionBook } from '../optionsChain/optionBookStore';
 import type { SimPosition } from '../optionsChain/simBook';
@@ -68,6 +69,7 @@ export default function BybitPositionsView() {
   const navigate = useNavigate();
   const unlocked = useBybitAuthState();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEscapeKey(settingsOpen, () => setSettingsOpen(false));
   const [demo, setDemo] = useState(false);
   const [tab, setTab] = useState<'positions' | 'history' | 'sim-options'>('positions');
   const optionBook = useGlobalOptionBook();

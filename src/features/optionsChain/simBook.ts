@@ -6,7 +6,8 @@
 // orders and marks open positions to market. Pure reducer + thin hook → easy to test.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
+import { soundOrderCancelled, soundOrderFilled, soundOrderPlaced } from './orderSounds';
 
 export interface SimOrder { id: string; symbol: string; side: 'buy' | 'sell'; type: string; qty: number; price: number; optDelta: number; optGamma?: number; optTheta?: number; optVega?: number; status: 'pending' | 'filled' | 'cancelled'; createdAt: number; filledPrice?: number }
 export interface SimPosition { id: string; symbol: string; side: 'long' | 'short'; qty: number; avgEntryPrice: number; markPrice: number; unrealizedPnL: number; delta: number; gamma: number; theta: number; vega: number }
@@ -95,6 +96,7 @@ export function applyFill(ps: SimPosition[], symbol: string, side: 'buy' | 'sell
 export type BookAction =
   | { t: 'place'; a: PlaceArgs }
   | { t: 'cancel'; id: string }
+  | { t: 'edit'; id: string; price: number; qty: number }
   | { t: 'marks'; marks: Record<string, number> }
   | { t: 'clear' };
 
@@ -153,6 +155,23 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
         orderHistory: s.orderHistory.map(o => o.id === action.id ? { ...o, status: 'cancelled' } : o),
       };
     }
+    case 'edit': {
+      if (!(action.price > 0) || !(action.qty > 0)) return s;
+      let changed = false;
+      const patch = (o: SimOrder): SimOrder => {
+        if (o.id !== action.id || o.status !== 'pending') return o;
+        if (o.price === action.price && o.qty === action.qty) return o;
+        changed = true;
+        return { ...o, price: action.price, qty: action.qty };
+      };
+      const openOrders = s.openOrders.map(patch);
+      if (!changed) return s;
+      return {
+        ...s,
+        openOrders,
+        orderHistory: s.orderHistory.map(patch),
+      };
+    }
     case 'marks': {
       const { marks } = action;
       // Fill any marketable resting orders (buy: mark ≤ limit, sell: mark ≥ limit).
@@ -195,9 +214,19 @@ export function bookReducer(s: BookState, action: BookAction): BookState {
 
 export function useLocalBook() {
   const [state, dispatch] = useReducer(bookReducer, { positions: [], openOrders: [], orderHistory: [], fills: [] });
+  const prevCounts = useRef({ openOrders: 0, fills: 0, cancelled: 0 });
+  useEffect(() => {
+    const prev = prevCounts.current;
+    const cancelled = state.orderHistory.filter(o => o.status === 'cancelled').length;
+    if (state.fills.length > prev.fills) soundOrderFilled();
+    else if (state.openOrders.length > prev.openOrders) soundOrderPlaced();
+    else if (cancelled > prev.cancelled) soundOrderCancelled();
+    prevCounts.current = { openOrders: state.openOrders.length, fills: state.fills.length, cancelled };
+  }, [state.openOrders.length, state.fills.length, state.orderHistory]);
   const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
   const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
+  const editOrder = useCallback((id: string, price: number, qty: number) => dispatch({ t: 'edit', id, price, qty }), []);
   const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
   const clearBook = useCallback(() => dispatch({ t: 'clear' }), []);
-  return { ...state, placeOrder, cancelOrder, updateMarks, clearBook };
+  return { ...state, placeOrder, cancelOrder, editOrder, updateMarks, clearBook };
 }

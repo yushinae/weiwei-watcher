@@ -52,16 +52,16 @@ function Stepper({ value, onChange, step = 1000, min = 1000, max = 200000, label
   return (
     <label className="flex flex-col gap-0.5 shrink-0">
       <span className="text-[10px] text-white/55 font-medium">{label}</span>
-      <div className="flex items-center h-[28px] rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] overflow-hidden">
+      <div className="flex items-center h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] overflow-hidden">
         <button onClick={() => onChange(Math.max(min, value - step))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors text-[13px] shrink-0"
+          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
         >−</button>
         <input type="text" value={value.toLocaleString('en-US')}
           onChange={(e) => { const n = parseInt(e.target.value.replace(/,/g, '')); if (!isNaN(n) && n >= min && n <= max) onChange(n); }}
           className="w-[64px] h-full bg-transparent text-center text-[13px] font-bold tabular-nums text-white/85 outline-none"
         />
         <button onClick={() => onChange(Math.min(max, value + step))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors text-[13px] shrink-0"
+          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
         >+</button>
       </div>
     </label>
@@ -74,13 +74,13 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
   return (
     <label className="flex flex-col gap-0.5 shrink-0 min-w-[48px]">
       <span className="text-[10px] text-white/55 font-medium">数量</span>
-      <div className="flex items-center h-[28px] rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] overflow-hidden">
+      <div className="flex items-center h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] overflow-hidden">
         <button onClick={() => onChange(Math.max(1, value - 1))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors text-[13px] shrink-0"
+          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
         >−</button>
         <span className="w-6 text-center text-[13px] font-bold tabular-nums text-white/85">{value}</span>
         <button onClick={() => onChange(Math.min(100, value + 1))}
-          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors text-[13px] shrink-0"
+          className="w-6 h-full flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[var(--color-surface-5)] transition-colors text-[13px] shrink-0"
         >+</button>
       </div>
     </label>
@@ -96,10 +96,10 @@ function Select<T extends string>({ label, value, options, onChange }: {
     <label className="flex flex-col gap-0.5 shrink-0">
       <span className="text-[10px] text-white/55 font-medium">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value as T)}
-        className="h-[28px] rounded-lg bg-white/[0.06] ring-1 ring-inset ring-white/[0.07] text-[12px] text-white/80 font-medium px-2 outline-none appearance-none cursor-pointer hover:bg-white/[0.09] transition-colors"
+        className="h-[28px] rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] text-[12px] text-white/80 font-medium px-2 outline-none appearance-none cursor-pointer hover:bg-[var(--color-surface-5)] transition-colors"
       >
         {options.map(o => (
-          <option key={o.value} value={o.value} className="bg-[#1C1C1C] text-white/80">{o.label}</option>
+          <option key={o.value} value={o.value} className="bg-[var(--color-surface-2)] text-white/80">{o.label}</option>
         ))}
       </select>
     </label>
@@ -112,7 +112,7 @@ function GreekBadge({ label, value, fmt, color }: {
   label: string; value: number; fmt: (v: number) => string; color: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] text-[10px] font-semibold tabular-nums" style={{ color }}>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-surface-2)] text-[10px] font-semibold tabular-nums" style={{ color }}>
       <span className="text-white/40">{label}</span>
       {fmt(value)}
     </span>

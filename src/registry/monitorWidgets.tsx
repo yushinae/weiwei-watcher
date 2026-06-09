@@ -1945,7 +1945,7 @@ function useFearGreed() {
   return { data, loading };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════��═══════════════════
 // GEXWidget — Gamma Exposure by Strike
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2131,7 +2131,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════��══════════════
 // DVOLSeriesWidget — DVOL 90D 时间序列
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2997,7 +2997,7 @@ function generateSignals(
       value: `${slope >= 0 ? '+' : ''}${slope.toFixed(1)}pp`,
       desc: slope <= -8 ? '强倒挂 — 近端 IV 极度拥挤，事件驱动风险高'
           : slope <= -3 ? '轻度倒挂 — 近端 IV 抬升，市场情绪偏紧张'
-          : slope >= 8  ? '显著正斜 — 远端溢价高，日历价差受益'
+          : slope >= 8  ? '显著正斜 — 远端溢价高，���历价差受益'
           : slope >= 3  ? '正常正斜 — 结构健康'
           : '平坦期限结构',
       severity: slope <= -8 ? 'bearish' : slope <= -3 ? 'warning'
@@ -3664,7 +3664,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
     <div className="w-full h-full flex items-stretch gap-2 px-3 py-2">
       {stats.map(s => (
         <div key={s.label}
-          className="flex-1 bg-white/[0.025] border border-white/[0.06] rounded-[10px] px-3 py-2 flex flex-col justify-between"
+          className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-3 py-2.5 flex flex-col justify-between transition-colors hover:border-[var(--nexus-accent)]/25"
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{s.label}</span>
@@ -5074,7 +5074,7 @@ export const SpotTickerWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 // OIDeltaWidget removed — session-only, always empty on page load
 
 
-// ── GreeksScenarioWidget ──────────────────────────────────────────────────
+// ── GreeksScenarioWidget ───────────────────────────────────────────────���──
 // ATM Straddle P&L scenario matrix: rows = spot %, cols = IV additive shift
 const SCEN_SPOT = [-15, -10, -7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15];
 const SCEN_IV   = [-20, -10, -5, 0, 5, 10, 20];

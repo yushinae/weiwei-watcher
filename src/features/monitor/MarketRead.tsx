@@ -143,7 +143,7 @@ export const MarketSignalsWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   }, [data, ticker]);
 
   const Item = ({ label, value, color, note }: { label: string; value: string; color: string; note: string }) => (
-    <div className="flex-1 min-w-[120px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+    <div className="flex-1 min-w-[120px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] transition-colors hover:ring-[var(--nexus-accent)]/25">
       <span className="text-[9px] uppercase tracking-wider text-white/40">{label}</span>
       <span className="text-[17px] font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
       <span className="text-[9px] text-white/40 leading-tight">{note}</span>

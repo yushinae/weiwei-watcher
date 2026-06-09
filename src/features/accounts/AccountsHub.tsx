@@ -210,9 +210,9 @@ export const AccountsHub = () => {
 
         {/* CSV 导入预览 */}
         {csv && (
-          <div className="flex flex-col gap-2.5 px-4 py-3 rounded-xl bg-[#4ea1ff]/[0.06] ring-1 ring-inset ring-[#4ea1ff]/25 shrink-0">
+          <div className="flex flex-col gap-2.5 px-4 py-3 rounded-xl bg-[var(--nexus-accent)]/[0.06] ring-1 ring-inset ring-[var(--nexus-accent)]/25 shrink-0">
             <div className="flex items-center gap-2">
-              <Upload size={14} className="text-[#4ea1ff]" />
+              <Upload size={14} className="text-[var(--nexus-accent)]" />
               <span className="text-[12px] font-semibold text-white/80">CSV 导入预览</span>
               <span className="text-[11px] text-white/40">解析 {csv.dataRows.length} 行 · 识别有效成交 {csvFills.length} 笔</span>
               <button onClick={cancelImport} className="ml-auto text-white/35 hover:text-white/70"><X size={15} /></button>

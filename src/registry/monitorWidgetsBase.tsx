@@ -68,8 +68,8 @@ export type {
 } from './data/flow';
 export {
   FLOW_CACHE, FLOW_TTL,
-  MONTH_MAP_FUTURES, parseFuturesExpiry,
-  fetchFlowData, useFlowData, useFearGreed,
+  MONTH_MAP_FUTURES, parseFuturesExpiry, futuresExpiryMs,
+  fetchFlowData, useFlowData, useFearGreed, useFuturesBasis,
 } from './data/flow';
 
 // ═══════════════════════════════════════════════════════════════════════════════

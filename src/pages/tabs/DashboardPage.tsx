@@ -54,9 +54,9 @@ interface Props {
 // Uses neutral white active state (no amber/blue) to match design system.
 const CoinBadge = ({ coin, setCoin }: { coin: Coin; setCoin?: (c: Coin) => void }) => {
   if (!setCoin)
-    return <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/[0.06] text-white/55 uppercase tracking-wider">{coin}</span>;
+    return <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[var(--color-surface-5)] text-white/55 uppercase tracking-wider">{coin}</span>;
   return (
-    <div className="inline-flex gap-0.5 rounded-[8px] bg-white/[0.04] p-0.5 border border-white/[0.07]">
+    <div className="inline-flex gap-0.5 rounded-[8px] bg-[var(--color-surface-1)] p-0.5 border border-[var(--color-border-subtle)]">
       {(['BTC', 'ETH'] as Coin[]).map(c => (
         <button
           key={c}
@@ -65,7 +65,7 @@ const CoinBadge = ({ coin, setCoin }: { coin: Coin; setCoin?: (c: Coin) => void 
           className={cn(
             'rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
             coin === c
-              ? 'bg-white/[0.10] text-white ring-1 ring-inset ring-white/[0.12]'
+              ? 'bg-[var(--nexus-accent)]/15 text-white ring-1 ring-inset ring-[var(--nexus-accent)]/30'
               : 'text-white/50 hover:text-white/65',
           )}
         >
@@ -123,7 +123,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
               icon={Calendar}
               title="事件日历"
               right={eventCountdown && (
-                <span className={`dash-tile text-[13px] font-semibold tabular-nums px-2 py-0.5 rounded-lg bg-[#242424] ${
+                <span className={`dash-tile text-[13px] font-semibold tabular-nums px-2 py-0.5 rounded-lg bg-[var(--color-surface-2)] ${
                   eventCountdown.urgent ? 'text-[var(--color-sev-extreme)]' :
                   eventCountdown.warn ? 'text-[var(--color-sev-mid)]' :
                   'text-[var(--color-sev-calm)]'
@@ -144,7 +144,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
         <motion.div variants={rise} className="widget-card dash-card !p-0">
           <div className="flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
             <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 flex items-center justify-center rounded-md bg-white/[0.04] text-white/55"><Briefcase size={15} /></span>
+              <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55"><Briefcase size={15} /></span>
               <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">我的账户 · 实盘</span>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
         <motion.div variants={rise} className="widget-card dash-card !p-0">
           <div className="flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
             <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 flex items-center justify-center rounded-md bg-white/[0.04] text-white/55"><Sigma size={15} /></span>
+              <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55"><Sigma size={15} /></span>
               <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">策略速查卡</span>
             </div>
             <div className="ml-auto"><CoinBadge coin={coin} setCoin={setCoin} /></div>

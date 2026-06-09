@@ -24,7 +24,7 @@ const sgn = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : MUTE);
 const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
 const Tile = ({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) => (
-  <div className="flex-1 min-w-[110px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-white/[0.03] ring-1 ring-inset ring-white/[0.06]">
+  <div className="flex-1 min-w-[110px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)]">
     <span className="text-[9px] uppercase tracking-wider text-white/40">{label}</span>
     <span className="text-[16px] font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
     {sub && <span className="text-[9px] text-white/35">{sub}</span>}
@@ -91,7 +91,7 @@ export const AccountSummaryCard: React.FC = () => {
       ) : (
         <div className="flex flex-col gap-1">
           {sorted.map((p, i) => (
-            <div key={`${p.venue}-${p.coin}-${i}`} className="flex items-center gap-2.5 px-2 py-1 rounded-md hover:bg-white/[0.025] text-[11px]">
+            <div key={`${p.venue}-${p.coin}-${i}`} className="flex items-center gap-2.5 px-2 py-1 rounded-md hover:bg-[var(--color-surface-5)] text-[11px]">
               <span className="text-white/45 w-[64px] shrink-0">{p.venue}</span>
               <span className="font-bold text-white/80 w-[40px]">{p.coin}</span>
               <span className="text-white/40 w-[36px]">{p.kind === 'perp' ? '永续' : p.kind === 'option' ? '期权' : '现货'}</span>

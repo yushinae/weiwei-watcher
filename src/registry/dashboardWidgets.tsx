@@ -17,7 +17,7 @@ export const DashCard = ({ icon: Icon, title, right, children }: {
 }) => (
   <div className="widget-card dash-card !p-0 flex flex-col h-full">
     <div className="flex items-center gap-2.5 px-[18px] pt-[14px] pb-[10px] shrink-0">
-      <span className="w-7 h-7 flex items-center justify-center rounded-md bg-white/[0.04] text-white/55">
+      <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55">
         <Icon size={15} />
       </span>
       <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">{title}</span>
@@ -74,13 +74,13 @@ export const EnvironmentThermometer = ({ coin, ticker }: { coin: Coin; ticker: T
         </div>
         <div className="text-[11px] text-white/50 mt-1 mb-2">IV Rank（52周百分位）</div>
         {/* Horizontal gauge bar */}
-        <div className="relative w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="relative w-full h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
           {/* Gradient backdrop */}
           <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(90deg, var(--color-sev-calm), var(--color-sev-mid), var(--color-sev-high), var(--color-sev-extreme))' }} />
           {/* Dark mask from the right */}
-          <div className="absolute top-0 right-0 h-full rounded-r-full bg-[#111111]" style={{ width: `${100 - ivrPct}%` }} />
+          <div className="absolute top-0 right-0 h-full rounded-r-full bg-[var(--color-card)]" style={{ width: `${100 - ivrPct}%` }} />
           {/* Pointer dot */}
-          <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[#111111] shadow transition-all duration-700" style={{ left: `calc(${ivrPct}% - 6px)` }} />
+          <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--color-card)] shadow transition-all duration-700" style={{ left: `calc(${ivrPct}% - 6px)` }} />
         </div>
       </div>
 
@@ -279,7 +279,7 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════���═══════════════════════════════════════════════════════════
 // 4. EventCalendarStrip
 // ═══════════════════════════════════════════════════════════════════════════════
 

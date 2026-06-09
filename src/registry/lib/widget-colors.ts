@@ -8,7 +8,7 @@ export const TXT    = 'rgba(255,255,255,0.5)';   // v4: 提升图表轴标签对
 export const BRAND  = 'rgba(37,232,137,0.92)';
 export const RED    = 'rgba(255,95,87,0.92)';    // v4 macOS red #FF5F57（原 #ca3f64 已废）
 export const YELLOW = '#FEBC2E';
-export const BLUE   = '#4ea1ff';
+export const BLUE   = '#4F93DD';
 export const PURPLE = '#a78bfa';
 
 // IV Rank 阈值色：≤30 低（绿）/ 30-70 中（黄）/ >70 高（红）

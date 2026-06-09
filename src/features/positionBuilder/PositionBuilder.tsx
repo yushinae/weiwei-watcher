@@ -989,8 +989,8 @@ export function PositionBuilder() {
 
   // ── ECharts: P/L chart option ─────────────────────────────────────────────
   const axisStyle = {
-    axisLine:  { lineStyle: { color: '#2e2e2e' } },
-    splitLine: { lineStyle: { color: '#242424' } },
+    axisLine:  { lineStyle: { color: '#2A2F37' } },
+    splitLine: { lineStyle: { color: '#1E232A' } },
     axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10 },
     nameTextStyle: { color: 'rgba(255,255,255,0.35)', fontSize: 10 },
   };
@@ -1028,9 +1028,9 @@ export function PositionBuilder() {
       grid: { left: 58, right: 16, top: 8, bottom: 38 },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#242424', color: '#F0F0EE', fontSize: 10 } },
+        axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#181B21', color: '#ECEEF1', fontSize: 10 } },
         backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
-        padding: [6, 10], textStyle: { color: '#F0F0EE', fontSize: 11 }, formatter: tooltipFmt,
+        padding: [6, 10], textStyle: { color: '#ECEEF1', fontSize: 11 }, formatter: tooltipFmt,
       },
       xAxis: { type: 'value' as const, name: `${symbol} 价格`, nameLocation: 'middle' as const, nameGap: 26, min: chartXs[0], max: chartXs[chartXs.length - 1], ...axisStyle },
       yAxis: { type: 'value' as const, name: 'P/L (USDT)', nameLocation: 'middle' as const, nameGap: 44, ...axisStyle },
@@ -1049,9 +1049,9 @@ export function PositionBuilder() {
           ]},
         },
         // 3: Current P/L
-        { name: '当前 P/L', type: 'line' as const, data: chartXs.map((x, i) => [x, currentPL[i]]), lineStyle: { color: '#4ea1ff', width: 2.5 }, symbol: 'none' },
+        { name: '当前 P/L', type: 'line' as const, data: chartXs.map((x, i) => [x, currentPL[i]]), lineStyle: { color: '#4F93DD', width: 2.5 }, symbol: 'none' },
         // 4: Breakevens
-        { name: '盈亏平衡', type: 'scatter' as const, data: breakevens.map(b => [b, 0]), symbol: 'diamond', symbolSize: 10, itemStyle: { color: '#28C840', borderColor: '#111111', borderWidth: 1.5 } },
+        { name: '盈亏平衡', type: 'scatter' as const, data: breakevens.map(b => [b, 0]), symbol: 'diamond', symbolSize: 10, itemStyle: { color: '#28C840', borderColor: '#16191E', borderWidth: 1.5 } },
         // 5: Scenario marker
         { name: '情景点', type: 'scatter' as const, data: [[currentS, pl]], symbol: 'circle', symbolSize: 12, itemStyle: { color: '#FEBC2E', borderColor: '#ffffff', borderWidth: 2 } },
         // 6: Live price marker
@@ -1084,9 +1084,9 @@ export function PositionBuilder() {
       backgroundColor: 'transparent', animation: false,
       grid: { left: 55, right: 55, top: 6, bottom: 38 },
       tooltip: {
-        trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#242424', color: '#F0F0EE', fontSize: 10 } },
+        trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed' }, crossStyle: { color: 'rgba(255,255,255,0.18)' }, label: { backgroundColor: '#181B21', color: '#ECEEF1', fontSize: 10 } },
         backgroundColor: 'rgba(11,15,23,0.92)', borderColor: 'rgba(255,255,255,0.1)',
-        padding: [6, 10], textStyle: { color: '#F0F0EE', fontSize: 11 }, formatter: tooltipFmt2,
+        padding: [6, 10], textStyle: { color: '#ECEEF1', fontSize: 11 }, formatter: tooltipFmt2,
       },
       legend: { show: false },
       xAxis: { type: 'value' as const, name: `${symbol} 价格`, nameLocation: 'middle' as const, nameGap: 26, min: chartXs[0], max: chartXs[chartXs.length - 1], ...axisStyle },
@@ -1095,14 +1095,14 @@ export function PositionBuilder() {
         { type: 'value' as const, name: 'Gamma', nameLocation: 'middle' as const, nameGap: 44, position: 'right' as const, splitLine: { show: false }, axisLine: { lineStyle: { color: '#2e2e2e' } }, axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 10 }, nameTextStyle: { color: 'rgba(167,139,250,0.6)', fontSize: 10 } },
       ],
       series: [
-        { name: 'Delta', type: 'line' as const, yAxisIndex: 0, data: chartXs.map((x, i) => [x, deltaProfile[i]]), lineStyle: { color: '#4ea1ff', width: 2 }, symbol: 'none',
+        { name: 'Delta', type: 'line' as const, yAxisIndex: 0, data: chartXs.map((x, i) => [x, deltaProfile[i]]), lineStyle: { color: '#4F93DD', width: 2 }, symbol: 'none',
           markLine: { silent: true, symbol: ['none', 'none'], data: [
             { yAxis: 0, lineStyle: { color: '#2e2e2e', width: 1 }, label: { show: false } },
             { xAxis: spot, lineStyle: { color: '#8a8a8a', type: 'dotted' as const, width: 1 }, label: { show: false } },
           ]}
         },
         { name: 'Gamma', type: 'line' as const, yAxisIndex: 1, data: chartXs.map((x, i) => [x, gammaProfile[i]]), lineStyle: { color: '#a78bfa', width: 2, type: 'dotted' as const }, symbol: 'none' },
-        { name: '情景Δ', type: 'scatter' as const, yAxisIndex: 0, data: [[currentS, grk.delta]], symbol: 'circle',  symbolSize: 9, itemStyle: { color: '#4ea1ff', borderColor: '#fff', borderWidth: 2 } },
+        { name: '情景Δ', type: 'scatter' as const, yAxisIndex: 0, data: [[currentS, grk.delta]], symbol: 'circle',  symbolSize: 9, itemStyle: { color: '#4F93DD', borderColor: '#fff', borderWidth: 2 } },
         { name: '情景Γ', type: 'scatter' as const, yAxisIndex: 1, data: [[currentS, grk.gamma]], symbol: 'diamond', symbolSize: 9, itemStyle: { color: '#a78bfa', borderColor: '#fff', borderWidth: 2 } },
       ],
     };
@@ -1554,7 +1554,7 @@ export function PositionBuilder() {
               {activeTab === 'chart' && <Panel title="损益曲线" noPadding noScroll
                   subtitle={
                     <span className="flex items-center gap-3 flex-wrap text-[12px] text-white/65">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />当前情景</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4F93DD]" />当前情景</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed border-white/30" />到期</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full border-2 border-white bg-transparent" />实时</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rotate-45 bg-[#28C840]" />盈亏平衡</span>
@@ -1564,7 +1564,7 @@ export function PositionBuilder() {
                           className={cn(
                             'inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[11px] transition-colors',
                             showTimeSlices
-                              ? 'border-[#4ea1ff]/40 text-[#4ea1ff]/80 bg-[#4ea1ff]/10'
+                              ? 'border-[#4F93DD]/40 text-[#4F93DD]/80 bg-[#4F93DD]/10'
                               : 'border-white/[0.08] text-white/65 hover:text-white/50 hover:border-white/20',
                           )}
                         >
@@ -1635,7 +1635,7 @@ export function PositionBuilder() {
               {activeTab === 'chart' && <Panel title="Delta / Gamma 曲线" noPadding noScroll
                 subtitle={
                   <span className="flex items-center gap-3 text-[12px] text-white/65">
-                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4ea1ff]" />Delta（左轴）</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[#4F93DD]" />Delta（左轴）</span>
                     <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dotted border-[#a78bfa]" />Gamma（右轴）</span>
                   </span>
                 }
@@ -2136,7 +2136,7 @@ export function PositionBuilder() {
                   {(() => {
                     const { plDelta, plGamma, plTheta, plVega, plResidual, plTotal } = plAttribution;
                     const segs = [
-                      { label: 'Δ', val: plDelta,    col: '#4ea1ff' },
+                      { label: 'Δ', val: plDelta,    col: '#4F93DD' },
                       { label: 'Γ', val: plGamma,    col: '#a78bfa' },
                       { label: 'Θ', val: plTheta,    col: '#FEBC2E' },
                       { label: 'ν', val: plVega,     col: '#28C840' },
@@ -2206,7 +2206,7 @@ export function PositionBuilder() {
                   })()}
                   <div className="flex gap-3 mt-1.5 flex-wrap text-[10px] text-white/65">
                     {[
-                      { label: 'Delta', color: '#4ea1ff' },
+                      { label: 'Delta', color: '#4F93DD' },
                       { label: 'Gamma', color: '#a78bfa' },
                       { label: 'Theta', color: '#FEBC2E' },
                       { label: 'Vega',  color: '#28C840' },
@@ -2513,7 +2513,7 @@ export function PositionBuilder() {
                           const ivMin = Math.max(0, Math.min(...ivs) - 5), ivMax = Math.max(...ivs) + 5;
                           const sx = (s: number) => ((s - sMin) / (sMax - sMin || 1)) * 220 + 10;
                           const sy = (iv: number) => 110 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 100;
-                          const COLORS = ['#4ea1ff', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+                          const COLORS = ['#4F93DD', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
                           return ivSkewData.expiries.map((exp, ei) => {
                             if (exp.points.length === 0) return null;
                             const color = COLORS[ei % COLORS.length];
@@ -2542,7 +2542,7 @@ export function PositionBuilder() {
                       </svg>
                       <div className="flex gap-2 flex-wrap mt-1">
                         {ivSkewData.expiries.map((exp, ei) => {
-                          const COLORS = ['#4ea1ff', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+                          const COLORS = ['#4F93DD', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
                           return (
                             <span key={exp.ts} className="flex items-center gap-1 text-[10px] text-white/65">
                               <span className="inline-block w-2 h-0.5" style={{ backgroundColor: COLORS[ei % COLORS.length] }} />

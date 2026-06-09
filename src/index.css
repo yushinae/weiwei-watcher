@@ -166,7 +166,7 @@ body {
 
 /* Monitor page local theme scope (避免污染全局 token) */
 .monitor-scope {
-  --monitor-signal-glow: rgba(30, 144, 255, 0.55);
+  --monitor-signal-glow: rgba(79, 147, 221, 0.55);
   --monitor-accent-btc: #F59E0B;
   --monitor-accent-eth: #25e889;
   --monitor-gridline: rgba(42, 42, 42, 0.9);
@@ -436,7 +436,7 @@ html.is-scrolling * {
 }
 
 .widget-icon.ico-brand {
-  background: rgba(30, 144, 255, 0.16);
+  background: rgba(79, 147, 221, 0.16);
   color: var(--nexus-accent);
 }
 
@@ -589,7 +589,7 @@ html.is-scrolling * {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 8px;
-  background: rgba(30, 144, 255, 0.10);  /* 无 backdrop-filter */
+  background: rgba(79, 147, 221, 0.10);  /* 无 backdrop-filter */
   margin-bottom: 12px;
   position: relative;
   z-index: 1;
@@ -927,7 +927,7 @@ html.is-scrolling * {
 }
 
 .glow-brand {
-  text-shadow: 0 0 14px rgba(30, 144, 255, 0.55);
+  text-shadow: 0 0 14px rgba(79, 147, 221, 0.55);
 }
 
 /* ── Chart helpers ── */

@@ -1,43 +1,43 @@
-/* Deribit-style options chain — recolored to the app's brand-blue / dark theme.
+/* Deribit-style options chain — recolored to Bybit-style orange / dark theme.
    Scope: only applies inside .db-oc-root */
 
 .db-oc-root {
   /* Surfaces */
-  --db-bg-main: var(--color-bg-base, #131313);   /* L1 页面底 */
-  --db-bg-card: var(--color-card, #1F1F1F);       /* L2 卡片 */
-  --db-bg-header: #1F1F1F;                         /* L2 chrome/表头 */
+  --db-bg-main: var(--color-bg-base, #000000);    /* L1 页面底 */
+  --db-bg-card: #17181E;                            /* L2 卡片 */
+  --db-bg-header: #17181E;                         /* L2 chrome/表头 */
   --db-bg-row-even: rgba(255, 255, 255, 0.012);
   --db-bg-row-odd: transparent;
-  --db-bg-strike: #262626;        /* L3 内块 — 中央执行价列 */
-  --db-bg-hover: rgba(255, 255, 255, 0.05);
-  --db-bg-selected: rgba(79, 147, 221, 0.14);
+  --db-bg-strike: #2B2D35;        /* L3 内块 — 中央执行价列 */
+  --db-bg-hover: #3A3B40;
+  --db-bg-selected: rgba(247, 166, 0, 0.10);
   --db-bg-atm: rgba(255, 255, 255, 0.045);
   --db-bg-atm-strong: rgba(255, 255, 255, 0.085);
-  --db-bg-owned: rgba(79, 147, 221, 0.12);
+  --db-bg-owned: rgba(247, 166, 0, 0.10);
 
   /* Lines */
   --db-border: rgba(255, 255, 255, 0.07);
-  --db-border-strong: #383838;
+  --db-border-strong: #404347;
 
   /* Text */
   --db-text: rgba(255, 255, 255, 0.92);
   --db-muted: rgba(255, 255, 255, 0.55);
   --db-dim: rgba(255, 255, 255, 0.22);
 
-  /* Trading colors — macOS traffic-light, matching the app */
-  --db-up: #28c840;
-  --db-down: #ff5f57;
+  /* Trading colors — exchange semantic green/red */
+  --db-up: #24ae64;
+  --db-down: #ef454a;
   --db-warn: #febc2e;
 
-  /* Accent — app brand blue */
-  --db-accent: #4F93DD;
-  --db-accent-soft: rgba(79, 147, 221, 0.35);
-  --db-accent-weak: rgba(79, 147, 221, 0.12);
+  /* Accent — Bybit-style orange */
+  --db-accent: #ff9c2e;
+  --db-accent-soft: rgba(247, 166, 0, 0.28);
+  --db-accent-weak: rgba(247, 166, 0, 0.10);
 
-  /* Spot / strike marker — app brand blue */
-  --db-spot: #4F93DD;
-  --db-spot-soft: rgba(79, 147, 221, 0.35);
-  --db-spot-weak: rgba(79, 147, 221, 0.16);
+  /* Spot / strike marker — orange selected marker */
+  --db-spot: #ff9c2e;
+  --db-spot-soft: rgba(247, 166, 0, 0.35);
+  --db-spot-weak: rgba(247, 166, 0, 0.12);
 
   /* Sizing rhythm */
   --db-row-h: 32px;
@@ -54,7 +54,7 @@
   /* subtle vignette */
   background:
     radial-gradient(1200px 600px at 30% 15%, rgba(255, 255, 255, 0.025), transparent 60%),
-    radial-gradient(900px 540px at 70% 35%, rgba(79, 147, 221, 0.03), transparent 62%),
+    radial-gradient(900px 540px at 70% 35%, rgba(255, 156, 46, 0.025), transparent 62%),
     var(--db-bg-main);
 }
 
@@ -68,8 +68,8 @@
   justify-content: center;
   gap: 6px;
   line-height: 1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #2B2D35;
+  border: 0;
   color: rgba(255, 255, 255, 0.88);
   font-size: 12px;
   font-weight: 700;
@@ -77,16 +77,17 @@
   transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
 }
 .db-oc-root .db-menu-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: #3A3B40;
 }
 .db-oc-root .db-menu-btn:active { transform: translateY(0.5px); }
 
 .db-oc-root .db-menu-panel {
-  background: var(--color-dropdown, #1F1F1F);    /* L2 下拉 */
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;                            /* 弹窗/下拉 10px */
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--bb-menu-left-bg, rgba(21, 23, 25, 0.90));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: var(--bb-shadow-popover, 0 8px 25px rgba(0, 0, 0, 0.40));
   overflow: hidden;
 }
 
@@ -103,8 +104,8 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
 }
 .db-oc-root .db-frame-iconbtn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: #3A3B40;
+  border-color: transparent;
   color: rgba(255, 255, 255, 0.88);
 }
 .db-oc-root .db-frame-iconbtn:active { transform: translateY(0.5px); }
@@ -115,7 +116,7 @@
 .db-oc-root .db-menu-item:focus-visible,
 .db-oc-root .db-iv-trigger:focus-visible,
 .db-oc-root button:focus-visible {
-  outline: 2px solid var(--db-accent, #4F93DD);
+  outline: 2px solid var(--db-accent, #ff9c2e);
   outline-offset: 2px;
 }
 
@@ -141,6 +142,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
+  border-radius: 4px;
   color: rgba(255, 255, 255, 0.80);
   font-size: 13px;
   font-weight: 600;
@@ -148,7 +150,7 @@
   transition: background-color 120ms ease, color 120ms ease;
 }
 .db-oc-root .db-menu-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.92);
 }
 
@@ -164,8 +166,9 @@
   flex-shrink: 0;
 }
 .db-oc-root .db-check.is-on {
-  background: var(--db-accent);
-  border-color: var(--db-accent);
+  background: var(--bb-orange-soft-2, rgba(247,166,0,0.12));
+  border-color: rgba(247, 166, 0, 0.28);
+  color: var(--bb-orange, #ff9c2e);
 }
 
 .db-oc-root .db-oc-cell {
@@ -178,7 +181,7 @@
    用 inset box-shadow 染一层（渲染在文字之下、文字保持清晰，且不被 cell 行内 background 覆盖），对比明显 */
 .db-oc-root .db-oc-row.is-hover-call > .db-oc-cell-wrap[data-side="call"],
 .db-oc-root .db-oc-row.is-hover-put  > .db-oc-cell-wrap[data-side="put"] {
-  box-shadow: inset 0 0 0 9999px rgba(120, 170, 255, 0.16);
+  box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.06);
   filter: brightness(1.12);
 }
 
@@ -187,14 +190,14 @@
 }
 
 .db-oc-root .db-oc-row.is-owned > .db-oc-cell-wrap {
-  box-shadow: inset 0 0 0 1px rgba(79, 147, 221, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(247, 166, 0, 0.18);
 }
 
 /* Scrollbars */
 .db-oc-root ::-webkit-scrollbar { width: 8px; height: 8px; }
 .db-oc-root ::-webkit-scrollbar-track { background: transparent; }
 .db-oc-root ::-webkit-scrollbar-thumb {
-  background: rgba(79, 147, 221, 0.28);
+  background: rgba(255, 255, 255, 0.30);
   border-radius: 999px;
 }
-.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(79, 147, 221, 0.45); }
+.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(247, 166, 0, 0.45); }

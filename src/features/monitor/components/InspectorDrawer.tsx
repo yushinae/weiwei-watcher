@@ -97,7 +97,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
   return (
     <div className="flex items-center justify-between rounded-[10px] bg-surface-2/60 px-3 py-2">
       <span className="text-[11px] text-white/40">{label}</span>
-      <span className={cn('font-mono tnum text-[12px] font-bold', color ?? 'text-slate-100')}>{value}</span>
+      <span className={cn('font-mono tnum text-[12px] font-bold', color ?? 'text-white/90')}>{value}</span>
     </div>
   );
 }
@@ -167,14 +167,14 @@ export function InspectorDrawer({
       onClose={onClose}
       side="right"
       width={420}
-      className="bg-surface-1 text-slate-200 border-l border-border-subtle"
+      className="bg-surface-1 text-white/80 border-l border-border-subtle"
     >
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="flex items-start gap-3 border-b border-border-subtle px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-bold tracking-[0.18em] uppercase text-white/30">Inspector</div>
-            <div className="mt-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-slate-100">{title}</div>
+            <div className="mt-1 truncate text-[13px] font-extrabold tracking-[-0.01em] text-white/90">{title}</div>
           </div>
           <button
             type="button"
@@ -182,7 +182,7 @@ export function InspectorDrawer({
             className={cn(
               'grid h-9 w-9 place-items-center rounded-[10px]',
               'bg-surface-2/70 ring-1 ring-inset ring-border-subtle/70',
-              'text-slate-400 hover:text-slate-200 transition-colors',
+              'text-white/45 hover:text-white/80 transition-colors',
             )}
             aria-label="关闭"
           >
@@ -244,7 +244,7 @@ export function InspectorDrawer({
                   <Row
                     label="ν Vega (每 1% IV)"
                     value={`$${greeks.vega.toFixed(2)}`}
-                    color="text-[#4F93DD]"
+                    color="text-[#ff9c2e]"
                   />
                   <Row
                     label="理论价格 (近似)"
@@ -273,10 +273,10 @@ export function InspectorDrawer({
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-[12px] font-bold text-slate-100">前往期权链</div>
+                      <div className="text-[12px] font-bold text-white/90">前往期权链</div>
                       <div className="text-[11px] text-white/30">查看完整报价与成交数据</div>
                     </div>
-                    <div className="grid h-9 w-9 place-items-center rounded-[12px] bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/15 transition-colors">
+                    <div className="grid h-9 w-9 place-items-center rounded-[12px] bg-[var(--bb-orange-soft-1)] text-[var(--bb-orange)] group-hover:bg-[var(--bb-orange-soft-2)] transition-colors">
                       <ArrowRight size={16} />
                     </div>
                   </div>

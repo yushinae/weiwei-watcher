@@ -492,7 +492,7 @@ export default function OptionsChainView() {
                 <div className="absolute left-0 w-full pointer-events-none flex justify-center z-0" style={{ top: emBandTop, height: emBandHeight }}>
                   <div className="relative h-full" style={{ width: STRIKE_W }}>
                     <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-[8px]"
-                      style={{ background: 'rgba(79,147,221,0.10)', borderLeft: '1px solid var(--db-accent-soft)', borderRight: '1px solid var(--db-accent-soft)', boxShadow: 'inset 0 0 10px rgba(79,147,221,0.12)' }} />
+                      style={{ background: 'rgba(247,166,0,0.10)', borderLeft: '1px solid var(--db-accent-soft)', borderRight: '1px solid var(--db-accent-soft)', boxShadow: 'inset 0 0 10px rgba(247,166,0,0.12)' }} />
                   </div>
                 </div>
               )}
@@ -513,11 +513,11 @@ export default function OptionsChainView() {
               </div>
 
               <div className="absolute left-0 w-full pointer-events-none z-[5]" style={{ top: `${spotY}px`, height: '0px' }}>
-                <div className="absolute left-0 w-full h-[1px] -translate-y-1/2" style={{ background: 'var(--db-spot)', boxShadow: '0 0 6px rgba(79,147,221,0.85)' }} />
+                <div className="absolute left-0 w-full h-[1px] -translate-y-1/2" style={{ background: 'var(--db-spot)', boxShadow: '0 0 6px rgba(255,156,46,0.65)' }} />
               </div>
               <div className="absolute left-0 w-full pointer-events-none z-20" style={{ top: `${spotY}px`, height: '0px' }}>
                 <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 h-[20px] flex items-center justify-center leading-none rounded-sm text-[13px] font-bold"
-                  style={{ background: 'var(--db-spot)', color: '#0b0b0b', boxShadow: '0 2px 6px rgba(0,0,0,0.6)', border: '1px solid rgba(79,147,221,0.6)' }}>
+                  style={{ background: 'var(--db-spot)', color: '#0b0b0b', boxShadow: '0 2px 6px rgba(0,0,0,0.6)', border: '1px solid rgba(247,166,0,0.55)' }}>
                   {spot.toLocaleString('en-US', { maximumFractionDigits: dec })}
                 </div>
               </div>

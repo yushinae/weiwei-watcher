@@ -51,11 +51,11 @@ export const AlertsManager = () => {
   );
 
   return (
-    <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
+    <div className="alerts-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
         {/* 通知权限条 */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-inset ring-white/[0.06] shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-[8px] bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] shrink-0">
           {perm === 'granted' ? (
             <><CheckCircle2 size={18} className="text-[#28C840] shrink-0" />
               <span className="text-[12px] text-white/75">浏览器通知已开启 —— 页面在后台时也会弹出系统通知；应用完全关闭后仍需后端常驻监控</span></>
@@ -73,7 +73,7 @@ export const AlertsManager = () => {
         </div>
 
         {/* 新建规则 */}
-        <div className="flex flex-col gap-2 px-4 py-3 rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] shrink-0">
+        <div className="flex flex-col gap-2 px-4 py-3 rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] shrink-0">
           <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">新建告警规则</span>
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1">
@@ -109,7 +109,7 @@ export const AlertsManager = () => {
         </div>
 
         {/* 规则列表 */}
-        <div className="flex flex-col rounded-xl bg-white/[0.02] ring-1 ring-inset ring-white/[0.06] flex-1">
+        <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] flex-1">
           <div className="px-4 pt-3 pb-2 text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60 shrink-0">
             告警规则 · {rules.length}
           </div>
@@ -144,7 +144,7 @@ export const AlertsManager = () => {
                         <td className="py-1.5 px-2 font-bold text-white/80">{a.coin}</td>
                         <td className="py-1.5 px-2 text-white/75 whitespace-nowrap">
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
-                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#4F93DD]">常驻</span>}
+                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[var(--nexus-accent)]">常驻</span>}
                           {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#a78bfa]">持仓</span>}
                         </td>
                         <td className="py-1.5 px-2 text-right tabular-nums text-white/65">

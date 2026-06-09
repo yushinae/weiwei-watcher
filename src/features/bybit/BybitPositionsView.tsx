@@ -110,13 +110,13 @@ export default function BybitPositionsView() {
   const stale = fetchedAt > 0 && Date.now() - fetchedAt > 60_000;
 
   return (
-    <div className="absolute inset-0 monitor-scope flex flex-col font-medium text-slate-200">
+    <div className="bybit-page-scope absolute inset-0 monitor-scope flex flex-col font-medium text-slate-200">
       {/* Header — L2 chrome */}
       <div className="sticky top-0 z-[120] h-[44px] flex items-center px-4 shrink-0 border-b border-white/[0.07]"
            style={{ background: 'var(--color-surface-3)' }}>
         <span className="text-[14px] font-semibold text-white/80 mr-3">头寸可视化 · Bybit</span>
         {/* Tab 切换 pill */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07] mr-3">
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E] mr-3">
           {([['positions', '当前持仓'], ['history', '历史记录'], ['sim-options', `模拟期权${optionBook.positions.length ? ` ${optionBook.positions.length}` : ''}`]] as const).map(([key, label]) => (
             <button
               key={key}
@@ -124,8 +124,8 @@ export default function BybitPositionsView() {
               className={cn(
                 'h-6 px-2.5 rounded-md text-[12px] font-medium transition-colors duration-[120ms]',
                 tab === key
-                  ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
-                  : 'text-white/55 hover:text-white/80',
+                  ? 'bg-[#3A3F40] text-[var(--nexus-accent)]'
+                  : 'text-white/55 hover:bg-[#3A3B40] hover:text-white/80',
               )}
             >{label}</button>
           ))}
@@ -144,7 +144,7 @@ export default function BybitPositionsView() {
             </span>
             <button
               onClick={refresh} disabled={loading}
-              className="ml-3 h-7 px-3 text-[12px] rounded-lg border border-white/[0.12] text-white/70 hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+              className="ml-3 h-7 px-3 text-[12px] rounded-lg bg-[#2B2D35] text-white/70 hover:bg-[#3A3B40] disabled:opacity-40 transition-colors"
             >{loading ? '刷新中…' : '刷新'}</button>
           </>
         )}
@@ -161,8 +161,8 @@ export default function BybitPositionsView() {
           className={cn(
             'w-7 h-7 rounded-lg flex items-center justify-center border transition-colors duration-[120ms]',
             settingsOpen
-              ? 'bg-white/[0.10] text-white border-white/[0.20]'
-              : 'border-transparent text-white/55 hover:text-white/85 hover:bg-white/[0.06] hover:border-white/[0.08]',
+              ? 'bg-[#3A3F40] text-[var(--nexus-accent)] border-transparent'
+              : 'border-transparent text-white/55 hover:text-white/85 hover:bg-[#3A3B40]',
           )}
           title="API 设置"
           aria-label="API 设置"
@@ -186,7 +186,7 @@ export default function BybitPositionsView() {
                 <div className="mt-3 pt-3 border-t border-white/[0.06]">
                   <button
                     onClick={() => { setDemo(true); setSettingsOpen(false); }}
-                    className="h-8 px-4 rounded-lg text-[12px] font-semibold border border-white/12 text-white/70 hover:bg-white/8"
+                    className="h-8 px-4 rounded-lg text-[12px] font-semibold bg-[#2B2D35] text-white/70 hover:bg-[#3A3B40] transition-colors"
                   >使用示例数据</button>
                 </div>
               )}

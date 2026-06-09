@@ -51,21 +51,21 @@ interface Props {
 }
 
 // Small coin toggle shown in card headers.
-// Uses neutral white active state (no amber/blue) to match design system.
+// Active state uses the Bybit-style orange accent; inactive remains neutral.
 const CoinBadge = ({ coin, setCoin }: { coin: Coin; setCoin?: (c: Coin) => void }) => {
   if (!setCoin)
     return <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[var(--color-surface-5)] text-white/55 uppercase tracking-wider">{coin}</span>;
   return (
-    <div className="inline-flex gap-0.5 rounded-[8px] bg-[var(--color-surface-1)] p-0.5 border border-[var(--color-border-subtle)]">
+    <div className="bb-coin-toggle inline-flex gap-0.5 rounded-[8px] p-0.5">
       {(['BTC', 'ETH'] as Coin[]).map(c => (
         <button
           key={c}
           type="button"
           onClick={() => setCoin(c)}
           className={cn(
-            'rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
+            'bb-coin-toggle-item rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors',
             coin === c
-              ? 'bg-[var(--nexus-accent)]/15 text-white ring-1 ring-inset ring-[var(--nexus-accent)]/30'
+              ? 'is-selected'
               : 'text-white/50 hover:text-white/65',
           )}
         >
@@ -95,7 +95,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="flex flex-col gap-3 max-w-[1500px] mx-auto w-full"
+        className="dashboard-page flex flex-col gap-3 max-w-[1500px] mx-auto w-full"
       >
         {/* ── Row 1：环境温度计 · 期限结构 · GEX 关键位 ── */}
         <div className="grid grid-cols-3 gap-3">
@@ -110,7 +110,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
             </DashCard>
           </motion.div>
           <motion.div variants={rise} className="h-full">
-            <DashCard icon={Target} title="GEX 关键位" right={<CoinBadge coin={coin} />}>
+            <DashCard icon={Target} title="GEX 关键位" right={<CoinBadge coin={coin} />} className="gex-card">
               <E name="GEX"><GEXKeyLevels coin={coin} ticker={ticker} /></E>
             </DashCard>
           </motion.div>
@@ -142,7 +142,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
 
         {/* ── Row 3：当前持仓 ── */}
         <motion.div variants={rise} className="widget-card dash-card !p-0">
-          <div className="flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
+          <div className="dash-card-head flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
             <div className="flex items-center gap-2.5">
               <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55"><Briefcase size={15} /></span>
               <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">我的账户 · 实盘</span>
@@ -155,7 +155,7 @@ export default function DashboardPage({ coin, setCoin }: Props) {
 
         {/* ── Row 4：策略速查卡 ── */}
         <motion.div variants={rise} className="widget-card dash-card !p-0">
-          <div className="flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
+          <div className="dash-card-head flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
             <div className="flex items-center gap-2.5">
               <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55"><Sigma size={15} /></span>
               <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">策略速查卡</span>

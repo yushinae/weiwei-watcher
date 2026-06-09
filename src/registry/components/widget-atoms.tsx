@@ -8,12 +8,12 @@ import type { Coin } from '../../features/monitor/types';
 
 // 币种切换 tab（BTC/ETH）
 export const CoinTabs = ({ v, set }: { v: Coin; set: (c: Coin) => void }) => (
-  <div className="flex gap-0.5 rounded-lg p-0.5 bg-[var(--color-bg-base)] ring-1 ring-inset ring-white/[0.07]">
+  <div className="bb-coin-toggle flex gap-0.5 rounded-lg p-0.5">
     {(['BTC', 'ETH'] as Coin[]).map(c => (
       <button key={c} onClick={() => set(c)}
-        className={cn('text-[12px] font-bold px-2.5 py-0.5 rounded-md transition-colors duration-[120ms] outline-none',
+        className={cn('bb-coin-toggle-item text-[12px] font-bold px-2.5 py-0.5 rounded-md transition-colors duration-[120ms] outline-none',
           v === c
-            ? 'bg-[var(--color-surface-2)] text-white/90 ring-1 ring-inset ring-white/[0.10]'
+            ? 'is-selected'
             : 'text-white/55 hover:text-white/80'
         )}>
         {c}

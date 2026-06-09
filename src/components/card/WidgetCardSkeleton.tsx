@@ -11,7 +11,7 @@ export function WidgetCardSkeleton({
     <div className={cn('widget-card h-full w-full', className)}>
       <div className="widget-head">
         <div className="widget-head-left">
-          <div className="widget-icon ico-blue">
+          <div className="widget-icon ico-brand">
             <div className="h-2.5 w-2.5 rounded bg-white/8" />
           </div>
           <div className="min-w-0">

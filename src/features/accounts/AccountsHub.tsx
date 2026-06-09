@@ -41,7 +41,7 @@ const chipCls = (active: boolean) =>
            : 'bg-[var(--color-surface-2)] text-white/65 ring-[var(--color-border-subtle)] hover:bg-[var(--color-surface-5)]'}`;
 
 const Card = ({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) => (
-  <div className="flex flex-col rounded-xl bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]">
+  <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)]">
     <div className="flex items-center px-4 pt-3 pb-2 shrink-0">
       <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">{title}</span>
       {right && <div className="ml-auto">{right}</div>}
@@ -183,7 +183,7 @@ export const AccountsHub = () => {
   const cancelImport = () => { setCsv(null); if (fileRef.current) fileRef.current.value = ''; };
 
   return (
-    <div className="absolute inset-0 overflow-y-auto dash-scroll text-white/85">
+    <div className="accounts-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
         {/* 顶部：同步 / 导出 */}

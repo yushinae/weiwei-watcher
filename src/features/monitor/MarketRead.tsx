@@ -143,19 +143,19 @@ export const MarketSignalsWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   }, [data, ticker]);
 
   const Item = ({ label, value, color, note }: { label: string; value: string; color: string; note: string }) => (
-    <div className="flex-1 min-w-[120px] flex flex-col gap-0.5 px-3 py-2 rounded-lg bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] transition-colors hover:ring-[var(--nexus-accent)]/25">
-      <span className="text-[9px] uppercase tracking-wider text-white/40">{label}</span>
+    <div className="flex-1 min-w-[120px] flex flex-col justify-center gap-1 px-3 py-2 rounded-[6px] bg-[var(--color-surface-2)] border border-transparent transition-colors hover:bg-[var(--color-surface-5)]">
+      <span className="text-[9px] uppercase tracking-wider text-[var(--color-text-muted)]">{label}</span>
       <span className="text-[17px] font-bold tabular-nums leading-none" style={{ color }}>{value}</span>
-      <span className="text-[9px] text-white/40 leading-tight">{note}</span>
+      <span className="text-[9px] text-white/42 leading-tight">{note}</span>
     </div>
   );
 
   return (
-    <div className="w-full h-full flex flex-col gap-2 px-3 py-2">
+    <div className="w-full h-full flex flex-col gap-2 px-3 py-2 bg-[var(--color-bg-card)]">
       <Header coin={coin} setCoin={setCoin} live={!!data} />
       {/* 综合倾向 */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[10px] uppercase tracking-wider text-white/40">综合倾向</span>
+      <div className="flex items-center gap-2 shrink-0 rounded-[6px] bg-[var(--color-surface-1)] px-2.5 py-1.5 border border-transparent">
+        <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">综合倾向</span>
         <span className="text-[15px] font-bold" style={{ color: sig.lean.c }}>{sig.lean.t}</span>
         <span className="text-[10px] text-white/35">· 由下列 4 个信号综合（仓位/偏斜/资金/期限）</span>
       </div>

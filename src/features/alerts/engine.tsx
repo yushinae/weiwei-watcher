@@ -69,7 +69,7 @@ export const AlertToastHost: React.FC = () => {
         return (
           <div key={t.key}
             className="pointer-events-auto w-[300px] flex items-start gap-2.5 px-3.5 py-3 rounded-xl
-                       bg-[#1a1410] ring-1 ring-inset ring-[#FEBC2E]/40 shadow-[0_16px_40px_rgba(0,0,0,0.55)]
+                       bg-[var(--color-dropdown)] ring-1 ring-inset ring-[#FEBC2E]/40 shadow-[0_16px_40px_rgba(0,0,0,0.55)]
                        animate-[fadeIn_.18s_ease-out]">
             <span className="w-7 h-7 rounded-lg bg-[#FEBC2E]/15 flex items-center justify-center shrink-0">
               <BellRing size={15} className="text-[#FEBC2E]" />

@@ -44,14 +44,14 @@ const UnderlyingHeader: React.FC<UnderlyingHeaderProps> = ({ value, coin, tag, o
       onClick={() => { ocStore.setUnderlying(value); ocStore.setExpiryIdx(0); onPick?.(); }}
       className="relative flex h-[42px] min-w-0 items-center gap-2 rounded-[8px] border px-2.5 text-left transition-colors overflow-hidden"
       style={{
-        background: isActiveCol ? 'rgba(30,144,255,0.10)' : 'rgba(255,255,255,0.040)',
-        borderColor: isActiveCol ? 'rgba(30,144,255,0.40)' : 'rgba(255,255,255,0.070)',
+        background: isActiveCol ? 'rgba(79,147,221,0.10)' : 'rgba(255,255,255,0.040)',
+        borderColor: isActiveCol ? 'rgba(79,147,221,0.40)' : 'rgba(255,255,255,0.070)',
       }}
       onMouseEnter={ev => { if (!isActiveCol) ev.currentTarget.style.background = 'rgba(255,255,255,0.065)'; }}
       onMouseLeave={ev => { if (!isActiveCol) ev.currentTarget.style.background = 'rgba(255,255,255,0.040)'; }}
       title={value}
     >
-      {isActiveCol && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full bg-[var(--db-accent,#1E90FF)]" />}
+      {isActiveCol && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full bg-[var(--db-accent,#4F93DD)]" />}
       <span
         className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold"
         style={{
@@ -82,8 +82,8 @@ const ExpiryCell: React.FC<ExpiryCellProps> = ({ item, tag, expiry, index, onPic
       onClick={() => { ocStore.setUnderlying(item.value); ocStore.setExpiryIdx(index); onPick?.(); }}
       className="h-[31px] rounded-[7px] border px-2 text-center font-mono text-[11px] font-bold tabular-nums transition-colors"
       style={{
-        background: on ? 'rgba(30,144,255,0.16)' : 'rgba(255,255,255,0.042)',
-        borderColor: on ? 'rgba(30,144,255,0.42)' : 'rgba(255,255,255,0.055)',
+        background: on ? 'rgba(79,147,221,0.16)' : 'rgba(255,255,255,0.042)',
+        borderColor: on ? 'rgba(79,147,221,0.42)' : 'rgba(255,255,255,0.055)',
         color: on ? '#EAF4FF' : 'rgba(255,255,255,0.70)',
         boxShadow: on ? `inset 0 0 0 1px ${tone.border}` : undefined,
       }}
@@ -158,8 +158,8 @@ const MatrixSection: React.FC<MatrixSectionProps> = ({ title, subtitle, tag, ite
               color: 'rgba(255,255,255,0.58)',
             }}
             onMouseEnter={ev => {
-              ev.currentTarget.style.background = 'rgba(30,144,255,0.10)';
-              ev.currentTarget.style.borderColor = 'rgba(30,144,255,0.30)';
+              ev.currentTarget.style.background = 'rgba(79,147,221,0.10)';
+              ev.currentTarget.style.borderColor = 'rgba(79,147,221,0.30)';
               ev.currentTarget.style.color = '#EAF4FF';
             }}
             onMouseLeave={ev => {
@@ -207,7 +207,7 @@ export function OptionsHoverMenu({
     subtitle: usdtGroup ? 'USDC / USDT settled' : 'USDC settled',
     tag: usdtGroup ? 'USDC / USDT' : usdcGroup?.tag ?? 'Linear',
     items: linearItems,
-    accent: 'var(--db-accent,#1E90FF)',
+    accent: 'var(--db-accent,#4F93DD)',
   } : null;
 
   return (
@@ -220,7 +220,7 @@ export function OptionsHoverMenu({
         <div className="min-w-[172px] rounded-[8px] border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-right leading-none">
           <div className="text-[9px] font-bold uppercase text-white/30">当前</div>
           <div className="mt-1 truncate font-mono text-[12px] font-extrabold text-white/82">{current}</div>
-          <div className="mt-1 truncate font-mono text-[10px] font-bold text-[var(--db-accent,#1E90FF)]">{currentExpiry}</div>
+          <div className="mt-1 truncate font-mono text-[10px] font-bold text-[var(--db-accent,#4F93DD)]">{currentExpiry}</div>
         </div>
       </div>
 

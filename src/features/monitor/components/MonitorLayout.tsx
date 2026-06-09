@@ -4,7 +4,7 @@ import { MONITOR_TABS, type MonitorTabId, type Coin } from '../types';
 
 function CoinSeg({ value, onChange }: { value: Coin; onChange: (c: Coin) => void }) {
   return (
-    <div className="inline-flex gap-0.5 rounded-md bg-[#111111] p-0.5 ring-1 ring-inset ring-white/[0.055]">
+    <div className="inline-flex gap-0.5 rounded-md bg-[var(--color-surface-1)] p-0.5 ring-1 ring-inset ring-[var(--color-border-subtle)]">
       {(['BTC', 'ETH'] as Coin[]).map(c => (
         <button
           key={c}
@@ -13,7 +13,7 @@ function CoinSeg({ value, onChange }: { value: Coin; onChange: (c: Coin) => void
           className={cn(
             'rounded-[5px] px-2.5 py-0.5 text-[11px] font-semibold transition-colors duration-[120ms]',
             value === c
-              ? 'bg-white/[0.075] text-white/88 ring-1 ring-inset ring-white/[0.09]'
+              ? 'bg-[var(--nexus-accent)]/15 text-white/90 ring-1 ring-inset ring-[var(--nexus-accent)]/30'
               : 'text-white/48 hover:text-white/72',
           )}
         >
@@ -38,11 +38,11 @@ export function MonitorLayout({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className="sticky top-0 z-[120] h-[38px] flex items-center px-4 gap-1 shrink-0 border-b border-white/[0.045]"
-        style={{ background: '#181818' }}
+        className="sticky top-0 z-[120] h-[38px] flex items-center px-4 gap-1 shrink-0 border-b border-[var(--color-border-subtle)]"
+        style={{ background: 'var(--color-surface-3)' }}
       >
         <span className="text-[12px] font-semibold text-white/62 shrink-0 mr-2">监控</span>
-        <div className="w-px h-4 bg-white/[0.055] mr-2 shrink-0" />
+        <div className="w-px h-4 bg-[var(--color-border-subtle)] mr-2 shrink-0" />
 
         {/* Tabs */}
         <div className="flex items-end h-full gap-0.5">
@@ -58,7 +58,7 @@ export function MonitorLayout({
             >
               {t.label}
               {tab === t.id && (
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full bg-[var(--nexus-accent)] shadow-[0_0_10px_rgba(30,144,255,0.35)]" />
+                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full bg-[var(--nexus-accent)] shadow-[0_0_10px_rgba(79,147,221,0.40)]" />
               )}
             </button>
           ))}

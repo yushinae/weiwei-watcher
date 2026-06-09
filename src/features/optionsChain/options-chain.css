@@ -10,10 +10,10 @@
   --db-bg-row-odd: transparent;
   --db-bg-strike: #262626;        /* L3 内块 — 中央执行价列 */
   --db-bg-hover: rgba(255, 255, 255, 0.05);
-  --db-bg-selected: rgba(30, 144, 255, 0.14);
+  --db-bg-selected: rgba(79, 147, 221, 0.14);
   --db-bg-atm: rgba(255, 255, 255, 0.045);
   --db-bg-atm-strong: rgba(255, 255, 255, 0.085);
-  --db-bg-owned: rgba(30, 144, 255, 0.12);
+  --db-bg-owned: rgba(79, 147, 221, 0.12);
 
   /* Lines */
   --db-border: rgba(255, 255, 255, 0.07);
@@ -30,14 +30,14 @@
   --db-warn: #febc2e;
 
   /* Accent — app brand blue */
-  --db-accent: #1E90FF;
-  --db-accent-soft: rgba(30, 144, 255, 0.35);
-  --db-accent-weak: rgba(30, 144, 255, 0.12);
+  --db-accent: #4F93DD;
+  --db-accent-soft: rgba(79, 147, 221, 0.35);
+  --db-accent-weak: rgba(79, 147, 221, 0.12);
 
   /* Spot / strike marker — app brand blue */
-  --db-spot: #1E90FF;
-  --db-spot-soft: rgba(30, 144, 255, 0.35);
-  --db-spot-weak: rgba(30, 144, 255, 0.16);
+  --db-spot: #4F93DD;
+  --db-spot-soft: rgba(79, 147, 221, 0.35);
+  --db-spot-weak: rgba(79, 147, 221, 0.16);
 
   /* Sizing rhythm */
   --db-row-h: 32px;
@@ -54,7 +54,7 @@
   /* subtle vignette */
   background:
     radial-gradient(1200px 600px at 30% 15%, rgba(255, 255, 255, 0.025), transparent 60%),
-    radial-gradient(900px 540px at 70% 35%, rgba(30, 144, 255, 0.03), transparent 62%),
+    radial-gradient(900px 540px at 70% 35%, rgba(79, 147, 221, 0.03), transparent 62%),
     var(--db-bg-main);
 }
 
@@ -115,7 +115,7 @@
 .db-oc-root .db-menu-item:focus-visible,
 .db-oc-root .db-iv-trigger:focus-visible,
 .db-oc-root button:focus-visible {
-  outline: 2px solid var(--db-accent, #1E90FF);
+  outline: 2px solid var(--db-accent, #4F93DD);
   outline-offset: 2px;
 }
 
@@ -187,14 +187,14 @@
 }
 
 .db-oc-root .db-oc-row.is-owned > .db-oc-cell-wrap {
-  box-shadow: inset 0 0 0 1px rgba(30, 144, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(79, 147, 221, 0.16);
 }
 
 /* Scrollbars */
 .db-oc-root ::-webkit-scrollbar { width: 8px; height: 8px; }
 .db-oc-root ::-webkit-scrollbar-track { background: transparent; }
 .db-oc-root ::-webkit-scrollbar-thumb {
-  background: rgba(30, 144, 255, 0.28);
+  background: rgba(79, 147, 221, 0.28);
   border-radius: 999px;
 }
-.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(30, 144, 255, 0.45); }
+.db-oc-root ::-webkit-scrollbar-thumb:active { background: rgba(79, 147, 221, 0.45); }

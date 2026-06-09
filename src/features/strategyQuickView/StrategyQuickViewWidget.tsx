@@ -240,7 +240,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
 <div style="font-size:15px;font-weight:700;margin:2px 0">${fmtPx(price)}</div>
 <div style="color:${color};font-weight:600">PnL: ${fmtDollar(pnl)}</div></div>`;
         },
-        extraCssText: 'border-radius: 10px; background: #1C1C1C; border: 1px solid rgba(255,255,255,0.08);',
+        extraCssText: 'border-radius: 10px; background: #181B21; border: 1px solid rgba(168,184,206,0.10);',
       },
     };
   }, [result]);
@@ -293,7 +293,7 @@ export default function StrategyQuickViewWidget({ coin }: { coin: Coin }) {
 
       {/* ── Chart + Metrics ── */}
       <div className="flex-1 grid grid-cols-12 gap-2.5 min-h-0">
-        <div className="col-span-8 bg-white/[0.03] rounded-lg ring-1 ring-inset ring-white/[0.05] min-h-0">
+        <div className="col-span-8 bg-[var(--color-surface-1)] rounded-lg ring-1 ring-inset ring-[var(--color-border-subtle)] min-h-0">
           {chartOption && <EChart option={chartOption} />}
         </div>
 

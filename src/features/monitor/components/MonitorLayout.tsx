@@ -58,7 +58,7 @@ export function MonitorLayout({
             >
               {t.label}
               {tab === t.id && (
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full bg-[var(--nexus-accent)] shadow-[0_0_10px_rgba(59,158,255,0.45)]" />
+                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full bg-[var(--nexus-accent)] shadow-[0_0_10px_rgba(79,147,221,0.40)]" />
               )}
             </button>
           ))}

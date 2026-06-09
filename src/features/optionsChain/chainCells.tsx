@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useRef, useCallback, memo } from 'react';
 import { Download } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 import { HoverPopover } from '../../components/popup/Popup';
 import type { ChainRow } from './chainModel';
 import {
@@ -22,6 +23,7 @@ export function Popover({
 }: {
   open: boolean; onClose: () => void; children: React.ReactNode; panelClassName?: string;
 }) {
+  useEscapeKey(open, onClose);
   if (!open) return null;
   return (
     <>
@@ -67,6 +69,19 @@ MarkCell.displayName = 'MarkCell';
 
 export interface SelectedCell { row: ChainRow; side: 'call' | 'put' }
 
+function callMirrorCols(cols: ViewCol[]): ViewCol[] {
+  const mirrored = [...cols].reverse();
+  const idx = (key: ViewCol['key']) => mirrored.findIndex(col => col.key === key);
+  const swap = (a: ViewCol['key'], b: ViewCol['key']) => {
+    const ia = idx(a);
+    const ib = idx(b);
+    if (ia >= 0 && ib >= 0) [mirrored[ia], mirrored[ib]] = [mirrored[ib], mirrored[ia]];
+  };
+  swap('ivBid', 'ivAsk');
+  swap('bid', 'ask');
+  return mirrored;
+}
+
 export const ChainRowComp = memo(({
   row, cols, loading, isEven, selectedSide, ownedSide, onRowClick, showDist, spot, emBandStrikeMin, emBandStrikeMax,
 }: {
@@ -88,10 +103,11 @@ export const ChainRowComp = memo(({
   const callBg = selectedSide === 'call' ? 'var(--db-bg-selected)' : callOwned ? 'var(--db-bg-owned)' : isATM ? atmBg : callItmBg;
   const putBg = selectedSide === 'put' ? 'var(--db-bg-selected)' : putOwned ? 'var(--db-bg-owned)' : isATM ? atmBg : putItmBg;
 
-  const callCols = cols; // 两侧列序一致（买价在左、卖价在右，与 Deribit 期权链一致），不镜像
+  const callCols = callMirrorCols(cols);
   const putCols = cols;
-  const colWidths = cols.map(col => `${col.w}px`).join(' ');
-  const gridTpl = `${colWidths} ${STRIKE_W}px ${colWidths}`;
+  const callColWidths = callCols.map(col => `${col.w}px`).join(' ');
+  const putColWidths = putCols.map(col => `${col.w}px`).join(' ');
+  const gridTpl = `${callColWidths} ${STRIKE_W}px ${putColWidths}`;
 
   const distPct = spot > 0 ? ((strike - spot) / spot) * 100 : 0;
   const distStr = (distPct >= 0 ? '+' : '') + distPct.toFixed(2) + '%';
@@ -138,7 +154,7 @@ export const ChainRowComp = memo(({
         style={{
           background: hasOwned ? 'var(--db-bg-owned)' : isATM ? 'var(--db-bg-atm-strong)' : (strike >= emBandStrikeMin && strike <= emBandStrikeMax) ? 'transparent' : 'var(--db-bg-strike)',
           borderLeft: `1px solid ${BORDER_STRONG}`, borderRight: `1px solid ${BORDER_STRONG}`, position: 'relative',
-          boxShadow: hasOwned ? 'inset 0 0 0 1.5px var(--db-accent)' : isATM ? 'inset 0 0 0 1px rgba(255,255,255,0.16)' : undefined,
+          boxShadow: isATM ? 'inset 0 0 0 1px rgba(255,255,255,0.16)' : undefined,
         }}>
         {callOwned && <span title="你在此看涨期权有模拟持仓" style={{ position: 'absolute', top: 3, left: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
         {putOwned && <span title="你在此看跌期权有模拟持仓" style={{ position: 'absolute', top: 3, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--db-accent)' }} />}
@@ -190,10 +206,11 @@ const HeaderCell = memo(({ col }: { col: ViewCol }) => (
 HeaderCell.displayName = 'HeaderCell';
 
 export const ColHeaderRow = memo(({ cols }: { cols: ViewCol[] }) => {
-  const callCols = cols; // 两侧列序一致（买价在左、卖价在右，与 Deribit 期权链一致），不镜像
+  const callCols = callMirrorCols(cols);
   const putCols = cols;
-  const colWidths = cols.map(c => `${c.w}px`).join(' ');
-  const gridTpl = `${colWidths} ${STRIKE_W}px ${colWidths}`;
+  const callColWidths = callCols.map(c => `${c.w}px`).join(' ');
+  const putColWidths = putCols.map(c => `${c.w}px`).join(' ');
+  const gridTpl = `${callColWidths} ${STRIKE_W}px ${putColWidths}`;
   return (
     <div style={{ backgroundColor: BG_HEADER }}>
       <div className="grid border-b" style={{ gridTemplateColumns: gridTpl, height: 34, borderBottom: `1px solid ${BORDER_C}` }}>

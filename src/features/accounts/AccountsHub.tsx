@@ -10,7 +10,7 @@ import { setBook } from './bookStore';
 import { ADAPTERS, PENDING_VENUES } from './adapters';
 import { parseFile, rowsToFills, type CsvParsed, type Field } from './csvImport';
 import type { Venue, VenueAccount, UnifiedPosition, UnifiedFill } from './types';
-import { useLocalBook } from '../optionsChain/simBook';
+import { useGlobalOptionBook } from '../optionsChain/optionBookStore';
 
 const ALL_VENUES: Venue[] = ['Hyperliquid', 'Bybit', 'Deribit', 'Binance'];
 const FIELD_LABEL: Record<Field, string> = { time: '时间', symbol: '合约', side: '方向', price: '价格', qty: '数量', fee: '手续费', pnl: '已实现盈亏' };
@@ -61,7 +61,7 @@ export const AccountsHub = () => {
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const [filterAcctId, setFilterAcctId] = useState<string | null>(null); // null = 全部；'SIM' = 模拟仓
   const [showManage, setShowManage] = useState(false);                   // 账户管理面板默认折叠
-  const sim = useLocalBook();                                            // 持久化模拟簿（与期权链共用）
+  const sim = useGlobalOptionBook();                                     // 与期权链共用的持久化模拟簿
   const isSim = filterAcctId === 'SIM';
   const simNetPnl = useMemo(() => sim.positions.reduce((s, p) => s + p.unrealizedPnL, 0), [sim.positions]);
   const simFee = useMemo(() => sim.fills.reduce((s, f) => s + f.fee, 0), [sim.fills]);

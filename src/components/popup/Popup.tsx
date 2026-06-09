@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useEscapeKey } from '../../lib/useEscapeKey';
 import { DUR_POP, EASE_EMPHASIS } from '../../motion/tokens';
 import './popup.css';
 
@@ -137,15 +138,11 @@ export function Drawer({
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open]);
+  useEscapeKey(open, onClose);
 
   return (
     <AnimatePresence>

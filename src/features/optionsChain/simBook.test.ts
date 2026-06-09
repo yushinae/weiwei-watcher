@@ -74,4 +74,12 @@ describe('bookReducer + 真深度', () => {
     expect(s.openOrders[0].qty).toBe(2);
     expect(s.fills.length).toBe(0);
   });
+
+  it('编辑未结订单 → 同步更新 openOrders 和 orderHistory', () => {
+    const s = bookReducer(empty, { t: 'place', a: place({ type: 'limit', side: 'buy', qty: 2, price: 90, book }) });
+    const id = s.openOrders[0].id;
+    const edited = bookReducer(s, { t: 'edit', id, price: 91.5, qty: 1.25 });
+    expect(edited.openOrders[0]).toMatchObject({ id, price: 91.5, qty: 1.25 });
+    expect(edited.orderHistory[0]).toMatchObject({ id, price: 91.5, qty: 1.25, status: 'pending' });
+  });
 });

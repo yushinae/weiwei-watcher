@@ -6,43 +6,51 @@
   <title>Deribit 快捷下单 v2026-06-04e</title>
   <style>
     :root {
-      --bg: #16121f;
-      --panel: #211c2e;
-      --panel-2: #2c253d;
-      --text: #fdf4f6;
-      --muted: #a89fbc;
+      --bg: #000000;
+      --nav: #15161d;
+      --panel: #17181e;
+      --panel-2: #2b2d35;
+      --panel-3: #121318;
+      --hover: #3a3b40;
+      --selected: #3a3f40;
+      --text: #ffffff;
+      --muted: #adb1b8;
+      --weak: #71757a;
       --line: rgba(255,255,255,0.06);
-      --green: #34d399;
-      --red: #fb7185;
-      --amber: #fbbf24;
-      --blue: #a78bfa;
-      --cyan: #22d3ee;
+      --line-strong: rgba(255,255,255,0.10);
+      --green: #24ae64;
+      --red: #ef454a;
+      --amber: #ff9c2e;
+      --orange: #ff9c2e;
+      --orange-strong: #f7a600;
+      --orange-soft: rgba(247,166,0,0.12);
+      --cyan: #ff9c2e;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #231c36 0%, var(--bg) 45%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
       color: var(--text);
     }
     .wrap {
-      width: min(1380px, calc(100vw - 24px));
-      margin: 18px auto 28px;
+      width: min(1420px, calc(100vw - 12px));
+      margin: 8px auto 20px;
       display: grid;
-      gap: 18px;
+      gap: 8px;
     }
     .topbar, .panel {
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-      border-radius: 24px;
-      padding: 18px;
-      box-shadow: 0 18px 48px rgba(0,0,0,0.24);
+      background: var(--panel);
+      border-radius: 6px;
+      padding: 12px;
     }
     .topbar {
       position: sticky;
-      top: 8px;
+      top: 0;
       z-index: 10;
-      padding: 12px 14px;
+      padding: 8px 10px;
+      background: var(--nav);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.36);
     }
     .topbar-title {
       font-size: 14px;
@@ -52,12 +60,12 @@
     .row, .stats, .layout, .chips, .amounts, .grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 6px;
     }
     .layout {
       align-items: flex-start;
       display: grid;
-      gap: 18px;
+      gap: 8px;
       grid-template-columns: 340px minmax(0, 1fr);
     }
     @media (max-width: 980px) {
@@ -65,9 +73,8 @@
     }
     .stat {
       min-width: 145px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 18px;
+      background: var(--panel-2);
+      border-radius: 4px;
       padding: 12px 14px;
     }
     .stat .k {
@@ -85,126 +92,138 @@
       font: inherit;
     }
     .chip, .action, .danger, .ghost {
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: var(--panel);
+      border-radius: 4px;
+      border: 0;
+      background: var(--panel-2);
       color: var(--text);
-      padding: 9px 14px;
+      padding: 8px 12px;
       cursor: pointer;
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+      transition: transform 120ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease;
+    }
+    .chip:hover, .ghost:hover {
+      background: var(--hover);
+      color: var(--text);
     }
     .chip:active, .action:active, .danger:active, .ghost:active {
-      transform: scale(0.98);
+      transform: translateY(1px);
     }
     .chip.active {
-      border-color: rgba(99,164,255,0.7);
-      background: rgba(99,164,255,0.18);
-      color: #d7e9ff;
+      background: var(--selected);
+      color: var(--orange);
     }
     .chip.active.tone-up {
-      border-color: rgba(52,211,153,0.4);
-      background: rgba(52,211,153,0.15);
-      color: #34d399;
-      box-shadow: 0 0 12px rgba(52,211,153,0.1);
+      background: var(--selected);
+      color: var(--orange);
     }
     .chip.active.tone-down {
-      border-color: rgba(251,113,133,0.4);
-      background: rgba(251,113,133,0.15);
-      color: #fb7185;
-      box-shadow: 0 0 12px rgba(251,113,133,0.1);
+      background: var(--selected);
+      color: var(--orange);
     }
     .chip.active.tone-taker {
-      border-color: rgba(251,113,133,0.4);
-      background: rgba(251,113,133,0.15);
-      color: #fb7185;
+      background: var(--selected);
+      color: var(--orange);
     }
     .chip.active.tone-maker {
-      border-color: rgba(167,139,250,0.4);
-      background: rgba(167,139,250,0.15);
-      color: #a78bfa;
+      background: var(--selected);
+      color: var(--orange);
     }
     .action {
-      border-radius: 16px;
+      border-radius: 4px;
       padding: 12px 16px;
       font-weight: 700;
       border: none;
-      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: background 140ms ease, transform 120ms ease, opacity 140ms ease;
     }
     .action:active {
-      transform: scale(0.95);
+      transform: translateY(1px);
     }
     .action.take_ask {
-      background: linear-gradient(135deg, #fb7185, #fba885);
+      background: var(--red);
       color: #fff;
-      box-shadow: 0 8px 24px rgba(251,113,133,0.3);
     }
     .action.join_bid {
-      background: linear-gradient(135deg, #a78bfa, #818cf8);
-      color: #fff;
-      box-shadow: 0 8px 24px rgba(167,139,250,0.3);
+      background: var(--panel-2);
+      color: var(--orange);
     }
     .action.mark_clip {
-      background: linear-gradient(135deg, #fbbf24, #fcd34d);
-      color: #78350f;
-      box-shadow: 0 8px 24px rgba(251,191,36,0.3);
+      background: var(--orange);
+      color: #101014;
+    }
+    .action.optimal,
+    .action.buy {
+      background: var(--orange);
+      color: #101014;
+    }
+    .action:hover {
+      opacity: 0.9;
     }
     .ghost {
       color: var(--muted);
     }
     .danger {
-      background: rgba(255,95,115,0.16);
-      border-color: rgba(255,95,115,0.45);
-      color: #ffd3d9;
+      background: rgba(239,69,74,0.14);
+      color: #ffb8bc;
+    }
+    .danger:hover {
+      background: rgba(239,69,74,0.22);
     }
     .stack {
       display: grid;
-      gap: 14px;
+      gap: 10px;
     }
     .field label {
       display: block;
       margin-bottom: 6px;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
     }
-    .field input[type="number"] {
+    .field input[type="number"],
+    .field input[type="text"],
+    .field input[type="password"],
+    #closeModalAmount {
       width: 100%;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: var(--panel);
+      border-radius: 4px;
+      border: 0;
+      background: var(--panel-2);
       color: var(--text);
       padding: 11px 12px;
+      outline: none;
+    }
+    .field input:focus,
+    #closeModalAmount:focus {
+      box-shadow: 0 0 0 1px var(--orange-soft);
     }
     .small {
       font-size: 12px;
       color: var(--muted);
     }
     .message {
-      border-radius: 14px;
+      border-radius: 4px;
       padding: 10px 12px;
       font-size: 13px;
     }
     .message.info {
-      background: rgba(99,164,255,0.14);
-      border: 1px solid rgba(99,164,255,0.28);
-      color: #d7e9ff;
+      background: var(--orange-soft);
+      border: 0;
+      color: var(--orange);
     }
     .message.error {
       background: rgba(255,95,115,0.14);
-      border: 1px solid rgba(255,95,115,0.28);
+      border: 0;
       color: #ffd7dd;
     }
     .message.warn {
       background: rgba(246,198,91,0.14);
-      border: 1px solid rgba(246,198,91,0.28);
+      border: 0;
       color: #fbe6af;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 14px;
+      font-size: 12px;
     }
     th, td {
-      padding: 10px 8px;
+      padding: 8px 8px;
       border-bottom: 1px solid var(--line);
       text-align: left;
       vertical-align: top;
@@ -217,12 +236,15 @@
     }
     .quote {
       min-width: 250px;
-      border: 1px solid var(--line);
       background: var(--panel);
-      border-radius: 18px;
+      border-radius: 6px;
       padding: 12px;
       display: grid;
       gap: 10px;
+      transition: background 140ms ease, box-shadow 140ms ease, transform 120ms ease;
+    }
+    .quote:hover {
+      background: #1b1c22;
     }
     .quote .side-name {
       font-size: 11px;
@@ -252,18 +274,19 @@
       gap: 8px;
     }
     .quote .price-pill, .close-modal .price-pill {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      background: var(--panel-2);
       padding: 10px;
-      transition: all 0.2s;
+      transition: background 140ms ease;
+    }
+    .quote .price-pill:hover, .close-modal .price-pill:hover {
+      background: var(--hover);
     }
     .quote .price-pill.mark-pill, .close-modal .price-pill.mark-pill {
-      background: rgba(251,191,36,0.05);
-      border-color: rgba(251,191,36,0.2);
+      background: var(--orange-soft);
     }
     .quote .price-pill.mark-pill .label, .close-modal .price-pill.mark-pill .label {
-      color: #fbbf24;
+      color: var(--orange);
     }
     .quote .price-pill .label, .close-modal .price-pill .label {
       font-size: 11px;
@@ -297,9 +320,8 @@
       gap: 8px;
       align-items: center;
       padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      background: var(--panel-2);
     }
     .quote .primary .label {
       font-size: 12px;
@@ -311,31 +333,33 @@
       color: var(--text);
     }
     .quote.call-card {
-      border-color: rgba(52,211,153,0.15);
+      box-shadow: inset 2px 0 0 rgba(36,174,100,0.55);
     }
     .quote.call-card.selected {
       background: rgba(52,211,153,0.08);
-      box-shadow: 0 0 0 1px rgba(52,211,153,0.3) inset;
+      box-shadow: inset 2px 0 0 var(--green);
     }
     .quote.put-card {
-      border-color: rgba(251,113,133,0.15);
+      box-shadow: inset 2px 0 0 rgba(239,69,74,0.55);
     }
     .quote.put-card.selected {
-      background: rgba(251,113,133,0.08);
-      box-shadow: 0 0 0 1px rgba(251,113,133,0.3) inset;
+      background: rgba(239,69,74,0.08);
+      box-shadow: inset 2px 0 0 var(--red);
     }
     .table-wrap {
       overflow: auto;
-      border-radius: 18px;
-      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--panel-3);
     }
+    tbody tr:hover { background: var(--hover); }
     .muted { color: var(--muted); }
     .pill {
       display: inline-block;
       padding: 4px 8px;
-      border-radius: 999px;
+      border-radius: 4px;
       font-size: 11px;
-      border: 1px solid var(--line);
+      border: 0;
+      background: var(--panel-2);
       color: var(--muted);
     }
     .footer-note {
@@ -390,9 +414,8 @@
       cursor: pointer;
     }
     .quote.selected {
-      border-color: rgba(99,164,255,0.72);
-      box-shadow: 0 0 0 1px rgba(99,164,255,0.22), 0 16px 34px rgba(2,12,27,0.38);
-      background: linear-gradient(180deg, rgba(99,164,255,0.12), rgba(255,255,255,0.02));
+      background: var(--selected);
+      box-shadow: inset 0 -2px 0 var(--orange);
     }
     .mobile-tradebar {
       display: none;
@@ -405,16 +428,15 @@
       align-items: center;
       gap: 8px;
       padding: 6px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      background: var(--panel-2);
     }
     .mini-stepper button {
       width: 34px;
       height: 34px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: var(--panel);
+      border-radius: 4px;
+      border: 0;
+      background: var(--panel-2);
       color: var(--text);
       cursor: pointer;
     }
@@ -438,8 +460,8 @@
         min-width: 0;
       }
       .topbar, .panel {
-        border-radius: 20px;
-        padding: 14px;
+        border-radius: 6px;
+        padding: 10px;
       }
       .stats {
         display: grid;
@@ -482,7 +504,7 @@
         grid-template-columns: auto 1fr auto;
         gap: 8px;
         padding: 12px 16px;
-        border-radius: 16px;
+        border-radius: 6px;
         align-items: center;
       }
       .quote .strike {
@@ -500,9 +522,8 @@
         gap: 4px;
         margin-top: 8px;
         padding: 8px;
-        background: rgba(0,0,0,0.2);
-        border-radius: 12px;
-        border: 1px solid var(--line);
+        background: var(--panel-3);
+        border-radius: 4px;
       }
       .quote .price-row .price-pill {
         align-items: center;
@@ -574,7 +595,7 @@
         inset: 0;
         background: rgba(0,0,0,0.6);
         z-index: 30;
-        backdrop-filter: blur(4px);
+        backdrop-filter: blur(8px);
         opacity: 1;
       }
       .mobile-tradebar {
@@ -583,9 +604,8 @@
         position: fixed;
         left: 0; right: 0; bottom: 0;
         z-index: 40;
-        padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
-        border-radius: 28px 28px 0 0;
-        border-top: 1px solid rgba(255,255,255,0.1);
+        padding: 18px 14px calc(env(safe-area-inset-bottom, 0px) + 18px);
+        border-radius: 8px 8px 0 0;
         background: var(--panel);
         box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
         transform: translateY(100%);
@@ -619,10 +639,9 @@
         grid-template-columns: 1fr 1fr;
         gap: 8px;
         margin-top: 12px;
-        background: rgba(255,255,255,0.03);
+        background: var(--panel-2);
         padding: 10px;
-        border-radius: 12px;
-        border: 1px solid var(--line);
+        border-radius: 4px;
       }
       .info-row {
         display: flex;
@@ -648,12 +667,12 @@
       }
       .mobile-tradebar .action {
         min-height: 48px;
-        border-radius: 14px;
+        border-radius: 4px;
         font-size: 16px;
       }
       .mobile-tradebar .ghost {
         min-height: 48px;
-        border-radius: 14px;
+        border-radius: 4px;
         padding-left: 14px;
         padding-right: 14px;
       }
@@ -670,13 +689,12 @@
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: var(--panel);
-      padding: 24px;
-      border-radius: 20px;
+      padding: 18px;
+      border-radius: 8px;
       z-index: 50;
       width: 90%;
       max-width: 360px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
     }
     .close-modal.open {
       display: block;
@@ -750,9 +768,9 @@
   <div class="wrap">
     <section class="topbar">
       <div class="row" style="justify-content:space-between;align-items:center;">
-        <div style="display:flex; align-items:center; gap:16px;">
+        <div style="display:flex; align-items:center; gap:12px;">
           <div class="topbar-title">近端快单</div>
-          <div id="accountEquity" style="font-size:13px; font-weight:700; color:var(--cyan); background:rgba(10,132,255,0.1); padding:4px 10px; border-radius:6px; border:1px solid rgba(10,132,255,0.2); display:none;"></div>
+          <div id="accountEquity" style="font-size:12px; font-weight:700; color:var(--orange); background:var(--orange-soft); padding:5px 8px; border-radius:4px; display:none;"></div>
         </div>
         <div class="chips">
           <div id="assetChips" class="chips"></div>
@@ -864,9 +882,9 @@
       </div>
     </section>
 
-    <footer style="margin-top:40px; padding:30px 20px 100px 20px; text-align:center; border-top:1px solid rgba(255,255,255,0.05);">
+    <footer style="margin-top:20px; padding:24px 20px 80px 20px; text-align:center; border-top:1px solid rgba(255,255,255,0.05);">
       <div style="margin-bottom:12px;">
-        <a href="https://gexmonitor.com" target="_blank" rel="noopener noreferrer" style="color:var(--cyan); text-decoration:none; font-weight:700; font-size:18px; letter-spacing:1px; text-shadow:0 0 10px rgba(6,182,212,0.4);">
+        <a href="https://gexmonitor.com" target="_blank" rel="noopener noreferrer" style="color:var(--orange); text-decoration:none; font-weight:700; font-size:16px; letter-spacing:0;">
           Powered by GEXmonitor
         </a>
       </div>
@@ -906,7 +924,7 @@
           <button class="ghost" onclick="setClosePct(0.75)">75%</button>
           <button class="ghost" onclick="setClosePct(1.00)">100%</button>
         </div>
-        <input id="closeModalAmount" type="number" step="0.1" style="margin-top:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:18px;text-align:center;font-weight:700;border-radius:12px;" />
+        <input id="closeModalAmount" type="number" step="0.1" style="margin-top:12px;font-size:18px;text-align:center;font-weight:700;" />
         <div class="close-actions">
           <button class="action join_bid" id="closeBtnMaker" onclick="executeClose('maker')">
             <div class="btn-title" id="closeTitleMaker">排队挂单</div>
@@ -916,7 +934,7 @@
             <div class="btn-title">标记</div>
             <div class="btn-price" id="closePriceMark">--</div>
           </button>
-          <button class="action optimal" id="closeBtnOptimal" onclick="executeClose('optimal')" style="background:var(--cyan);color:#111">
+          <button class="action optimal" id="closeBtnOptimal" onclick="executeClose('optimal')">
             <div class="btn-title">最优价</div>
             <div class="btn-price" id="closePriceOptimal">--</div>
           </button>
@@ -929,10 +947,10 @@
       </div>
 
       <div id="closeTrackingSection" style="display:none; margin-top:12px;">
-        <div id="closeTrackingContainer" style="background:linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02)); border:1px solid rgba(251,191,36,0.3); border-radius:16px; padding:20px; text-align:center;">
+        <div id="closeTrackingContainer" style="background:var(--panel-2); border-radius:4px; padding:16px; text-align:center;">
             <div style="font-size:13px;color:var(--muted);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;">订单追踪雷达</div>
-            <div id="closeTrackStatus" style="font-size:22px;font-weight:800;margin-bottom:16px;color:var(--amber);text-shadow:0 0 12px rgba(251,191,36,0.4);">排队中 (Open)</div>
-            <div id="closeTrackDetails" style="font-size:15px;line-height:1.8;margin-bottom:24px;background:rgba(0,0,0,0.2);border-radius:12px;padding:12px;">--</div>
+            <div id="closeTrackStatus" style="font-size:22px;font-weight:800;margin-bottom:16px;color:var(--amber);">排队中 (Open)</div>
+            <div id="closeTrackDetails" style="font-size:15px;line-height:1.8;margin-bottom:24px;background:var(--panel-3);border-radius:4px;padding:12px;">--</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <button class="ghost" onclick="hideCloseModal()">隐藏面板</button>
                 <button class="danger" id="closeTrackCancelBtn" onclick="cancelTrackedOrder()" style="font-weight:700;">紧急撤单</button>
@@ -1892,7 +1910,7 @@ function renderAccountEquity(payload) {
         }
         let label = `${item.label} · ${item.expiry} · ${Math.round(item.dte_days)}D`;
         if (activeCount > 0) {
-          label += ` <span style="display:inline-block;background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px;line-height:1;box-shadow:0 0 8px rgba(255,59,48,0.4);">${activeCount}</span>`;
+          label += ` <span style="display:inline-block;background:rgba(239,69,74,0.16);color:var(--red);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700;margin-left:6px;line-height:1;">${activeCount}</span>`;
         }
         expiryChips.appendChild(button(label, state.expiry === item.expiry, async () => {
           state.expiry = item.expiry;
@@ -2048,8 +2066,8 @@ function renderAccountEquity(payload) {
         }
       }
 
-      const buyBadge = myBuyAmount > 0 ? `<div style="position:absolute;top:-8px;right:-8px;background:#34d399;color:#000;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:900;box-shadow:0 2px 10px rgba(52,211,153,0.6);border:1px solid rgba(0,0,0,0.5);z-index:10;">挂买 ${myBuyAmount}</div>` : '';
-      const sellBadge = mySellAmount > 0 ? `<div style="position:absolute;top:-8px;right:-8px;background:#fb7185;color:#000;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:900;box-shadow:0 2px 10px rgba(251,113,133,0.6);border:1px solid rgba(0,0,0,0.5);z-index:10;">挂卖 ${mySellAmount}</div>` : '';
+      const buyBadge = myBuyAmount > 0 ? `<div style="position:absolute;top:-7px;right:-7px;background:rgba(36,174,100,0.16);color:var(--green);font-size:11px;padding:2px 6px;border-radius:4px;font-weight:900;z-index:10;">挂买 ${myBuyAmount}</div>` : '';
+      const sellBadge = mySellAmount > 0 ? `<div style="position:absolute;top:-7px;right:-7px;background:rgba(239,69,74,0.16);color:var(--red);font-size:11px;padding:2px 6px;border-radius:4px;font-weight:900;z-index:10;">挂卖 ${mySellAmount}</div>` : '';
 
       wrap.innerHTML = `
         <div class="side-name">${sideLabel}</div>
@@ -2181,7 +2199,7 @@ function renderAccountEquity(payload) {
       const askDisplay = formatDisplay(selected.sideData.ask, spotPrice);
 
       mobileSelectionInfo.innerHTML = `
-        <div class="info-row" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px"><span>💰 权利金总额:</span> <strong style="color:#fbbf24;font-size:16px">${fmtUsd(details.premiumUsd)}</strong></div>
+        <div class="info-row" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:8px 12px;background:var(--orange-soft);border-radius:4px"><span>权利金总额:</span> <strong style="color:var(--orange);font-size:16px">${fmtUsd(details.premiumUsd)}</strong></div>
         <div class="info-row"><span>杠杆:</span> <strong>x${fmt(details.leverageRatio, 1)}</strong></div>
         <div class="info-row"><span>按手数 Δ 名义:</span> <strong>${fmtUsd(details.deltaNotionalUsd)}</strong></div>
         <div class="info-row"><span>当前 IV:</span> <strong>${fmt(selected.sideData.iv, 1)}%</strong></div>
@@ -2384,19 +2402,17 @@ function renderAccountEquity(payload) {
           if (closeState.trackingOrderId && state.payload) {
              const order = (state.payload.open_orders || []).find(o => o.order_id === closeState.trackingOrderId);
              if (order) {
-                document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02))';
-                document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(251,191,36,0.3)';
+                document.getElementById('closeTrackingContainer').style.background = 'var(--panel-2)';
                 document.getElementById('closeTrackStatus').textContent = '排队挂单中 (OPEN)';
                 document.getElementById('closeTrackStatus').style.color = 'var(--amber)';
-                document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(251,191,36,0.4)';
+                document.getElementById('closeTrackStatus').style.textShadow = 'none';
                 document.getElementById('closeTrackDetails').innerHTML = `委托价格：<b style="color:#fff">${order.price}</b><br>未成交量：<b style="color:#fff">${order.amount}</b>`;
                 document.getElementById('closeTrackCancelBtn').style.display = 'block';
              } else {
-                document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(52,211,153,0.1), rgba(52,211,153,0.02))';
-                document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(52,211,153,0.3)';
+                document.getElementById('closeTrackingContainer').style.background = 'rgba(36,174,100,0.12)';
                 document.getElementById('closeTrackStatus').textContent = '已被处理 (FILLED)';
                 document.getElementById('closeTrackStatus').style.color = 'var(--green)';
-                document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(52,211,153,0.4)';
+                document.getElementById('closeTrackStatus').style.textShadow = 'none';
                 document.getElementById('closeTrackDetails').innerHTML = `该订单已不在排队列表中。`;
                 document.getElementById('closeTrackCancelBtn').style.display = 'none';
              }
@@ -2510,20 +2526,18 @@ function renderAccountEquity(payload) {
         if (stateStr === 'filled') {
            soundOrderFilled();
            setStatus('info', payload.message || '平仓已完全成交');
-           document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(52,211,153,0.1), rgba(52,211,153,0.02))';
-           document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(52,211,153,0.3)';
+           document.getElementById('closeTrackingContainer').style.background = 'rgba(36,174,100,0.12)';
            document.getElementById('closeTrackStatus').textContent = '已完全成交 (FILLED)';
            document.getElementById('closeTrackStatus').style.color = 'var(--green)';
-           document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(52,211,153,0.4)';
+           document.getElementById('closeTrackStatus').style.textShadow = 'none';
            document.getElementById('closeTrackCancelBtn').style.display = 'none';
         } else {
            soundOrderPlaced();
            setStatus('info', payload.message || '平仓委托已挂出');
-           document.getElementById('closeTrackingContainer').style.background = 'linear-gradient(180deg, rgba(251,191,36,0.1), rgba(251,191,36,0.02))';
-           document.getElementById('closeTrackingContainer').style.borderColor = 'rgba(251,191,36,0.3)';
+           document.getElementById('closeTrackingContainer').style.background = 'var(--panel-2)';
            document.getElementById('closeTrackStatus').textContent = '排队挂单中 (OPEN)';
            document.getElementById('closeTrackStatus').style.color = 'var(--amber)';
-           document.getElementById('closeTrackStatus').style.textShadow = '0 0 12px rgba(251,191,36,0.4)';
+           document.getElementById('closeTrackStatus').style.textShadow = 'none';
            document.getElementById('closeTrackCancelBtn').style.display = 'block';
         }
         document.getElementById('closeTrackDetails').innerHTML = `委托价格：<b style="color:#fff">${orderInfo.price || '--'}</b><br>委托数量：<b style="color:#fff">${orderInfo.amount || size}</b>`;

@@ -9,27 +9,53 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
-import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown } from 'lucide-react';
+import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown, Pencil } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import type { Coin, DataSource } from './chainModel';
-import { useLocalBook, fillAgainstBook, type DepthBook, type DepthLevel } from './simBook';
+import { useEscapeKey } from '../../lib/useEscapeKey';
+import type { Coin, DataSource, Side } from './chainModel';
+import { useLocalBook, fillAgainstBook, type DepthBook, type DepthLevel, type SimPosition } from './simBook';
 import type { GlobalOptionBook } from './optionBookStore';
 import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import {
-  BG_MAIN, BG_HEADER, BORDER_C, TABNUM, fmtGamma5, optionSymbol,
+  BORDER_C, TABNUM, fmtGamma5, optionSymbol,
 } from './chainConstants';
 import FreshnessTag from '../../components/FreshnessTag';
 import { useFreshness } from '../../registry/data/freshness';
 import { preTradeChecks, type CheckLevel } from './preTradeChecks';
+import { soundOrderError } from './orderSounds';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Positions panel — 仓位 / 未结订单 / 订单历史 / 交易历史 (shared: page + trade modal)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BORDER = `1px solid ${BORDER_C}`;
-const POS_GRID = 'grid grid-cols-[minmax(115px,1fr)_55px_75px_70px_70px_70px_55px_55px_55px_55px]';
+type BookTab = 'position' | 'open' | 'history' | 'trades';
+
+const POS_GRID = 'grid grid-cols-[minmax(180px,1.35fr)_64px_82px_82px_82px_86px_64px_64px_64px_64px]';
+const POSITION_GRID = 'grid grid-cols-[minmax(180px,1.35fr)_64px_82px_82px_82px_86px_64px_64px_64px_64px_98px]';
+const OPEN_GRID = 'grid grid-cols-[minmax(190px,1.4fr)_82px_78px_72px_100px_136px_96px_82px]';
+const POS_TABS: { k: BookTab; l: string }[] = [
+  { k: 'position', l: '仓位' },
+  { k: 'open', l: '未结' },
+  { k: 'history', l: '历史' },
+  { k: 'trades', l: '成交' },
+];
+const PANEL_BG = '#17181E';
+const TILE_BG = '#2B2D35';
+const TILE_HOVER = '#3A3B40';
+const SELECTED_BG = '#3A3F40';
+const TABLE_HEAD_BG = '#121318';
+const NAV_BG = '#15161D';
+const SUBTLE_LINE = 'rgba(255,255,255,0.06)';
+const ORANGE = '#ff9c2e';
+
+const fmtSigned = (v: number, digits = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
+export type PositionMarketQuote = Pick<Side, 'bid' | 'ask' | 'mark' | 'iv' | 'delta' | 'gamma' | 'theta' | 'vega' | 'instrument'> & {
+  source: DataSource;
+  dec: number;
+};
 
 // Window-frame controls (最大化 / 收起) — top-right of a component card.
 export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggleCollapse }: {
@@ -54,14 +80,99 @@ export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggle
   );
 }
 
-export function PositionsPanel({ book, style, className, embedded }: {
+export function PositionsPanel({ book, style, className, embedded, onSymbolClick, marketQuotes }: {
   book: ReturnType<typeof useLocalBook> | GlobalOptionBook; style?: React.CSSProperties; className?: string; embedded?: boolean;
+  onSymbolClick?: (symbol: string) => void;
+  marketQuotes?: Map<string, PositionMarketQuote>;
 }) {
-  const [btab, setBtab] = useState<'position' | 'open' | 'history' | 'trades'>('position');
-  const [collapsed, setCollapsed] = useState(true);
-  const { positions, openOrders, orderHistory, fills, cancelOrder } = book;
+  const [btab, setBtab] = useState<BookTab>('position');
+  const [collapsed, setCollapsed] = useState(() => !embedded);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editQty, setEditQty] = useState('');
+  const [closingPosition, setClosingPosition] = useState<SimPosition | null>(null);
+  const [closeMode, setCloseMode] = useState<'limit' | 'market'>('limit');
+  const [closePrice, setClosePrice] = useState('');
+  const [closeQty, setCloseQty] = useState('');
+  const { positions, openOrders, orderHistory, fills, cancelOrder, editOrder, placeOrder } = book;
+  const editingOrder = useMemo(
+    () => openOrders.find(o => o.id === editingOrderId) ?? null,
+    [openOrders, editingOrderId],
+  );
+  const liveClosingPosition = useMemo(() => (
+    closingPosition
+      ? positions.find(p => p.id === closingPosition.id) ?? positions.find(p => p.symbol === closingPosition.symbol) ?? closingPosition
+      : null
+  ), [closingPosition, positions]);
+  const closingQuote = liveClosingPosition ? marketQuotes?.get(liveClosingPosition.symbol) : undefined;
+  const rawClosingDepth = useOptionDepth(closingQuote?.source ?? 'bybit', closingQuote?.instrument);
+  const closingBook = useMemo<DepthBook | null>(() => {
+    if (!rawClosingDepth || (rawClosingDepth.bids.length === 0 && rawClosingDepth.asks.length === 0)) return null;
+    const rawAsk = rawClosingDepth.asks[0]?.price;
+    const rawBid = rawClosingDepth.bids[0]?.price;
+    let factor = 1;
+    if (closingQuote?.ask != null && rawAsk) factor = closingQuote.ask / rawAsk;
+    else if (closingQuote?.bid != null && rawBid) factor = closingQuote.bid / rawBid;
+    const conv = (l: DepthLevel) => ({ price: l.price * factor, size: l.size });
+    return {
+      bids: rawClosingDepth.bids.map(conv),
+      asks: rawClosingDepth.asks.map(conv),
+    };
+  }, [rawClosingDepth, closingQuote?.ask, closingQuote?.bid]);
+  const closePercent = liveClosingPosition?.qty
+    ? Math.min(100, Math.max(0, ((Number(closeQty) || 0) / liveClosingPosition.qty) * 100))
+    : 0;
+  useEscapeKey(editingOrder != null, () => setEditingOrderId(null));
+  useEscapeKey(closingPosition != null, () => setClosingPosition(null));
+  const startEditOrder = (order: (typeof openOrders)[number]) => {
+    setEditingOrderId(order.id);
+    setEditPrice(String(order.price));
+    setEditQty(String(order.qty));
+  };
+  const confirmEditOrder = () => {
+    if (!editingOrder || !editOrder) return;
+    const nextPrice = Number(editPrice);
+    const nextQty = Number(editQty);
+    if (!(nextPrice > 0) || !(nextQty > 0)) return;
+    editOrder(editingOrder.id, nextPrice, nextQty);
+    setEditingOrderId(null);
+  };
+  const startClosePosition = (position: SimPosition, mode: 'limit' | 'market') => {
+    const quote = marketQuotes?.get(position.symbol);
+    setClosingPosition(position);
+    setCloseMode(mode);
+    setClosePrice(String(quote?.mark ?? position.markPrice));
+    setCloseQty(String(position.qty));
+  };
+  const confirmClosePosition = () => {
+    const position = liveClosingPosition;
+    if (!position) return;
+    const nextPrice = Number(closePrice);
+    const nextQty = Math.min(Number(closeQty), position.qty);
+    if (!(nextQty > 0) || (closeMode === 'limit' && !(nextPrice > 0))) return;
+    const sign = position.side === 'long' ? 1 : -1;
+    const mark = closingQuote?.mark ?? position.markPrice;
+    placeOrder({
+      side: position.side === 'long' ? 'sell' : 'buy',
+      type: closeMode,
+      symbol: position.symbol,
+      qty: nextQty,
+      price: closeMode === 'market' ? mark : nextPrice,
+      mark,
+      delta: (closingQuote?.delta ?? position.delta / sign),
+      gamma: (closingQuote?.gamma ?? position.gamma / sign),
+      theta: (closingQuote?.theta ?? position.theta / sign),
+      vega: (closingQuote?.vega ?? position.vega / sign),
+      book: closingBook ?? undefined,
+    });
+    setClosingPosition(null);
+  };
 
   // ── Summary stats for the header ─────────────────────────────────────
+  const grossValue = useMemo(
+    () => positions.reduce((s, p) => s + p.markPrice * p.qty, 0),
+    [positions],
+  );
   const totalDelta = useMemo(
     () => positions.reduce((s, p) => s + p.delta, 0),
     [positions],
@@ -70,143 +181,627 @@ export function PositionsPanel({ book, style, className, embedded }: {
     () => positions.reduce((s, p) => s + p.unrealizedPnL, 0),
     [positions],
   );
+  const totalGamma = useMemo(
+    () => positions.reduce((s, p) => s + p.gamma, 0),
+    [positions],
+  );
+  const totalTheta = useMemo(
+    () => positions.reduce((s, p) => s + p.theta, 0),
+    [positions],
+  );
+  const totalVega = useMemo(
+    () => positions.reduce((s, p) => s + p.vega, 0),
+    [positions],
+  );
+  const tabCounts: Record<BookTab, number> = {
+    position: positions.length,
+    open: openOrders.length,
+    history: orderHistory.length,
+    trades: fills.length,
+  };
+  const hasData = positions.length > 0 || openOrders.length > 0 || orderHistory.length > 0 || fills.length > 0;
 
-  // Website-style pill tab bar
+  const SummaryMetric = ({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'down' | 'orange' }) => (
+    <div className="min-w-[82px] rounded-[4px] px-2.5 py-1.5 transition-colors hover:bg-[#3A3B40]" style={{ background: TILE_BG }}>
+      <div className="text-[9px] uppercase tracking-[0.06em] text-white/40">{label}</div>
+      <div
+        className={cn('mt-0.5 font-mono text-[12px] font-bold tabular-nums', !tone && 'text-white/82')}
+        style={{
+          color: tone === 'up' ? 'var(--db-up)' : tone === 'down' ? 'var(--db-down)' : tone === 'orange' ? 'var(--db-accent)' : undefined,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+
   const tabBar = (
-    <div className="flex items-center gap-1">
-      {([
-        { k: 'position' as const, l: '仓位', c: positions.length },
-        { k: 'open' as const, l: '未结', c: openOrders.length },
-        { k: 'history' as const, l: '历史', c: orderHistory.length },
-        { k: 'trades' as const, l: '成交', c: fills.length },
-      ]).map(t => {
+    <div className="flex items-center gap-1 rounded-[4px] p-0.5" style={{ background: TILE_BG }}>
+      {POS_TABS.map(t => {
         const on = btab === t.k;
         return (
           <button key={t.k} onClick={() => { setBtab(t.k); setCollapsed(false); }}
             className={cn(
-              'flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] font-semibold transition-colors whitespace-nowrap',
-              on
-                ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]'
-                : 'text-white/40 hover:text-white/55',
-            )}>
+              'h-7 min-w-[56px] px-2.5 rounded-[4px] text-[11px] font-semibold transition-colors whitespace-nowrap active:translate-y-px',
+              on ? 'text-[var(--db-accent)]' : 'text-white/55 hover:text-white/85',
+            )}
+            style={{ background: on ? SELECTED_BG : 'transparent' }}
+            onMouseEnter={e => {
+              if (!on) e.currentTarget.style.background = TILE_HOVER;
+            }}
+            onMouseLeave={e => {
+              if (!on) e.currentTarget.style.background = 'transparent';
+            }}
+          >
             {t.l}
-            {t.c > 0 && <span className="text-[9px] opacity-60">{t.c}</span>}
+            {tabCounts[t.k] > 0 && <span className="ml-1 text-[9px] opacity-65">{tabCounts[t.k]}</span>}
           </button>
         );
       })}
     </div>
   );
 
+  const headerRow = (
+    <div className={cn(POS_GRID, 'sticky top-0 z-[2] min-w-[840px] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.04em]')}
+      style={{ background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
+      <div>合约</div>
+      <div className="text-right">数量</div>
+      <div className="text-right">价值</div>
+      <div className="text-right">均价</div>
+      <div className="text-right">标记</div>
+      <div className="text-right">损益/状态</div>
+      <div className="text-right">Δ</div>
+      <div className="text-right">Γ</div>
+      <div className="text-right">Θ</div>
+      <div className="text-right">ν</div>
+    </div>
+  );
+  const positionHeaderRow = (
+    <div className={cn(POSITION_GRID, 'sticky top-0 z-[2] min-w-[940px] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.04em]')}
+      style={{ background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
+      <div>合约</div>
+      <div className="text-right">数量</div>
+      <div className="text-right">价值</div>
+      <div className="text-right">均价</div>
+      <div className="text-right">标记</div>
+      <div className="text-right">损益/状态</div>
+      <div className="text-right">Δ</div>
+      <div className="text-right">Γ</div>
+      <div className="text-right">Θ</div>
+      <div className="text-right">ν</div>
+      <div className="sticky right-0 z-[3] bg-[#121318] text-center shadow-[-10px_0_14px_rgba(0,0,0,0.22)]">平仓</div>
+    </div>
+  );
+
+  const EmptyState = ({ label }: { label: string }) => (
+    <div className="flex h-[118px] items-center justify-center">
+      <div className="rounded-[4px] px-4 py-2 text-[12px] font-semibold text-white/38" style={{ background: TILE_BG }}>
+        {label}
+      </div>
+    </div>
+  );
+
+  const rowCls = cn(POS_GRID, 'min-w-[840px] px-3 py-2 text-[11px] transition-colors border-t border-white/[0.035] hover:bg-[#3A3B40]');
+  const positionRowCls = cn(POSITION_GRID, 'min-w-[946px] px-3 py-2 text-[11px] border-t border-white/[0.035]');
+  const openRowCls = cn(OPEN_GRID, 'min-w-[980px] px-3 py-2 text-[11px] border-t border-white/[0.035]');
+  const actionPillCls = 'h-7 rounded-full bg-[#2B2D35] px-2.5 text-[11px] font-extrabold text-white/88 transition-colors hover:bg-[#555A5C] active:translate-y-px';
+  const inlineEditButtonCls = 'ml-1 inline-flex h-5 w-5 items-center justify-center rounded-[4px] text-white/35 transition-colors hover:bg-white/[0.08] hover:text-white/75';
+
   const table = (
     <div className="min-w-0 w-full">
-      <div className={cn(POS_GRID, 'px-3 py-1.5 text-[10px] border-b border-white/[0.04]')} style={{ color: 'rgba(255,255,255,0.3)' }}>
-        <div>产品</div><div className="text-right">数量</div><div className="text-right">价值</div><div className="text-right">均价</div><div className="text-right">标记</div><div className="text-right">损益</div><div className="text-right">Δ</div><div className="text-right">Γ</div><div className="text-right">Θ</div><div className="text-right">ν</div>
-      </div>
-      {btab === 'position' && positions.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无持仓</div>}
+      {btab === 'position' ? positionHeaderRow : btab !== 'open' && headerRow}
+      {btab === 'position' && positions.length === 0 && <EmptyState label="暂无持仓" />}
       {btab === 'position' && positions.map(p => (
-        <div key={p.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors')}>
-          <div className="font-mono font-bold truncate" style={{ color: p.side === 'long' ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{p.symbol}</div>
-          <div className="text-right font-mono text-white/80">{p.qty.toFixed(2)}</div>
-          <div className="text-right font-mono text-white/55">{(p.markPrice * p.qty).toFixed(2)}</div>
-          <div className="text-right font-mono text-white/55">{p.avgEntryPrice.toFixed(2)}</div>
-          <div className="text-right font-mono text-white/80">{p.markPrice.toFixed(2)}</div>
-          <div className="text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{p.unrealizedPnL >= 0 ? '+' : ''}{p.unrealizedPnL.toFixed(2)}</div>
-          <div className="text-right font-mono text-white/55">{p.delta.toFixed(3)}</div>
-          <div className="text-right font-mono text-white/55">{p.gamma.toFixed(4)}</div>
-          <div className="text-right font-mono text-white/55">{p.theta.toFixed(2)}</div>
-          <div className="text-right font-mono text-white/55">{p.vega.toFixed(2)}</div>
-        </div>
-      ))}
-      {btab === 'open' && openOrders.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无未结订单</div>}
-      {btab === 'open' && openOrders.map(o => (
-        <div key={o.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
-          <div className="font-mono font-bold truncate text-white/80">{o.symbol}</div><div className="text-right font-mono text-white/80">{o.qty.toFixed(2)}</div><div className="text-right font-mono text-white/55">{o.type === 'limit' ? '限价' : o.type === 'stop' ? '止损' : '市价'}</div>
-          <div className="text-right font-mono text-white/55">{o.price.toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono" style={{ color: o.side === 'buy' ? '#25e889' : '#FF5F57' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
-          <div className="text-right">
-            <button onClick={() => cancelOrder(o.id)} className="text-[10px] font-semibold px-1.5 py-0.5 rounded hover:bg-white/[0.06] text-[#FF5F57]/80 hover:text-[#FF5F57] transition-colors">取消</button>
+        <div key={p.id} className={positionRowCls}>
+          <div className="min-w-0">
+            {onSymbolClick ? (
+              <button
+                type="button"
+                onClick={() => onSymbolClick(p.symbol)}
+                className="block max-w-full truncate text-left font-mono font-bold text-white/88 transition-colors hover:text-[var(--db-accent)]"
+                title={`跳转到 ${p.symbol}`}
+              >
+                {p.symbol}
+              </button>
+            ) : (
+              <div className="truncate font-mono font-bold text-white/88">{p.symbol}</div>
+            )}
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="rounded px-1.5 py-[1px] text-[9px] font-bold" style={{
+                background: p.side === 'long' ? 'rgba(36,174,100,0.12)' : 'rgba(239,69,74,0.12)',
+                color: p.side === 'long' ? 'var(--db-up)' : 'var(--db-down)',
+              }}>{p.side === 'long' ? 'LONG' : 'SHORT'}</span>
+              <span className="text-[10px] text-white/35">模拟仓位</span>
+            </div>
           </div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
+          <div className="self-center text-right font-mono text-white/82">{p.qty.toFixed(2)}</div>
+          <div className="self-center text-right font-mono text-white/55">{(p.markPrice * p.qty).toFixed(2)}</div>
+          <div className="self-center text-right font-mono text-white/55">{p.avgEntryPrice.toFixed(2)}</div>
+          <div className="self-center text-right font-mono text-white/82">{p.markPrice.toFixed(2)}</div>
+          <div className="self-center text-right font-mono font-bold" style={{ color: p.unrealizedPnL >= 0 ? 'var(--db-up)' : 'var(--db-down)' }}>{fmtSigned(p.unrealizedPnL)}</div>
+          <div className="self-center text-right font-mono text-white/55">{p.delta.toFixed(3)}</div>
+          <div className="self-center text-right font-mono text-white/55">{p.gamma.toFixed(4)}</div>
+          <div className="self-center text-right font-mono text-white/55">{p.theta.toFixed(2)}</div>
+          <div className="self-center text-right font-mono text-white/55">{p.vega.toFixed(2)}</div>
+          <div className="sticky right-0 flex items-center justify-center gap-1 self-stretch bg-[#17181E] shadow-[-10px_0_14px_rgba(0,0,0,0.20)]">
+            <button
+              type="button"
+              onClick={() => startClosePosition(p, 'limit')}
+              className={actionPillCls}
+            >
+              限价
+            </button>
+            <button
+              type="button"
+              onClick={() => startClosePosition(p, 'market')}
+              className={actionPillCls}
+            >
+              市价
+            </button>
+          </div>
         </div>
       ))}
-      {btab === 'history' && orderHistory.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无历史订单</div>}
+      {btab === 'open' && (
+        <>
+          <div className={cn(OPEN_GRID, 'sticky top-0 z-[3] min-w-[980px] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.04em]')}
+            style={{ background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
+            <div>交易对</div>
+            <div>工具</div>
+            <div>订单类型</div>
+            <div>方向</div>
+            <div className="text-right">订单价格</div>
+            <div className="text-right">已成交/订单数量</div>
+            <div className="text-right">订单价值</div>
+            <div className="sticky right-0 bg-[#121318] text-center">操作</div>
+          </div>
+          {openOrders.length === 0 && <EmptyState label="暂无未结订单" />}
+          {openOrders.map(o => (
+            <div key={o.id} className={openRowCls}>
+              <div className="min-w-0 self-center">
+                <div className="truncate font-mono font-bold text-white/88">{o.symbol}</div>
+                <div className="mt-0.5 text-[10px] text-white/35">{new Date(o.createdAt).toLocaleTimeString()}</div>
+              </div>
+              <div className="self-center font-semibold text-white/70">USDC 期权</div>
+              <div className="self-center font-semibold text-white/70">{o.type === 'limit' ? '限价单' : o.type === 'stop' ? '止损' : '市价单'}</div>
+              <div className="self-center font-mono font-bold" style={{ color: o.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{o.side === 'buy' ? '买入' : '卖出'}</div>
+              <div className="self-center text-right font-mono">
+                <span className="font-bold text-white/88">{o.price.toFixed(2)}</span>
+                <button type="button" className={inlineEditButtonCls} onClick={() => startEditOrder(o)} title="编辑价格">
+                  <Pencil size={12} />
+                </button>
+              </div>
+              <div className="self-center text-right font-mono">
+                <span className="font-bold text-white/88">0.00/{o.qty.toFixed(2)}</span>
+                <button type="button" className={inlineEditButtonCls} onClick={() => startEditOrder(o)} title="编辑数量">
+                  <Pencil size={12} />
+                </button>
+              </div>
+              <div className="self-center text-right font-mono font-semibold text-white/70">{(o.price * o.qty).toFixed(2)}</div>
+              <div className="sticky right-0 flex items-center justify-center self-stretch bg-[#17181E]">
+                <button onClick={() => cancelOrder(o.id)} className={cn(actionPillCls, 'px-3')}>取消</button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+      {btab === 'history' && orderHistory.length === 0 && <EmptyState label="暂无历史订单" />}
       {btab === 'history' && orderHistory.slice(-30).reverse().map(o => (
-        <div key={o.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
-          <div className="font-mono font-bold truncate text-white/80">{o.symbol}</div><div className="text-right font-mono text-white/80">{o.qty.toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/55">{(o.filledPrice ?? o.price).toFixed(2)}</div><div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono" style={{ color: o.status === 'filled' ? '#25e889' : o.status === 'cancelled' ? '#888' : '#FEBC2E' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
+        <div key={o.id} className={rowCls}>
+          <div className="truncate font-mono font-bold text-white/85">{o.symbol}</div>
+          <div className="text-right font-mono text-white/82">{o.qty.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/55">{(o.filledPrice ?? o.price).toFixed(2)}</div>
+          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono" style={{ color: o.status === 'filled' ? 'var(--db-up)' : o.status === 'cancelled' ? 'rgba(255,255,255,0.42)' : 'var(--db-warn)' }}>{o.status === 'filled' ? '已成交' : o.status === 'cancelled' ? '已取消' : '待成交'}</div>
           <div className="text-right font-mono text-white/40">{new Date(o.createdAt).toLocaleTimeString()}</div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div><div className="text-right font-mono text-white/25">—</div><div className="text-right font-mono text-white/25">—</div>
         </div>
       ))}
-      {btab === 'trades' && fills.length === 0 && <div className="h-[80px] flex items-center justify-center text-[11px] text-white/25">暂无成交记录</div>}
+      {btab === 'trades' && fills.length === 0 && <EmptyState label="暂无成交记录" />}
       {btab === 'trades' && fills.slice(-30).reverse().map(f => (
-        <div key={f.id} className={cn(POS_GRID, 'px-3 py-1.5 text-[11px] border-b border-white/[0.02] hover:bg-white/[0.02]')}>
-          <div className="font-mono font-bold truncate text-white/80">{f.symbol}</div><div className="text-right font-mono text-white/80">{f.qty.toFixed(2)}</div><div className="text-right font-mono text-white/55">{(f.price * f.qty).toFixed(2)}</div>
-          <div className="text-right font-mono text-white/55">{f.price.toFixed(2)}</div><div className="text-right font-mono text-white/40">{f.fee.toFixed(4)}</div>
-          <div className="text-right font-mono" style={{ color: f.side === 'buy' ? '#25e889' : '#FF5F57' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
+        <div key={f.id} className={rowCls}>
+          <div className="truncate font-mono font-bold text-white/85">{f.symbol}</div>
+          <div className="text-right font-mono text-white/82">{f.qty.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{(f.price * f.qty).toFixed(2)}</div>
+          <div className="text-right font-mono text-white/55">{f.price.toFixed(2)}</div>
+          <div className="text-right font-mono text-white/40">{f.fee.toFixed(4)}</div>
+          <div className="text-right font-mono" style={{ color: f.side === 'buy' ? 'var(--db-up)' : 'var(--db-down)' }}>{f.side === 'buy' ? '买入' : '卖出'}</div>
           <div className="text-right font-mono text-white/40">{new Date(f.timestamp).toLocaleTimeString()}</div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
-          <div className="text-right font-mono text-white/25">—</div>
+          <div className="text-right font-mono text-white/25">—</div><div className="text-right font-mono text-white/25">—</div><div className="text-right font-mono text-white/25">—</div>
         </div>
       ))}
     </div>
   );
 
-  const hasData = positions.length > 0 || openOrders.length > 0 || orderHistory.length > 0 || fills.length > 0;
+  const summary = (
+    <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+      <SummaryMetric label="仓位" value={String(positions.length)} />
+      <SummaryMetric label="名义价值" value={grossValue.toFixed(2)} />
+      <SummaryMetric label="未实现 PnL" value={fmtSigned(totalPnL)} tone={totalPnL > 0 ? 'up' : totalPnL < 0 ? 'down' : undefined} />
+      <SummaryMetric label="净 Delta" value={fmtSigned(totalDelta, 3)} tone={totalDelta > 0 ? 'up' : totalDelta < 0 ? 'down' : undefined} />
+      <SummaryMetric label="Gamma" value={totalGamma.toFixed(4)} />
+      <SummaryMetric label="Theta" value={totalTheta.toFixed(2)} tone={totalTheta < 0 ? 'down' : totalTheta > 0 ? 'up' : undefined} />
+      <SummaryMetric label="Vega" value={totalVega.toFixed(2)} tone="orange" />
+    </div>
+  );
+
+  const editOrderModal = editingOrder && (
+    <>
+      <div className="fixed inset-0 z-[310] bg-black/65 backdrop-blur-[4px]" onClick={() => setEditingOrderId(null)} />
+      <div className="fixed inset-0 z-[311] flex items-center justify-center p-4 pointer-events-none">
+        <div className="w-full max-w-[420px] rounded-[8px] p-5 pointer-events-auto shadow-[0_24px_80px_rgba(0,0,0,0.72)]" style={{ background: '#17181E' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[18px] font-extrabold text-white/94">编辑订单</div>
+              <div className="mt-1 font-mono text-[12px] font-semibold text-white/42">{editingOrder.symbol}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingOrderId(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-[4px] text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80"
+              aria-label="关闭编辑订单"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="mt-5 flex items-center gap-5">
+            <button type="button" className="text-[15px] font-extrabold text-[var(--db-accent)]">限价单</button>
+            <button type="button" className="text-[15px] font-extrabold text-white/35" title="IV 编辑暂未接入模拟撮合">IV</button>
+          </div>
+
+          <div className="mt-4 space-y-2.5">
+            <label className="block rounded-[4px] px-3 py-1.5" style={{ background: TILE_BG }}>
+              <div className="text-[11px] font-bold text-white/72">价格</div>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  value={editPrice}
+                  onChange={e => setEditPrice(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent font-mono text-[17px] font-extrabold text-white/92 outline-none"
+                  inputMode="decimal"
+                />
+                <span className="text-[13px] font-extrabold text-white/80">USDC</span>
+              </div>
+            </label>
+
+            <label className="block rounded-[4px] px-3 py-1.5 ring-1 ring-inset ring-white/[0.06]" style={{ background: '#1E2026' }}>
+              <div className="text-[11px] font-bold text-white/72">IV</div>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  value=""
+                  disabled
+                  placeholder="—"
+                  className="min-w-0 flex-1 bg-transparent font-mono text-[17px] font-extrabold text-white/35 outline-none"
+                />
+                <span className="text-[13px] font-extrabold text-white/80">%</span>
+              </div>
+            </label>
+
+            <label className="block rounded-[4px] px-3 py-1.5" style={{ background: TILE_BG }}>
+              <div className="text-[11px] font-bold text-white/72">数量</div>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  value={editQty}
+                  onChange={e => setEditQty(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent font-mono text-[17px] font-extrabold text-white/92 outline-none"
+                  inputMode="decimal"
+                />
+                <span className="text-[13px] font-extrabold text-white/80">{editingOrder.symbol.startsWith('ETH') ? 'ETH' : 'BTC'}</span>
+              </div>
+            </label>
+
+            <div className="grid grid-cols-[1fr_auto] gap-y-1.5 px-0.5 text-[11px] font-semibold">
+              <span className="text-white/45">订单价值</span>
+              <span className="font-mono text-white/85">{((Number(editPrice) || 0) * (Number(editQty) || 0)).toFixed(2)} USDC</span>
+              <span className="text-white/45">原订单</span>
+              <span className="font-mono text-white/55">{editingOrder.price.toFixed(2)} / {editingOrder.qty.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={confirmEditOrder}
+              className="h-10 rounded-full text-[14px] font-extrabold text-black transition-opacity hover:opacity-90 active:translate-y-px"
+              style={{ background: ORANGE }}
+            >
+              确认
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingOrderId(null)}
+              className="h-10 rounded-full text-[14px] font-extrabold text-white/86 ring-1 ring-inset ring-white/25 transition-colors hover:bg-[#3A3B40] active:translate-y-px"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+  const closePositionModal = closingPosition && (() => {
+    const position = liveClosingPosition ?? closingPosition;
+    const liveMark = closingQuote?.mark ?? position.markPrice;
+    const liveBid = closingQuote?.bid ?? null;
+    const liveAsk = closingQuote?.ask ?? null;
+    const dec = closingQuote?.dec ?? 2;
+    const qty = Math.min(Number(closeQty) || 0, position.qty);
+    const isLimitClose = closeMode === 'limit';
+    const orderTypeLabel = isLimitClose ? '限价' : '市价';
+    const px = isLimitClose ? (Number(closePrice) || 0) : liveMark;
+    const sign = position.side === 'long' ? 1 : -1;
+    const pnl = (px - position.avgEntryPrice) * qty * sign;
+    const coin = position.symbol.startsWith('ETH') ? 'ETH' : 'BTC';
+    const actionText = position.side === 'long' ? '卖出平多' : '买入平空';
+    const actionColor = position.side === 'long' ? 'var(--db-down)' : 'var(--db-up)';
+    const pnlText = pnl >= 0 ? '预计盈利为' : '预计亏损为';
+    const stepPx = Math.max(liveMark * 0.003, dec >= 4 ? 0.001 : 0.1);
+    const fallbackAskBase = liveAsk ?? liveMark + stepPx;
+    const fallbackBidBase = liveBid ?? Math.max(0, liveMark - stepPx);
+    const askBaseRows = closingBook?.asks.length
+      ? closingBook.asks.slice(0, 4).reverse()
+      : [3, 2, 1, 0].map((offset, idx) => ({ price: fallbackAskBase + offset * stepPx, size: Math.max(qty, position.qty) * (idx + 1) * 0.45 }));
+    const bidBaseRows = closingBook?.bids.length
+      ? closingBook.bids.slice(0, 4)
+      : [0, 1, 2, 3].map((offset, idx) => ({ price: Math.max(0, fallbackBidBase - offset * stepPx), size: Math.max(qty, position.qty) * (idx + 1) * 0.45 }));
+    const withTotals = (levels: DepthLevel[]) => {
+      let total = 0;
+      return levels.map(level => {
+        total += level.size;
+        return { ...level, total };
+      });
+    };
+    const askRows = withTotals(askBaseRows);
+    const bidRows = withTotals(bidBaseRows);
+    const highPx = Math.max(...askRows.map(r => r.price), liveAsk ?? 0, liveMark);
+    const lowPx = Math.min(...bidRows.map(r => r.price), liveBid ?? liveMark, liveMark);
+    const currentIv = closingQuote?.iv ?? 0;
+    const sliderValue = Math.min(100, Math.max(0, closePercent));
+    const onClosePercentChange = (pctRaw: string) => {
+      const pct = Number(pctRaw);
+      const nextQty = position.qty * (Number.isFinite(pct) ? pct : 0) / 100;
+      setCloseQty(nextQty <= 0 ? '0' : nextQty.toFixed(2));
+    };
+    const bumpCloseQty = (delta: number) => {
+      const nextQty = Math.min(position.qty, Math.max(0, (Number(closeQty) || 0) + delta));
+      setCloseQty(nextQty.toFixed(2));
+    };
+
+    return (
+      <>
+        <div className="fixed inset-0 z-[310] bg-black/70 backdrop-blur-[4px]" onClick={() => setClosingPosition(null)} />
+        <div className="fixed inset-0 z-[311] flex items-center justify-center p-4 pointer-events-none">
+          <div className="max-h-[90vh] w-full max-w-[760px] overflow-y-auto rounded-[8px] px-5 py-4 pointer-events-auto shadow-[0_24px_80px_rgba(0,0,0,0.72)]" style={{ background: '#17181E' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[17px] font-extrabold" style={{ color: actionColor }}>{actionText}</span>
+                  <span className="truncate font-mono text-[17px] font-extrabold text-white/94">{position.symbol}</span>
+                </div>
+                <div className="mt-4 grid grid-cols-6 gap-3 text-[10px] font-semibold">
+                  <div><div className="text-white/52">入场价格</div><div className="mt-1 font-mono text-[12px] font-extrabold text-white/92">{position.avgEntryPrice.toFixed(dec)} USDT</div></div>
+                  <div><div className="text-white/52">标记价格</div><FlashValue text={liveMark.toFixed(dec)} className="mt-1 inline-block font-mono text-[12px] font-extrabold text-white/92" /></div>
+                  <div><div className="text-white/52">Delta</div><div className="mt-1 font-mono text-[12px] font-extrabold text-white/92">{(closingQuote?.delta ?? position.delta / sign).toFixed(4)}</div></div>
+                  <div><div className="text-white/52">Gamma</div><div className="mt-1 font-mono text-[12px] font-extrabold text-white/92">{(closingQuote?.gamma ?? position.gamma / sign).toFixed(5)}</div></div>
+                  <div><div className="text-white/52">Vega</div><div className="mt-1 font-mono text-[12px] font-extrabold text-white/92">{(closingQuote?.vega ?? position.vega / sign).toFixed(4)}</div></div>
+                  <div><div className="text-white/52">Theta</div><div className="mt-1 font-mono text-[12px] font-extrabold text-white/92">{(closingQuote?.theta ?? position.theta / sign).toFixed(4)}</div></div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClosingPosition(null)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80"
+                aria-label="关闭平仓面板"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-[minmax(0,0.95fr)_minmax(260px,1fr)] gap-6">
+              <div>
+                <div className="mb-4 grid grid-cols-[1fr_1fr] gap-4 text-[12px] font-extrabold">
+                  <div className="text-white/52">最高/最低</div>
+                  <div className="font-mono text-white/92">{highPx.toFixed(dec)}/{lowPx.toFixed(dec)}</div>
+                </div>
+                <div className="grid grid-cols-[1fr_1fr_1fr] gap-x-3 text-[10px] font-bold text-white/45">
+                  <span>订单价格</span>
+                  <span className="text-right">合约数量</span>
+                  <span className="text-right">总计{coin}</span>
+                </div>
+                <div className="mt-3 space-y-1.5 font-mono text-[12px] font-extrabold">
+                  {askRows.map((level, idx) => {
+                    return (
+                      <div key={`ask-${level.price}-${idx}`} className="grid grid-cols-[1fr_1fr_1fr] gap-x-3">
+                        <FlashValue text={level.price.toFixed(dec)} style={{ color: 'var(--db-down)' }} />
+                        <FlashValue text={level.size.toFixed(2)} className="text-right text-white/92" />
+                        <FlashValue text={level.total.toFixed(2)} className="text-right text-white/92" />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="my-3 grid grid-cols-[1fr_1fr_1fr] gap-x-3 font-mono text-[13px] font-extrabold">
+                  <FlashValue text={`↓ ${liveMark.toFixed(dec)}`} style={{ color: actionColor }} />
+                  <div className="text-right text-[var(--db-accent)]">
+                    <span className="mr-1">⚑</span>
+                    <FlashValue text={liveMark.toFixed(dec)} />
+                  </div>
+                  <div className="self-end text-right text-[9px] font-bold text-white/52">IV: {currentIv > 0 ? currentIv.toFixed(2) : '—'}%</div>
+                </div>
+
+                <div className="space-y-1.5 font-mono text-[12px] font-extrabold">
+                  {bidRows.map((level, idx) => (
+                    <div key={`bid-${level.price}-${idx}`} className="grid grid-cols-[1fr_1fr_1fr] gap-x-3">
+                      <FlashValue text={level.price.toFixed(dec)} style={{ color: 'var(--db-up)' }} />
+                      <FlashValue text={level.size.toFixed(2)} className="text-right text-white/92" />
+                      <FlashValue text={level.total.toFixed(2)} className="text-right text-white/92" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[15px] font-extrabold text-white/92">{orderTypeLabel}平仓</div>
+                <div className="mt-3">
+                  <div
+                    className="flex h-8 w-full items-center justify-between rounded-[4px] px-3 text-[12px] font-extrabold text-white/90"
+                    style={{ background: TILE_BG }}
+                  >
+                    <span>{orderTypeLabel}</span>
+                    <ChevronDown size={14} className="text-white/45" />
+                  </div>
+                </div>
+
+                {isLimitClose && (
+                  <>
+                    <label className="mt-3 block rounded-[4px] px-3 py-1.5" style={{ background: TILE_BG }}>
+                      <div className="text-[10px] font-bold text-white/78">价格</div>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <input
+                          value={closePrice}
+                          onChange={e => setClosePrice(e.target.value)}
+                          className="min-w-0 flex-1 bg-transparent font-mono text-[14px] font-extrabold text-white/94 outline-none"
+                          inputMode="decimal"
+                        />
+                        <span className="text-[12px] font-extrabold text-white/88">USDT</span>
+                      </div>
+                    </label>
+                    <label className="mt-1.5 block rounded-[4px] px-3 py-1.5 ring-1 ring-inset ring-white/[0.06]" style={{ background: '#1E2026' }}>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="text-[12px] font-bold text-white/48">IV</span>
+                        <input
+                          value={currentIv > 0 ? currentIv.toFixed(2) : ''}
+                          disabled
+                          placeholder="—"
+                          className="min-w-0 flex-1 bg-transparent text-right font-mono text-[14px] font-extrabold text-white/90 outline-none"
+                        />
+                        <span className="text-[12px] font-extrabold text-white/80">%</span>
+                      </div>
+                    </label>
+                  </>
+                )}
+
+                <label className="mt-3 block rounded-[4px] px-3 py-1.5" style={{ background: TILE_BG }}>
+                  <div className="text-[10px] font-bold text-white/78">数量 ({coin})</div>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <input
+                      value={closeQty}
+                      onChange={e => setCloseQty(e.target.value)}
+                      className="min-w-0 flex-1 bg-transparent font-mono text-[14px] font-extrabold text-white/94 outline-none"
+                      inputMode="decimal"
+                    />
+                    <button type="button" onClick={() => bumpCloseQty(-Math.max(position.qty * 0.05, 0.01))} className="text-[17px] leading-none text-white/55 transition-colors hover:text-white/85">−</button>
+                    <span className="h-4 w-px bg-white/18" />
+                    <button type="button" onClick={() => bumpCloseQty(Math.max(position.qty * 0.05, 0.01))} className="text-[19px] leading-none text-white/55 transition-colors hover:text-white/85">+</button>
+                  </div>
+                </label>
+
+                <div className="relative mt-4">
+                  <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[#2B2D35]" />
+                  <div className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-[var(--db-accent)]" style={{ width: `${sliderValue}%` }} />
+                  {[0, 20, 50, 75, 100].map(point => (
+                    <button
+                      key={point}
+                      type="button"
+                      onClick={() => onClosePercentChange(String(point))}
+                      className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--db-accent)] bg-[#17181E]"
+                      style={{ left: `${point}%` }}
+                      aria-label={`平仓 ${point}%`}
+                    />
+                  ))}
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={sliderValue}
+                    onChange={e => onClosePercentChange(e.target.value)}
+                    className="relative z-[1] block h-5 w-full cursor-pointer opacity-0"
+                  />
+                </div>
+                <div className="flex justify-between font-mono text-[11px] font-bold text-white/55">
+                  <span>0</span>
+                  <span>{sliderValue.toFixed(0)}%</span>
+                </div>
+
+                <div className="mt-4 rounded-[4px] px-3 py-2 text-[11px] font-semibold leading-relaxed text-white/62" style={{ background: TILE_BG }}>
+                  仓位将以 <span className="text-white/92">{isLimitClose ? `${px.toFixed(dec)}` : '市价'}</span> 平仓<span className="text-white/92">{qty.toFixed(2)}</span> 手，{pnlText}{' '}
+                  <span style={{ color: pnl >= 0 ? 'var(--db-up)' : 'var(--db-down)' }}>{Math.abs(pnl).toFixed(3)} USDT</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={confirmClosePosition}
+                className="h-9 rounded-full text-[13px] font-extrabold text-black transition-opacity hover:opacity-90 active:translate-y-px"
+                style={{ background: ORANGE }}
+              >
+                确认
+              </button>
+              <button
+                type="button"
+                onClick={() => setClosingPosition(null)}
+                className="h-9 rounded-full text-[13px] font-extrabold text-white/86 ring-1 ring-inset ring-white/30 transition-colors hover:bg-[#3A3B40] active:translate-y-px"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  })();
 
   if (embedded) {
     return (
-      <div className={cn('rounded-xl border overflow-hidden shrink-0 flex flex-col', className)}
-        style={{
-          borderColor: 'rgba(255,255,255,0.06)',
-          background: 'rgba(255,255,255,0.012)',
-          boxShadow: '0 2px 8px -2px rgba(0,0,0,0.35)',
-          height: 320,
-          ...style,
-        }}>
-        {/* Header bar */}
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.04] shrink-0">
-          {tabBar}
-          <span className="text-[9px] font-bold px-1.5 py-[2px] rounded-full border border-[#FEBC2E]/30 text-[#FEBC2E]/80 bg-[#FEBC2E]/8">模拟</span>
-
-          {/* Inline summary stats when collapsed */}
-          {collapsed && hasData && positions.length > 0 && (
-            <div className="flex items-center gap-3 ml-2">
-              <span className="text-[10px] text-white/35">{positions.length} 仓位</span>
-              <span className="text-[10px] text-white/35">Δ <span className={cn('font-mono font-bold', totalDelta >= 0 ? 'text-[#25e889]' : 'text-[#FF5F57]')}>{totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(3)}</span></span>
-              <span className="text-[10px] text-white/35">PnL <span className={cn('font-mono font-bold', totalPnL >= 0 ? 'text-[#25e889]' : 'text-[#FF5F57]')}>{totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)}</span></span>
-            </div>
-          )}
-
-          <div className="flex-1" />
-          <button onClick={() => setCollapsed(c => !c)} className="text-white/30 hover:text-white/50 transition-colors">
-            <ChevronsUpDown size={13} />
-          </button>
+      <>
+        <div className={cn('rounded-lg overflow-hidden shrink-0 flex flex-col', className)}
+          style={{
+            background: PANEL_BG,
+            height: 320,
+            ...style,
+          }}>
+          <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-b border-white/[0.05]">
+            <div className="text-[12px] font-semibold text-white/78">模拟仓位</div>
+            <span className="rounded px-1.5 py-[2px] text-[9px] font-bold text-[var(--db-accent)]" style={{ background: 'rgba(247,166,0,0.12)' }}>SIM</span>
+            {tabBar}
+            <div className="flex-1" />
+            <button onClick={() => setCollapsed(c => !c)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80" title={collapsed ? '展开仓位面板' : '收起仓位面板'}>
+              <ChevronsUpDown size={13} />
+            </button>
+          </div>
+          <div className="border-b border-white/[0.04] px-3 py-2">{summary}</div>
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+            {collapsed ? (
+              <div className="flex h-full items-center justify-center text-[12px] text-white/40">
+                {hasData ? '已收起，点击右侧按钮展开明细' : '暂无模拟交易数据'}
+              </div>
+            ) : (
+              table
+            )}
+          </div>
         </div>
-
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto">
-          {collapsed ? (
-            <div className="flex items-center justify-center h-full text-[11px] text-white/15">点击标签查看详情</div>
-          ) : (
-            table
-          )}
-        </div>
-      </div>
+        {editOrderModal}
+        {closePositionModal}
+      </>
     );
   }
   // Trade-modal version — fixed height, internal vertical scroll.
   return (
-    <div className={cn('border-t flex flex-col shrink-0 min-h-0', className)} style={{ borderTop: BORDER, backgroundColor: BG_HEADER, ...style }}>
-      <div className="px-3 py-2 shrink-0">{tabBar}</div>
-      <div className="flex-1 min-h-0 overflow-auto">{table}</div>
-    </div>
+    <>
+      <div className={cn('flex flex-col shrink-0 min-h-0', className)} style={{ borderTop: BORDER, backgroundColor: PANEL_BG, ...style }}>
+        <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-b border-white/[0.05]">
+          <div className="text-[12px] font-semibold text-white/78">模拟仓位</div>
+          {tabBar}
+        </div>
+        <div className="border-b border-white/[0.04] px-3 py-2">{summary}</div>
+        <div className="flex-1 min-h-0 overflow-auto">{table}</div>
+      </div>
+      {editOrderModal}
+      {closePositionModal}
+    </>
   );
 }
 
@@ -250,9 +845,10 @@ const SANITY: Record<CheckLevel, { color: string; text: string }> = {
   block: { color: '#EF4444', text: '先改一下再下单' },
 };
 
-export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose, chainFeedKey }: {
+export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose, chainFeedKey, marketQuotes }: {
   selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number;
   book: ReturnType<typeof useLocalBook> | GlobalOptionBook; onClose: () => void; chainFeedKey: string;
+  marketQuotes?: Map<string, PositionMarketQuote>;
 }) => {
   const { row, side } = selected;
   const opt = side === 'call' ? row.call : row.put;
@@ -263,7 +859,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [quoteMode, setQuoteMode] = useState<'price' | 'iv'>('price');
   const [price, setPrice] = useState((opt.ask ?? opt.mark).toFixed(dec));
   const [iv, setIv] = useState(opt.iv.toFixed(1));
-  const [qty, setQty] = useState('0.10');
+  const [qty, setQty] = useState('1');
   const [tif, setTif] = useState('GTC');
   const [tifOpen, setTifOpen] = useState(false);
   const [reduceOnly, setReduceOnly] = useState(false);
@@ -321,7 +917,10 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   }), [opt.bid, opt.ask, opt.mark, nQty, nPrice, orderType, chainFr?.kind, chainFr?.ageMs, spotFr?.kind, slip?.worstPct]);
 
   const submit = (s: 'buy' | 'sell') => {
-    if (sanity.blocking) return;
+    if (sanity.blocking) {
+      soundOrderError();
+      return;
+    }
     placeOrder({
       side: s, type: orderType, symbol, qty: nQty,
       price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
@@ -334,22 +933,21 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const issues = sanity.checks.filter(c => c.level !== 'ok');
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: BG_MAIN }}>
+    <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: '#000000' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b shrink-0" style={{ borderBottom: BORDER, backgroundColor: BG_HEADER }}>
+      <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, backgroundColor: NAV_BG }}>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <div className="text-[14px] font-extrabold text-white/90 truncate">{contractName}</div>
-            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-[999px] shrink-0 border" style={{
-              borderColor: side === 'call' ? 'rgba(40,200,64,0.30)' : 'rgba(255,95,87,0.30)',
+            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-[4px] shrink-0" style={{
               background: side === 'call' ? 'rgba(40,200,64,0.10)' : 'rgba(255,95,87,0.10)',
               color: side === 'call' ? 'var(--db-up)' : 'var(--db-down)',
             }}>{side === 'call' ? 'CALL' : 'PUT'}</span>
             <span className="text-[11px] font-mono font-bold text-white/35">·</span>
             <span className="text-[11px] font-mono font-bold text-white/55">{dateLabel}</span>
-            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-full shrink-0 border"
+            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-[4px] shrink-0"
               title="本面板为模拟交易，不会真实下单"
-              style={{ borderColor: 'rgba(254,188,46,0.40)', background: 'rgba(254,188,46,0.12)', color: 'var(--db-warn)' }}>模拟</span>
+              style={{ background: 'rgba(247,166,0,0.12)', color: ORANGE }}>模拟</span>
           </div>
           <div className="mt-0.5 flex items-center gap-3 text-[11px]">
             {[
@@ -370,52 +968,52 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
           </div>
         </div>
         <div className="flex-1" />
-        <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[10px] border flex items-center justify-center hover:bg-white/[0.06] transition-colors" style={{ borderColor: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.55)' }}>
+        <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG, color: 'rgba(255,255,255,0.55)' }}>
           <X size={16} />
         </button>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* LEFT: ticket */}
-        <div className="flex flex-col shrink-0 border-r overflow-hidden" style={{ width: 320, borderRight: BORDER, backgroundColor: '#171717' }}>
-          <div className="px-3 pt-3">
+        <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: 320, borderRight: `1px solid ${SUBTLE_LINE}`, backgroundColor: PANEL_BG }}>
+          <div className="px-3 pt-2">
             <div className="flex items-center gap-2">
-              <button className="flex-1 h-11 rounded-[12px] border px-3 flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }}
+              <button className="flex-1 h-9 rounded-[4px] px-3 flex items-center justify-between transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG }}
                 onClick={() => setOrderType(t => t === 'limit' ? 'market' : 'limit')}>
-                <span className="text-[13px] font-extrabold text-white/85">
+                <span className="text-[12px] font-extrabold text-white/85">
                   {orderType === 'limit' ? '限价单' : orderType === 'market' ? '市价单' : '止损单'}{quoteMode === 'iv' ? '/IV' : ''}
                 </span>
                 <ChevronDown size={16} className="text-white/45" />
               </button>
-              <button className="h-11 px-3 rounded-[12px] border flex items-center gap-2 font-extrabold text-white/85" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }} title="RFQ">
-                <span className="w-5 h-5 rounded-[8px] border flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.70)' }}>◇</span>RFQ
+              <button className="h-9 px-3 rounded-[4px] flex items-center gap-2 text-[12px] font-extrabold text-white/85 transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG }} title="RFQ">
+                <span className="w-4 h-4 rounded-[4px] flex items-center justify-center text-[10px]" style={{ background: SELECTED_BG, color: 'rgba(255,255,255,0.70)' }}>◇</span>RFQ
               </button>
             </div>
           </div>
 
-          <div className="px-3 pt-3 overflow-auto">
-            <div className="text-[12px] font-semibold text-white/55 mb-1.5">合约（1 = 1 {coin}）<span className="float-right text-white/45 font-mono font-bold">≈ 0.01 {coin}</span></div>
-            <div className="flex items-center rounded-[12px] border" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)' }}>
-              <input value={qty} onChange={e => setQty(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none" style={{ ...TABNUM, color: '#EAECEF' }} />
+          <div className="px-3 pt-2 overflow-auto">
+            <div className="text-[11px] font-semibold text-white/55 mb-1">合约（1 = 1 {coin}）<span className="float-right text-white/45 font-mono font-bold">≈ 0.01 {coin}</span></div>
+            <div className="flex items-center rounded-[4px]" style={{ backgroundColor: TILE_BG }}>
+              <input value={qty} onChange={e => setQty(e.target.value)} className="flex-1 bg-transparent px-3 py-1.5 text-[15px] font-extrabold outline-none" style={{ ...TABNUM, color: '#EAECEF' }} />
               <div className="px-2 flex flex-col">
                 <button type="button" aria-label="增加数量" className="text-white/55 hover:text-white text-[10px]" onClick={() => setQty(v => (parseFloat(v || '0') + 0.01).toFixed(2))}>▲</button>
                 <button type="button" aria-label="减少数量" className="text-white/55 hover:text-white text-[10px]" onClick={() => setQty(v => Math.max(0.01, parseFloat(v || '0') - 0.01).toFixed(2))}>▼</button>
               </div>
-              <div className="px-3 text-[12px] font-bold text-white/60 border-l" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>合约</div>
+              <div className="px-3 text-[12px] font-bold text-white/60" style={{ borderLeft: `1px solid ${SUBTLE_LINE}` }}>合约</div>
             </div>
-            <div className="mt-2 text-[12px] font-semibold text-white/55">可用: <span className="text-white/85 font-mono font-bold">≈ 16,849,985.46 USDC</span></div>
+            <div className="mt-1 text-[11px] font-semibold text-white/55">可用: <span className="text-white/85 font-mono font-bold">≈ 16,849,985.46 USDC</span></div>
 
             {/* ── Quick quantity presets ── */}
-            <div className="mt-1.5 flex items-center gap-1">
+            <div className="mt-1 flex items-center gap-1">
               {[0.1, 0.5, 1, 5, 10].map(n => {
                 const active = Math.abs(Number(qty || 0) - n) < 0.005;
                 return (
                   <button key={n} onClick={() => setQty(n.toFixed(2))}
-                    className={cn('h-6 px-2.5 rounded-[6px] text-[11px] font-bold transition-colors',
+                    className={cn('h-5 px-2 rounded-[4px] text-[10px] font-bold transition-colors active:translate-y-px',
                       active
-                        ? 'text-white/90'
-                        : 'text-white/40 hover:text-white/65')}
-                    style={{ background: active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', border: active ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent' }}
+                        ? 'text-[var(--db-accent)]'
+                        : 'text-white/45 hover:text-white/85 hover:bg-[#3A3B40]')}
+                    style={{ background: active ? SELECTED_BG : TILE_BG }}
                   >{n}</button>
                 );
               })}
@@ -423,44 +1021,44 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
               <span className="text-[10px] text-white/25 font-mono">合约</span>
             </div>
 
-            <div className="mt-3 flex flex-col gap-2">
+            <div className="mt-2 flex flex-col gap-1.5">
               <button onClick={() => setQuoteMode('price')} className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border flex items-center justify-center" style={{ borderColor: quoteMode === 'price' ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.20)' }}>
-                  {quoteMode === 'price' ? <span className="w-2 h-2 rounded-full bg-white" /> : null}
+                <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ border: `1px solid ${quoteMode === 'price' ? ORANGE : 'rgba(255,255,255,0.20)'}` }}>
+                  {quoteMode === 'price' ? <span className="w-2 h-2 rounded-full" style={{ background: ORANGE }} /> : null}
                 </span>
-                <span className="text-[13px] font-extrabold text-white/85">限价单</span>
-                <div className="ml-auto flex items-center rounded-[10px] border overflow-hidden" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)', width: 200 }}>
-                  <input disabled={quoteMode !== 'price' || orderType === 'market'} value={price} onChange={e => setPrice(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
+                <span className="text-[12px] font-extrabold text-white/85">限价单</span>
+                <div className="ml-auto flex items-center rounded-[4px] overflow-hidden" style={{ backgroundColor: TILE_BG, width: 200 }}>
+                  <input disabled={quoteMode !== 'price' || orderType === 'market'} value={price} onChange={e => setPrice(e.target.value)} className="flex-1 bg-transparent px-3 py-1.5 text-[15px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
                   <span className="px-3 text-[12px] font-bold text-white/45">USDC</span>
                 </div>
               </button>
               <button onClick={() => setQuoteMode('iv')} className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border flex items-center justify-center" style={{ borderColor: quoteMode === 'iv' ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.20)' }}>
-                  {quoteMode === 'iv' ? <span className="w-2 h-2 rounded-full bg-white" /> : null}
+                <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ border: `1px solid ${quoteMode === 'iv' ? ORANGE : 'rgba(255,255,255,0.20)'}` }}>
+                  {quoteMode === 'iv' ? <span className="w-2 h-2 rounded-full" style={{ background: ORANGE }} /> : null}
                 </span>
-                <span className="text-[13px] font-extrabold text-white/85">隐含波动率</span>
-                <span className="text-[11px] font-extrabold px-2 py-[2px] rounded-full" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)' }}>高级</span>
-                <div className="ml-auto flex items-center rounded-[10px] border overflow-hidden" style={{ backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.10)', width: 200 }}>
-                  <input disabled={quoteMode !== 'iv'} value={iv} onChange={e => setIv(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-[16px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
+                <span className="text-[12px] font-extrabold text-white/85">隐含波动率</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-[2px] rounded-[4px]" style={{ background: 'rgba(247,166,0,0.12)', color: ORANGE }}>高级</span>
+                <div className="ml-auto flex items-center rounded-[4px] overflow-hidden" style={{ backgroundColor: TILE_BG, width: 200 }}>
+                  <input disabled={quoteMode !== 'iv'} value={iv} onChange={e => setIv(e.target.value)} className="flex-1 bg-transparent px-3 py-1.5 text-[15px] font-extrabold outline-none disabled:opacity-40" style={{ ...TABNUM, color: '#EAECEF' }} />
                   <span className="px-3 text-[12px] font-bold text-white/45">IV (%)</span>
                 </div>
               </button>
             </div>
 
-            <div className="mt-3">
+            <div className="mt-2">
               <div className="flex items-center justify-between">
-                <span className="text-[12px] font-bold" style={{ color: 'rgba(255,255,255,0.45)' }}>挂单方式</span>
+                <span className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.45)' }}>挂单方式</span>
                 <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{reduceOnly ? 'Reduce-only' : ''}{reduceOnly && postOnly ? ' · ' : ''}{postOnly ? 'Post-only' : ''}</span>
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <button onClick={() => setReduceOnly(v => !v)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold" style={{ borderColor: reduceOnly ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)', background: reduceOnly ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', color: reduceOnly ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)' }}>减少</button>
-                <button onClick={() => setPostOnly(v => !v)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold" style={{ borderColor: postOnly ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)', background: postOnly ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)', color: postOnly ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)' }}>挂单</button>
+              <div className="mt-1.5 flex items-center gap-2">
+                <button onClick={() => setReduceOnly(v => !v)} className="h-7 px-3 rounded-[4px] text-[11px] font-semibold transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: reduceOnly ? SELECTED_BG : TILE_BG, color: reduceOnly ? ORANGE : 'rgba(255,255,255,0.60)' }}>减少</button>
+                <button onClick={() => setPostOnly(v => !v)} className="h-7 px-3 rounded-[4px] text-[11px] font-semibold transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: postOnly ? SELECTED_BG : TILE_BG, color: postOnly ? ORANGE : 'rgba(255,255,255,0.60)' }}>挂单</button>
                 <div className="relative">
-                  <button onClick={() => setTifOpen(o => !o)} className="h-8 px-3 rounded-[10px] border text-[12px] font-semibold flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.75)' }}>{tif} <ChevronDown size={14} className="text-white/45" /></button>
+                  <button onClick={() => setTifOpen(o => !o)} className="h-7 px-3 rounded-[4px] text-[11px] font-semibold flex items-center gap-2 transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: tifOpen ? SELECTED_BG : TILE_BG, color: tifOpen ? ORANGE : 'rgba(255,255,255,0.75)' }}>{tif} <ChevronDown size={14} className="text-white/45" /></button>
                   <Popover open={tifOpen} onClose={() => setTifOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[140px]">
                     {(['GTC', 'IOC', 'FOK'] as const).map(k => (
-                      <button key={k} className="w-full flex items-center justify-between px-3 py-2 text-[12px] hover:bg-white/[0.05] transition-colors" style={{ color: k === tif ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.62)' }} onClick={() => { setTif(k); setTifOpen(false); }}>
-                        <span className="font-semibold">{k}</span>{k === tif ? <Check size={14} className="text-white" strokeWidth={3} /> : <span className="opacity-0">.</span>}
+                      <button key={k} className="w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-[4px] hover:bg-[rgba(255,255,255,0.08)] transition-colors" style={{ color: k === tif ? ORANGE : 'rgba(255,255,255,0.62)' }} onClick={() => { setTif(k); setTifOpen(false); }}>
+                        <span className="font-semibold">{k}</span>{k === tif ? <Check size={14} color={ORANGE} strokeWidth={3} /> : <span className="opacity-0">.</span>}
                       </button>
                     ))}
                   </Popover>
@@ -468,21 +1066,21 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
               </div>
             </div>
 
-            <div className="mt-3 inline-flex items-center gap-2">
-              <span className="text-[12px] font-extrabold px-2 py-1 rounded-[8px]" style={{ background: 'var(--db-accent-weak)', color: 'var(--db-accent)', border: '1px solid var(--db-accent-soft)' }}>仓位 {currentSignedQty >= 0 ? '+' : ''}{currentSignedQty.toFixed(2)}</span>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-[4px]" style={{ background: 'rgba(247,166,0,0.12)', color: ORANGE }}>仓位 {currentSignedQty >= 0 ? '+' : ''}{currentSignedQty.toFixed(2)}</span>
             </div>
 
             {/* ── 下单前 sanity 灯 —— 护栏的终点：护到你手指按下去那刻 ── */}
-            <div className="mt-3 rounded-[10px] border px-3 py-2" style={{ borderColor: `${light.color}55`, background: `${light.color}14` }}>
+            <div className="mt-2 rounded-[4px] px-2.5 py-1.5" style={{ background: `${light.color}14` }}>
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: light.color }} />
-                <span className="text-[12px] font-extrabold" style={{ color: light.color }}>{light.text}</span>
+                <span className="text-[11px] font-extrabold" style={{ color: light.color }}>{light.text}</span>
                 {issues.length > 0 && <span className="ml-auto text-[11px] font-bold" style={{ color: light.color }}>{issues.length} 项</span>}
               </div>
               {issues.length > 0 && (
-                <div className="mt-1.5 flex flex-col gap-1">
+                <div className="mt-1 flex flex-col gap-0.5">
                   {issues.map(c => (
-                    <div key={c.id} className="flex items-start gap-1.5 text-[11px] leading-snug">
+                    <div key={c.id} className="flex items-start gap-1.5 text-[10px] leading-tight">
                       <span className="mt-[3px] h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: c.level === 'block' ? '#EF4444' : '#F59E0B' }} />
                       <span className="text-white/45 font-semibold shrink-0">{c.label}</span>
                       <span className="text-white/70">{c.detail}</span>
@@ -492,18 +1090,18 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
               )}
             </div>
 
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => submit('buy')} disabled={sanity.blocking} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-up)' }}>买入</button>
-              <button onClick={() => submit('sell')} disabled={sanity.blocking} className="flex-1 h-[44px] rounded-[12px] text-[14px] font-extrabold text-black hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-down)' }}>卖出</button>
+            <div className="mt-2 flex gap-2">
+              <button onClick={() => submit('buy')} disabled={sanity.blocking} className="flex-1 h-10 rounded-[4px] text-[13px] font-extrabold text-black hover:opacity-90 active:translate-y-px transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-up)' }}>买入</button>
+              <button onClick={() => submit('sell')} disabled={sanity.blocking} className="flex-1 h-10 rounded-[4px] text-[13px] font-extrabold text-black hover:opacity-90 active:translate-y-px transition-all disabled:opacity-40 disabled:pointer-events-none" style={{ background: 'var(--db-down)' }}>卖出</button>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-4 text-[12px]">
+            <div className="mt-2 grid grid-cols-2 gap-4 text-[11px]">
               <div><div className="text-white/45 font-semibold">购买保证金</div><div className="mt-1 text-white font-mono font-extrabold">{totalCost.toFixed(2)} USDC</div></div>
               <div className="text-right"><div className="text-white/45 font-semibold">卖出保证金</div><div className="mt-1 text-white font-mono font-extrabold">{(margin * 1.8).toFixed(2)} USDC</div></div>
             </div>
 
-            <div className="mt-4 pt-3 border-t" style={{ borderTop: BORDER }}>
-              <div className="grid grid-cols-[1fr_auto] gap-y-2 text-[12px]">
+            <div className="mt-3 pt-2" style={{ borderTop: `1px solid ${SUBTLE_LINE}` }}>
+              <div className="grid grid-cols-[1fr_auto] gap-y-1.5 text-[11px]">
                 {[
                   ['标记价格', opt.mark.toFixed(dec)], ['标记价格 IV', `${opt.iv.toFixed(1)}%`], ['价格来源', `${coin} Index`],
                   ['合约大小', `${coin} 1`], ['最小订单规模', `0.01 合同`], ['结算货币', `USDC`], ['到期日', dateLabel],
@@ -519,11 +1117,11 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
         </div>
 
         {/* RIGHT */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ background: PANEL_BG }}>
           <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="flex items-center border-b shrink-0 px-1" style={{ borderBottom: BORDER }}>
+            <div className="flex items-center shrink-0 px-1" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, background: PANEL_BG }}>
               {([{ key: 'book', label: '订单薄' }, { key: 'trades', label: '近期交易' }, { key: 'greeks', label: 'Greeks' }] as const).map(t => (
-                <button key={t.key} onClick={() => setRtab(t.key)} className="px-3 py-2 text-[12px] font-semibold shrink-0" style={{ color: rtab === t.key ? '#EAECEF' : 'rgba(255,255,255,0.42)', borderBottom: rtab === t.key ? '2px solid var(--db-accent)' : '2px solid transparent' }}>{t.label}</button>
+                <button key={t.key} onClick={() => setRtab(t.key)} className="px-3 py-2 text-[12px] font-semibold shrink-0 transition-colors hover:text-white/85 active:translate-y-px" style={{ color: rtab === t.key ? ORANGE : 'rgba(255,255,255,0.50)', borderBottom: rtab === t.key ? `2px solid ${ORANGE}` : '2px solid transparent' }}>{t.label}</button>
               ))}
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -538,7 +1136,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                     </div>
                   ) : (
                     <>
-                      <div className="px-2 py-1 flex items-center gap-2 text-[10px]" style={{ color: '#888888' }}>
+                      <div className="px-2 py-1 flex items-center gap-2 text-[10px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
                         <span className="font-semibold" style={{ color: 'var(--db-up)' }}>实时盘口</span>
                         <FreshnessTag dataKey={opt.instrument ? depthFeedKey(opt.instrument) : ''} />
                         {slip && (
@@ -547,7 +1145,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 py-1 border-b text-[11px]" style={{ borderBottom: BORDER, color: '#888888' }}>
+                      <div className="grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 py-1 text-[11px]" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
                         <span className="text-right">总计</span><span className="text-right">数量</span>
                         <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
                         <span className="text-right">数量</span><span className="text-right">总计</span>
@@ -555,15 +1153,27 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                       {Array.from({ length: Math.max(ladder.asks.length, ladder.bids.length) }, (_, i) => {
                         const a = ladder.asks[i], b = ladder.bids[i];
                         return (
-                          <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 hover:bg-white/[0.03]" style={{ height: 26 }}>
+                          <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2" style={{ height: 26 }}>
                             {b && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
                             {a && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{b ? b.total.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: 'rgba(255,255,255,0.45)' }}>{b ? b.total.toFixed(2) : '—'}</span>
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
-                            <span className="text-[12px] font-medium text-right self-center pr-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-up)' }} onClick={() => b && setPrice(b.price.toFixed(dec))}>{b ? b.price.toFixed(dec) : '—'}</span>
-                            <span className="text-[12px] font-medium text-left self-center pl-3 relative z-10 cursor-pointer" style={{ ...TABNUM, color: 'var(--db-down)' }} onClick={() => a && setPrice(a.price.toFixed(dec))}>{a ? a.price.toFixed(dec) : '—'}</span>
+                            <span
+                              className="relative z-10 self-center justify-self-end rounded-[4px] px-2 py-0.5 text-right text-[12px] font-medium transition-colors hover:bg-[rgba(36,174,100,0.12)]"
+                              style={{ ...TABNUM, color: 'var(--db-up)', cursor: b ? 'pointer' : 'default' }}
+                              onClick={() => b && setPrice(b.price.toFixed(dec))}
+                            >
+                              {b ? b.price.toFixed(dec) : '—'}
+                            </span>
+                            <span
+                              className="relative z-10 self-center justify-self-start rounded-[4px] px-2 py-0.5 text-left text-[12px] font-medium transition-colors hover:bg-[rgba(239,69,74,0.12)]"
+                              style={{ ...TABNUM, color: 'var(--db-down)', cursor: a ? 'pointer' : 'default' }}
+                              onClick={() => a && setPrice(a.price.toFixed(dec))}
+                            >
+                              {a ? a.price.toFixed(dec) : '—'}
+                            </span>
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#888888' }}>{a ? a.total.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: 'rgba(255,255,255,0.45)' }}>{a ? a.total.toFixed(2) : '—'}</span>
                           </div>
                         );
                       })}
@@ -572,7 +1182,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                 </div>
               )}
               {rtab === 'greeks' && (
-                <div className="p-4 grid grid-cols-2 gap-3">
+                <div className="p-3 grid grid-cols-2 gap-2">
                   {[
                     { label: 'Delta Δ', value: opt.delta.toFixed(4), color: 'var(--db-up)' },
                     { label: 'Gamma Γ', value: fmtGamma5(opt.gamma), color: 'var(--db-accent)' },
@@ -581,19 +1191,19 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                     { label: 'IV', value: opt.iv.toFixed(2) + '%', color: 'var(--db-warn)' },
                     { label: 'Mark', value: opt.mark.toFixed(dec), color: '#EAECEF' },
                   ].map(g => (
-                    <div key={g.label} className="rounded-[6px] p-3" style={{ backgroundColor: '#171717', border: `1px solid ${BORDER_C}` }}>
-                      <div className="text-[10px] mb-1" style={{ color: '#888888' }}>{g.label}</div>
+                    <div key={g.label} className="rounded-[4px] p-3 transition-colors hover:bg-[#3A3B40]" style={{ backgroundColor: TILE_BG }}>
+                      <div className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{g.label}</div>
                       <div className="text-[14px] font-bold" style={{ ...TABNUM, color: g.color }}>{g.value}</div>
                     </div>
                   ))}
                 </div>
               )}
-              {rtab === 'trades' && <div className="flex items-center justify-center h-32 text-[12px]" style={{ color: '#888888' }}>近期无成交数据</div>}
+              {rtab === 'trades' && <div className="flex items-center justify-center h-32 text-[12px]" style={{ color: 'rgba(255,255,255,0.45)' }}>近期无成交数据</div>}
             </div>
           </div>
 
           {/* BOTTOM: position / orders / history / trades */}
-          <PositionsPanel book={book} style={{ maxHeight: 220 }} />
+          <PositionsPanel book={book} style={{ maxHeight: 220 }} marketQuotes={marketQuotes} />
         </div>
       </div>
     </div>

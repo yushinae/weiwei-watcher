@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { bookReducer, type BookState, type PlaceArgs, type SimPosition } from './simBook';
 import { get as apiGet, put as apiPut } from '../../api';
+import { soundOrderCancelled, soundOrderFilled, soundOrderPlaced } from './orderSounds';
 
 const STORAGE_KEY = 'sim-option-book';
 
@@ -62,9 +63,24 @@ const subscribe = (listener: () => void) => {
   return () => { listeners.delete(listener); };
 };
 
+function playBookTransitionSound(prev: BookState, next: BookState) {
+  if (next.fills.length > prev.fills.length) {
+    soundOrderFilled();
+    return;
+  }
+  if (next.openOrders.length > prev.openOrders.length) {
+    soundOrderPlaced();
+    return;
+  }
+  const prevCancelled = prev.orderHistory.filter(o => o.status === 'cancelled').length;
+  const nextCancelled = next.orderHistory.filter(o => o.status === 'cancelled').length;
+  if (nextCancelled > prevCancelled) soundOrderCancelled();
+}
+
 function dispatch(action: Parameters<typeof bookReducer>[1]) {
   const next = bookReducer(state, action);
   if (next === state) return;
+  playBookTransitionSound(state, next);
   state = next;
   saveState(state);
   emit();
@@ -96,11 +112,12 @@ export function useGlobalOptionBook() {
   const snapshot = useSyncExternalStore(subscribe, () => state, () => state);
   const placeOrder = useCallback((a: PlaceArgs) => dispatch({ t: 'place', a }), []);
   const cancelOrder = useCallback((id: string) => dispatch({ t: 'cancel', id }), []);
+  const editOrder = useCallback((id: string, price: number, qty: number) => dispatch({ t: 'edit', id, price, qty }), []);
   const updateMarks = useCallback((marks: Record<string, number>) => dispatch({ t: 'marks', marks }), []);
   const clearBook = useCallback(() => dispatch({ t: 'clear' }), []);
   const closePosition = useCallback((position: SimPosition) => closeSimPosition(position), []);
 
-  return { ...snapshot, placeOrder, cancelOrder, updateMarks, clearBook, closePosition };
+  return { ...snapshot, placeOrder, cancelOrder, editOrder, updateMarks, clearBook, closePosition };
 }
 
 export type GlobalOptionBook = ReturnType<typeof useGlobalOptionBook>;

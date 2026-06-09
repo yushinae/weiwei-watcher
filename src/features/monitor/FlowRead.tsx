@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
-  useCoinControl, useDeribitOptions, useFlowData,
+  useCoinControl, useDeribitOptions, useFlowData, useFuturesBasis,
   CoinLabel, type CoinControlProps,
 } from '../../registry/monitorWidgetsBase';
 import { recordOISnapshot, getOIChange24h } from './oiSnapshot';
@@ -18,6 +18,7 @@ export const FlowHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
   const { data: flow } = useFlowData(coin);
   const { data: opt } = useDeribitOptions(coin);
+  const wsBasis = useFuturesBasis(coin);
   const { setHeaderRight } = useCardHeader();
   const live = !!(flow || opt);
   useEffect(() => {
@@ -42,9 +43,8 @@ export const FlowHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   const oiChg = oiAgg ? getOIChange24h(coin, oiAgg.totalOI) : null;
 
   const funding = flow?.annFunding ?? 0;
-  const frontBasis = flow?.basis?.length
-    ? [...flow.basis].sort((a, b) => a.daysToExp - b.daysToExp)[0]
-    : undefined;
+  // 基差来自实时 WS（useFuturesBasis 已按到期升序），取最近月。
+  const frontBasis = wsBasis.length ? wsBasis[0] : undefined;
   const basis = frontBasis?.annBasis ?? 0;
   const pcVol = opt && opt.callVol24h > 0 ? opt.putVol24h / opt.callVol24h : 0;
 

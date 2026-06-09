@@ -10,7 +10,7 @@ import {
 } from './store';
 
 const BRAND = '#25e889';
-const BLUE = '#4ea1ff';
+const BLUE = '#4F93DD';
 const YELLOW = '#FEBC2E';
 const UP = '#28C840';
 const DOWN = '#FF5F57';

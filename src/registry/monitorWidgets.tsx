@@ -607,7 +607,7 @@ const GRID   = 'rgba(255,255,255,0.07)';
 const TXT    = 'rgba(255,255,255,0.32)';
 const BRAND  = 'rgba(37,232,137,0.92)';
 const YELLOW = '#FEBC2E';
-const BLUE   = '#4ea1ff';
+const BLUE   = '#4F93DD';
 
 // ── Global SVG gradient defs (render once in MonitorPage) ─────────────────────
 // Chromium / Electron: cross-SVG url() references work within the same document.
@@ -634,8 +634,8 @@ export function GlobalGradDefs() {
           <stop offset="100%" stopColor="#FEBC2E" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-blue" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4ea1ff" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="#4ea1ff" stopOpacity="0" />
+          <stop offset="0%" stopColor="#4F93DD" stopOpacity="0.20" />
+          <stop offset="100%" stopColor="#4F93DD" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-purple" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.20" />
@@ -2660,7 +2660,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
           {filtered.map((t, i) => {
             const isBuy = t.direction === 'buy';
             const dirColor = isBuy ? '#25e889' : '#FF5F57';
-            const typeColor = t.optType === 'C' ? '#4ea1ff' : '#FEBC2E';
+            const typeColor = t.optType === 'C' ? '#4F93DD' : '#FEBC2E';
             const sizeEmphasis = t.notionalUSD >= 1_000_000;
             return (
               <div
@@ -3429,7 +3429,7 @@ export const KeyLevelsWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
     { label: '现货', price: spot, color: '#FEBC2E', desc: '当前指数价格' },
     ...(gammaFlip ? [{ label: 'Gamma Flip', price: gammaFlip, color: gammaFlip < spot ? '#FF5F57' : '#25e889', desc: gammaFlip < spot ? '跌破此位 → 负 Gamma 区' : '站上此位 → 正 Gamma 区' }] : []),
     ...(mpPrice !== null ? [{ label: `Max Pain (${nearestExp!.label})`, price: mpPrice, color: '#a78bfa', desc: '期权卖方总损失最小到期价' }] : []),
-    { label: '最大 OI 行权价', price: biggestOI, color: '#4ea1ff', desc: '全部到期日合并最大持仓量行权价' },
+    { label: '最大 OI 行权价', price: biggestOI, color: '#4F93DD', desc: '全部到期日合并最大持仓量行权价' },
   ].sort((a, b) => a.price - b.price); // ascending = leftmost card matches leftmost dot on ruler
 
   // Price ruler: map levels onto a horizontal bar
@@ -3535,7 +3535,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     <div className="w-full h-full flex items-stretch gap-1.5 px-3 py-2 overflow-x-auto">
       {rows.map(r => {
         const barFill = (r.movePct / maxMove) * 100;
-        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#4ea1ff';
+        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#4F93DD';
         return (
           <div key={r.label}
             className="flex-1 min-w-[96px] flex flex-col justify-between bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-2.5 py-2 shrink-0"
@@ -3641,7 +3641,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: '$Vega / 1% IV',
       val: `${sign(dollarVega)}${fmtM(dollarVega)}`,
       sub: '全市场 IV 涨 1% 的盈亏',
-      color: '#4ea1ff',
+      color: '#4F93DD',
       tip: '隐含波动率每涨1%全体OI的价值变化',
     },
     {
@@ -3880,7 +3880,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         {sorted.map((o, i) => {
           const val = sortBy === 'oi' ? o.oi : o.volume;
           const barW = (val / maxVal) * 100;
-          const typeColor = o.type === 'C' ? '#4ea1ff' : '#FEBC2E';
+          const typeColor = o.type === 'C' ? '#4F93DD' : '#FEBC2E';
           const m = moneyness(o);
           return (
             <div key={i}
@@ -4134,7 +4134,7 @@ export const BTCETHSpreadWidget = () => {
       <div className="flex gap-2 px-3 pt-2 pb-1.5 shrink-0">
         {[
           { label: 'BTC DVOL', val: `${currentBTC.toFixed(1)}%`, color: '#FEBC2E' },
-          { label: 'ETH DVOL', val: `${currentETH.toFixed(1)}%`, color: '#4ea1ff' },
+          { label: 'ETH DVOL', val: `${currentETH.toFixed(1)}%`, color: '#4F93DD' },
           { label: 'Spread (BTC−ETH)', val: `${currentSpread >= 0 ? '+' : ''}${currentSpread.toFixed(1)}pp`, color: spreadColor },
           { label: '价差百分位', val: `${pctile.toFixed(0)}%ile`, color: spreadColor },
           { label: '解读', val: spreadLabel, color: spreadColor },
@@ -4153,13 +4153,13 @@ export const BTCETHSpreadWidget = () => {
           <div className="text-[8.5px] text-white/55 mb-0.5 uppercase tracking-wider">DVOL 历史（90D）</div>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
             <path d={area(ethPts, H, PY)} fill="url(#wg-blue)" />
-            <polyline points={poly(ethPts)} fill="none" stroke="#4ea1ff" strokeWidth={1.2} opacity={0.7} />
+            <polyline points={poly(ethPts)} fill="none" stroke="#4F93DD" strokeWidth={1.2} opacity={0.7} />
             <path d={area(btcPts, H, PY)} fill="url(#wg-yellow)" />
             <polyline points={poly(btcPts)} fill="none" stroke="#FEBC2E" strokeWidth={1.4} opacity={0.85} />
             {/* Legend */}
             <line x1={PX} y1={8} x2={PX + 12} y2={8} stroke="#FEBC2E" strokeWidth={1.4} />
             <text x={PX + 15} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">BTC</text>
-            <line x1={PX + 36} y1={8} x2={PX + 48} y2={8} stroke="#4ea1ff" strokeWidth={1.2} />
+            <line x1={PX + 36} y1={8} x2={PX + 48} y2={8} stroke="#4F93DD" strokeWidth={1.2} />
             <text x={PX + 51} y={11} fontSize={7} fill="rgba(255,255,255,0.3)">ETH</text>
           </svg>
         </div>
@@ -4300,7 +4300,7 @@ function classifyRegime(
     },
     'vol-compression': {
       label: '波动率收缩',
-      color: '#4ea1ff',
+      color: '#4F93DD',
       description: `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
       playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
     },

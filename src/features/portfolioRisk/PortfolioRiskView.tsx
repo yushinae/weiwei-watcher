@@ -146,7 +146,7 @@ export const PortfolioRiskView = () => {
 
   const attribOption = useMemo<EChartsOption>(() => {
     const comps = [
-      { name: 'Delta（方向）', key: 'delta' as const, color: '#4ea1ff' },
+      { name: 'Delta（方向）', key: 'delta' as const, color: '#4F93DD' },
       { name: 'Gamma（凸性）', key: 'gamma' as const, color: '#25e889' },
       { name: 'Vega（波动）', key: 'vega' as const, color: '#a78bfa' },
       { name: 'Theta（时间）', key: 'theta' as const, color: '#FEBC2E' },
@@ -256,7 +256,7 @@ export const PortfolioRiskView = () => {
           lineStyle: { color: 'rgba(255,255,255,0.5)', width: 1.5 },
           markLine: { symbol: 'none', silent: true, lineStyle: { color: 'rgba(255,255,255,0.18)', type: 'dashed', width: 1 }, data: [{ yAxis: 0 }, { xAxis: xs.indexOf(0) }] } },
         { name: `IV +${ivLine}pt`, type: 'line', smooth: 0.2, showSymbol: false, data: shocked,
-          lineStyle: { color: '#4ea1ff', width: 2 }, areaStyle: { color: 'rgba(78,161,255,0.08)' } },
+          lineStyle: { color: '#4F93DD', width: 2 }, areaStyle: { color: 'rgba(79,147,221,0.08)' } },
       ],
     };
   }, [books, ivLine]);
@@ -292,7 +292,7 @@ export const PortfolioRiskView = () => {
               <FlaskConical size={12} /> {includeSim ? `含模拟仓 ${simRisk.length}` : '加入模拟仓'}
             </button>
           )}
-          <span className="ml-auto text-white/35">净希腊 = 实盘持仓（HL/Bybit/Deribit）{includeSim && hasSim ? ' + 模拟仓（沙盒，希腊为下单时快照）' : ''} · 请对照交易所核对</span>
+          <span className="ml-auto text-white/35">净希腊 = 实盘持仓（HL/Bybit/Deribit）{includeSim && hasSim ? ' + 模拟仓（沙盒，希腊为下单时快照）' : ''} · 请对照��易所核对</span>
         </div>
 
         {/* ── 净美元希腊（总 + 分币种）── */}
@@ -332,7 +332,7 @@ export const PortfolioRiskView = () => {
               <div className="flex items-center gap-1">
                 {[10, 20, 30].map(v => (
                   <button key={v} onClick={() => setIvLine(v)}
-                    className={`px-1.5 h-[22px] rounded text-[10px] font-semibold ${ivLine === v ? 'bg-[#4ea1ff]/20 text-[#4ea1ff] ring-1 ring-inset ring-[#4ea1ff]/40' : 'text-white/45 hover:text-white/75'}`}>
+                    className={`px-1.5 h-[22px] rounded text-[10px] font-semibold ${ivLine === v ? 'bg-[#4F93DD]/20 text-[#4F93DD] ring-1 ring-inset ring-[#4F93DD]/40' : 'text-white/45 hover:text-white/75'}`}>
                     IV+{v}
                   </button>
                 ))}

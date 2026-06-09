@@ -144,7 +144,7 @@ export const AlertsManager = () => {
                         <td className="py-1.5 px-2 font-bold text-white/80">{a.coin}</td>
                         <td className="py-1.5 px-2 text-white/75 whitespace-nowrap">
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
-                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#4ea1ff]">常驻</span>}
+                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#4F93DD]">常驻</span>}
                           {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#a78bfa]">持仓</span>}
                         </td>
                         <td className="py-1.5 px-2 text-right tabular-nums text-white/65">

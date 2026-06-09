@@ -7,7 +7,7 @@ import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { Coin } from '../monitor/types';
 
-const UP = '#28C840'; const YELLOW = '#FEBC2E'; const CALL = '#28C840'; const PUT = '#FF5F57'; const EM_C = '#4ea1ff';
+const UP = '#28C840'; const YELLOW = '#FEBC2E'; const CALL = '#28C840'; const PUT = '#FF5F57'; const EM_C = '#4F93DD';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 const RESOLUTIONS: Resolution[] = ['5m', '15m', '1h', '4h', '1d', '1w'];

@@ -3,7 +3,7 @@
 // 2) computeChainLevels：从已解析的期权链派生 Call 墙 / Put 墙 / 最大痛点 / ±1σ 预期波动，
 //    供 K 线图叠加。算法与 dashboardWidgets 的 GEXKeyLevels / analysis.computeMaxPain 保持一致。
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { Coin } from '../monitor/types';
 import { computeMaxPain } from '../../registry/monitorWidgetsBase';
 import type { DeribitData, ExpiryGroup } from '../../registry/monitorWidgetsBase';
@@ -58,43 +58,116 @@ export async function fetchCandlesBefore(coin: Coin, res: Resolution, beforeTime
     .filter((c) => Number.isFinite(c.o) && Number.isFinite(c.c));
 }
 
-// 自带轮询（不复用 registry 的 subscribeData）—— 后者会被 App 的 pauseMonitorPolling()
-// 在非 /monitor 路由全局暂停，价格图独立于监控页生命周期，必须自管轮询。
-// 仍按 document.hidden 暂停以省电；底层 WS rpc 走常驻的 DERIBIT_WS 单例。
+// WS-first：REST 回填一次历史，之后订阅 Binance kline WS 实时更新「形成中」的那根蜡烛。
+// 价格图独立于监控页生命周期，自管连接；document.hidden 时断开省电、可见时重连+重对齐。
+// 端点用公开数据流 data-stream.binance.vision（无 key、不受交易 API 地域限制，浏览器直连，
+// WS 不受 CORS 限制）。Resolution 字符串与 Binance interval 一致，可直接拼 @kline_{res}。
+// 兜底：仅在 WS 未连接时按 POLL_MS 慢轮询，保证 WS 被网络挡掉时图表也不会僵死。
 export function useCandles(coin: Coin, res: Resolution) {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const ref = useRef<Candle[]>([]);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setError(false);
+    ref.current = [];
 
-    const run = async () => {
-      if (document.hidden) return;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let backoff = 1_000;
+    let wsConnected = false;
+
+    const commit = (next: Candle[]) => { ref.current = next; if (alive) setCandles(next); };
+
+    // REST 回填（初次 + 重连/回到前台时重对齐）
+    const backfill = async () => {
       try {
         const d = await fetchCandles(coin, res);
         if (!alive) return;
-        setCandles(d);
+        commit(d);
         setError(false);
         setLoading(false);
       } catch {
-        if (!alive) return;
-        setError(true);
-        setLoading(false);
+        if (alive && ref.current.length === 0) { setError(true); setLoading(false); }
       }
     };
 
-    run();
-    const id = setInterval(run, POLL_MS[res]);
-    const onVis = () => { if (!document.hidden) run(); };
+    // 把一根 WS kline 并入序列：同起始时间→替换最后一根（形成中），更新→追加并裁剪窗口
+    const mergeKline = (k: Candle) => {
+      const arr = ref.current;
+      if (!arr.length) { commit([k]); return; }
+      const last = arr[arr.length - 1];
+      if (k.t === last.t) { const next = arr.slice(); next[next.length - 1] = k; commit(next); }
+      else if (k.t > last.t) { commit([...arr, k].slice(-LIMIT[res])); }
+      // 更早的帧忽略
+    };
+
+    const stopPoll = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+    const startPoll = () => {
+      if (pollTimer || document.hidden) return;
+      pollTimer = setInterval(() => { if (!wsConnected && !document.hidden) backfill(); }, POLL_MS[res]);
+    };
+
+    const scheduleReconnect = () => {
+      if (!alive || reconnectTimer || document.hidden) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        backoff = Math.min(backoff * 2, 30_000);
+        connectWS();
+      }, backoff);
+    };
+
+    const connectWS = () => {
+      if (!alive || document.hidden) return;
+      const stream = `${COIN_SYMBOL[coin].toLowerCase()}@kline_${res}`;
+      let sock: WebSocket;
+      try { sock = new WebSocket(`wss://data-stream.binance.vision/ws/${stream}`); }
+      catch { startPoll(); scheduleReconnect(); return; }
+      ws = sock;
+      sock.onopen = () => { wsConnected = true; backoff = 1_000; stopPoll(); };
+      sock.onmessage = (e: MessageEvent) => {
+        try {
+          const k = (JSON.parse(e.data as string) as { k?: { t: number; o: string; h: string; l: string; c: string; v: string } }).k;
+          if (!k) return;
+          const c: Candle = { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v };
+          if (Number.isFinite(c.o) && Number.isFinite(c.c)) mergeKline(c);
+        } catch { /* ignore malformed frame */ }
+      };
+      sock.onclose = () => {
+        wsConnected = false;
+        if (ws === sock) ws = null;
+        startPoll();          // WS 断开期间慢轮询兜底
+        scheduleReconnect();
+      };
+      sock.onerror = () => { try { sock.close(); } catch { /* noop */ } };
+    };
+
+    const onVis = () => {
+      if (document.hidden) {
+        if (ws) { ws.onclose = null; try { ws.close(); } catch { /* noop */ } ws = null; }
+        wsConnected = false;
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+        stopPoll();
+      } else {
+        backfill();           // 回到前台先重对齐历史
+        connectWS();
+      }
+    };
+
+    backfill();
+    connectWS();
     document.addEventListener('visibilitychange', onVis);
 
     return () => {
       alive = false;
-      clearInterval(id);
       document.removeEventListener('visibilitychange', onVis);
+      if (ws) { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; try { ws.close(); } catch { /* noop */ } ws = null; }
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      stopPoll();
     };
   }, [coin, res]);
 

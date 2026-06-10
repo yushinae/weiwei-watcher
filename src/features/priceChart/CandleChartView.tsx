@@ -8,6 +8,10 @@ import type {
   IChartApi, ISeriesApi, IPriceLine, UTCTimestamp, CandlestickData, AutoscaleInfo,
 } from 'lightweight-charts';
 import { useCandles, computeChainLevels, type Resolution, type Candle } from './candles';
+import {
+  DRAW_TOOLS, DRAW_COLOR, TrendPrimitive, loadDrawings, saveDrawings, newId,
+  type DrawTool, type Drawing, type DrawingInput,
+} from './drawings';
 import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { Coin } from '../monitor/types';
@@ -69,6 +73,65 @@ export const CandleChartView = () => {
   const [countdown,setCountdown] = useState('0:00');
   const [hoverCandle,setHoverCandle] = useState<{t:string;o:number;h:number;l:number;c:number}|null>(null);
 
+  // ── 画线层（自定义） ──────────────────────────────────────────────────────
+  const [activeTool,setActiveTool] = useState<DrawTool|null>(null);
+  const [drawHint,setDrawHint] = useState('');
+  const activeToolRef = useRef<DrawTool|null>(null);
+  const pendingRef = useRef<{t:number;p:number}|null>(null);          // 两点工具的第一点
+  const drawingsRef = useRef<Drawing[]>([]);
+  const drawVisualsRef = useRef<Map<string,{priceLine?:IPriceLine;primitive?:TrendPrimitive}>>(new Map());
+  const coinRef = useRef<Coin>(coin);
+  coinRef.current = coin;
+
+  function renderDrawing(d: Drawing) {
+    const series = candleSeriesRef.current;
+    if (!series) return;
+    if (d.type === 'h') {
+      const pl = series.createPriceLine({ price:d.price, color:DRAW_COLOR, lineWidth:1, lineStyle:LineStyle.Solid, axisLabelVisible:true, title:'' });
+      drawVisualsRef.current.set(d.id, { priceLine: pl });
+    } else {
+      const prim = new TrendPrimitive(d);
+      series.attachPrimitive(prim);
+      drawVisualsRef.current.set(d.id, { primitive: prim });
+    }
+  }
+  function unrenderDrawing(id: string) {
+    const series = candleSeriesRef.current;
+    const v = drawVisualsRef.current.get(id);
+    if (v && series) {
+      if (v.priceLine) series.removePriceLine(v.priceLine);
+      if (v.primitive) series.detachPrimitive(v.primitive);
+    }
+    drawVisualsRef.current.delete(id);
+  }
+  function addDrawing(partial: DrawingInput) {
+    const d = { ...partial, id: newId() } as Drawing;
+    drawingsRef.current = [...drawingsRef.current, d];
+    renderDrawing(d);
+    saveDrawings(coinRef.current, drawingsRef.current);
+  }
+  function removeLastDrawing() {
+    const last = drawingsRef.current[drawingsRef.current.length-1];
+    if (!last) return;
+    unrenderDrawing(last.id);
+    drawingsRef.current = drawingsRef.current.slice(0,-1);
+    saveDrawings(coinRef.current, drawingsRef.current);
+    pendingRef.current = null; setDrawHint('');
+  }
+  function clearDrawings() {
+    drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
+    drawingsRef.current = [];
+    saveDrawings(coinRef.current, drawingsRef.current);
+    pendingRef.current = null; setDrawHint('');
+  }
+  function selectTool(t: DrawTool) {
+    const next = activeToolRef.current === t ? null : t;
+    activeToolRef.current = next;
+    pendingRef.current = null;
+    setActiveTool(next);
+    setDrawHint(next && next !== 'h' ? '点第一点…' : '');
+  }
+
   // 1) 初始化图表（仅挂载一次）
   useEffect(()=>{
     const el = containerRef.current;
@@ -110,8 +173,31 @@ export const CandleChartView = () => {
       setHoverCandle({ t:`${hh}:${mm}`, o:d.open, h:d.high, l:d.low, c:d.close });
     });
 
+    // 点击放置画线点（拖拽仍是平移/缩放，单击不触发平移，故无需拦截鼠标）
+    chart.subscribeClick(param=>{
+      const tool = activeToolRef.current;
+      const s = candleSeriesRef.current;
+      if (!tool || !s || !param.point) return;
+      const price = s.coordinateToPrice(param.point.y);
+      const time = (param.time ?? chart.timeScale().coordinateToTime(param.point.x)) as number | null;
+      if (price == null || time == null) return;
+      if (tool === 'h') { addDrawing({ type:'h', price }); }
+      else if (!pendingRef.current) { pendingRef.current = { t:time, p:price }; setDrawHint('点第二点完成'); }
+      else { addDrawing({ type:tool, t1:pendingRef.current.t, p1:pendingRef.current.p, t2:time, p2:price }); pendingRef.current = null; setDrawHint(''); }
+    });
+
     return ()=>{ chart.remove(); chartRef.current=null; candleSeriesRef.current=null; volSeriesRef.current=null; priceLinesRef.current=[]; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
+
+  // 画线：按币种加载/切换并重建
+  useEffect(()=>{
+    if (!candleSeriesRef.current) return;
+    drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
+    drawingsRef.current = loadDrawings(coin);
+    drawingsRef.current.forEach(renderDrawing);
+    pendingRef.current = null; setDrawHint('');
+  },[coin]);
 
   // 2) coin/res 切换 → 标记需要整图重建
   useEffect(()=>{ fullReloadRef.current = true; },[coin,res]);
@@ -205,6 +291,15 @@ export const CandleChartView = () => {
         </div>
         <Pill active={showLevels} onClick={()=>setShowLevels(v=>!v)}>关键位</Pill>
         <Pill active={showEM} onClick={()=>setShowEM(v=>!v)}>预期波动</Pill>
+        <div className="w-px h-5 bg-[var(--color-border-subtle)] mx-0.5"/>
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E]">
+          {DRAW_TOOLS.map(t=><Pill key={t.tool} active={activeTool===t.tool} onClick={()=>selectTool(t.tool)}>{t.label}</Pill>)}
+          <button onClick={removeLastDrawing} title="撤销上一条画线"
+            className="px-2 h-[26px] rounded-md text-[12px] font-semibold text-white/45 hover:bg-[#3A3B40] hover:text-white/80 transition-colors duration-[120ms]">撤销</button>
+          <button onClick={clearDrawings} title="清除全部画线"
+            className="px-2 h-[26px] rounded-md text-[12px] font-semibold text-white/45 hover:bg-[#3A3B40] hover:text-[#FF5F57] transition-colors duration-[120ms]">清除</button>
+        </div>
+        {drawHint && <span className="text-[11px] text-[var(--nexus-accent)]/80 select-none">{drawHint}</span>}
         <div className="ml-auto text-[11px] text-white/35">价格 Binance · 关键位 Deribit · lightweight-charts</div>
       </div>
 

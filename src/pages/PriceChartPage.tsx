@@ -1,5 +1,5 @@
-import KLineChartView from '../features/priceChart/KLineChartView';
+import CandleChartView from '../features/priceChart/CandleChartView';
 
 export default function PriceChartPage() {
-  return <KLineChartView />;
+  return <CandleChartView />;
 }

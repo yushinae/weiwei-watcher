@@ -9,7 +9,7 @@ import type {
 } from 'lightweight-charts';
 import { useCandles, computeChainLevels, type Resolution, type Candle } from './candles';
 import {
-  DRAW_TOOLS, DRAW_COLOR, TrendPrimitive, loadDrawings, saveDrawings, newId,
+  DRAW_TOOLS, DRAW_COLOR, NOTE_COLOR, TrendPrimitive, NotePrimitive, loadDrawings, saveDrawings, newId,
   type DrawTool, type Drawing, type DrawingInput,
 } from './drawings';
 import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
@@ -79,9 +79,16 @@ export const CandleChartView = () => {
   const activeToolRef = useRef<DrawTool|null>(null);
   const pendingRef = useRef<{t:number;p:number}|null>(null);          // 两点工具的第一点
   const drawingsRef = useRef<Drawing[]>([]);
-  const drawVisualsRef = useRef<Map<string,{priceLine?:IPriceLine;primitive?:TrendPrimitive}>>(new Map());
+  const drawVisualsRef = useRef<Map<string,{priceLine?:IPriceLine;primitive?:TrendPrimitive|NotePrimitive}>>(new Map());
   const coinRef = useRef<Coin>(coin);
   coinRef.current = coin;
+
+  // 标记浮层：openNote=展开中的标记 id；notePos=锚点 media 坐标（rAF 跟随 pan/zoom）
+  const [openNote,setOpenNote] = useState<string|null>(null);
+  const [notePos,setNotePos] = useState<{x:number;y:number}|null>(null);
+  const [noteText,setNoteText] = useState('');
+  const openNoteRef = useRef<string|null>(null);
+  openNoteRef.current = openNote;
 
   function renderDrawing(d: Drawing) {
     const series = candleSeriesRef.current;
@@ -90,7 +97,7 @@ export const CandleChartView = () => {
       const pl = series.createPriceLine({ price:d.price, color:DRAW_COLOR, lineWidth:1, lineStyle:LineStyle.Solid, axisLabelVisible:true, title:'' });
       drawVisualsRef.current.set(d.id, { priceLine: pl });
     } else {
-      const prim = new TrendPrimitive(d);
+      const prim = d.type === 'note' ? new NotePrimitive(d) : new TrendPrimitive(d);
       series.attachPrimitive(prim);
       drawVisualsRef.current.set(d.id, { primitive: prim });
     }
@@ -104,21 +111,24 @@ export const CandleChartView = () => {
     }
     drawVisualsRef.current.delete(id);
   }
-  function addDrawing(partial: DrawingInput) {
+  function addDrawing(partial: DrawingInput): Drawing {
     const d = { ...partial, id: newId() } as Drawing;
     drawingsRef.current = [...drawingsRef.current, d];
     renderDrawing(d);
     saveDrawings(coinRef.current, drawingsRef.current);
+    return d;
   }
   function removeLastDrawing() {
     const last = drawingsRef.current[drawingsRef.current.length-1];
     if (!last) return;
+    if (last.id === openNoteRef.current) closeNote();
     unrenderDrawing(last.id);
     drawingsRef.current = drawingsRef.current.slice(0,-1);
     saveDrawings(coinRef.current, drawingsRef.current);
     pendingRef.current = null; setDrawHint('');
   }
   function clearDrawings() {
+    closeNote();
     drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
     drawingsRef.current = [];
     saveDrawings(coinRef.current, drawingsRef.current);
@@ -129,7 +139,41 @@ export const CandleChartView = () => {
     activeToolRef.current = next;
     pendingRef.current = null;
     setActiveTool(next);
-    setDrawHint(next && next !== 'h' ? '点第一点…' : '');
+    setDrawHint(next === 'note' ? '点击图上位置放置标记' : next && next !== 'h' ? '点第一点…' : '');
+  }
+
+  // ── 标记浮层 ────────────────────────────────────────────────────────────────
+  function setNoteActive(id: string|null, v: boolean) {
+    if (!id) return;
+    const prim = drawVisualsRef.current.get(id)?.primitive;
+    if (prim instanceof NotePrimitive) prim.setActive(v);
+  }
+  function openNoteFor(id: string) {
+    const d = drawingsRef.current.find(x=>x.id===id);
+    if (!d || d.type!=='note') return;
+    setNoteActive(openNoteRef.current, false);
+    setNoteText(d.text);
+    setNotePos(null);          // 位置由 rAF 同步，先隐藏避免闪到旧位置
+    setOpenNote(id);
+    setNoteActive(id, true);
+  }
+  function closeNote() {
+    setNoteActive(openNoteRef.current, false);
+    setOpenNote(null); setNotePos(null);
+  }
+  function updateNoteText(text: string) {
+    setNoteText(text);
+    const d = drawingsRef.current.find(x=>x.id===openNoteRef.current);
+    // 原地改文本（primitive 持有同一对象引用；文本只在浮层显示，无需重绘）
+    if (d && d.type==='note') { d.text = text; saveDrawings(coinRef.current, drawingsRef.current); }
+  }
+  function deleteOpenNote() {
+    const id = openNoteRef.current;
+    if (!id) return;
+    unrenderDrawing(id);
+    drawingsRef.current = drawingsRef.current.filter(d=>d.id!==id);
+    saveDrawings(coinRef.current, drawingsRef.current);
+    setOpenNote(null); setNotePos(null);
   }
 
   // 1) 初始化图表（仅挂载一次）
@@ -175,13 +219,27 @@ export const CandleChartView = () => {
 
     // 点击放置画线点（拖拽仍是平移/缩放，单击不触发平移，故无需拦截鼠标）
     chart.subscribeClick(param=>{
-      const tool = activeToolRef.current;
       const s = candleSeriesRef.current;
-      if (!tool || !s || !param.point) return;
+      if (!s || !param.point) return;
+      const tool = activeToolRef.current;
+      // 未选工具：点中标记 pin（hitTest 命中）→ 展开/收起；点空白 → 收起浮层
+      if (!tool) {
+        const hitId = typeof param.hoveredObjectId === 'string' ? param.hoveredObjectId : null;
+        if (hitId && drawingsRef.current.some(d=>d.id===hitId && d.type==='note')) {
+          if (openNoteRef.current === hitId) closeNote(); else openNoteFor(hitId);
+        } else if (openNoteRef.current) closeNote();
+        return;
+      }
       const price = s.coordinateToPrice(param.point.y);
       const time = (param.time ?? chart.timeScale().coordinateToTime(param.point.x)) as number | null;
       if (price == null || time == null) return;
       if (tool === 'h') { addDrawing({ type:'h', price }); }
+      else if (tool === 'note') {
+        const d = addDrawing({ type:'note', t:time, p:price, text:'' });
+        // 放置后退出工具并立即展开编辑
+        activeToolRef.current = null; setActiveTool(null); setDrawHint('');
+        openNoteFor(d.id);
+      }
       else if (!pendingRef.current) { pendingRef.current = { t:time, p:price }; setDrawHint('点第二点完成'); }
       else { addDrawing({ type:tool, t1:pendingRef.current.t, p1:pendingRef.current.p, t2:time, p2:price }); pendingRef.current = null; setDrawHint(''); }
     });
@@ -193,11 +251,36 @@ export const CandleChartView = () => {
   // 画线：按币种加载/切换并重建
   useEffect(()=>{
     if (!candleSeriesRef.current) return;
+    closeNote();
     drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
     drawingsRef.current = loadDrawings(coin);
     drawingsRef.current.forEach(renderDrawing);
     pendingRef.current = null; setDrawHint('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   },[coin]);
+
+  // 标记浮层位置跟随：展开期间每帧把锚点 (t,p) 换算成像素，pan/zoom 时浮层贴着 pin 走
+  useEffect(()=>{
+    if (!openNote) return;
+    let raf = 0;
+    const tick = ()=>{
+      const chart = chartRef.current, s = candleSeriesRef.current, el = containerRef.current;
+      const d = drawingsRef.current.find(x=>x.id===openNote);
+      if (chart && s && el && d && d.type==='note'){
+        const x = chart.timeScale().timeToCoordinate(d.t as UTCTimestamp);
+        const y = s.priceToCoordinate(d.p);
+        // 锚点滚出可视区 → 隐藏浮层（保持展开状态，滚回来再现）
+        if (x==null || y==null || x<0 || x>el.clientWidth || y<0 || y>el.clientHeight) {
+          setNotePos(p=>p===null?p:null);
+        } else {
+          setNotePos(p => p && Math.abs(p.x-x)<0.5 && Math.abs(p.y-y)<0.5 ? p : {x,y});
+        }
+      } else setNotePos(p=>p===null?p:null);
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return ()=>cancelAnimationFrame(raf);
+  },[openNote]);
 
   // 2) coin/res 切换 → 标记需要整图重建
   useEffect(()=>{ fullReloadRef.current = true; },[coin,res]);
@@ -330,6 +413,40 @@ export const CandleChartView = () => {
             {error?'数据加载失败，重试中…':loading?'加载 K 线中…':'暂无数据'}
           </div>
         )}
+        {openNote && notePos && (()=>{
+          const d = drawingsRef.current.find(x=>x.id===openNote);
+          if (!d || d.type!=='note') return null;
+          const cw = containerRef.current?.clientWidth ?? 0;
+          const cx = Math.min(Math.max(notePos.x,124), Math.max(124, cw-124));   // 水平防出界
+          const below = notePos.y < 200;                                         // 锚点太靠上 → 卡片放下方
+          const dt = new Date(d.t*1000);
+          const pad2 = (n:number)=>n.toString().padStart(2,'0');
+          return (
+            <div className="absolute inset-1.5 z-20 pointer-events-none overflow-hidden">
+              <div className="absolute pointer-events-auto w-[232px] rounded-lg bg-[#22242C]/95 backdrop-blur-sm ring-1 ring-inset ring-white/10 shadow-xl p-2"
+                style={below
+                  ? {left:cx, top:notePos.y+12, transform:'translateX(-50%)'}
+                  : {left:cx, top:notePos.y-46, transform:'translate(-50%,-100%)'}}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{backgroundColor:NOTE_COLOR}}/>
+                  <span className="text-[10px] font-semibold text-white/55 truncate">
+                    {pad2(dt.getMonth()+1)}-{pad2(dt.getDate())} {pad2(dt.getHours())}:{pad2(dt.getMinutes())} · {fmtPx(d.p)}
+                  </span>
+                  <button onClick={closeNote} title="收起"
+                    className="ml-auto w-[20px] h-[20px] rounded text-[11px] text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors duration-[120ms]">✕</button>
+                </div>
+                <textarea value={noteText} onChange={e=>updateNoteText(e.target.value)} rows={3} autoFocus
+                  placeholder="写点什么…"
+                  className="w-full bg-black/25 rounded-md px-1.5 py-1 text-[12px] leading-snug text-white/85 outline-none resize-none placeholder:text-white/25"/>
+                <div className="flex items-center mt-1">
+                  <span className="text-[10px] text-white/25">自动保存</span>
+                  <button onClick={deleteOpenNote}
+                    className="ml-auto px-1.5 h-[22px] rounded text-[11px] font-semibold text-[#FF5F57]/80 hover:text-[#FF5F57] hover:bg-white/5 transition-colors duration-[120ms]">删除</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

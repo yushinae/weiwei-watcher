@@ -3,7 +3,7 @@
 // 渲染——chart 在任何 pan/zoom/缩放时都会重绘 primitive，坐标由 price/timeToCoordinate
 // 实时换算，故不会漂移。画线按币种持久化到 localStorage。
 import type {
-  ISeriesPrimitive, ISeriesPrimitivePaneView, SeriesAttachedParameter,
+  ISeriesPrimitive, IPrimitivePaneView, SeriesAttachedParameter,
   IChartApi, ISeriesApi, Time, UTCTimestamp, PrimitiveHoveredItem,
 } from 'lightweight-charts';
 
@@ -48,7 +48,7 @@ type TwoPt = Extract<Drawing, { type: 'trend' | 'ray' | 'fib' }>;
 export class TrendPrimitive implements ISeriesPrimitive<Time> {
   private chart?: IChartApi;
   private series?: ISeriesApi<'Candlestick'>;
-  private readonly paneView: ISeriesPrimitivePaneView;
+  private readonly paneView: IPrimitivePaneView;
 
   constructor(private d: TwoPt) {
     this.paneView = { renderer: () => ({ draw: (t: unknown) => this.draw(t) }) };
@@ -59,7 +59,7 @@ export class TrendPrimitive implements ISeriesPrimitive<Time> {
   }
   detached(): void { this.chart = undefined; this.series = undefined; }
   updateAllViews(): void { /* draw() reads live coords each frame */ }
-  paneViews(): readonly ISeriesPrimitivePaneView[] { return [this.paneView]; }
+  paneViews(): readonly IPrimitivePaneView[] { return [this.paneView]; }
 
   private draw(target: unknown): void {
     const chart = this.chart, series = this.series;
@@ -123,7 +123,7 @@ export class NotePrimitive implements ISeriesPrimitive<Time> {
   private series?: ISeriesApi<'Candlestick'>;
   private requestUpdate?: () => void;
   private active = false;
-  private readonly paneView: ISeriesPrimitivePaneView;
+  private readonly paneView: IPrimitivePaneView;
 
   constructor(readonly d: NotePt) {
     this.paneView = {
@@ -138,7 +138,7 @@ export class NotePrimitive implements ISeriesPrimitive<Time> {
   }
   detached(): void { this.chart = undefined; this.series = undefined; this.requestUpdate = undefined; }
   updateAllViews(): void { /* draw() reads live coords each frame */ }
-  paneViews(): readonly ISeriesPrimitivePaneView[] { return [this.paneView]; }
+  paneViews(): readonly IPrimitivePaneView[] { return [this.paneView]; }
 
   /** 展开态高亮（浮层打开时调用） */
   setActive(v: boolean): void {

@@ -2,16 +2,22 @@
 // 蜡烛 + 成交量 + 关键位价线（Call/Put 墙 / 最大痛点 / ±1σ，并入价轴自动缩放范围）。
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createChart, ColorType, CrosshairMode, LineStyle,
+  createChart, CandlestickSeries, ColorType, CrosshairMode, LineStyle, TickMarkType,
 } from 'lightweight-charts';
 import type {
-  IChartApi, ISeriesApi, IPriceLine, UTCTimestamp, CandlestickData, AutoscaleInfo,
+  IChartApi, ISeriesApi, IPriceLine, UTCTimestamp, CandlestickData, AutoscaleInfo, Time,
 } from 'lightweight-charts';
+import { ChevronDown, Eye, EyeOff, RotateCcw, Save, Settings2, X } from 'lucide-react';
 import { useCandles, computeChainLevels, type Resolution, type Candle } from './candles';
 import {
   DRAW_TOOLS, DRAW_COLOR, NOTE_COLOR, TrendPrimitive, NotePrimitive, loadDrawings, saveDrawings, newId,
   type DrawTool, type Drawing, type DrawingInput,
 } from './drawings';
+import {
+  DEFAULT_NY_MIDNIGHT_OPTIONS, NYMidnightPrimitive, computeNYMidnightEvents,
+  type NYMidnightOptions, type NYMidnightLineStyle, type NYMidnightLabelLang,
+} from './indicators/nyMidnight';
+import { PriceLevelsPrimitive, type PriceLevel } from './indicators/priceLevels';
 import { useDeribitOptions } from '../../registry/monitorWidgetsBase';
 import { useLiveSpot } from '../optionsChain/liveData';
 import type { Coin } from '../monitor/types';
@@ -22,8 +28,77 @@ const DOWN = '#FF5F57';
 const COINS: Coin[] = ['BTC', 'ETH'];
 const RESOLUTIONS: Resolution[] = ['5m', '15m', '1h', '4h', '1d', '1w'];
 const RES_LABEL: Record<Resolution, string> = { '5m':'5分','15m':'15分','1h':'1时','4h':'4时','1d':'1日','1w':'1周' };
+const RES_TV_LABEL: Record<Resolution, string> = { '5m':'5','15m':'15','1h':'1h','4h':'4h','1d':'1D','1w':'1W' };
+const SYMBOL_LABEL: Record<Coin, string> = { BTC: 'Bitcoin / TetherUS', ETH: 'Ethereum / TetherUS' };
+const SYMBOL_ICON: Record<Coin, string> = { BTC: '₿', ETH: 'Ξ' };
+const NY_TIME_ZONE = 'America/New_York';
+
+const NY_TIME_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY_TIME_ZONE,
+  hourCycle: 'h12',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const NY_DATE_TIME_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY_TIME_ZONE,
+  hourCycle: 'h12',
+  weekday: 'short',
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const NY_DATE_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY_TIME_ZONE,
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
 
 const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US',{maximumFractionDigits:0}) : v.toLocaleString('en-US',{maximumFractionDigits:2});
+const fmtVol = (v: number) => {
+  if (v >= 1_000_000) return `${(v/1_000_000).toFixed(2)}M`;
+  if (v >= 1_000) return `${(v/1_000).toFixed(2)}K`;
+  return v.toFixed(2);
+};
+const fmtSigned = (v: number, digits = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
+const RES_MS: Record<Resolution, number> = {
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '4h': 4 * 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+};
+const PRICE_LABEL_RIGHT_GAP_PX = 2;
+const formatAxisPrice = (price: number) => price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+type PriceAxisOverlayLabel = { key: string; price: number; color: string; y: number; width: number };
+const timeToDate = (time: Time): Date => {
+  if (typeof time === 'number') return new Date(time * 1000);
+  if (typeof time === 'string') return new Date(`${time}T00:00:00Z`);
+  return new Date(Date.UTC(time.year, time.month - 1, time.day));
+};
+const partsRecord = (formatter: Intl.DateTimeFormat, date: Date): Record<string, string> =>
+  Object.fromEntries(formatter.formatToParts(date).map(p => [p.type, p.value]));
+const formatNYAxisTime = (time: Time): string => {
+  const p = partsRecord(NY_TIME_PARTS, timeToDate(time));
+  return `${p.hour}:${p.minute} ${p.dayPeriod}`;
+};
+const formatNYCrosshairTime = (time: Time): string => {
+  const p = partsRecord(NY_DATE_TIME_PARTS, timeToDate(time));
+  return `${p.weekday} ${p.day} ${p.month} ${p.hour}:${p.minute} ${p.dayPeriod}`;
+};
+const formatNYDate = (time: Time, withYear = false): string => {
+  const p = partsRecord(NY_DATE_PARTS, timeToDate(time));
+  return withYear ? p.year : `${p.day} ${p.month}`;
+};
+const formatNYTickMark = (time: Time, tickMarkType: TickMarkType): string | null => {
+  if (tickMarkType === TickMarkType.Time || tickMarkType === TickMarkType.TimeWithSeconds) return formatNYAxisTime(time);
+  if (tickMarkType === TickMarkType.DayOfMonth) return formatNYDate(time);
+  if (tickMarkType === TickMarkType.Month) return partsRecord(NY_DATE_PARTS, timeToDate(time)).month;
+  if (tickMarkType === TickMarkType.Year) return formatNYDate(time, true);
+  return null;
+};
 
 const Pill: React.FC<{active:boolean;onClick:()=>void;children:React.ReactNode}> = ({active,onClick,children}) => (
   <button onClick={onClick}
@@ -44,14 +119,71 @@ const LevelChip = ({label,value,sub,color}:{label:string;value:string;sub?:strin
 );
 
 const toCandle = (c: Candle): CandlestickData => ({ time: Math.floor(c.t/1000) as UTCTimestamp, open:c.o, high:c.h, low:c.l, close:c.c });
-const toVol = (c: Candle) => ({ time: Math.floor(c.t/1000) as UTCTimestamp, value:c.v, color: c.c>=c.o?'rgba(40,200,64,0.22)':'rgba(255,95,87,0.22)' });
+
+type LegendCandle = { o:number; h:number; l:number; c:number; v:number; change:number; pct:number };
+type NYSettingsTab = 'inputs' | 'style' | 'visibility';
+type ResolutionVisibility = Record<Resolution, boolean>;
+type NYSavedDefault = { options: NYMidnightOptions; visibleOn: ResolutionVisibility };
+
+const IndicatorIconButton = ({
+  title, onClick, children,
+}: { title:string; onClick:()=>void; children:React.ReactNode }) => (
+  <button
+    type="button"
+    title={title}
+    onClick={onClick}
+    className="grid h-[20px] w-[20px] place-items-center rounded text-white/40 hover:bg-white/10 hover:text-white/80 transition-colors duration-[120ms]"
+  >
+    {children}
+  </button>
+);
+
+const DEFAULT_RES_VISIBILITY: ResolutionVisibility = {
+  '5m': true, '15m': true, '1h': true, '4h': true, '1d': false, '1w': false,
+};
+const NY_MIDNIGHT_DEFAULTS_KEY = 'ww_indicator_ny_midnight_defaults';
+
+function colorToHex(color: string): string {
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color;
+  const nums = color.match(/\d+(\.\d+)?/g)?.map(Number) ?? [];
+  if (nums.length < 3) return '#808080';
+  return `#${nums.slice(0,3).map(n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0')).join('')}`;
+}
+
+function loadNYMidnightDefault(): NYSavedDefault {
+  try {
+    const raw = localStorage.getItem(NY_MIDNIGHT_DEFAULTS_KEY);
+    if (!raw) return { options: DEFAULT_NY_MIDNIGHT_OPTIONS, visibleOn: DEFAULT_RES_VISIBILITY };
+    const parsed = JSON.parse(raw) as Partial<NYSavedDefault>;
+    return {
+      options: { ...DEFAULT_NY_MIDNIGHT_OPTIONS, ...(parsed.options ?? {}) },
+      visibleOn: { ...DEFAULT_RES_VISIBILITY, ...(parsed.visibleOn ?? {}) },
+    };
+  } catch {
+    return { options: DEFAULT_NY_MIDNIGHT_OPTIONS, visibleOn: DEFAULT_RES_VISIBILITY };
+  }
+}
+
+function saveNYMidnightDefault(value: NYSavedDefault): void {
+  try { localStorage.setItem(NY_MIDNIGHT_DEFAULTS_KEY, JSON.stringify(value)); } catch { /* ignore */ }
+}
 
 export const CandleChartView = () => {
+  const savedNYDefault = useMemo(loadNYMidnightDefault, []);
   const [coin,setCoin] = useState<Coin>('BTC');
   const [res,setRes] = useState<Resolution>('1h');
   const [expirySel,setExpirySel] = useState<string|'ALL'>('NEAREST');
   const [showLevels,setShowLevels] = useState(true);
   const [showEM,setShowEM] = useState(true);
+  const [showNYMidnight,setShowNYMidnight] = useState(true);
+  const [nyOptions,setNyOptions] = useState<NYMidnightOptions>(savedNYDefault.options);
+  const [nyDraftOptions,setNyDraftOptions] = useState<NYMidnightOptions>(savedNYDefault.options);
+  const [nySettingsOpen,setNySettingsOpen] = useState(false);
+  const [nySettingsTab,setNySettingsTab] = useState<NYSettingsTab>('inputs');
+  const [nyDefaultsOpen,setNyDefaultsOpen] = useState(false);
+  const [nySavedDefault,setNySavedDefault] = useState<NYSavedDefault>(savedNYDefault);
+  const [nyVisibleOn,setNyVisibleOn] = useState<ResolutionVisibility>(savedNYDefault.visibleOn);
+  const [nyDraftVisibleOn,setNyDraftVisibleOn] = useState<ResolutionVisibility>(savedNYDefault.visibleOn);
 
   const {candles,loading,error} = useCandles(coin,res);
   const {data:opt} = useDeribitOptions(coin);
@@ -66,12 +198,15 @@ export const CandleChartView = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi|null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'>|null>(null);
-  const volSeriesRef = useRef<ISeriesApi<'Histogram'>|null>(null);
-  const priceLinesRef = useRef<IPriceLine[]>([]);
+  const nyMidnightRef = useRef<NYMidnightPrimitive|null>(null);
+  const priceLevelsRef = useRef<PriceLevelsPrimitive|null>(null);
   const levelPricesRef = useRef<number[]>([]);     // 当前关键位价，供 autoscaleInfoProvider 并入价轴范围
   const fullReloadRef = useRef(true);              // coin/res 切换 → 下一帧 setData 重建（否则 update 增量）
   const [countdown,setCountdown] = useState('0:00');
-  const [hoverCandle,setHoverCandle] = useState<{t:string;o:number;h:number;l:number;c:number}|null>(null);
+  const [lastPriceLabelPos,setLastPriceLabelPos] = useState<{x:number;y:number;width:number}|null>(null);
+  const [levelAxisLabels,setLevelAxisLabels] = useState<PriceAxisOverlayLabel[]>([]);
+  const [hoverCandle,setHoverCandle] = useState<LegendCandle|null>(null);
+  const candleMetaRef = useRef<Map<number,{v:number;prevClose:number}>>(new Map());
 
   // ── 画线层（自定义） ──────────────────────────────────────────────────────
   const [activeTool,setActiveTool] = useState<DrawTool|null>(null);
@@ -176,6 +311,14 @@ export const CandleChartView = () => {
     setOpenNote(null); setNotePos(null);
   }
 
+  useEffect(()=>{
+    const meta = new Map<number,{v:number;prevClose:number}>();
+    candles.forEach((c, i) => {
+      meta.set(Math.floor(c.t/1000), { v:c.v, prevClose:candles[i-1]?.c ?? c.o });
+    });
+    candleMetaRef.current = meta;
+  },[candles]);
+
   // 1) 初始化图表（仅挂载一次）
   useEffect(()=>{
     const el = containerRef.current;
@@ -183,16 +326,35 @@ export const CandleChartView = () => {
     const chart = createChart(el,{
       autoSize: true,
       layout: { background:{type:ColorType.Solid,color:'transparent'}, textColor:'rgba(255,255,255,0.5)', fontSize:11 },
-      grid: { vertLines:{color:'rgba(255,255,255,0.05)'}, horzLines:{color:'rgba(255,255,255,0.05)'} },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor:'rgba(255,255,255,0.10)' },
-      timeScale: { borderColor:'rgba(255,255,255,0.10)', timeVisible:true, secondsVisible:false },
+      grid: {
+        vertLines:{ visible:false, color:'transparent' },
+        horzLines:{ visible:false, color:'transparent' },
+      },
+      localization: {
+        locale: 'en-US',
+        timeFormatter: formatNYCrosshairTime,
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { labelBackgroundColor: '#4A4A4A' },
+      },
+      rightPriceScale: { borderColor:'transparent', minimumWidth: 48 },
+      timeScale: {
+        borderColor:'transparent',
+        timeVisible:true,
+        secondsVisible:false,
+        tickMarkFormatter: formatNYTickMark,
+        tickMarkMaxCharacterLength: 8,
+      },
     });
     chartRef.current = chart;
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor:UP, downColor:DOWN, borderUpColor:UP, borderDownColor:DOWN, wickUpColor:UP, wickDownColor:DOWN,
-      priceFormat: { type:'price', precision:0, minMove:1 },
+      priceFormat: { type:'custom', minMove:0.01, formatter: formatAxisPrice, tickmarksFormatter: prices => prices.map(formatAxisPrice) },
+      lastValueVisible: false,
+      priceLineVisible: true,
+      priceLineStyle: LineStyle.Dotted,
       // 把关键位价并入价轴自动缩放范围（否则远离现价的 Call 墙会被挤出可视区）
       autoscaleInfoProvider: (orig: () => AutoscaleInfo | null): AutoscaleInfo | null => {
         const r = orig();
@@ -204,17 +366,21 @@ export const CandleChartView = () => {
       },
     });
     candleSeriesRef.current = candleSeries;
-
-    const vol = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'vol' });
-    vol.priceScale().applyOptions({ scaleMargins:{ top:0.86, bottom:0 } });
-    volSeriesRef.current = vol;
+    const nyMidnight = new NYMidnightPrimitive();
+    candleSeries.attachPrimitive(nyMidnight);
+    nyMidnightRef.current = nyMidnight;
+    const priceLevels = new PriceLevelsPrimitive();
+    candleSeries.attachPrimitive(priceLevels);
+    priceLevelsRef.current = priceLevels;
 
     chart.subscribeCrosshairMove(param=>{
       const d = param.time && param.point ? param.seriesData.get(candleSeries) as CandlestickData|undefined : undefined;
       if (!d || d.open == null){ setHoverCandle(null); return; }
-      const dt = new Date((param.time as number)*1000);
-      const hh = dt.getHours().toString().padStart(2,'0'), mm = dt.getMinutes().toString().padStart(2,'0');
-      setHoverCandle({ t:`${hh}:${mm}`, o:d.open, h:d.high, l:d.low, c:d.close });
+      const time = param.time as number;
+      const meta = candleMetaRef.current.get(time);
+      const prevClose = meta?.prevClose ?? d.open;
+      const change = d.close - prevClose;
+      setHoverCandle({ o:d.open, h:d.high, l:d.low, c:d.close, v:meta?.v ?? 0, change, pct:prevClose ? (change/prevClose)*100 : 0 });
     });
 
     // 点击放置画线点（拖拽仍是平移/缩放，单击不触发平移，故无需拦截鼠标）
@@ -224,7 +390,8 @@ export const CandleChartView = () => {
       const tool = activeToolRef.current;
       // 未选工具：点中标记 pin（hitTest 命中）→ 展开/收起；点空白 → 收起浮层
       if (!tool) {
-        const hitId = typeof param.hoveredObjectId === 'string' ? param.hoveredObjectId : null;
+        const rawHitId = param.hoveredInfo?.objectId ?? param.hoveredObjectId;
+        const hitId = typeof rawHitId === 'string' ? rawHitId : null;
         if (hitId && drawingsRef.current.some(d=>d.id===hitId && d.type==='note')) {
           if (openNoteRef.current === hitId) closeNote(); else openNoteFor(hitId);
         } else if (openNoteRef.current) closeNote();
@@ -244,7 +411,7 @@ export const CandleChartView = () => {
       else { addDrawing({ type:tool, t1:pendingRef.current.t, p1:pendingRef.current.p, t2:time, p2:price }); pendingRef.current = null; setDrawHint(''); }
     });
 
-    return ()=>{ chart.remove(); chartRef.current=null; candleSeriesRef.current=null; volSeriesRef.current=null; priceLinesRef.current=[]; };
+    return ()=>{ chart.remove(); chartRef.current=null; candleSeriesRef.current=null; nyMidnightRef.current=null; priceLevelsRef.current=null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
@@ -282,35 +449,92 @@ export const CandleChartView = () => {
     return ()=>cancelAnimationFrame(raf);
   },[openNote]);
 
+  useEffect(()=>{
+    let raf = 0;
+    const tick = ()=>{
+      const chart = chartRef.current, series = candleSeriesRef.current, el = containerRef.current;
+      const scaleWidth = chart?.priceScale('right').width() ?? 0;
+      if (chart && series && el && lastClose > 0) {
+        const y = series.priceToCoordinate(lastClose);
+        if (y == null || y < 0 || y > el.clientHeight) {
+          setLastPriceLabelPos(p=>p===null?p:null);
+        } else {
+          const width = Math.max(66, scaleWidth);
+          const x = Math.max(0, el.clientWidth - width - PRICE_LABEL_RIGHT_GAP_PX);
+          setLastPriceLabelPos(p =>
+            p && Math.abs(p.x-x)<0.5 && Math.abs(p.y-y)<0.5 && Math.abs(p.width-width)<0.5
+              ? p
+              : { x, y, width },
+          );
+        }
+      } else {
+        setLastPriceLabelPos(p=>p===null?p:null);
+      }
+      const levelLabels = levelPricesRef.current
+        .map((price, index) => {
+          const y = series?.priceToCoordinate(price);
+          const level = priceLevelsRef.current?.level(index);
+          return series && el && level && y != null && y >= 0 && y <= el.clientHeight && scaleWidth > 0
+            ? {
+              key: `${level.title}-${level.price}`,
+              price: level.price,
+              color: level.color,
+              y,
+              width: Math.max(66, scaleWidth),
+            }
+            : null;
+        })
+        .filter((label): label is PriceAxisOverlayLabel => Boolean(label));
+      setLevelAxisLabels(prev => {
+        if (prev.length !== levelLabels.length) return levelLabels;
+        const same = prev.every((p, i) => {
+          const n = levelLabels[i];
+          return p.key === n.key && p.color === n.color && p.price === n.price
+            && Math.abs(p.y - n.y) < 0.5 && Math.abs(p.width - n.width) < 0.5;
+        });
+        return same ? prev : levelLabels;
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return ()=>cancelAnimationFrame(raf);
+  },[lastClose]);
+
   // 2) coin/res 切换 → 标记需要整图重建
   useEffect(()=>{ fullReloadRef.current = true; },[coin,res]);
 
   // 3) 喂数据：重建用 setData（重置视图），实时帧用 update（保留缩放/平移）
   useEffect(()=>{
-    const series = candleSeriesRef.current, vol = volSeriesRef.current, chart = chartRef.current;
-    if (!series || !vol || !chart || candles.length===0) return;
+    const series = candleSeriesRef.current, chart = chartRef.current;
+    if (!series || !chart || candles.length===0) return;
     if (fullReloadRef.current){
       series.setData(candles.map(toCandle));
-      vol.setData(candles.map(toVol));
       chart.timeScale().fitContent();
       fullReloadRef.current = false;
     } else {
       const last = candles[candles.length-1];
       series.update(toCandle(last));
-      vol.update(toVol(last));
     }
   },[candles]);
+
+  const nyMidnightEvents = useMemo(
+    () => showNYMidnight && nyVisibleOn[res] ? computeNYMidnightEvents(candles, res, nyOptions) : [],
+    [candles, res, showNYMidnight, nyOptions, nyVisibleOn],
+  );
+
+  useEffect(()=>{
+    nyMidnightRef.current?.setData(nyMidnightEvents, nyOptions);
+  },[nyMidnightEvents, nyOptions]);
 
   // 4) 关键位 → 价线 + 并入自动缩放
   useEffect(()=>{
     const series = candleSeriesRef.current;
     if (!series) return;
-    priceLinesRef.current.forEach(pl=>series.removePriceLine(pl));
-    priceLinesRef.current = [];
+    const nextLevels: PriceLevel[] = [];
     const prices:number[] = [];
     const add = (price:number|null, color:string, title:string)=>{
       if (price == null || !(price>0)) return;
-      priceLinesRef.current.push(series.createPriceLine({ price, color, lineWidth:1, lineStyle:LineStyle.Dashed, axisLabelVisible:true, title }));
+      nextLevels.push({ price, color, title });
       prices.push(price);
     };
     if (showLevels){
@@ -322,6 +546,7 @@ export const CandleChartView = () => {
       add(spot+levels.emSigma, EM_C, '+1σ');
       add(spot-levels.emSigma, EM_C, '−1σ');
     }
+    priceLevelsRef.current?.setData(nextLevels);
     levelPricesRef.current = prices;
     // 触发价轴按新关键位重算（applyOptions 会促使重绘；不改动用户的缩放/平移）
     series.applyOptions({});
@@ -331,27 +556,70 @@ export const CandleChartView = () => {
   useEffect(()=>{
     const tick = ()=>{
       const now = Date.now();
-      const d = new Date();
-      let end: number;
-      switch (res){
-        case '5m': d.setMinutes(Math.ceil((d.getMinutes()+1)/5)*5,0,0); end=d.getTime(); break;
-        case '15m': d.setMinutes(Math.ceil((d.getMinutes()+1)/15)*15,0,0); end=d.getTime(); break;
-        case '1h': d.setHours(d.getHours()+1,0,0,0); end=d.getTime(); break;
-        case '4h': d.setHours(Math.ceil((d.getHours()+1)/4)*4,0,0,0); end=d.getTime(); break;
-        case '1d': d.setDate(d.getDate()+1); d.setHours(0,0,0,0); end=d.getTime(); break;
-        case '1w': d.setDate(d.getDate()+((8-d.getDay())%7||7)); d.setHours(0,0,0,0); end=d.getTime(); break;
-        default: end = now;
+      const last = candles[candles.length-1];
+      const end = last ? last.t + RES_MS[res] : now;
+      const total = Math.max(0,Math.floor((end-now)/1000));
+      const h = Math.floor(total/3600);
+      const m = Math.floor((total%3600)/60);
+      const s = total%60;
+      if (total < 60) {
+        setCountdown(`${s.toString().padStart(2,'0')}s`);
+      } else if (total < 3600) {
+        setCountdown(`${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
+      } else {
+        setCountdown(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
       }
-      const s = Math.max(0,Math.floor((end-now)/1000));
-      const m = Math.floor(s/60);
-      setCountdown(`${m}:${(s%60).toString().padStart(2,'0')}`);
     };
     tick();
     const id = setInterval(tick,1000);
     return ()=>clearInterval(id);
-  },[res]);
+  },[candles,res]);
 
   const emPct = levels.emSigma != null && spot ? (levels.emSigma/spot)*100 : null;
+  const latestLegend = useMemo<LegendCandle|null>(() => {
+    const last = candles[candles.length-1];
+    if (!last) return null;
+    const prevClose = candles[candles.length-2]?.c ?? last.o;
+    const change = last.c - prevClose;
+    return {
+      o:last.o, h:last.h, l:last.l, c:last.c, v:last.v,
+      change,
+      pct: prevClose ? (change/prevClose)*100 : 0,
+    };
+  },[candles]);
+  const legendCandle = hoverCandle ?? latestLegend;
+  const legendTone = !legendCandle || legendCandle.change >= 0 ? 'text-[#28C840]' : 'text-[#FF5F57]';
+  const updateNYDraft = (patch: Partial<NYMidnightOptions>) => setNyDraftOptions(o=>({...o, ...patch}));
+  const openNYSettings = () => {
+    setNyDraftOptions(nyOptions);
+    setNyDraftVisibleOn(nyVisibleOn);
+    setNySettingsTab('inputs');
+    setNyDefaultsOpen(false);
+    setNySettingsOpen(true);
+  };
+  const closeNYSettings = () => {
+    setNySettingsOpen(false);
+    setNyDefaultsOpen(false);
+  };
+  const applyNYSettings = () => {
+    setNyOptions(nyDraftOptions);
+    setNyVisibleOn(nyDraftVisibleOn);
+    setNySettingsOpen(false);
+    setNyDefaultsOpen(false);
+  };
+  const resetNYSettings = () => {
+    setNyDraftOptions(nySavedDefault.options);
+    setNyDraftVisibleOn(nySavedDefault.visibleOn);
+    setNyDefaultsOpen(false);
+  };
+  const saveNYSettingsAsDefault = () => {
+    const next = { options: nyDraftOptions, visibleOn: nyDraftVisibleOn };
+    setNySavedDefault(next);
+    setNyOptions(next.options);
+    setNyVisibleOn(next.visibleOn);
+    saveNYMidnightDefault(next);
+    setNyDefaultsOpen(false);
+  };
 
   return (
     <div className="price-chart-page absolute inset-0 flex flex-col p-3 gap-2.5 text-white/85">
@@ -383,10 +651,9 @@ export const CandleChartView = () => {
             className="px-2 h-[26px] rounded-md text-[12px] font-semibold text-white/45 hover:bg-[#3A3B40] hover:text-[#FF5F57] transition-colors duration-[120ms]">清除</button>
         </div>
         {drawHint && <span className="text-[11px] text-[var(--nexus-accent)]/80 select-none">{drawHint}</span>}
-        <div className="ml-auto text-[11px] text-white/35">价格 Binance · 关键位 Deribit · lightweight-charts</div>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto shrink-0 pb-0.5">
+      <div className="flex items-center gap-2 overflow-x-auto shrink-0">
         <LevelChip label="现价" value={spot?fmtPx(spot):'—'} color={UP}/>
         <LevelChip label="Call 墙" value={levels.callWall!=null?fmtPx(levels.callWall):'—'} color={CALL}/>
         <LevelChip label="最大痛点" value={levels.maxPain!=null?fmtPx(levels.maxPain):'—'} color={YELLOW}/>
@@ -394,23 +661,80 @@ export const CandleChartView = () => {
         <LevelChip label={`±1σ 预期${levels.emExpiryLabel?`·${levels.emExpiryLabel}`:''}`}
           value={levels.emSigma!=null&&spot?`${fmtPx(spot-levels.emSigma)}–${fmtPx(spot+levels.emSigma)}`:'—'}
           sub={emPct!=null?`±${emPct.toFixed(1)}%`:undefined} color={EM_C}/>
+        <div className="ml-auto shrink-0 text-[11px] text-white/35">价格 Binance · 关键位 Deribit · lightweight-charts</div>
       </div>
 
       <div className="flex-1 min-h-0 rounded-xl bg-[#17181E] p-1.5 relative overflow-hidden">
-        <div ref={containerRef} className="absolute inset-1.5"/>
-        {candles.length>0 && !loading && (
-          <div className="absolute bottom-2 right-3 z-10 text-[10px] font-mono tabular-nums text-white/35 pointer-events-none select-none">
-            ⏱ {countdown}
+        <div ref={containerRef} className="absolute left-1.5 top-1.5 bottom-0 right-0"/>
+        <div className="absolute left-3 top-2 z-10 max-w-[calc(100%-92px)] select-none">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-none text-white/70">
+            <span className="grid h-[22px] w-[22px] place-items-center rounded-full bg-[#f7931a] text-[13px] font-black text-white">
+              {SYMBOL_ICON[coin]}
+            </span>
+            <span className="text-[15px] font-semibold text-white/85">{SYMBOL_LABEL[coin]} · {RES_TV_LABEL[res]} · Binance</span>
+            {legendCandle && (
+              <span className="font-mono tabular-nums text-white/60">
+                O{legendCandle.o.toFixed(2)} H{legendCandle.h.toFixed(2)} L{legendCandle.l.toFixed(2)} C
+                <span className={legendTone}>{legendCandle.c.toFixed(2)}</span>
+                <span className={`ml-2 ${legendTone}`}>{fmtSigned(legendCandle.change)} ({fmtSigned(legendCandle.pct)}%)</span>
+                <span className="ml-2">Vol{fmtVol(legendCandle.v)}</span>
+              </span>
+            )}
           </div>
-        )}
-        {hoverCandle && (
-          <div className="absolute top-1.5 left-1.5 z-10 px-2.5 py-1 rounded-md bg-[var(--color-dropdown)]/90 ring-1 ring-inset ring-[var(--color-border-subtle)] text-[11px] font-mono tabular-nums text-white/85 pointer-events-none select-none whitespace-nowrap">
-            {coin}USDT · {RES_LABEL[res]}  O{hoverCandle.o.toFixed(0)}  H{hoverCandle.h.toFixed(0)}  L{hoverCandle.l.toFixed(0)}  C<span className={hoverCandle.c >= hoverCandle.o ? 'text-[#28C840]':'text-[#FF5F57]'}>{hoverCandle.c.toFixed(0)}</span>
+          <div className="mt-2 flex flex-col items-start gap-1 text-[12px] leading-none">
+            <div className={`group flex items-center gap-1.5 ${showNYMidnight ? 'text-white/70' : 'text-white/28'}`}>
+              <span>纽约午夜分割线</span>
+              <IndicatorIconButton title={showNYMidnight ? '隐藏' : '显示'} onClick={()=>setShowNYMidnight(v=>!v)}>
+                {showNYMidnight ? <Eye className="h-3.5 w-3.5"/> : <EyeOff className="h-3.5 w-3.5"/>}
+              </IndicatorIconButton>
+              <IndicatorIconButton title="设置" onClick={openNYSettings}>
+                <Settings2 className="h-3.5 w-3.5"/>
+              </IndicatorIconButton>
+            </div>
           </div>
-        )}
+        </div>
         {(candles.length===0||loading)&&(
           <div className="absolute inset-0 flex items-center justify-center text-[12px] text-white/40 pointer-events-none">
             {error?'数据加载失败，重试中…':loading?'加载 K 线中…':'暂无数据'}
+          </div>
+        )}
+        {levelAxisLabels.length > 0 && (
+          <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-20 pointer-events-none">
+            {levelAxisLabels.map(label => (
+              <div
+                key={label.key}
+                className="absolute rounded-[4px] px-1.5 py-[3px] text-left font-mono text-[11px] leading-[14px] tabular-nums text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
+                style={{
+                  left: Math.max(0, (containerRef.current?.clientWidth ?? 0) - label.width - PRICE_LABEL_RIGHT_GAP_PX),
+                  top: Math.min(
+                    Math.max(3, label.y - 10),
+                    Math.max(3, (containerRef.current?.clientHeight ?? 0) - 22),
+                  ),
+                  width: label.width,
+                  backgroundColor: label.color,
+                }}
+              >
+                {formatAxisPrice(label.price)}
+              </div>
+            ))}
+          </div>
+        )}
+        {lastPriceLabelPos && lastClose > 0 && (
+          <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-20 pointer-events-none">
+            <div
+              className="absolute rounded-[3px] bg-[#4A4A4A] px-1.5 py-[3px] text-left font-mono tabular-nums leading-none text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
+              style={{
+                left: lastPriceLabelPos.x,
+                top: Math.min(
+                  Math.max(7, lastPriceLabelPos.y - 17),
+                  Math.max(7, (containerRef.current?.clientHeight ?? 0) - 41),
+                ),
+                width: lastPriceLabelPos.width,
+              }}
+            >
+              <div className="text-[11px] leading-[14px]">{lastClose.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-[11px] leading-[14px] text-white/70">{countdown}</div>
+            </div>
           </div>
         )}
         {openNote && notePos && (()=>{
@@ -422,7 +746,7 @@ export const CandleChartView = () => {
           const dt = new Date(d.t*1000);
           const pad2 = (n:number)=>n.toString().padStart(2,'0');
           return (
-            <div className="absolute inset-1.5 z-20 pointer-events-none overflow-hidden">
+            <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-20 pointer-events-none overflow-hidden">
               <div className="absolute pointer-events-auto w-[232px] rounded-lg bg-[#22242C]/95 backdrop-blur-sm ring-1 ring-inset ring-white/10 shadow-xl p-2"
                 style={below
                   ? {left:cx, top:notePos.y+12, transform:'translateX(-50%)'}
@@ -447,6 +771,257 @@ export const CandleChartView = () => {
             </div>
           );
         })()}
+        {nySettingsOpen && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/10 px-3 py-3">
+            <div className="flex h-[min(560px,86%)] w-[min(400px,calc(100vw-48px))] flex-col overflow-visible rounded-[6px] bg-[#1b1b1b] shadow-2xl ring-1 ring-white/12">
+              <div className="flex items-center gap-2 px-6 pt-4">
+                <h2 className="text-[18px] font-semibold text-white/90">纽约午夜分割线</h2>
+                <button
+                  type="button"
+                  title="关闭"
+                  onClick={closeNYSettings}
+                  className="ml-auto grid h-7 w-7 place-items-center rounded-[4px] text-white/70 hover:bg-white/10 hover:text-white transition-colors duration-[120ms]"
+                >
+                  <X className="h-5 w-5" strokeWidth={1.8}/>
+                </button>
+              </div>
+              <div className="px-6 pt-4">
+                <div className="grid grid-cols-3 gap-3 text-[15px] font-semibold text-white/82">
+                  {[
+                    ['inputs', 'Inputs'],
+                    ['style', 'Style'],
+                    ['visibility', 'Visibility'],
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={()=>setNySettingsTab(id as NYSettingsTab)}
+                      className={`relative h-8 text-left transition-colors duration-[120ms] ${
+                        nySettingsTab === id ? 'text-white/95' : 'text-white/72 hover:text-white/90'
+                      }`}
+                    >
+                      {label}
+                      {nySettingsTab === id && <span className="absolute bottom-0 left-0 h-1 w-[62px] rounded-full bg-white/90"/>}
+                    </button>
+                  ))}
+                </div>
+                <div className="h-px bg-white/22"/>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {nySettingsTab === 'inputs' && (
+                  <div className="grid gap-4 text-[13px] text-white/82">
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条颜色</span>
+                      <span className="flex items-center gap-2">
+                        <span className="relative grid h-8 w-8 place-items-center rounded-[5px] border border-white/25 bg-[#2a2a2a]">
+                          <input
+                            type="color"
+                            value={colorToHex(nyDraftOptions.lineColor)}
+                            onChange={e=>updateNYDraft({ lineColor:e.target.value })}
+                            className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                          />
+                        </span>
+                        <input
+                          value={nyDraftOptions.lineColor}
+                          onChange={e=>updateNYDraft({ lineColor:e.target.value })}
+                          className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[12px] text-white/86 outline-none focus:border-white/50"
+                        />
+                      </span>
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条粗细</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={nyDraftOptions.lineWidth}
+                        onChange={e=>updateNYDraft({ lineWidth:Math.min(10,Math.max(1,Number(e.target.value)||1)) })}
+                        className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[13px] text-white/86 outline-none focus:border-white/50"
+                      />
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条样式</span>
+                      <select
+                        value={nyDraftOptions.lineStyle}
+                        onChange={e=>updateNYDraft({ lineStyle:e.target.value as NYMidnightLineStyle })}
+                        className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[13px] text-white/86 outline-none focus:border-white/50"
+                      >
+                        <option value="solid">实线</option>
+                        <option value="dashed">虚线</option>
+                        <option value="dotted">点线</option>
+                      </select>
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>显示星期标签</span>
+                      <input
+                        type="checkbox"
+                        checked={nyDraftOptions.showLabel}
+                        onChange={e=>updateNYDraft({ showLabel:e.target.checked })}
+                        className="h-4 w-4 accent-white"
+                      />
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>标签语言</span>
+                      <select
+                        value={nyDraftOptions.labelLang}
+                        onChange={e=>updateNYDraft({ labelLang:e.target.value as NYMidnightLabelLang })}
+                        className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[13px] text-white/86 outline-none focus:border-white/50"
+                      >
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                      </select>
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>文字颜色</span>
+                      <span className="flex items-center gap-2">
+                        <span className="relative grid h-8 w-8 place-items-center rounded-[5px] border border-white/25 bg-[#2a2a2a]">
+                          <input
+                            type="color"
+                            value={colorToHex(nyDraftOptions.labelColor)}
+                            onChange={e=>updateNYDraft({ labelColor:e.target.value })}
+                            className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                          />
+                        </span>
+                        <input
+                          value={nyDraftOptions.labelColor}
+                          onChange={e=>updateNYDraft({ labelColor:e.target.value })}
+                          className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[12px] text-white/86 outline-none focus:border-white/50"
+                        />
+                      </span>
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>标签偏移（小时）</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={24}
+                        value={nyDraftOptions.labelHour}
+                        onChange={e=>updateNYDraft({ labelHour:Math.min(24,Math.max(0,Number(e.target.value)||0)) })}
+                        className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[13px] text-white/86 outline-none focus:border-white/50"
+                      />
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>显示天数</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={nyDraftOptions.showDays}
+                        onChange={e=>updateNYDraft({ showDays:Math.min(365,Math.max(1,Number(e.target.value)||1)) })}
+                        className="h-8 w-[112px] rounded-[5px] border border-white/25 bg-[#1d1d1d] px-2 text-[13px] text-white/86 outline-none focus:border-white/50"
+                      />
+                    </label>
+                  </div>
+                )}
+                {nySettingsTab === 'style' && (
+                  <div className="grid gap-4 text-[13px] text-white/82">
+                    <div className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条预览</span>
+                      <span
+                        className="block h-0 w-[150px] border-t"
+                        style={{
+                          borderColor: nyDraftOptions.lineColor,
+                          borderTopWidth: nyDraftOptions.lineWidth,
+                          borderTopStyle: nyDraftOptions.lineStyle === 'solid' ? 'solid' : nyDraftOptions.lineStyle === 'dashed' ? 'dashed' : 'dotted',
+                        }}
+                      />
+                    </div>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条颜色</span>
+                      <input
+                        type="color"
+                        value={colorToHex(nyDraftOptions.lineColor)}
+                        onChange={e=>updateNYDraft({ lineColor:e.target.value })}
+                        className="h-8 w-8 cursor-pointer rounded-[5px] border border-white/25 bg-[#2a2a2a] p-1"
+                      />
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>文字颜色</span>
+                      <input
+                        type="color"
+                        value={colorToHex(nyDraftOptions.labelColor)}
+                        onChange={e=>updateNYDraft({ labelColor:e.target.value })}
+                        className="h-8 w-8 cursor-pointer rounded-[5px] border border-white/25 bg-[#2a2a2a] p-1"
+                      />
+                    </label>
+                    <label className="grid grid-cols-[132px_1fr] items-center gap-4">
+                      <span>线条粗细</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={nyDraftOptions.lineWidth}
+                        onChange={e=>updateNYDraft({ lineWidth:Number(e.target.value) })}
+                        className="w-[150px] accent-white"
+                      />
+                    </label>
+                  </div>
+                )}
+                {nySettingsTab === 'visibility' && (
+                  <div className="grid gap-4 text-[13px] text-white/82">
+                    {RESOLUTIONS.map(r => (
+                      <label key={r} className="grid grid-cols-[132px_1fr] items-center gap-4">
+                        <span>{RES_LABEL[r]}</span>
+                        <input
+                          type="checkbox"
+                          checked={nyDraftVisibleOn[r]}
+                          onChange={e=>setNyDraftVisibleOn(v=>({...v, [r]:e.target.checked}))}
+                          className="h-4 w-4 accent-white"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative flex items-center gap-2.5 border-t border-white/14 px-6 py-3.5">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={()=>setNyDefaultsOpen(v=>!v)}
+                    className="flex h-8 items-center gap-1.5 rounded-[5px] border border-white/25 px-2.5 text-[13px] text-white/78 hover:border-white/45 hover:text-white transition-colors duration-[120ms]"
+                  >
+                    Defaults
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-[120ms] ${nyDefaultsOpen ? 'rotate-180' : ''}`}/>
+                  </button>
+                  {nyDefaultsOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 w-[174px] overflow-hidden rounded-[6px] bg-[#242424] py-1.5 shadow-2xl ring-1 ring-white/10">
+                      <button
+                        type="button"
+                        onClick={resetNYSettings}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-white/82 hover:bg-white/8"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 text-white/55"/>
+                        Reset settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveNYSettingsAsDefault}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[13px] text-white/82 hover:bg-white/8"
+                      >
+                        <Save className="h-3.5 w-3.5 text-white/55"/>
+                        Save as default
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={closeNYSettings}
+                  className="ml-auto h-8 rounded-[5px] border border-white/70 px-4 text-[14px] text-white hover:bg-white/10 transition-colors duration-[120ms]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={applyNYSettings}
+                  className="h-8 rounded-[5px] bg-white px-4 text-[14px] font-semibold text-[#171717] hover:bg-white/90 transition-colors duration-[120ms]"
+                >
+                  Ok
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

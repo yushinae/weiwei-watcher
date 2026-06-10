@@ -42,15 +42,20 @@ export function saveDrawings(coin: string, list: Drawing[]): void {
 // ── Series Primitive：趋势线 / 射线 / 斐波那契 ────────────────────────────────
 type TwoPt = Extract<Drawing, { type: 'trend' | 'ray' | 'fib' }>;
 
+// TEMP 诊断计数器（验证后移除）
+const dbg = (k: string) => { const g = globalThis as unknown as Record<string, number>; g[k] = (g[k] ?? 0) + 1; };
+
 export class TrendPrimitive implements ISeriesPrimitive<Time> {
   private chart?: IChartApi;
   private series?: ISeriesApi<'Candlestick'>;
   private readonly paneView: ISeriesPrimitivePaneView;
 
   constructor(private d: TwoPt) {
+    dbg('primCtor');
     this.paneView = { renderer: () => ({ draw: (t: unknown) => this.draw(t) }) };
   }
   attached(p: SeriesAttachedParameter<Time>): void {
+    dbg('primAttached');
     this.chart = p.chart;
     this.series = p.series as ISeriesApi<'Candlestick'>;
   }
@@ -59,32 +64,42 @@ export class TrendPrimitive implements ISeriesPrimitive<Time> {
   paneViews(): readonly ISeriesPrimitivePaneView[] { return [this.paneView]; }
 
   private draw(target: unknown): void {
+    dbg('primDraw');
     const chart = this.chart, series = this.series;
-    if (!chart || !series) return;
+    if (!chart || !series) { dbg('primNoRef'); return; }
     const ts = chart.timeScale();
     const x1 = ts.timeToCoordinate(this.d.t1 as UTCTimestamp);
     const x2 = ts.timeToCoordinate(this.d.t2 as UTCTimestamp);
     const y1 = series.priceToCoordinate(this.d.p1);
     const y2 = series.priceToCoordinate(this.d.p2);
-    if (x1 == null || x2 == null || y1 == null || y2 == null) return;
+    if (x1 == null || x2 == null || y1 == null || y2 == null) { dbg('primNullCoord'); return; }
+    dbg('primDrew');
 
-    // useMediaCoordinateSpace：以 CSS 像素作图，与 price/timeToCoordinate 返回值一致
-    (target as { useMediaCoordinateSpace: (cb: (s: { context: CanvasRenderingContext2D; mediaSize: { width: number; height: number } }) => void) => void })
-      .useMediaCoordinateSpace((scope) => {
+    // useBitmapCoordinateSpace：以 bitmap 像素作图（price/timeToCoordinate 返回 media 像素，
+    // 故乘 horizontal/verticalPixelRatio 换算）。这是 lightweight-charts 插件的标准画法。
+    type BitmapScope = {
+      context: CanvasRenderingContext2D;
+      bitmapSize: { width: number; height: number };
+      horizontalPixelRatio: number; verticalPixelRatio: number;
+    };
+    (target as { useBitmapCoordinateSpace: (cb: (s: BitmapScope) => void) => void })
+      .useBitmapCoordinateSpace((scope) => {
         const ctx = scope.context;
-        ctx.lineWidth = 1;
+        const hr = scope.horizontalPixelRatio, vr = scope.verticalPixelRatio;
+        const X = (v: number) => v * hr, Y = (v: number) => v * vr;
+        ctx.lineWidth = Math.max(1, Math.round(vr));
         ctx.strokeStyle = DRAW_COLOR;
         if (this.d.type === 'fib') {
           const xa = Math.min(x1, x2), xb = Math.max(x1, x2);
-          ctx.font = '10px ui-monospace, monospace';
+          ctx.font = `${Math.round(10 * vr)}px ui-monospace, monospace`;
           for (const lv of FIB_LEVELS) {
             const price = this.d.p1 + (this.d.p2 - this.d.p1) * lv;
             const y = series.priceToCoordinate(price);
             if (y == null) continue;
             ctx.globalAlpha = lv === 0 || lv === 1 ? 0.85 : 0.45;
-            ctx.beginPath(); ctx.moveTo(xa, y); ctx.lineTo(xb, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(X(xa), Y(y)); ctx.lineTo(X(xb), Y(y)); ctx.stroke();
             ctx.globalAlpha = 0.85; ctx.fillStyle = DRAW_COLOR;
-            ctx.fillText(`${(lv * 100).toFixed(1)}%`, xb + 4, y - 2);
+            ctx.fillText(`${(lv * 100).toFixed(1)}%`, X(xb) + 4 * hr, Y(y) - 2 * vr);
           }
           ctx.globalAlpha = 1;
           return;
@@ -92,12 +107,12 @@ export class TrendPrimitive implements ISeriesPrimitive<Time> {
         // trend / ray
         let ex: number = x2, ey: number = y2;
         if (this.d.type === 'ray') {
-          const W = scope.mediaSize.width;
+          const W = scope.bitmapSize.width / hr;
           const dx = x2 - x1, dy = y2 - y1;
           ex = dx >= 0 ? W : 0;
           ey = y1 + dy * ((ex - x1) / (dx || 1e-9));
         }
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(ex), Y(ey)); ctx.stroke();
       });
   }
 }

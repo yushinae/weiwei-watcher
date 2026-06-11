@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, BellOff, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { Bell, BellOff, Plus, Trash2, CheckCircle2, History } from 'lucide-react';
 import {
-  ALERTS_STORE, METRIC_META, addAlert, removeAlert, toggleAlert, subscribeAlerts,
-  type UserAlert, type AlertMetric, type AlertOp,
+  ALERTS_STORE, METRIC_META, DEFAULT_ALERT_COOLDOWN_MS,
+  addAlert, removeAlert, toggleAlert, subscribeAlerts,
+  loadAlertHistory, clearAlertHistory, subscribeAlertHistory,
+  type UserAlert, type AlertMetric, type AlertOp, type AlertHistoryItem,
 } from '../../registry/monitorWidgetsBase';
 import type { Coin } from '../monitor/types';
 import { ALWAYS_ON_METRICS, BOOK_METRICS } from './engine';
@@ -10,6 +12,12 @@ import { ensureAlertNotifications } from './notifications';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 const METRICS = Object.keys(METRIC_META) as AlertMetric[];
+const COOLDOWN_OPTIONS = [
+  { label: '1 分钟', value: 60_000 },
+  { label: '5 分钟', value: DEFAULT_ALERT_COOLDOWN_MS },
+  { label: '15 分钟', value: 15 * 60_000 },
+  { label: '1 小时', value: 60 * 60_000 },
+];
 
 const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[12px] text-white/85 outline-none focus:ring-white/20';
 
@@ -18,6 +26,7 @@ const getPerm = (): Perm => (typeof Notification !== 'undefined' ? (Notification
 
 export const AlertsManager = () => {
   const [rules, setRules] = useState<UserAlert[]>([...ALERTS_STORE]);
+  const [history, setHistory] = useState<AlertHistoryItem[]>(() => loadAlertHistory());
   const [perm, setPerm] = useState<Perm>(getPerm());
 
   // 规则增删改 → 重渲染；并每 2s 刷新以显示引擎写入的 lastValue / triggered
@@ -26,11 +35,13 @@ export const AlertsManager = () => {
     const t = setInterval(() => setRules([...ALERTS_STORE]), 2000);
     return () => { unsub(); clearInterval(t); };
   }, []);
+  useEffect(() => subscribeAlertHistory(() => setHistory(loadAlertHistory())), []);
 
   const [coin, setCoin] = useState<Coin>('BTC');
   const [metric, setMetric] = useState<AlertMetric>('spot');
   const [op, setOp] = useState<AlertOp>('>');
   const [threshold, setThreshold] = useState<string>(String(METRIC_META.spot.defaultVal));
+  const [cooldownMs, setCooldownMs] = useState<number>(DEFAULT_ALERT_COOLDOWN_MS);
 
   const onMetric = (m: AlertMetric) => { setMetric(m); setThreshold(String(METRIC_META[m].defaultVal)); };
 
@@ -42,13 +53,15 @@ export const AlertsManager = () => {
   const submit = () => {
     const th = Number(threshold);
     if (Number.isNaN(th)) return;
-    addAlert({ coin, metric, op, threshold: th });
+    addAlert({ coin, metric, op, threshold: th, cooldownMs });
   };
 
   const sorted = useMemo(
     () => [...rules].sort((a, b) => Number(b.active) - Number(a.active) || Number(b.triggered) - Number(a.triggered)),
     [rules],
   );
+  const fmtCooldown = (ms: number) => COOLDOWN_OPTIONS.find(o => o.value === ms)?.label ?? `${Math.max(1, Math.round(ms / 60000))} 分钟`;
+  const fmtTime = (ts: number) => new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="alerts-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
@@ -101,6 +114,12 @@ export const AlertsManager = () => {
               <span className="text-[10px] text-white/40">阈值（{METRIC_META[metric].unit}）</span>
               <input type="number" className={`${inputCls} w-[120px] tabular-nums`} value={threshold} onChange={e => setThreshold(e.target.value)} />
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-white/40">冷却</span>
+              <select className={inputCls} value={cooldownMs} onChange={e => setCooldownMs(Number(e.target.value))}>
+                {COOLDOWN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
             <button onClick={submit}
               className="h-[32px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-brand)]/25 transition-colors">
               <Plus size={14} /> 添加
@@ -125,6 +144,7 @@ export const AlertsManager = () => {
                     <th className="text-left font-medium py-1.5 px-2">状态</th>
                     <th className="text-left font-medium py-1.5 px-2">标的</th>
                     <th className="text-left font-medium py-1.5 px-2">条件</th>
+                    <th className="text-left font-medium py-1.5 px-2">冷却</th>
                     <th className="text-right font-medium py-1.5 px-2">当前值</th>
                     <th className="text-left font-medium py-1.5 px-2">触发</th>
                     <th className="py-1.5 px-2"></th>
@@ -146,6 +166,10 @@ export const AlertsManager = () => {
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
                           {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[var(--nexus-accent)]">常驻</span>}
                           {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#a78bfa]">持仓</span>}
+                        </td>
+                        <td className="py-1.5 px-2 text-white/45 whitespace-nowrap">
+                          {fmtCooldown(a.cooldownMs)}
+                          {a.lastNotifiedAt && <span className="ml-1 text-white/30">上次 {fmtTime(a.lastNotifiedAt)}</span>}
                         </td>
                         <td className="py-1.5 px-2 text-right tabular-nums text-white/65">
                           {a.lastValue != null ? `${a.lastValue.toFixed(2)}${meta.unit}` : '—'}
@@ -173,6 +197,52 @@ export const AlertsManager = () => {
             <b className="text-[#a78bfa]">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变）——需先到「账户」页同步过一次。
             其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，缓存新鲜时评估。
             浏览器后台通知已接入 Service Worker；但交易所行情仍由前端页面维护，应用完全关闭后的持续监控需本地/云端后端。
+          </div>
+        </div>
+
+        <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)]">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 shrink-0">
+            <History size={15} className="text-white/45" />
+            <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">触发历史 · {history.length}</span>
+            {history.length > 0 && (
+              <button
+                onClick={() => { clearAlertHistory(); setHistory([]); }}
+                className="ml-auto text-[11px] text-white/35 hover:text-white/65 transition-colors"
+              >
+                清空
+              </button>
+            )}
+          </div>
+          <div className="px-3 pb-3">
+            {history.length === 0 ? (
+              <div className="h-[86px] flex items-center justify-center text-[12px] text-white/35">
+                暂无触发记录。触发后的时间、当前值和规则会留在这里。
+              </div>
+            ) : (
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                    <th className="text-left font-medium py-1.5 px-2">时间</th>
+                    <th className="text-left font-medium py-1.5 px-2">标的</th>
+                    <th className="text-left font-medium py-1.5 px-2">规则</th>
+                    <th className="text-right font-medium py-1.5 px-2">触发值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.slice(0, 20).map(item => {
+                    const meta = METRIC_META[item.metric];
+                    return (
+                      <tr key={item.eventId} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
+                        <td className="py-1.5 px-2 tabular-nums text-white/50 whitespace-nowrap">{fmtTime(item.at)}</td>
+                        <td className="py-1.5 px-2 font-bold text-white/80">{item.coin}</td>
+                        <td className="py-1.5 px-2 text-white/68">{meta.label} {item.op} {item.threshold}{meta.unit}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-[var(--color-brand)] font-semibold">{item.value.toFixed(2)}{meta.unit}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

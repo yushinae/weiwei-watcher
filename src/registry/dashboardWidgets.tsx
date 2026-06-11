@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { TrafficCone } from 'lucide-react';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Tile } from '../components/card/Tile';
 import type { Coin } from '../features/monitor/types';
@@ -372,27 +373,111 @@ export const StrategyBottom = ({ coin }: { coin: Coin }) => {
   const { data: hist } = useDeribitHistory(coin);
   const { data: flow } = useFlowData(coin);
 
-  const regime = useMemo(() => {
-    if (!opt) return null;
+  const result = useMemo(() => {
+    if (!opt) return null; // no option data yet — show loading
     return classifyRegime(opt, hist, flow);
   }, [opt, hist, flow]);
 
-  if (!regime) return null;
+  // ── Loading state ──
+  if (!opt) {
+    return (
+      <div className="widget-card dash-card !p-0 flex h-full min-h-[100px]">
+        <div className="flex flex-col items-center justify-center gap-1.5 w-full">
+          <div className="text-[13px] text-white/50">加载期权链数据…</div>
+          <div className="text-[10px] text-white/30 flex items-center gap-2">
+            <span>Deribit REST</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { primary, secondary, dataMissing } = result;
+
+  // ── Data quality indicator ──
+  const missingBadge = dataMissing.length > 0
+    ? <span className="text-[10px] text-white/35 px-2 py-0.5 rounded bg-white/5">缺 {dataMissing.join('、')}</span>
+    : null;
 
   return (
-    <div className="widget-card dash-card !p-0 flex h-full">
-      <div className="flex gap-5 p-5 w-full">
-        <Tile className="flex-1 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-white/55 mb-2">主力推荐</div>
-          <div className="text-[17px] font-bold text-[var(--nexus-accent)] mb-1.5">{regime.playbook[0] ?? '等待信号'}</div>
-          <div className="text-[12px] text-white/55 leading-relaxed mb-1">{regime.description}</div>
-          <div className="text-[10px] text-white/45 font-mono">置信度: {regime.confidence}% · {regime.label}</div>
+    <div className="widget-card dash-card !p-0 flex flex-col w-full h-full">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 shrink-0 px-[18px] pt-[14px] pb-[10px]">
+        <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55">
+          <TrafficCone size={15} />
+        </span>
+        <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">
+          策略推荐
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {missingBadge}
+        </div>
+      </div>
+
+      {/* Main content: 2-column layout */}
+      <div className="flex gap-3 px-[18px] pb-[16px] flex-1 min-h-0">
+        {/* ── Primary recommendation ── */}
+        <Tile className="flex-1 flex flex-col p-3.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-white/55">主力推荐</span>
+            <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: primary.color }}>
+              {primary.confidence}%
+            </span>
+          </div>
+          <div className="text-[15px] font-bold mb-1.5" style={{ color: primary.color }}>
+            {primary.playbook[0]}
+          </div>
+          <div className="text-[11px] text-white/55 leading-relaxed mb-1.5">{primary.description}</div>
+          <div className="mt-auto flex flex-wrap gap-1">
+            {primary.playbook.slice(0, 3).map((tip, i) => (
+              <span key={i} className="text-[10px] bg-white/5 text-white/60 px-1.5 py-0.5 rounded">
+                {i + 1}. {tip}
+              </span>
+            ))}
+          </div>
         </Tile>
-        <Tile className="flex-1 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-white/55 mb-2">备选</div>
-          <div className="text-[17px] font-bold text-white/70 mb-1.5">{regime.playbook[1] ?? '中性观望'}</div>
-          <div className="text-[12px] text-white/50 leading-relaxed">{regime.playbook.slice(1, 3).join(' · ') || '多种策略可用'}</div>
+
+        {/* ── Secondary recommendation ── */}
+        <Tile className="flex-1 flex flex-col p-3.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-white/55">
+              {secondary ? '备选策略' : '备选信号'}
+            </span>
+            {secondary && (
+              <span className="text-[10px] font-mono font-bold tabular-nums text-white/50">
+                {secondary.confidence}%
+              </span>
+            )}
+          </div>
+          <div className="text-[15px] font-bold mb-1.5" style={{ color: secondary?.color ?? 'rgba(255,255,255,0.3)' }}>
+            {secondary?.playbook[0] ?? '信号强度不足'}
+          </div>
+          <div className="text-[11px] text-white/50 leading-relaxed mb-1.5">
+            {secondary?.description ?? '当前市场条件未形成明确的第二候选波谱，可参考主力推荐。'}
+          </div>
+          <div className="mt-auto flex flex-wrap gap-1">
+            {(secondary?.playbook.slice(0, 3) ?? ['关注主力推荐']).map((tip, i) => (
+              <span key={i} className="text-[10px] bg-white/5 text-white/45 px-1.5 py-0.5 rounded">
+                {i + 1}. {tip}
+              </span>
+            ))}
+          </div>
         </Tile>
+      </div>
+
+      {/* ── Footer: raw signal breakdown ── */}
+      <div className="flex items-center gap-3 px-[18px] pb-[12px] shrink-0">
+        <span className="text-[10px] text-white/35">
+          波谱: <span style={{ color: primary.color }}>▸ {primary.label}</span>
+          {secondary && <span className="text-white/35"> ｜<span style={{ color: secondary.color }}> {secondary.label}</span></span>}
+        </span>
+        <span className="text-[10px] text-white/35">
+          拟合度 {primary.rawScore} / {(secondary?.rawScore ?? 0)}
+        </span>
+        <div className="flex-1" />
+        <span className="text-[10px] text-white/25">
+          {dataMissing.length > 0 ? `部分数据缺失（${dataMissing.join('、')}），评分可能存在偏差` : '全数据源正常'}
+        </span>
       </div>
     </div>
   );

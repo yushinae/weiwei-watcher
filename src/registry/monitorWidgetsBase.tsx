@@ -77,7 +77,7 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 export type {
   SignalSeverity, IVSignal,
-  VolRegime, RegimeResult,
+  VolRegime, RegimeRecommendation, ClassifyResult,
   SentFactor,
   NetGexSummary, ChainLevels,
 } from './data/analysis';
@@ -99,7 +99,7 @@ export type {
   PFlowAcc,
   WatchItem,
   UserPosition, LivePosition,
-  AlertMetric, AlertOp, UserAlert, AlertTriggerEvent,
+  AlertMetric, AlertOp, UserAlert, AlertTriggerEvent, AlertHistoryItem,
 } from './data/store';
 export {
   PFLOW_ACC, PFLOW_SERIES, PFLOW_LAST, processPremiumFlow,
@@ -110,8 +110,9 @@ export {
   hydratePositionsFromBackend,
   subscribePositions, addPosition, removePositionById,
   loadAlerts, saveAlerts, ALERTS_STORE, METRIC_META, evalAlerts,
-  hydrateAlertsFromBackend,
+  hydrateAlertsFromBackend, DEFAULT_ALERT_COOLDOWN_MS,
   addAlert, removeAlert, toggleAlert, subscribeAlerts,
+  loadAlertHistory, clearAlertHistory, subscribeAlertHistory,
   subscribeAlertTriggers, emitAlertTrigger,
 } from './data/store';
 

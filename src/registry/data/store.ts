@@ -207,29 +207,42 @@ export type AlertOp     = '>' | '<';
 
 export interface UserAlert {
   id: string; coin: Coin; metric: AlertMetric; op: AlertOp;
-  threshold: number; active: boolean;
-  triggered: boolean; lastValue: number | null; triggeredAt: number | null;
+  threshold: number; active: boolean; cooldownMs: number;
+  triggered: boolean; lastValue: number | null; triggeredAt: number | null; lastNotifiedAt: number | null;
+}
+
+const ALERT_HISTORY_KEY = 'ww_alert_history';
+export const DEFAULT_ALERT_COOLDOWN_MS = 5 * 60 * 1000;
+const ALERT_HISTORY_LIMIT = 100;
+
+function normalizeAlert(a: Partial<UserAlert> & Pick<UserAlert, 'id' | 'coin' | 'metric' | 'op' | 'threshold' | 'active'>): UserAlert {
+  return {
+    ...a,
+    cooldownMs: typeof a.cooldownMs === 'number' ? a.cooldownMs : DEFAULT_ALERT_COOLDOWN_MS,
+    triggered: false,
+    lastValue: null,
+    triggeredAt: null,
+    lastNotifiedAt: typeof a.lastNotifiedAt === 'number' ? a.lastNotifiedAt : null,
+  };
 }
 
 export function loadAlerts(): UserAlert[] {
   try {
     const raw = localStorage.getItem('ww_alerts');
     if (!raw) return [];
-    return (JSON.parse(raw) as UserAlert[]).map(a => ({
-      ...a, triggered: false, lastValue: null, triggeredAt: null,
-    }));
+    return (JSON.parse(raw) as UserAlert[]).map(a => normalizeAlert(a));
   } catch { return []; }
 }
 
 export function saveAlerts(): void {
   try {
-    const toStore = ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
-      ({ id, coin, metric, op, threshold, active, triggered: false, lastValue: null, triggeredAt: null })
+    const toStore = ALERTS_STORE.map(({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt }) =>
+      ({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt })
     );
     localStorage.setItem('ww_alerts', JSON.stringify(toStore));
   } catch { /* ignore */ }
-  apiPut('/api/alerts', ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
-    ({ id, coin, metric, op, threshold, active })
+  apiPut('/api/alerts', ALERTS_STORE.map(({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt }) =>
+    ({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt })
   )).catch(() => {});
 }
 
@@ -243,19 +256,14 @@ export async function hydrateAlertsFromBackend(): Promise<void> {
     let changed = false;
     for (const a of remote) {
       if (!a?.id || ids.has(a.id)) continue;
-      ALERTS_STORE.push({
-        ...a,
-        triggered: false,
-        lastValue: null,
-        triggeredAt: null,
-      });
+      ALERTS_STORE.push(normalizeAlert(a));
       ids.add(a.id);
       changed = true;
     }
     if (!changed) return;
     try {
-      localStorage.setItem('ww_alerts', JSON.stringify(ALERTS_STORE.map(({ id, coin, metric, op, threshold, active }) =>
-        ({ id, coin, metric, op, threshold, active, triggered: false, lastValue: null, triggeredAt: null })
+      localStorage.setItem('ww_alerts', JSON.stringify(ALERTS_STORE.map(({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt }) =>
+        ({ id, coin, metric, op, threshold, active, cooldownMs, lastNotifiedAt })
       )));
     } catch { /* ignore */ }
     _notifyAlerts();
@@ -305,9 +313,14 @@ export function evalAlerts(coin: Coin, liveOverrides?: Partial<Record<AlertMetri
     a.lastValue = v;
     const prev = a.triggered;
     a.triggered = a.op === '>' ? v > a.threshold : v < a.threshold;
-    if (a.triggered && !prev) {
-      a.triggeredAt = Date.now();
-      emitAlertTrigger({ id: a.id, coin: a.coin, metric: a.metric, op: a.op, threshold: a.threshold, value: v, at: a.triggeredAt });
+    if (a.triggered) {
+      const now = Date.now();
+      if (!prev) a.triggeredAt = now;
+      if (!prev || a.lastNotifiedAt == null || now - a.lastNotifiedAt >= a.cooldownMs) {
+        a.lastNotifiedAt = now;
+        saveAlerts();
+        emitAlertTrigger({ id: a.id, coin: a.coin, metric: a.metric, op: a.op, threshold: a.threshold, value: v, at: now });
+      }
     }
   }
 }
@@ -320,11 +333,12 @@ export function subscribeAlerts(fn: () => void): () => void {
 }
 function _notifyAlerts(): void { _alertListeners.forEach(f => f()); }
 
-export function addAlert(a: Pick<UserAlert, 'coin' | 'metric' | 'op' | 'threshold'>): void {
-  ALERTS_STORE.push({
-    ...a, id: `al_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    active: true, triggered: false, lastValue: null, triggeredAt: null,
-  });
+export function addAlert(a: Pick<UserAlert, 'coin' | 'metric' | 'op' | 'threshold'> & Partial<Pick<UserAlert, 'cooldownMs'>>): void {
+  ALERTS_STORE.push(normalizeAlert({
+    ...a,
+    id: `al_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    active: true,
+  }));
   saveAlerts(); _notifyAlerts();
 }
 export function removeAlert(id: string): void {
@@ -340,9 +354,41 @@ export function toggleAlert(id: string): void {
 export interface AlertTriggerEvent {
   id: string; coin: Coin; metric: AlertMetric; op: AlertOp; threshold: number; value: number; at: number;
 }
+export interface AlertHistoryItem extends AlertTriggerEvent {
+  eventId: string;
+}
+export function loadAlertHistory(): AlertHistoryItem[] {
+  try {
+    const raw = localStorage.getItem(ALERT_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as AlertHistoryItem[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+const _historyListeners = new Set<() => void>();
+export function subscribeAlertHistory(fn: () => void): () => void {
+  _historyListeners.add(fn);
+  return () => { _historyListeners.delete(fn); };
+}
+function _notifyAlertHistory(): void { _historyListeners.forEach(f => f()); }
+function saveAlertHistory(items: AlertHistoryItem[]): void {
+  try { localStorage.setItem(ALERT_HISTORY_KEY, JSON.stringify(items.slice(0, ALERT_HISTORY_LIMIT))); } catch { /* ignore */ }
+}
+export function clearAlertHistory(): void {
+  saveAlertHistory([]);
+  _notifyAlertHistory();
+}
+function recordAlertHistory(e: AlertTriggerEvent): void {
+  const next = [{ ...e, eventId: `ah_${e.at}_${Math.random().toString(36).slice(2, 7)}` }, ...loadAlertHistory()].slice(0, ALERT_HISTORY_LIMIT);
+  saveAlertHistory(next);
+  _notifyAlertHistory();
+}
 const _triggerListeners = new Set<(e: AlertTriggerEvent) => void>();
 export function subscribeAlertTriggers(fn: (e: AlertTriggerEvent) => void): () => void {
   _triggerListeners.add(fn);
   return () => { _triggerListeners.delete(fn); };
 }
-export function emitAlertTrigger(e: AlertTriggerEvent): void { _triggerListeners.forEach(f => f(e)); }
+export function emitAlertTrigger(e: AlertTriggerEvent): void {
+  recordAlertHistory(e);
+  _triggerListeners.forEach(f => f(e));
+}

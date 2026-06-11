@@ -34,16 +34,24 @@ async function loadState(): Promise<BookState> {
   }
 }
 
-// 每次 dispatch 后保存：localStorage（快）+ 后端（持久）
+let backendSaveQueue = Promise.resolve();
+
+// 每次 dispatch 后保存：localStorage（快）+ 后端（持久）。
+// 后端写入必须按 dispatch 顺序串行化，否则高频 marks 更新可能晚于平仓写入落盘，
+// 把刚平掉的仓位用旧快照覆盖回来。
 function saveState(s: BookState) {
+  const snapshot = JSON.parse(JSON.stringify(s)) as BookState;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch (e) {
     console.warn('[optionBookStore] localStorage.setItem failed:', e);
   }
-  apiPut('/api/sim-options', s).catch((e) => {
-    console.warn('[optionBookStore] backend sync failed:', e);
-  });
+  backendSaveQueue = backendSaveQueue
+    .catch(() => undefined)
+    .then(() => apiPut('/api/sim-options', snapshot))
+    .catch((e) => {
+      console.warn('[optionBookStore] backend sync failed:', e);
+    });
 }
 
 let state: BookState = initialState;

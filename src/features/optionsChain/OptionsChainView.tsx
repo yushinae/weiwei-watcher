@@ -685,7 +685,7 @@ export default function OptionsChainView() {
               onClick={() => setSelectedCell(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center pointer-events-none p-4">
               <motion.div key="tp-modal" role="dialog" aria-modal="true"
-                aria-label={`${coin}-${selectedCell.row.strike}-${selectedCell.side === 'call' ? 'C' : 'P'} 期权下单面板（模拟）`}
+                aria-label={`${coin}-${selectedCell.row.strike}-${selectedCell.side === 'call' ? 'C' : 'P'} 期权下单面板`}
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>

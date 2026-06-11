@@ -326,31 +326,82 @@ export type VolRegime =
   | 'mean-revert'
   | 'unknown';
 
-export interface RegimeResult {
+export interface RegimeRecommendation {
   regime: VolRegime;
   label: string;
   color: string;
   confidence: number;
+  rawScore: number;
   description: string;
   playbook: string[];
 }
+
+export interface ClassifyResult {
+  primary: RegimeRecommendation;
+  secondary: RegimeRecommendation | null;
+  dataMissing: string[];
+}
+
+const REGIME_INFO: Record<VolRegime, { label: string; color: string; description: (ivr: number, vrpNow: number, dvolChange: number, skew30: number, slope: number) => string; playbook: string[] }> = {
+  'low-vol-complacent': {
+    label: '低波 / 市场自满',
+    color: '#25e889',
+    description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile（低），VRP 充裕，期限结构正常——市场低估尾部风险。`,
+    playbook: ['卖 IV 策略（Iron Condor、Strangle）溢价充足', '注意尾部风险：低波容易逆转为快速扩张', '资金费率偏高时做空 perp 对冲多头 Delta 风险'],
+  },
+  'vol-expansion': {
+    label: '波动率扩张',
+    color: '#FF5F57',
+    description: (vrpNow, dvolChange, skew30) => `DVOL 24h ${dvolChange >= 0 ? '+' : ''}${dvolChange.toFixed(1)}pp，VRP 受压（+${vrpNow.toFixed(1)}pp），Skew ${skew30.toFixed(1)}%——空间正在打开。`,
+    playbook: ['避免裸卖 vega；若已有 short vega 应收窄或对冲', '25D Put 或 OTM Put Spread 保护下行', '买入近端 Straddle 参与波动率重定价'],
+  },
+  'high-vol-fear': {
+    label: '高波 / 恐慌区间',
+    color: '#ef4444',
+    description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile（极高），期限结构倒挂，Skew 极度负偏——恐慌溢价高峰。`,
+    playbook: ['逆向考虑：卖近端 Put（高保护溢价），用远端对冲', 'Ratio Put Spread 可低成本或零成本构建', '等待 IV Rank 回落至 60% 以下再考虑卖方策略'],
+  },
+  'vol-compression': {
+    label: '波动率收缩',
+    color: '#ff9c2e',
+    description: (vrpNow, dvolChange) => `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
+    playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
+  },
+  'mean-revert': {
+    label: '均值回归区间',
+    color: '#FEBC2E',
+    description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile，VRP 正常，结构平稳——无明显方向性信号。`,
+    playbook: ['中性策略：Iron Condor 收取时间价值', '关注 Skew 偏向决定调整 Call/Put 比重', '保持仓位较小，等待更强方向信号'],
+  },
+  'unknown': {
+    label: '信号不足',
+    color: 'rgba(255,255,255,0.3)',
+    description: () => '数据采集中，请稍候…',
+    playbook: ['等待数据加载'],
+  },
+};
 
 export function classifyRegime(
   data: DeribitData,
   hist: HistoryData | null,
   flow: FlowData | null,
-): RegimeResult {
-  const ivr   = hist?.ivRankCurrent ?? 50;
-  const vrpNow = (hist?.vrp?.length ?? 0) > 0
+): ClassifyResult {
+  const ivr       = hist?.ivRankCurrent ?? 50;
+  const vrpNow    = (hist?.vrp?.length ?? 0) > 0
     ? hist!.vrp[hist!.vrp.length - 1].iv - hist!.vrp[hist!.vrp.length - 1].rv
     : 5;
   const dvolChange = hist?.dvolChange24h ?? 0;
   const exp = data.expiries;
-  const slope = exp.length >= 2 ? exp[exp.length - 1].atmIV - exp[0].atmIV : 0;
-  const skew30 = exp.length
+  const slope   = exp.length >= 2 ? exp[exp.length - 1].atmIV - exp[0].atmIV : 0;
+  const skew30  = exp.length
     ? (exp.reduce((b, e) => Math.abs(e.daysToExp - 30) < Math.abs(b.daysToExp - 30) ? e : b, exp[0])?.rr25 ?? 0)
     : 0;
   const funding = flow?.annFunding ?? 0;
+
+  // Track missing data sources
+  const dataMissing: string[] = [];
+  if (!hist) dataMissing.push('历史波动率');
+  if (!flow) dataMissing.push('资金费率');
 
   let scores: Partial<Record<VolRegime, number>> = {};
 
@@ -390,53 +441,41 @@ export function classifyRegime(
     (Math.abs(dvolChange) < 1 ? 10 : 0)
   );
 
-  const best = (Object.entries(scores) as [VolRegime, number][])
-    .sort((a, b) => b[1] - a[1])[0];
+  // Sort descending by raw score
+  const ranked = (Object.entries(scores) as [VolRegime, number][])
+    .sort((a, b) => b[1] - a[1]);
 
-  const regime = best[0];
-  const rawScore = best[1];
-  const confidence = Math.min(100, Math.round(rawScore * 1.1));
+  const topScore    = ranked[0][1];
+  const secondScore = ranked[1]?.[1] ?? 0;
 
-  const INFO: Record<VolRegime, { label: string; color: string; description: string; playbook: string[] }> = {
-    'low-vol-complacent': {
-      label: '低波 / 市场自满',
-      color: '#25e889',
-      description: `IV Rank ${ivr.toFixed(0)}%ile（低），VRP +${vrpNow.toFixed(1)}pp，期限结构正常——市场低估尾部风险。`,
-      playbook: ['卖 IV 策略（Iron Condor、Strangle）溢价充足', '注意尾部风险：低波容易逆转为快速扩张', '资金费率偏高时做空 perp 对冲多头 Delta 风险'],
-    },
-    'vol-expansion': {
-      label: '波动率扩张',
-      color: '#FF5F57',
-      description: `DVOL 24h +${dvolChange.toFixed(1)}pp，VRP 受压（+${vrpNow.toFixed(1)}pp），Skew ${skew30.toFixed(1)}%——空间正在打开。`,
-      playbook: ['避免裸卖 vega；若已有 short vega 应收窄或对冲', '25D Put 或 OTM Put Spread 保护下行', '买入近端 Straddle 参与波动率重定价'],
-    },
-    'high-vol-fear': {
-      label: '高波 / 恐慌区间',
-      color: '#ef4444',
-      description: `IV Rank ${ivr.toFixed(0)}%ile（极高），期限结构倒挂（${slope.toFixed(1)}pp），Skew 极度负偏——恐慌溢价高峰。`,
-      playbook: ['逆向考虑：卖近端 Put（高保护溢价），用远端对冲', 'Ratio Put Spread 可低成本或零成本构建', '等待 IV Rank 回落至 60% 以下再考虑卖方策略'],
-    },
-    'vol-compression': {
-      label: '波动率收缩',
-      color: '#ff9c2e',
-      description: `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
-      playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
-    },
-    'mean-revert': {
-      label: '均值回归区间',
-      color: '#FEBC2E',
-      description: `IV Rank ${ivr.toFixed(0)}%ile，VRP +${vrpNow.toFixed(1)}pp，结构平稳——无明显方向性信号。`,
-      playbook: ['中性策略：Iron Condor 收取时间价值', '关注 Skew 偏向决定调整 Call/Put 比重', '保持仓位较小，等待更强方向信号'],
-    },
-    'unknown': {
-      label: '信号不足',
-      color: 'rgba(255,255,255,0.3)',
-      description: '数据采集中，请稍候…',
-      playbook: ['等待数据加载'],
-    },
-  };
+  // Competitive inhibition: confidence reflects relative dominance
+  const topConfidence    = Math.min(100, Math.round(topScore * 1.1));
+  const secondConfidence = secondScore === 0
+    ? 0
+    : Math.min(90, Math.max(20, Math.round(secondScore * 0.8)));
 
-  return { regime, confidence, ...INFO[regime] };
+  // Build ranked recommendations
+  function build(r: VolRegime, score: number, conf: number): RegimeRecommendation {
+    const info = REGIME_INFO[r];
+    return {
+      regime: r,
+      label: info.label,
+      color: info.color,
+      confidence: conf,
+      rawScore: score,
+      description: info.description(ivr, vrpNow, dvolChange, skew30, slope),
+      playbook: info.playbook,
+    };
+  }
+
+  const primary = build(ranked[0][0], topScore, topConfidence);
+
+  // Runner-up: second best, or show 'unknown' as fallback when score is 0
+  const secondary = ranked.length > 1 && secondScore > 0
+    ? build(ranked[1][0], secondScore, secondConfidence)
+    : null;
+
+  return { primary, secondary, dataMissing };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

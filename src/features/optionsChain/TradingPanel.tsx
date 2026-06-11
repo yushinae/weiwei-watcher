@@ -61,9 +61,8 @@ const NAV_BG = '#15161D';
 const SUBTLE_LINE = 'rgba(255,255,255,0.06)';
 const ORANGE = '#ff9c2e';
 const EXEC_MODE_KEY = 'options.executionMode';
-const EXEC_TESTNET_KEY = 'options.liveTestnet';
-const EXEC_ARMED_UNTIL_KEY = 'options.liveArmedUntil';
-const LIVE_ARM_TTL_MS = 30 * 60 * 1000;
+const LIVE_TESTNET = false;
+const LIVE_ARMED = true;
 
 function storageGet(key: string, fallback: string): string {
   try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
@@ -71,18 +70,6 @@ function storageGet(key: string, fallback: string): string {
 
 function storageSet(key: string, value: string): void {
   try { localStorage.setItem(key, value); } catch { /* noop */ }
-}
-
-function sessionGetNumber(key: string): number {
-  try { return Number(sessionStorage.getItem(key) ?? 0) || 0; } catch { return 0; }
-}
-
-function sessionSet(key: string, value: string): void {
-  try { sessionStorage.setItem(key, value); } catch { /* noop */ }
-}
-
-function sessionRemove(key: string): void {
-  try { sessionStorage.removeItem(key); } catch { /* noop */ }
 }
 
 function getDeribitCredentials() {
@@ -93,14 +80,6 @@ function getDeribitCredentials() {
 
 function initialExecutionMode(): ExecutionMode {
   return storageGet(EXEC_MODE_KEY, 'sim') === 'live' ? 'live' : 'sim';
-}
-
-function initialLiveTestnet(): boolean {
-  return storageGet(EXEC_TESTNET_KEY, 'true') !== 'false';
-}
-
-function initialLiveArmed(): boolean {
-  return sessionGetNumber(EXEC_ARMED_UNTIL_KEY) > Date.now();
 }
 
 const fmtSigned = (v: number, digits = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
@@ -901,24 +880,14 @@ const SANITY: Record<CheckLevel, { color: string; text: string }> = {
 
 function ExecutionModeControls({
   executionMode,
-  liveTestnet,
-  liveArmed,
   liveReady,
-  armedMinutesLeft,
   source,
   onModeChange,
-  onToggleTestnet,
-  onToggleArmed,
 }: {
   executionMode: ExecutionMode;
-  liveTestnet: boolean;
-  liveArmed: boolean;
   liveReady: { armed: boolean; credentials: boolean; venueSupported: boolean };
-  armedMinutesLeft: number;
   source: DataSource;
   onModeChange: (mode: ExecutionMode) => void;
-  onToggleTestnet: () => void;
-  onToggleArmed: () => void;
 }) {
   const venueLabel = source === 'bybit' ? 'Bybit' : 'Deribit';
   const statusText = executionMode === 'sim'
@@ -927,10 +896,10 @@ function ExecutionModeControls({
       ? '通道未接入'
       : !liveReady.credentials
         ? '缺少密钥'
-        : `${venueLabel} · ${liveTestnet ? '测试网' : '正式网'}`;
+        : `${venueLabel} 实盘`;
 
   return (
-    <div className="hidden h-[50px] w-[272px] flex-col justify-center rounded-[4px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
+    <div className="hidden h-[50px] w-[184px] flex-col justify-center rounded-[4px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-[10px] font-extrabold text-white/40">执行</span>
         <span className="truncate text-[10px] font-semibold text-white/35">{statusText}</span>
@@ -943,39 +912,17 @@ function ExecutionModeControls({
               key={mode}
               type="button"
               onClick={() => onModeChange(mode)}
-              className="h-6 w-[46px] rounded-[4px] text-[10px] font-extrabold transition-colors active:translate-y-px"
+              aria-pressed={active}
+              className="h-6 flex-1 rounded-[4px] text-[10px] font-extrabold transition-colors active:translate-y-px"
               style={{
-                background: active ? SELECTED_BG : 'transparent',
-                color: active ? ORANGE : 'rgba(255,255,255,0.55)',
+                background: active ? (mode === 'sim' ? SELECTED_BG : 'rgba(239,68,68,0.18)') : 'transparent',
+                color: active ? (mode === 'sim' ? ORANGE : '#EF4444') : 'rgba(255,255,255,0.55)',
               }}
             >
               {mode === 'sim' ? '模拟' : '实盘'}
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={onToggleTestnet}
-          disabled={executionMode !== 'live'}
-          className="h-6 w-[58px] rounded-[4px] px-2 text-[10px] font-extrabold transition-colors active:translate-y-px disabled:opacity-35"
-          style={{ background: liveTestnet ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.14)', color: liveTestnet ? '#22C55E' : '#EF4444' }}
-          title="切换 testnet/mainnet"
-        >
-          {liveTestnet ? '测试网' : '正式网'}
-        </button>
-        <button
-          type="button"
-          onClick={onToggleArmed}
-          disabled={executionMode !== 'live' || !liveReady.credentials || !liveReady.venueSupported}
-          className="h-6 flex-1 rounded-[4px] px-2 text-[10px] font-extrabold transition-colors active:translate-y-px disabled:opacity-35"
-          style={{
-            background: liveArmed ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.06)',
-            color: liveArmed ? '#EF4444' : 'rgba(255,255,255,0.55)',
-          }}
-          title={`ARMED 会话有效 ${LIVE_ARM_TTL_MS / 60_000} 分钟，过期自动回锁`}
-        >
-          {executionMode !== 'live' ? '安全' : liveArmed ? `已解锁 ${armedMinutesLeft}m` : '解锁'}
-        </button>
       </div>
     </div>
   );
@@ -1003,71 +950,31 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [postOnly, setPostOnly] = useState(false);
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
   const [executionMode, setExecutionModeState] = useState<ExecutionMode>(initialExecutionMode);
-  const [liveArmed, setLiveArmedState] = useState(initialLiveArmed);
-  const [liveTestnet, setLiveTestnetState] = useState(initialLiveTestnet);
-  const [armedUntil, setArmedUntil] = useState(() => sessionGetNumber(EXEC_ARMED_UNTIL_KEY));
 
   const setExecutionMode = useCallback((mode: ExecutionMode) => {
     setExecutionModeState(mode);
     storageSet(EXEC_MODE_KEY, mode);
-    if (mode === 'sim') {
-      setLiveArmedState(false);
-      setArmedUntil(0);
-      sessionRemove(EXEC_ARMED_UNTIL_KEY);
-    }
   }, []);
-  const toggleLiveTestnet = useCallback(() => {
-    setLiveTestnetState(prev => {
-      const next = !prev;
-      storageSet(EXEC_TESTNET_KEY, String(next));
-      return next;
-    });
-  }, []);
-  const toggleLiveArmed = useCallback(() => {
-    setLiveArmedState(prev => {
-      if (prev) {
-        setArmedUntil(0);
-        sessionRemove(EXEC_ARMED_UNTIL_KEY);
-        return false;
-      }
-      const until = Date.now() + LIVE_ARM_TTL_MS;
-      setArmedUntil(until);
-      sessionSet(EXEC_ARMED_UNTIL_KEY, String(until));
-      return true;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!liveArmed) return;
-    const timer = setInterval(() => {
-      if (sessionGetNumber(EXEC_ARMED_UNTIL_KEY) > Date.now()) return;
-      setLiveArmedState(false);
-      setArmedUntil(0);
-      sessionRemove(EXEC_ARMED_UNTIL_KEY);
-    }, 5_000);
-    return () => clearInterval(timer);
-  }, [liveArmed]);
 
   const deribitCredentials = useMemo(() => getDeribitCredentials(), []);
-  const armedMinutesLeft = liveArmed ? Math.max(0, Math.ceil((armedUntil - Date.now()) / 60_000)) : 0;
   const liveReady = useMemo(() => ({
-    armed: liveArmed,
+    armed: executionMode === 'live' ? LIVE_ARMED : false,
     credentials: source === 'deribit' ? !!deribitCredentials : true,
     venueSupported: source === 'deribit' || source === 'bybit',
-  }), [deribitCredentials, liveArmed, source]);
+  }), [deribitCredentials, executionMode, source]);
   const adapter = useMemo<ExecutionAdapter>(() => {
     if (executionAdapter) return executionAdapter;
     if (executionMode === 'sim') return createSimExecutionAdapter(book);
     if (source === 'bybit') return createBybitLiveAdapter({
-      armed: liveArmed,
-      testnet: liveTestnet,
+      armed: LIVE_ARMED,
+      testnet: LIVE_TESTNET,
     });
     return createDeribitLiveAdapter({
-      armed: liveArmed,
-      testnet: liveTestnet,
+      armed: LIVE_ARMED,
+      testnet: LIVE_TESTNET,
       credentials: deribitCredentials,
     });
-  }, [book, deribitCredentials, executionAdapter, executionMode, liveArmed, liveTestnet, source]);
+  }, [book, deribitCredentials, executionAdapter, executionMode, source]);
   const currentPosition = useMemo(() => book.positions.find(p => p.symbol === symbol), [book.positions, symbol]);
   const currentSignedQty = currentPosition ? (currentPosition.side === 'long' ? currentPosition.qty : -currentPosition.qty) : 0;
 
@@ -1131,7 +1038,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     const intent: TradeIntent = {
       mode: adapter.mode,
       venue: source,
-      accountId: adapter.mode === 'sim' ? 'sim-options' : `${source}-${liveTestnet ? 'testnet' : 'mainnet'}`,
+      accountId: adapter.mode === 'sim' ? 'sim-options' : `${source}-mainnet`,
       source: 'options-chain',
       side: s,
       orderType,
@@ -1148,7 +1055,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     };
     const result = await adapter.placeOrder(intent);
     if (result.status === 'rejected') soundOrderError();
-  }, [adapter, sanity.blocking, source, liveTestnet, orderType, symbol, nQty, orderPrice, opt.mark, opt.delta, opt.gamma, opt.theta, opt.vega, opt.instrument, reduceOnly, postOnly, tif, usdBook]);
+  }, [adapter, sanity.blocking, source, orderType, symbol, nQty, orderPrice, opt.mark, opt.delta, opt.gamma, opt.theta, opt.vega, opt.instrument, reduceOnly, postOnly, tif, usdBook]);
 
   const light = SANITY[sanity.level];
   const issues = sanity.checks.filter(c => c.level !== 'ok');
@@ -1157,9 +1064,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     : { bg: 'rgba(239,69,74,0.14)', color: 'var(--db-down)', label: 'PUT' };
   const execTone = adapter.mode === 'sim'
     ? { bg: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }
-    : liveArmed
-      ? { bg: 'rgba(239,68,68,0.16)', color: '#EF4444' }
-      : { bg: 'rgba(247,166,0,0.14)', color: ORANGE };
+    : { bg: 'rgba(239,68,68,0.16)', color: '#EF4444' };
   const headerMetrics = [
     { label: '标记', value: opt.mark.toFixed(dec), color: 'rgba(255,255,255,0.86)' },
     { label: 'IV', value: `${opt.iv.toFixed(1)}%`, color: 'var(--db-warn)' },
@@ -1201,14 +1106,9 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
         <div className="flex-1" />
         <ExecutionModeControls
           executionMode={executionMode}
-          liveTestnet={liveTestnet}
-          liveArmed={liveArmed}
           liveReady={liveReady}
-          armedMinutesLeft={armedMinutesLeft}
           source={source}
           onModeChange={setExecutionMode}
-          onToggleTestnet={toggleLiveTestnet}
-          onToggleArmed={toggleLiveArmed}
         />
         <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG, color: 'rgba(255,255,255,0.55)' }}>
           <X size={16} />

@@ -193,6 +193,14 @@
     #closeModalAmount:focus {
       box-shadow: 0 0 0 1px var(--orange-soft);
     }
+    .amount-field {
+      display: grid;
+      gap: 12px;
+    }
+    .amount-field .amounts {
+      gap: 10px;
+      padding-bottom: 2px;
+    }
     .small {
       font-size: 12px;
       color: var(--muted);
@@ -792,7 +800,7 @@
 
         <div class="panel">
           <div class="stack">
-            <div class="field">
+            <div class="field amount-field">
               <div class="amounts" id="amountPresets"></div>
               <input id="amountInput" type="number" min="0.1" step="0.1" value="1" />
             </div>

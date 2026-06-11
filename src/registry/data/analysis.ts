@@ -43,7 +43,8 @@ export function maxPain(exp: ExpiryGroup, spot: number): number {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 净 GEX —— 全 app 唯一口径（监控页 Gamma 速读 / GEX 图 / 决策页 GEX 关键位共用）
-// Σ bsGamma×OI×S²/100（call 正 / put 负，$ per 1% spot move），取前 6 个到期、
+// Σ bsGamma×OI×S²/100（call 正 / put 负，$ per 1% spot move），全部到期
+// （远月 gamma 本就趋零，全链聚合与近月聚合数值几乎一致，但语义诚实），
 // 行权价窗口 [0.7, 1.3]×spot；翻转点 = 净 GEX 变号处线性插值。
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -55,7 +56,7 @@ export interface NetGexSummary {
 export function computeNetGex(data: DeribitData): NetGexSummary {
   const spot = data.spot;
   const gexMap = new Map<number, number>();
-  for (const exp of data.expiries.slice(0, 6)) {
+  for (const exp of data.expiries) {
     for (const o of [...exp.calls, ...exp.puts]) {
       const g = (bsGamma(spot, o.strike, o.T, o.iv) * spot * spot / 100) * o.oi;
       gexMap.set(o.strike, (gexMap.get(o.strike) ?? 0) + (o.type === 'C' ? g : -g));

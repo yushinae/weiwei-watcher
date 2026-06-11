@@ -231,6 +231,9 @@ const AppNavigationDropdown = () => {
   const isOptionsChain = location.pathname === '/options-chain';
   const isPriceChart = location.pathname === '/price-chart';
   const isPositionNav = location.pathname === '/bybit/positions' || location.pathname === '/position-builder';
+  const goTo = (to: string) => {
+    if (location.pathname !== to) navigate(to);
+  };
 
   const [navOpen, setNavOpen] = useState(false);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -317,7 +320,7 @@ const AppNavigationDropdown = () => {
                   return (
                     <button
                       key={it.label}
-                      onClick={() => { navigate(it.to); setNavOpen(false); }}
+                      onClick={() => { goTo(it.to); setNavOpen(false); }}
                       onMouseEnter={it.preload}
                       className={cn(
                         'bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left',
@@ -336,7 +339,7 @@ const AppNavigationDropdown = () => {
       </div>
 
       <button
-        onClick={() => navigate('/monitor')}
+        onClick={() => goTo('/monitor')}
         onMouseEnter={preload.monitor}
         className={cn(
           "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
@@ -346,7 +349,7 @@ const AppNavigationDropdown = () => {
       </button>
 
       <button
-        onClick={() => navigate('/dashboard')}
+        onClick={() => goTo('/dashboard')}
         onMouseEnter={preload.dashboard}
         className={cn(
           "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
@@ -358,7 +361,7 @@ const AppNavigationDropdown = () => {
 
       <div className="relative" onMouseEnter={() => { openOpt(); preload.optionsChain(); }} onMouseLeave={closeOpt}>
         <button
-          onClick={() => navigate('/options-chain')}
+          onClick={() => goTo('/options-chain')}
           className={cn(
             "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
             isOptionsChain
@@ -375,14 +378,14 @@ const AppNavigationDropdown = () => {
             <OptionsHoverMenu
               onMouseEnter={openOpt}
               onMouseLeave={closeOpt}
-              onPick={() => { setOptOpen(false); navigate('/options-chain'); }}
+              onPick={() => { setOptOpen(false); goTo('/options-chain'); }}
             />
           </div>
         )}
       </div>
 
       <button
-        onClick={() => navigate('/price-chart')}
+        onClick={() => goTo('/price-chart')}
         onMouseEnter={preload.priceChart}
         className={cn(
           "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
@@ -400,7 +403,7 @@ const AppNavigationDropdown = () => {
         onMouseLeave={closePosition}
       >
         <button
-          onClick={() => navigate('/bybit/positions')}
+          onClick={() => goTo('/bybit/positions')}
           onFocus={() => { openPosition(); preload.bybitPositions(); preload.positionBuilder(); }}
           className={cn(
             "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
@@ -430,7 +433,7 @@ const AppNavigationDropdown = () => {
               return (
                 <button
                   key={it.label}
-                  onClick={() => { navigate(it.to); setPositionOpen(false); }}
+                  onClick={() => { goTo(it.to); setPositionOpen(false); }}
                   onMouseEnter={it.preload}
                   className={cn(
                     'bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left',
@@ -448,7 +451,7 @@ const AppNavigationDropdown = () => {
 
       {/* 极速 — 纯前端 Deribit 极速下单工具，内嵌在看板内（iframe 路由 /quick-order） */}
       <button
-        onClick={() => navigate('/quick-order')}
+        onClick={() => goTo('/quick-order')}
         title="Deribit 极速下单"
         className={cn(
           "bb-topbar-button flex items-center gap-1.5 px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",

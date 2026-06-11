@@ -10,6 +10,10 @@ coverage/
 # tooling artifacts
 .claude/
 .reasonix/
+.wrangler/
 
 # local database / runtime data
 *.db
+server/data/*.json
+server/data/pg/
+server/data/runtime/

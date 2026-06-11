@@ -42,7 +42,7 @@ const UnderlyingHeader: React.FC<UnderlyingHeaderProps> = ({ value, coin, tag, o
 
   return (
     <button
-      onClick={() => { ocStore.setUnderlying(value); ocStore.setExpiryIdx(0); onPick?.(); }}
+      onClick={() => { ocStore.setSelection(value, 0); onPick?.(); }}
       className="bb-top-menu-item relative flex h-[42px] min-w-0 items-center gap-2 px-2.5 text-left overflow-hidden"
       style={{
         background: isActiveCol ? 'var(--bb-menu-card-hover, rgba(255,255,255,0.08))' : undefined,
@@ -76,7 +76,7 @@ const ExpiryCell: React.FC<ExpiryCellProps> = ({ item, expiry, index, onPick }) 
 
   return (
     <button
-      onClick={() => { ocStore.setUnderlying(item.value); ocStore.setExpiryIdx(index); onPick?.(); }}
+      onClick={() => { ocStore.setSelection(item.value, index); onPick?.(); }}
       className="bb-top-menu-item h-[31px] px-2 text-center font-mono text-[11px] font-bold tabular-nums"
       style={{
         background: on ? 'var(--bb-orange-soft-1, rgba(247,166,0,0.08))' : undefined,
@@ -143,7 +143,7 @@ const MatrixSection: React.FC<MatrixSectionProps> = ({ title, subtitle, tag, ite
         {items.map(it => (
           <button
             key={`${it.value}-combo`}
-            onClick={() => { ocStore.setUnderlying(it.value); ocStore.setExpiryIdx(0); onPick?.(); }}
+            onClick={() => { ocStore.setSelection(it.value, 0); onPick?.(); }}
             className="bb-top-menu-item mt-1 h-[30px] px-2 text-[11px] font-extrabold"
             style={{
               color: 'rgba(255,255,255,0.58)',

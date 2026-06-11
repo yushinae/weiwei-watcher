@@ -3,13 +3,8 @@
  *
  * 作用：替前端把数据存到硬盘上（JSON 文件），这样清浏览器缓存也不丢。
  *
- * 每个数据类型一个文件：
- *   server/data/accounts.json   — 账户配置
- *   server/data/fills.json      — 成交记录
- *   server/data/positions.json  — 手动持仓
- *   server/data/watchlist.json  — 自选列表
- *   server/data/alerts.json     — 告警规则
- *   server/data/journal.json    — 交易日志
+ * 每个数据类型一个文件。运行态数据写入 server/data/runtime/；
+ * 仓库里的 server/data/*.json 只作为首次启动的 seed/fallback。
  */
 
 import { Hono } from 'hono'
@@ -23,13 +18,21 @@ import { createHmac } from 'node:crypto'
 // ── 数据目录 ────────────────────────────────────────────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, 'data')
+const RUNTIME_DATA_DIR = join(DATA_DIR, 'runtime')
 const ROOT_DIR = resolve(__dirname, '..')
 
 // 确保数据目录存在
-await mkdir(DATA_DIR, { recursive: true })
+await mkdir(RUNTIME_DATA_DIR, { recursive: true })
 
 // ── 简单的 JSON 文件读写 ────────────────────────────────────────────────────
 async function readJSON<T>(file: string, fallback: T): Promise<T> {
+  try {
+    const raw = await readFile(join(RUNTIME_DATA_DIR, file), 'utf-8')
+    return JSON.parse(raw) as T
+  } catch {
+    // Seed files committed in server/data keep local dev useful on first run,
+    // but live writes stay under runtime/ so Git and Vite do not churn.
+  }
   try {
     const raw = await readFile(join(DATA_DIR, file), 'utf-8')
     return JSON.parse(raw) as T
@@ -39,7 +42,7 @@ async function readJSON<T>(file: string, fallback: T): Promise<T> {
 }
 
 async function writeJSON<T>(file: string, data: T): Promise<void> {
-  await writeFile(join(DATA_DIR, file), JSON.stringify(data, null, 2), 'utf-8')
+  await writeFile(join(RUNTIME_DATA_DIR, file), JSON.stringify(data, null, 2), 'utf-8')
 }
 
 async function readMap(file: string): Promise<Record<string, unknown>> {

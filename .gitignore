@@ -13,3 +13,8 @@ coverage/
 
 # local database / runtime data
 *.db
+
+# 用户体系运行时密钥与数据库（绝不入库）
+server/data/.auth-secret
+server/data/.master-key
+server/data/pg/

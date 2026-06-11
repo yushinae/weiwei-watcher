@@ -8,12 +8,14 @@ import {
   LayoutDashboard,
   Bell,
   ListOrdered,
+  Settings,
   ShieldAlert,
   TrendingUp,
   Wallet,
   Zap,
 } from 'lucide-react';
-import { useNavigate, useLocation, Navigate, Routes, Route } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Outlet, Routes, Route } from 'react-router-dom';
+import { authClient, AUTH_REQUIRED } from './lib/authClient';
 
 import { cn } from './lib/utils';
 import { useEscapeKey } from './lib/useEscapeKey';
@@ -33,6 +35,8 @@ const PortfolioRiskPage = lazy(() => import('./pages/PortfolioRiskPage'));
 const VolHistoryPage = lazy(() => import('./pages/VolHistoryPage'));
 const AlertsPage = lazy(() => import('./pages/AlertsPage'));
 const AccountsPage = lazy(() => import('./pages/AccountsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
 
 // 预加载函数 — 悬停导航按钮时提前拉取 chunk，消除首次切换延迟
 const preload = {
@@ -47,6 +51,7 @@ const preload = {
   volHistory: () => import('./pages/VolHistoryPage'),
   alerts: () => import('./pages/AlertsPage'),
   accounts: () => import('./pages/AccountsPage'),
+  settings: () => import('./pages/SettingsPage'),
 };
 
 // 全局告警引擎 + 应用内 Toast（始终挂载，不随页面卸载）
@@ -273,6 +278,7 @@ const AppNavigationDropdown = () => {
       { label: '告警', icon: Bell, to: '/alerts', preload: preload.alerts },
       { label: '头寸可视化', icon: Eye, to: '/bybit/positions', preload: preload.bybitPositions },
       { label: '头寸压力测试', icon: Calculator, to: '/position-builder', preload: preload.positionBuilder },
+      { label: '设置', icon: Settings, to: '/settings', preload: preload.settings },
     ] },
     { title: '市场', items: [
       { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
@@ -475,6 +481,15 @@ const PageFallback = () => (
   </div>
 );
 
+// 登录门：AUTH_REQUIRED 时（生产构建默认开）未登录一律跳 /login；开发默认不拦
+function AuthGate() {
+  const { data, isPending } = authClient.useSession();
+  if (!AUTH_REQUIRED) return <Outlet />;
+  if (isPending) return <PageFallback />;
+  if (!data) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
 // 策略：
 // - 监控页（重，50+ widget）keep-alive：用 display:none 隐藏，永不卸载，避免反复初始化卡顿
 // - 监控页隐藏时暂停轮询（monitorWidgets 内置 visibilitychange 检测）
@@ -483,6 +498,14 @@ const PageFallback = () => (
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/login" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <AuthPage />
+          </Suspense>
+        </div>
+      } />
+      <Route element={<AuthGate />}>
       <Route path="/monitor" element={
         <div className="absolute inset-0">
           <Suspense fallback={<PageFallback />}>
@@ -569,8 +592,16 @@ function AppRoutes() {
           />
         </div>
       } />
+      <Route path="/settings" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <SettingsPage />
+          </Suspense>
+        </div>
+      } />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Route>
     </Routes>
   );
 }

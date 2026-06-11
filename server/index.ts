@@ -1,15 +1,12 @@
 /**
- * weiwei-react 本地后端
+ * weiwei-react 后端
  *
- * 作用：替前端把数据存到硬盘上（JSON 文件），这样清浏览器缓存也不丢。
- *
- * 每个数据类型一个文件：
- *   server/data/accounts.json   — 账户配置
- *   server/data/fills.json      — 成交记录
- *   server/data/positions.json  — 手动持仓
- *   server/data/watchlist.json  — 自选列表
- *   server/data/alerts.json     — 告警规则
- *   server/data/journal.json    — 交易日志
+ * 组成：
+ *   - 用户体系（Better Auth，/api/auth/*）+ 交易所 API key 保管库（/api/keys，见 keys.ts）
+ *     —— 数据存 Postgres（设 DATABASE_URL）或 PGlite（默认，server/data/pg/）
+ *   - 旧 JSON 文件持久化（accounts/fills/positions/watchlist/alerts/journal）
+ *     —— 单用户遗留接口，多租户迁移到 Postgres 是下一步
+ *   - Bybit 签名代理（key 不出服务器）
  */
 
 import { Hono } from 'hono'
@@ -19,6 +16,9 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHmac } from 'node:crypto'
+
+import { auth } from './auth'
+import { keysRoutes } from './keys'
 
 // ── 数据目录 ────────────────────────────────────────────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -85,6 +85,13 @@ app.use('/*', cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
 }))
+
+// ── 用户体系（Better Auth）──────────────────────────────────────────────────
+// 注册/登录/登出/会话/改密码/设备管理全部由它处理
+app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw))
+
+// ── 交易所 API key 保管库（需登录，见 keys.ts）──────────────────────────────
+app.route('/api/keys', keysRoutes)
 
 // ── 账户（accounts.json）────────────────────────────────────────────────────
 // 存的是交易所账号列表（名称、标签、类型等）

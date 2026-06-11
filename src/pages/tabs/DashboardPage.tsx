@@ -12,7 +12,7 @@ import {
   StrategyBottom,
 } from '../../registry/dashboardWidgets';
 import { useTickerSnapshotWS } from '../../registry/monitorWidgetsBase';
-import { getUpcomingEvents, formatEventTime } from '../../registry/data/economicCalendar';
+import { getUpcomingEvents, formatEventTime, daysUntil, isCalendarStale } from '../../registry/data/economicCalendar';
 import { EASE_EMPHASIS } from '../../motion/tokens';
 import StrategyQuickViewWidget from '../../features/strategyQuickView/StrategyQuickViewWidget';
 import { cn } from '../../lib/utils';
@@ -80,11 +80,10 @@ export default function DashboardPage({ coin, setCoin }: Props) {
   const ticker = useTickerSnapshotWS(coin);
 
   const eventCountdown = useMemo(() => {
-    const events = getUpcomingEvents(30);
-    const nextHigh = events.find(e => e.importance === 'high');
+    if (isCalendarStale()) return null; // 排期过期时宁可不显示，也不显示错误倒计时
+    const nextHigh = getUpcomingEvents(30).find(e => e.importance === 'high');
     if (!nextHigh) return null;
-    const year = new Date().getFullYear();
-    const days = Math.round((new Date(`${year}-${nextHigh.date.slice(0, 2)}-${nextHigh.date.slice(3, 5)}T08:00:00Z`).getTime() - Date.now()) / 86_400_000);
+    const days = daysUntil(nextHigh);
     const timeStr = nextHigh.timeET ? ` ${formatEventTime(nextHigh.timeET)}` : '';
     return { label: `${nextHigh.title}${timeStr}`, days, urgent: days <= 2, warn: days <= 7 };
   }, []);

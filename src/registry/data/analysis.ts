@@ -2,6 +2,7 @@ import type { DeribitData, ExpiryGroup, HistoryData } from './deribit';
 import type { FlowData } from './flow';
 import { fetchDeribitOptions, fetchDeribitHistory } from './deribit';
 import { fetchFlowData } from './flow';
+import { bsGamma } from '../lib/bs-math';
 import type { Coin } from '../../features/monitor/types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +39,115 @@ export function maxPain(exp: ExpiryGroup, spot: number): number {
     if (pain < minPain) { minPain = pain; mpStrike = s; }
   }
   return mpStrike;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 净 GEX —— 全 app 唯一口径（监控页 Gamma 速读 / GEX 图 / 决策页 GEX 关键位共用）
+// Σ bsGamma×OI×S²/100（call 正 / put 负，$ per 1% spot move），取前 6 个到期、
+// 行权价窗口 [0.7, 1.3]×spot；翻转点 = 净 GEX 变号处线性插值。
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface NetGexSummary {
+  totalNet: number;     // 净 $gamma / 1% spot
+  flip: number | null;  // 翻转点价格（窗口内无变号则 null）
+}
+
+export function computeNetGex(data: DeribitData): NetGexSummary {
+  const spot = data.spot;
+  const gexMap = new Map<number, number>();
+  for (const exp of data.expiries.slice(0, 6)) {
+    for (const o of [...exp.calls, ...exp.puts]) {
+      const g = (bsGamma(spot, o.strike, o.T, o.iv) * spot * spot / 100) * o.oi;
+      gexMap.set(o.strike, (gexMap.get(o.strike) ?? 0) + (o.type === 'C' ? g : -g));
+    }
+  }
+  const strikes = [...gexMap.keys()].filter(k => k >= spot * 0.7 && k <= spot * 1.3).sort((a, b) => a - b);
+  const netGex = strikes.map(k => gexMap.get(k)!);
+  const totalNet = netGex.reduce((s, g) => s + g, 0);
+  let flip: number | null = null;
+  for (let i = 1; i < strikes.length; i++) {
+    if (netGex[i - 1] * netGex[i] < 0) {
+      const frac = Math.abs(netGex[i - 1]) / (Math.abs(netGex[i - 1]) + Math.abs(netGex[i]));
+      flip = strikes[i - 1] + frac * (strikes[i] - strikes[i - 1]);
+      break;
+    }
+  }
+  return { totalNet, flip };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 期权关键位（Call 墙 / Put 墙 / 最大痛点 / ±1σ EM）—— K 线图叠加与决策页共用
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ChainLevels {
+  callWall: number | null;   // 最大 Call OI 行权价（spot 上方）
+  putWall: number | null;    // 最大 Put OI 行权价（spot 下方）
+  maxPain: number | null;    // 最大痛点
+  emSigma: number | null;    // ±1σ 预期波动（美元）
+  emExpiryLabel: string;     // EM 对应到期
+  emDays: number | null;     // EM 对应到期剩余天数
+}
+
+const EMPTY_LEVELS: ChainLevels = {
+  callWall: null, putWall: null, maxPain: null, emSigma: null, emExpiryLabel: '', emDays: null,
+};
+
+// expirySel === 'ALL' 时跨全部到期聚合 OI；否则只取选定到期。
+// EM 永远绑定单一到期（ALL 时取最接近 30D 的到期）。
+export function computeChainLevels(
+  opt: DeribitData | null,
+  expirySel: string | 'ALL',
+  spot: number,
+): ChainLevels {
+  if (!opt?.expiries.length || !spot) return EMPTY_LEVELS;
+
+  const groups: ExpiryGroup[] =
+    expirySel === 'ALL'
+      ? opt.expiries
+      : opt.expiries.filter(e => e.label === expirySel);
+  if (!groups.length) return EMPTY_LEVELS;
+
+  // 按行权价聚合 Call / Put OI
+  const callOi = new Map<number, number>();
+  const putOi = new Map<number, number>();
+  for (const g of groups) {
+    for (const c of g.calls) callOi.set(c.strike, (callOi.get(c.strike) ?? 0) + c.oi);
+    for (const p of g.puts) putOi.set(p.strike, (putOi.get(p.strike) ?? 0) + p.oi);
+  }
+
+  const callWall = [...callOi.entries()]
+    .filter(([k]) => k >= spot)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const putWall = [...putOi.entries()]
+    .filter(([k]) => k <= spot)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  const strikes = new Set<number>([...callOi.keys(), ...putOi.keys()]);
+  const callsArr = [...callOi.entries()].map(([strike, oi]) => ({ strike, oi }));
+  const putsArr = [...putOi.entries()].map(([strike, oi]) => ({ strike, oi }));
+  const maxPain = strikes.size
+    ? computeMaxPain(callsArr, putsArr, [...strikes].sort((a, b) => a - b))
+    : null;
+
+  // EM：取单一到期的 ATM IV
+  const emGroup =
+    expirySel === 'ALL'
+      ? opt.expiries.reduce((best, e) =>
+          Math.abs(e.daysToExp - 30) < Math.abs(best.daysToExp - 30) ? e : best)
+      : groups[0];
+  let emSigma: number | null = null;
+  if (emGroup && emGroup.atmIV > 0 && emGroup.daysToExp > 0) {
+    emSigma = spot * (emGroup.atmIV / 100) * Math.sqrt(emGroup.daysToExp / 365);
+  }
+
+  return {
+    callWall,
+    putWall,
+    maxPain,
+    emSigma,
+    emExpiryLabel: emGroup?.label ?? '',
+    emDays: emGroup?.daysToExp ?? null,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

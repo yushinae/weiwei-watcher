@@ -79,9 +79,11 @@ export type {
   SignalSeverity, IVSignal,
   VolRegime, RegimeResult,
   SentFactor,
+  NetGexSummary, ChainLevels,
 } from './data/analysis';
 export {
   computeMaxPain, maxPain,
+  computeNetGex, computeChainLevels,
   FG_ZONES, fgColor,
   severityColor, severityBg, severityBorder,
   generateSignals,

@@ -1,12 +1,13 @@
 // 价格 K 线数据层 —— 复用既有 Deribit WS rpc + 共享轮询基础设施。
-// 1) useCandles：通过 public/get_tradingview_chart_data 拉取 OHLC（与 deribit.ts 同一通道，无 CORS）。
-// 2) computeChainLevels：从已解析的期权链派生 Call 墙 / Put 墙 / 最大痛点 / ±1σ 预期波动，
-//    供 K 线图叠加。算法与 dashboardWidgets 的 GEXKeyLevels / analysis.computeMaxPain 保持一致。
+// useCandles：REST 回填 + Binance kline WS 实时更新。
+// 期权关键位计算（computeChainLevels）已上移到 registry/data/analysis.ts
+// （决策页/监控页/价格图共用一套口径），此处仅 re-export 保持旧 import 路径可用。
 
 import { useEffect, useState, useRef } from 'react';
 import type { Coin } from '../monitor/types';
-import { computeMaxPain } from '../../registry/monitorWidgetsBase';
-import type { DeribitData, ExpiryGroup } from '../../registry/monitorWidgetsBase';
+
+export { computeChainLevels } from '../../registry/data/analysis';
+export type { ChainLevels } from '../../registry/data/analysis';
 
 // ── K 线 ─────────────────────────────────────────────────────────────────────
 // 价格源 = Binance（最深流动性的基准价、分辨率全、历史长），经 /binance-api 代理拉 klines。
@@ -172,77 +173,4 @@ export function useCandles(coin: Coin, res: Resolution) {
   }, [coin, res]);
 
   return { candles, loading, error };
-}
-
-// ── 期权关键位 ───────────────────────────────────────────────────────────────
-
-export interface ChainLevels {
-  callWall: number | null;   // 最大 Call OI 行权价（spot 上方）
-  putWall: number | null;    // 最大 Put OI 行权价（spot 下方）
-  maxPain: number | null;    // 最大痛点
-  emSigma: number | null;    // ±1σ 预期波动（美元）
-  emExpiryLabel: string;     // EM 对应到期
-  emDays: number | null;     // EM 对应到期剩余天数
-}
-
-const EMPTY_LEVELS: ChainLevels = {
-  callWall: null, putWall: null, maxPain: null, emSigma: null, emExpiryLabel: '', emDays: null,
-};
-
-// expirySel === 'ALL' 时跨全部到期聚合 OI（与 GEXKeyLevels 行为一致）；
-// 否则只取选定到期。EM 永远绑定单一到期（ALL 时取最接近 30D 的到期）。
-export function computeChainLevels(
-  opt: DeribitData | null,
-  expirySel: string | 'ALL',
-  spot: number,
-): ChainLevels {
-  if (!opt?.expiries.length || !spot) return EMPTY_LEVELS;
-
-  const groups: ExpiryGroup[] =
-    expirySel === 'ALL'
-      ? opt.expiries
-      : opt.expiries.filter(e => e.label === expirySel);
-  if (!groups.length) return EMPTY_LEVELS;
-
-  // 按行权价聚合 Call / Put OI
-  const callOi = new Map<number, number>();
-  const putOi = new Map<number, number>();
-  for (const g of groups) {
-    for (const c of g.calls) callOi.set(c.strike, (callOi.get(c.strike) ?? 0) + c.oi);
-    for (const p of g.puts) putOi.set(p.strike, (putOi.get(p.strike) ?? 0) + p.oi);
-  }
-
-  const callWall = [...callOi.entries()]
-    .filter(([k]) => k >= spot)
-    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-  const putWall = [...putOi.entries()]
-    .filter(([k]) => k <= spot)
-    .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-
-  const strikes = new Set<number>([...callOi.keys(), ...putOi.keys()]);
-  const callsArr = [...callOi.entries()].map(([strike, oi]) => ({ strike, oi }));
-  const putsArr = [...putOi.entries()].map(([strike, oi]) => ({ strike, oi }));
-  const maxPain = strikes.size
-    ? computeMaxPain(callsArr, putsArr, [...strikes].sort((a, b) => a - b))
-    : null;
-
-  // EM：取单一到期的 ATM IV
-  const emGroup =
-    expirySel === 'ALL'
-      ? opt.expiries.reduce((best, e) =>
-          Math.abs(e.daysToExp - 30) < Math.abs(best.daysToExp - 30) ? e : best)
-      : groups[0];
-  let emSigma: number | null = null;
-  if (emGroup && emGroup.atmIV > 0 && emGroup.daysToExp > 0) {
-    emSigma = spot * (emGroup.atmIV / 100) * Math.sqrt(emGroup.daysToExp / 365);
-  }
-
-  return {
-    callWall,
-    putWall,
-    maxPain,
-    emSigma,
-    emExpiryLabel: emGroup?.label ?? '',
-    emDays: emGroup?.daysToExp ?? null,
-  };
 }

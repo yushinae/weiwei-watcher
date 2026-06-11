@@ -3,8 +3,11 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Tile } from '../components/card/Tile';
 import type { Coin } from '../features/monitor/types';
 import { useDeribitOptions, useDeribitHistory, useFlowData, VolConeChart } from './monitorWidgetsBase';
-import { classifyRegime } from './monitorWidgetsBase';
-import { getUpcomingEvents, formatEventTime, type EcoEvent } from './data/economicCalendar';
+import { classifyRegime, computeNetGex, computeChainLevels } from './monitorWidgetsBase';
+import {
+  getUpcomingEvents, formatEventTime, formatEventDay, daysUntil,
+  isCalendarStale, CALENDAR_MAINTAINED_THROUGH, type EcoEvent,
+} from './data/economicCalendar';
 import type { TickerSnapshot } from './data/ws';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -39,21 +42,26 @@ const DVOL_SEGMENTS = [
   { max: 999, color: 'var(--color-sev-extreme)' },
 ];
 
+// 诚实原则：历史数据没到就显示 '—' 并说明原因，绝不拿 50%/5pp 之类
+// 「看起来正常」的默认值冒充实测（IV Rank 50 和 IV Rank 缺失是两种完全不同的决策输入）。
 export const EnvironmentThermometer = ({ coin, ticker }: { coin: Coin; ticker: TickerSnapshot | null }) => {
-  const { data: hist } = useDeribitHistory(coin);
-  const dvol = ticker?.dvol ?? hist?.dvolSeries?.[hist.dvolSeries.length - 1] ?? 0;
-  const ivr = hist?.ivRankCurrent ?? 50;
-  const vrp = hist?.vrp?.length ? hist.vrp[hist.vrp.length - 1].iv - hist.vrp[hist.vrp.length - 1].rv : 5;
-  const impliedMove = typeof dvol === 'number' && !isNaN(dvol) && dvol > 0
-    ? (dvol * Math.sqrt(30 / 365) * Math.sqrt(2 / Math.PI)).toFixed(1) : '—';
+  const { data: hist, timedOut } = useDeribitHistory(coin);
 
-  // DVOL segment index
-  const dvolSegIdx = DVOL_SEGMENTS.findIndex(s => dvol <= s.max);
+  const dvolRaw = ticker?.dvol ?? hist?.dvolSeries?.[hist.dvolSeries.length - 1];
+  const dvol = typeof dvolRaw === 'number' && Number.isFinite(dvolRaw) && dvolRaw > 0 ? dvolRaw : null;
+  const ivrPct = hist ? Math.round(hist.ivRankCurrent) : null;
+  const lastVrp = hist?.vrp?.length ? hist.vrp[hist.vrp.length - 1] : null;
+  const vrp = lastVrp ? lastVrp.iv - lastVrp.rv : null;
+  const impliedMove = dvol != null ? (dvol * Math.sqrt(30 / 365) * Math.sqrt(2 / Math.PI)).toFixed(1) : null;
 
-  // IV Rank pct
-  const ivrPct = Math.round(ivr);
-  const ivrColor = ivrPct <= 25 ? 'var(--color-sev-calm)' : ivrPct <= 50 ? 'var(--color-sev-mid)' : ivrPct <= 75 ? 'var(--color-sev-high)' : 'var(--color-sev-extreme)';
-  const verdictText = ivrPct <= 25 ? 'IV 偏低 → 适合买方策略'
+  // DVOL segment index（-1 = 无数据，全部熄灭）
+  const dvolSegIdx = dvol != null ? DVOL_SEGMENTS.findIndex(s => dvol <= s.max) : -1;
+
+  const ivrColor = ivrPct == null ? 'rgba(255,255,255,0.35)'
+    : ivrPct <= 25 ? 'var(--color-sev-calm)' : ivrPct <= 50 ? 'var(--color-sev-mid)' : ivrPct <= 75 ? 'var(--color-sev-high)' : 'var(--color-sev-extreme)';
+  const verdictText = ivrPct == null
+    ? (timedOut ? 'Deribit 历史无响应 — 无法判定' : '等待历史数据…')
+    : ivrPct <= 25 ? 'IV 偏低 → 适合买方策略'
     : ivrPct <= 50 ? 'IV 中等偏低 → 日历价差时机'
     : ivrPct <= 75 ? 'IV 偏高 → 卖方溢价充足'
     : 'IV 高位 → 谨慎卖 Vega';
@@ -63,24 +71,32 @@ export const EnvironmentThermometer = ({ coin, ticker }: { coin: Coin; ticker: T
       {/* ---- IV Rank: big number + horizontal bar ---- */}
       <div>
         <div className="flex items-baseline gap-1">
-          <AnimatedNumber
-            value={ivrPct}
-            format={(v) => Math.round(v).toString()}
-            pulseOnChange
-            className="text-[44px] font-bold tabular-nums leading-none tracking-[-0.03em]"
-            style={{ color: ivrColor }}
-          />
-          <span className="text-[17px] font-semibold text-white/50">%</span>
+          {ivrPct != null ? (
+            <>
+              <AnimatedNumber
+                value={ivrPct}
+                format={(v) => Math.round(v).toString()}
+                pulseOnChange
+                className="text-[44px] font-bold tabular-nums leading-none tracking-[-0.03em]"
+                style={{ color: ivrColor }}
+              />
+              <span className="text-[17px] font-semibold text-white/50">%</span>
+            </>
+          ) : (
+            <span className="text-[44px] font-bold leading-none tracking-[-0.03em] text-white/30">—</span>
+          )}
         </div>
         <div className="text-[11px] text-white/50 mt-1 mb-2">IV Rank（52周百分位）</div>
         {/* Horizontal gauge bar */}
         <div className="relative w-full h-2 rounded-full bg-[var(--color-surface-1)] overflow-hidden">
           {/* Gradient backdrop */}
-          <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(90deg, var(--color-sev-calm), var(--color-sev-mid), var(--color-sev-high), var(--color-sev-extreme))' }} />
+          <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(90deg, var(--color-sev-calm), var(--color-sev-mid), var(--color-sev-high), var(--color-sev-extreme))', opacity: ivrPct != null ? 1 : 0.25 }} />
           {/* Dark mask from the right */}
-          <div className="absolute top-0 right-0 h-full rounded-r-full bg-[var(--color-card)]" style={{ width: `${100 - ivrPct}%` }} />
+          <div className="absolute top-0 right-0 h-full rounded-r-full bg-[var(--color-card)]" style={{ width: `${100 - (ivrPct ?? 0)}%` }} />
           {/* Pointer dot */}
-          <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--color-card)] shadow transition-all duration-700" style={{ left: `calc(${ivrPct}% - 6px)` }} />
+          {ivrPct != null && (
+            <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-[var(--color-card)] shadow transition-all duration-700" style={{ left: `calc(${ivrPct}% - 6px)` }} />
+          )}
         </div>
       </div>
 
@@ -89,18 +105,20 @@ export const EnvironmentThermometer = ({ coin, ticker }: { coin: Coin; ticker: T
         <span className="text-[11px] text-white/50 font-medium w-[34px] shrink-0">DVOL</span>
         <div className="flex gap-[3px] flex-1">
           {DVOL_SEGMENTS.map((seg, i) => (
-            <div key={i} className="flex-1 h-[6px] rounded-sm transition-opacity duration-300" style={{ background: seg.color, opacity: i <= dvolSegIdx ? 1 : 0.12 }} />
+            <div key={i} className="flex-1 h-[6px] rounded-sm transition-opacity duration-300" style={{ background: seg.color, opacity: dvolSegIdx >= 0 && i <= dvolSegIdx ? 1 : 0.12 }} />
           ))}
         </div>
         <span className="text-[15px] font-bold tabular-nums text-white/85 w-[48px] text-right">
-          <AnimatedNumber value={dvol} format={(v) => v.toFixed(1)} />%
+          {dvol != null ? <><AnimatedNumber value={dvol} format={(v) => v.toFixed(1)} />%</> : <span className="text-white/35">—</span>}
         </span>
       </div>
 
       {/* ---- Data row ---- */}
       <div className="flex items-center justify-between text-[11px]">
-        <span className="text-white/50">30d 预期波动 <span className="font-semibold tabular-nums text-white/70">±{impliedMove}%</span></span>
-        <span className="text-white/50">VRP <span className="font-semibold tabular-nums" style={{ color: vrp >= 5 ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}pp</span></span>
+        <span className="text-white/50">30d 预期波动 <span className="font-semibold tabular-nums text-white/70">{impliedMove != null ? `±${impliedMove}%` : '—'}</span></span>
+        <span className="text-white/50">VRP {vrp != null
+          ? <span className="font-semibold tabular-nums" style={{ color: vrp >= 5 ? 'var(--color-trade-up)' : 'var(--color-trade-down)' }}>{vrp >= 0 ? '+' : ''}{vrp.toFixed(1)}pp</span>
+          : <span className="font-semibold text-white/35">—</span>}</span>
       </div>
 
       {/* ---- Verdict ---- */}
@@ -179,42 +197,40 @@ export const VolConeCard = ({ coin }: { coin: Coin }) => {
 // 3. GEXKeyLevels — big price + 2×2 levels + zones + tilt
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// 口径与监控页完全一致：墙/痛点 = computeChainLevels（真 max pain，最小化总赔付），
+// 净 GEX/区制 = computeNetGex（Σ bsGamma×OI×S²/100）。两页数字必须互相对得上。
 export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnapshot | null }) => {
   const { data: opt } = useDeribitOptions(coin);
   const spot = ticker?.spot ?? opt?.spot ?? 0;
 
-  const levels = useMemo(() => {
-    if (!opt?.expiries.length) return null;
-    const allOptions = opt.expiries.flatMap(e => [...e.calls, ...e.puts]);
-    const oiMap = new Map<number, { callOi: number; putOi: number }>();
-    for (const o of allOptions) {
-      if (!oiMap.has(o.strike)) oiMap.set(o.strike, { callOi: 0, putOi: 0 });
-      const b = oiMap.get(o.strike)!;
-      if (o.type === 'C') b.callOi += o.oi;
-      else b.putOi += o.oi;
+  const levels = useMemo(() => computeChainLevels(opt, 'ALL', spot), [opt, spot]);
+  const gex = useMemo(() => (opt?.expiries.length && opt.spot ? computeNetGex(opt) : null), [opt]);
+
+  // OI 支撑/阻力区：现价上方 Call OI Top3 / 下方 Put OI Top3 的价带
+  const zones = useMemo(() => {
+    if (!opt?.expiries.length || !spot) return null;
+    const callOi = new Map<number, number>();
+    const putOi = new Map<number, number>();
+    for (const e of opt.expiries) {
+      for (const c of e.calls) callOi.set(c.strike, (callOi.get(c.strike) ?? 0) + c.oi);
+      for (const p of e.puts) putOi.set(p.strike, (putOi.get(p.strike) ?? 0) + p.oi);
     }
-    const callWall = [...oiMap.entries()].filter(([k]) => k >= spot).sort((a, b) => b[1].callOi - a[1].callOi)[0]?.[0] ?? spot;
-    const putWall  = [...oiMap.entries()].filter(([k]) => k <= spot).sort((a, b) => b[1].putOi - a[1].putOi)[0]?.[0] ?? spot;
-    const maxPain  = [...oiMap.entries()].sort((a, b) => (b[1].callOi + b[1].putOi) - (a[1].callOi + a[1].putOi))[0]?.[0] ?? spot;
-    const totalCallOi = allOptions.filter(o => o.type === 'C').reduce((s, o) => s + o.oi, 0);
-    const totalPutOi  = allOptions.filter(o => o.type === 'P').reduce((s, o) => s + o.oi, 0);
-    const gexTilt = totalPutOi > totalCallOi * 1.15 ? 'bearish' : totalCallOi > totalPutOi * 1.15 ? 'bullish' : 'neutral';
-    const gexUsd = totalPutOi > totalCallOi ? `-$${((totalPutOi - totalCallOi) * spot / 1e6).toFixed(0)}M` : `+$${((totalCallOi - totalPutOi) * spot / 1e6).toFixed(0)}M`;
-
-    // OI-based support/resistance zones from top 3 call/put OI strikes
-    const topCalls = [...oiMap.entries()].filter(([k]) => k >= spot).sort((a, b) => b[1].callOi - a[1].callOi).slice(0, 3);
-    const topPuts  = [...oiMap.entries()].filter(([k]) => k <= spot).sort((a, b) => b[1].putOi - a[1].putOi).slice(0, 3);
-    const resistStrikes = topCalls.filter(([,v]) => v.callOi > 0).map(([k]) => k);
-    const supportStrikes = topPuts.filter(([,v]) => v.putOi > 0).map(([k]) => k);
-    const resistL = resistStrikes.length >= 2 ? Math.min(...resistStrikes) : spot;
-    const resistH = resistStrikes.length >= 2 ? Math.max(...resistStrikes) : spot;
-    const supportL = supportStrikes.length >= 2 ? Math.min(...supportStrikes) : spot;
-    const supportH = supportStrikes.length >= 2 ? Math.max(...supportStrikes) : spot;
-
-    return { callWall, putWall, maxPain, gexTilt, gexUsd, resistL, resistH, supportL, supportH };
+    const top3 = (m: Map<number, number>, keep: (k: number) => boolean) =>
+      [...m.entries()].filter(([k, v]) => keep(k) && v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+    const resist = top3(callOi, k => k >= spot);
+    const support = top3(putOi, k => k <= spot);
+    if (resist.length < 2 || support.length < 2) return null;
+    return {
+      resistL: Math.min(...resist), resistH: Math.max(...resist),
+      supportL: Math.min(...support), supportH: Math.max(...support),
+    };
   }, [opt, spot]);
 
+  // Gamma 区制：现价相对翻转点（无翻转点时退回总净额符号）— 同监控页 Gamma 速读
+  const isPos = gex ? (gex.flip != null ? spot >= gex.flip : gex.totalNet >= 0) : null;
+
   const fmtPx = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtGexM = (v: number) => `${v < 0 ? '-' : '+'}$${Math.abs(v / 1e6).toFixed(1)}M`;
 
   return (
     <div className="flex flex-col w-full h-full gap-2">
@@ -229,17 +245,21 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
       {/* 2×2 key levels */}
       <div className="grid grid-cols-2 gap-1.5">
         {[
-          { label: 'Call 墙', value: levels?.callWall ?? spot, color: 'var(--color-trade-up)' },
-          { label: '最大痛点', value: levels?.maxPain ?? spot, color: 'var(--color-sev-mid)' },
-          { label: 'Put 墙',  value: levels?.putWall  ?? spot, color: 'var(--color-trade-down)' },
-          { label: 'GEX 总量', value: null, color: 'var(--color-text-muted)', text: levels?.gexUsd ?? '—' },
+          { label: 'Call 墙', value: levels.callWall, color: 'var(--color-trade-up)' },
+          { label: '最大痛点', value: levels.maxPain, color: 'var(--color-sev-mid)' },
+          { label: 'Put 墙',  value: levels.putWall, color: 'var(--color-trade-down)' },
+          { label: '净 GEX / 1%', value: null,
+            color: gex ? (gex.totalNet >= 0 ? 'var(--color-trade-up)' : 'var(--color-trade-down)') : 'var(--color-text-muted)',
+            text: gex ? fmtGexM(gex.totalNet) : '—' },
         ].map((item, i) => (
           <Tile key={i} className="gex-key-tile flex flex-col gap-0.5 px-2.5 py-1.5">
             <span className="text-[10px] text-white/55 uppercase tracking-wider">{item.label}</span>
             <span className="text-[15px] font-bold tabular-nums" style={{ color: item.color }}>
               {item.text != null
                 ? item.text
-                : <AnimatedNumber value={item.value as number} format={fmtPx} pulseOnChange />}
+                : item.value != null
+                  ? <AnimatedNumber value={item.value} format={fmtPx} pulseOnChange />
+                  : <span className="text-white/45">—</span>}
             </span>
           </Tile>
         ))}
@@ -250,7 +270,7 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
         <Tile className="gex-key-tile flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">支撑区</span>
           <span className="text-[13px] font-bold tabular-nums text-trade-down">
-            {levels ? `${fmtPx(levels.supportL)} – ${fmtPx(levels.supportH)}` : (
+            {zones ? `${fmtPx(zones.supportL)} – ${fmtPx(zones.supportH)}` : (
               <span className="text-white/45">—</span>
             )}
           </span>
@@ -258,21 +278,19 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
         <Tile className="gex-key-tile flex-1 flex flex-col gap-0.5 px-2.5 py-1.5">
           <span className="text-[10px] text-white/55 uppercase tracking-wider">阻力区</span>
           <span className="text-[13px] font-bold tabular-nums text-trade-up">
-            {levels ? `${fmtPx(levels.resistL)} – ${fmtPx(levels.resistH)}` : (
+            {zones ? `${fmtPx(zones.resistL)} – ${fmtPx(zones.resistH)}` : (
               <span className="text-white/45">—</span>
             )}
           </span>
         </Tile>
       </div>
 
-      {/* GEX tilt */}
-      {levels && (
-        <Tile className={`gex-key-tile p-2 text-[12px] font-semibold ${
-          levels.gexTilt === 'bearish' ? 'text-trade-down' :
-          levels.gexTilt === 'bullish' ? 'text-trade-up' :
-          'text-white/50'
-        }`}>
-          {levels.gexTilt === 'bearish' ? '↓ GEX倾向: 空头聚集' : levels.gexTilt === 'bullish' ? '↑ GEX倾向: 多头主导' : 'GEX 中性'}
+      {/* Gamma 区制（口径同监控页 Gamma 速读） */}
+      {gex && isPos != null && (
+        <Tile className={`gex-key-tile p-2 text-[12px] font-semibold ${isPos ? 'text-trade-up' : 'text-trade-down'}`}>
+          {isPos
+            ? `↑ 正 Gamma · 压制波动${gex.flip != null ? ` · 跌破 ${fmtPx(gex.flip)} 转放大` : ''}`
+            : `↓ 负 Gamma · 助涨助跌${gex.flip != null ? ` · 站上 ${fmtPx(gex.flip)} 转压制` : ''}`}
         </Tile>
       )}
     </div>
@@ -285,6 +303,7 @@ export const GEXKeyLevels = ({ coin, ticker }: { coin: Coin; ticker: TickerSnaps
 
 export const EventCalendarStrip = React.memo(() => {
   const events = useMemo(() => getUpcomingEvents(30), []);
+  const stale = isCalendarStale();
 
   const tagColor = (e: EcoEvent) => {
     if (e.importance === 'high') return 'var(--color-sev-extreme)';   // #FF5F57
@@ -300,13 +319,9 @@ export const EventCalendarStrip = React.memo(() => {
     </span>
   );
 
-  const today = new Date();
-  const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
-  const todayEvent = events.find(e => e.date === todayStr);
-
-  const year = new Date().getFullYear();
+  const todayEvent = events.find(e => daysUntil(e) === 0);
   const highEvent = events.find(e => e.importance === 'high');
-  const daysToHigh = highEvent ? Math.round((new Date(`${year}-${highEvent.date.slice(0, 2)}-${highEvent.date.slice(3, 5)}T08:00:00Z`).getTime() - Date.now()) / 86_400_000) : 99;
+  const daysToHigh = highEvent ? daysUntil(highEvent) : null;
 
   return (
     <div className="flex flex-col w-full h-full min-h-0">
@@ -319,9 +334,9 @@ export const EventCalendarStrip = React.memo(() => {
 
       {/* 事件列表 — 超出 ~5 条时上下滚动 */}
       <div className="min-h-0 max-h-[170px] overflow-y-auto dash-scroll flex flex-col gap-1">
-        {events.filter(e => e.date !== todayStr).map((e, i) => (
+        {events.filter(e => daysUntil(e) > 0).map((e, i) => (
           <div key={i} className="dashboard-inner-row flex items-center py-1.5 px-1.5 -mx-1.5 gap-3 rounded-lg transition-colors duration-[160ms]">
-            <span className="text-[11px] font-semibold tabular-nums text-white/55 min-w-[42px]">{e.date}</span>
+            <span className="text-[11px] font-semibold tabular-nums text-white/55 min-w-[42px]">{formatEventDay(e)}</span>
             <span className="text-[13px] text-white/80 flex-1">{e.title}</span>
             {e.timeET && <span className="text-[10px] tabular-nums text-white/50">{formatEventTime(e.timeET)}</span>}
             <TagBadge e={e} />
@@ -329,11 +344,21 @@ export const EventCalendarStrip = React.memo(() => {
         ))}
       </div>
 
-      <Tile className={`shrink-0 mt-auto pt-2 p-2.5 text-[12px] font-semibold ${
-        daysToHigh > 7 ? 'text-[var(--color-sev-calm)]' : daysToHigh > 2 ? 'text-[var(--color-sev-mid)]' : 'text-[var(--color-sev-extreme)]'
-      }`}>
-        建议: {daysToHigh > 7 ? '事件空白期，适合布置组合策略' : daysToHigh > 2 ? '事件前窗口偏紧' : '事件临近，IV可能上升'}
-      </Tile>
+      {/* 过期护栏：排期数据超出维护范围时明示，绝不显示「无事件→适合布置策略」的假建议 */}
+      {stale ? (
+        <Tile className="shrink-0 mt-auto pt-2 p-2.5 text-[12px] font-semibold text-[var(--color-sev-mid)]">
+          ⚠ 日历未维护（排期数据截至 {CALENDAR_MAINTAINED_THROUGH}）— 事件信息不可信，请更新 economicCalendar.ts
+        </Tile>
+      ) : (
+        <Tile className={`shrink-0 mt-auto pt-2 p-2.5 text-[12px] font-semibold ${
+          daysToHigh == null ? 'text-white/50' :
+          daysToHigh > 7 ? 'text-[var(--color-sev-calm)]' : daysToHigh > 2 ? 'text-[var(--color-sev-mid)]' : 'text-[var(--color-sev-extreme)]'
+        }`}>
+          建议: {daysToHigh == null ? '30 天内无已排期的重大事件'
+            : daysToHigh > 7 ? '事件空白期，适合布置组合策略'
+            : daysToHigh > 2 ? '事件前窗口偏紧' : '事件临近，IV可能上升'}
+        </Tile>
+      )}
     </div>
   );
 });

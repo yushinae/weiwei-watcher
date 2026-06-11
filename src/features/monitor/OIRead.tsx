@@ -1,7 +1,7 @@
 // 持仓 tab 的「Gamma 速读」结论条 —— 与波动率速读同款分层阅读：结论先行。
 // 一眼回答：现在是正/负 Gamma 区制（做市商压波动还是助涨助跌）、翻转点在哪、
-// 上方 call 墙 / 下方 put 墙 / 到期磁吸 Max Pain / PCR。GEX 口径与下方 GEXWidget 一致
-// （Σ bsGamma×OI×S²/100，call 为正、put 为负，翻转点 = 净 GEX 变号处线性插值）。
+// 上方 call 墙 / 下方 put 墙 / 到期磁吸 Max Pain / PCR。
+// GEX 口径 = analysis.computeNetGex（与下方 GEXWidget / 决策页 GEX 关键位同一函数/同一约定）。
 import React, { useEffect, useMemo } from 'react';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {

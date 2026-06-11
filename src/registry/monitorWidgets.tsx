@@ -321,8 +321,9 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
   const spot = data?.spot ?? 0;
   const { callOI, putOI, strikes, maxPain, totalCallOI, totalPutOI } = useMemo(() => {
+    // 「全部」= 全链（与决策页 computeChainLevels 同口径）；tab 只列近 6 个到期供聚焦
     const targetExps = expFilter === 'all'
-      ? expiries
+      ? (data?.expiries ?? [])
       : expiries.filter(e => e.label === expFilter);
     const nextCallOI = new Map<number, number>();
     const nextPutOI  = new Map<number, number>();
@@ -349,7 +350,7 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       totalCallOI: [...nextCallOI.values()].reduce((s, o) => s + o, 0),
       totalPutOI: [...nextPutOI.values()].reduce((s, o) => s + o, 0),
     };
-  }, [expFilter, expiries, spot]);
+  }, [expFilter, expiries, data?.expiries, spot]);
   const pcr = totalCallOI > 0 ? totalPutOI / totalCallOI : 0;
 
   const fmtOI = (v: number) => {
@@ -558,7 +559,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
 
   const spot = data?.spot ?? 0;
   const { gexMap, strikes, netGex, totalNet, zeroGamma } = useMemo(() => {
-    const targetExps = expFilter === 'all' ? expiries : expiries.filter(e => e.label === expFilter);
+    // 「全部」= 全链（与 computeNetGex / Gamma 速读 / 决策页同口径）；tab 只列近 6 个到期
+    const targetExps = expFilter === 'all' ? (data?.expiries ?? []) : expiries.filter(e => e.label === expFilter);
     const nextGexMap = new Map<number, { cGex: number; pGex: number }>();
     if (spot > 0) {
       for (const exp of targetExps) {
@@ -597,7 +599,7 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       totalNet: nextNetGex.reduce((s, g) => s + g, 0),
       zeroGamma: nextZeroGamma,
     };
-  }, [expFilter, expiries, spot]);
+  }, [expFilter, expiries, data?.expiries, spot]);
 
   const fmtGex = (v: number) => {
     const abs = Math.abs(v);

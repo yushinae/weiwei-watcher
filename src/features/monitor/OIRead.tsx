@@ -5,10 +5,9 @@
 import React, { useEffect, useMemo } from 'react';
 import { useCardHeader } from '../../components/card/WidgetCard';
 import {
-  useCoinControl, useDeribitOptions, bsGamma,
+  useCoinControl, useDeribitOptions, computeNetGex, computeChainLevels,
   CoinLabel, type CoinControlProps,
 } from '../../registry/monitorWidgetsBase';
-import { computeChainLevels } from '../priceChart/candles';
 
 const UP = '#28C840';
 const DOWN = '#FF5F57';
@@ -25,35 +24,12 @@ export const GammaHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContro
     return () => setHeaderRight(null);
   }, [coin, setCoin, setHeaderRight, data]);
 
-  // 净 GEX → 翻转点 / 总净额（口径同下方 GEX 图：取前 6 个到期）
-  const gx = useMemo(() => {
-    if (!data) return null;
-    const spot = data.spot;
-    const exps = data.expiries.slice(0, 6);
-    const gexMap = new Map<number, number>();
-    for (const exp of exps) {
-      for (const o of [...exp.calls, ...exp.puts]) {
-        const g = (bsGamma(spot, o.strike, o.T, o.iv) * spot * spot / 100) * o.oi;
-        gexMap.set(o.strike, (gexMap.get(o.strike) ?? 0) + (o.type === 'C' ? g : -g));
-      }
-    }
-    const strikes = [...gexMap.keys()].filter(k => k >= spot * 0.7 && k <= spot * 1.3).sort((a, b) => a - b);
-    const netGex = strikes.map(k => gexMap.get(k)!);
-    const totalNet = netGex.reduce((s, g) => s + g, 0);
-    let flip: number | null = null;
-    for (let i = 1; i < strikes.length; i++) {
-      if (netGex[i - 1] * netGex[i] < 0) {
-        const frac = Math.abs(netGex[i - 1]) / (Math.abs(netGex[i - 1]) + Math.abs(netGex[i]));
-        flip = strikes[i - 1] + frac * (strikes[i] - strikes[i - 1]);
-        break;
-      }
-    }
-    return { spot, totalNet, flip };
-  }, [data]);
+  // 净 GEX → 翻转点 / 总净额（共享口径：analysis.computeNetGex，同下方 GEX 图）
+  const gx = useMemo(() => (data ? computeNetGex(data) : null), [data]);
 
   const levels = useMemo(() => computeChainLevels(data, 'ALL', data?.spot ?? 0), [data]);
 
-  const spot = gx?.spot ?? data?.spot ?? 0;
+  const spot = data?.spot ?? 0;
   const flip = gx?.flip ?? null;
   // 区制：现价相对翻转点（无翻转点时退回总净额符号）
   const isPos = flip != null ? spot >= flip : (gx ? gx.totalNet >= 0 : true);

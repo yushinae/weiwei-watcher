@@ -335,16 +335,17 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       }
     }
 
-    const nextStrikes = [...new Set([...nextCallOI.keys(), ...nextPutOI.keys()])]
-      .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
+    const allStrikes = [...new Set([...nextCallOI.keys(), ...nextPutOI.keys()])]
       .sort((a, b) => a - b);
-    const callArr = nextStrikes.map(k => ({ strike: k, oi: nextCallOI.get(k) ?? 0 }));
-    const putArr  = nextStrikes.map(k => ({ strike: k, oi: nextPutOI.get(k)  ?? 0 }));
+    // 图表只画现价附近的窗口；最大痛点必须用全链 OI 算（窗口截断会丢深 ITM 的赔付贡献）
+    const nextStrikes = allStrikes.filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35);
+    const callArr = allStrikes.map(k => ({ strike: k, oi: nextCallOI.get(k) ?? 0 }));
+    const putArr  = allStrikes.map(k => ({ strike: k, oi: nextPutOI.get(k)  ?? 0 }));
     return {
       callOI: nextCallOI,
       putOI: nextPutOI,
       strikes: nextStrikes,
-      maxPain: computeMaxPain(callArr, putArr, nextStrikes),
+      maxPain: computeMaxPain(callArr, putArr, allStrikes),
       totalCallOI: [...nextCallOI.values()].reduce((s, o) => s + o, 0),
       totalPutOI: [...nextPutOI.values()].reduce((s, o) => s + o, 0),
     };
@@ -574,9 +575,10 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
     const nextStrikes = [...nextGexMap.keys()]
       .filter(k => spot > 0 && k >= spot * 0.65 && k <= spot * 1.35)
       .sort((a, b) => a - b);
+    // 标准 GEX 符号约定：call 正 / put 负（与 Gamma 速读 computeNetGex、决策页一致）
     const nextNetGex = nextStrikes.map(k => {
       const e = nextGexMap.get(k)!;
-      return e.pGex - e.cGex;
+      return e.cGex - e.pGex;
     });
 
     let nextZeroGamma: number | null = null;
@@ -649,11 +651,11 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         const isSpot = spot > 0 && Math.abs(k - spot) / spot < 0.005;
         const isZero = zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005;
         const marker = isSpot ? ' ◆ 现货' : isZero ? ' ○ 零Gamma' : '';
-        const cGex = e ? -e.cGex : 0;
-        const pGexVal = e ? e.pGex : 0;
+        const cGex = e ? e.cGex : 0;   // call 正
+        const pGexVal = e ? -e.pGex : 0; // put 负
         return `<div style="font-weight:bold;margin-bottom:4px">${fmtPx(k)}${marker}</div>
-<span style="color:#FF5F57">●</span> Call GEX: <b>${fmtGex(cGex)}</b><br/>
-<span style="color:#25e889">●</span> Put GEX: <b>${fmtGex(pGexVal)}</b><br/>
+<span style="color:#25e889">●</span> Call GEX: <b>${fmtGex(cGex)}</b><br/>
+<span style="color:#FF5F57">●</span> Put GEX: <b>${fmtGex(pGexVal)}</b><br/>
 <span>净 GEX: <b style="color:${net >= 0 ? '#25e889' : '#FF5F57'}">${fmtGex(net)}</b></span>`;
       },
     },

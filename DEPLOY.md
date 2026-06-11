@@ -3,6 +3,12 @@
 目标：一台 VPS 跑全部 —— Caddy（HTTPS + 静态前端 + 反代）+ Node 后端（用户体系/key 保管库/签名代理）+ Postgres。
 单域名部署，前后端同源，cookie 零配置。VPS 的固定 IP 就是交易所 API 白名单里填的 IP。
 
+## 分支策略
+
+- `main`＝个人本地版（纯前端日常使用，不部署）；`product`＝产品版（用户体系/多租户，VPS 只从它部署）。
+- 同步**只有一个方向：main → product**（`git checkout product && git merge main`），把日常改进带进产品。
+  绝不反向合并，product 独有的东西不回流 main——这是两条分支不打架的唯一规则。
+
 ## 0. 准备
 
 - Hostinger hPanel → VPS → 操作系统：重装为 **Ubuntu 24.04 LTS（纯净版，不带面板）**，记下 root 密码和 IP。
@@ -28,10 +34,12 @@ sudo -u postgres createdb weiwei -O app
 
 ```bash
 su - app
-git clone <你的仓库地址> weiwei && cd weiwei
+git clone -b product https://github.com/yushinae/weiwei-react.git weiwei && cd weiwei
 npm ci && (cd server && npm ci)
 npm run build        # 前端 → dist/（生产构建默认强制登录）
 ```
+
+仓库是私有的话，clone 用 GitHub 的 fine-grained token（仓库设置 → Deploy keys 或 PAT）。
 
 ## 3. 后端环境变量
 

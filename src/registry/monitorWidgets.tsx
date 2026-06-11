@@ -23,6 +23,7 @@ import type {
   ParsedOption, ExpiryGroup, DeribitData, HistoryData,
 } from './data/deribit';
 import { useFlowData, useFuturesBasis } from './data/flow';
+import { computeMaxPain, maxPain, computeNetGex } from './data/analysis';
 import {
   WATCHLIST_SET, WATCH_OI_SNAP, WATCH_CACHE as WATCH_CACHE2, saveWatchlist,
 } from './data/store';
@@ -283,22 +284,6 @@ export const IVSurfaceWidget = ({
 // ═══════════════════════════════════════════════════════════════════════════════
 // OptionsSkewWidget – real data
 // ═══════════════════════════════════════════════════════════════════════════════
-
-function computeMaxPain(
-  calls: { strike: number; oi: number }[],
-  puts:  { strike: number; oi: number }[],
-  candidates: number[],
-): number {
-  let minPain = Infinity;
-  let maxPainStrike = candidates[0] ?? 0;
-  for (const P of candidates) {
-    let pain = 0;
-    for (const c of calls) pain += Math.max(0, P - c.strike) * c.oi;
-    for (const p of puts)  pain += Math.max(0, p.strike - P) * p.oi;
-    if (pain < minPain) { minPain = pain; maxPainStrike = P; }
-  }
-  return maxPainStrike;
-}
 
 export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });
@@ -583,21 +568,18 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       return e.cGex - e.pGex;
     });
 
-    let nextZeroGamma: number | null = null;
-    for (let i = 1; i < nextStrikes.length; i++) {
-      if (nextNetGex[i - 1] * nextNetGex[i] < 0) {
-        const frac = Math.abs(nextNetGex[i - 1]) / (Math.abs(nextNetGex[i - 1]) + Math.abs(nextNetGex[i]));
-        nextZeroGamma = nextStrikes[i - 1] + frac * (nextStrikes[i] - nextStrikes[i - 1]);
-        break;
-      }
-    }
+    // 净额 / 翻转点走共享 computeNetGex（窗口与本图显示窗口一致），
+    // 保证速读条 / 本图 / 决策页 GEX 关键位三处数字同源
+    const { totalNet, flip } = spot > 0
+      ? computeNetGex({ spot, expiries: targetExps })
+      : { totalNet: 0, flip: null };
 
     return {
       gexMap: nextGexMap,
       strikes: nextStrikes,
       netGex: nextNetGex,
-      totalNet: nextNetGex.reduce((s, g) => s + g, 0),
-      zeroGamma: nextZeroGamma,
+      totalNet,
+      zeroGamma: flip,
     };
   }, [expFilter, expiries, data?.expiries, spot]);
 
@@ -1187,22 +1169,6 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 // VannaCharmWidget — 高阶 Greeks 热力图（Strike × Expiry）
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function maxPain(exp: ExpiryGroup, spot: number): number {
-  const strikes = [...new Set([...exp.calls, ...exp.puts].map(o => o.strike))].sort((a, b) => a - b);
-  if (!strikes.length) return spot;
-
-  let minPain = Infinity;
-  let mpStrike = strikes[0];
-
-  for (const s of strikes) {
-    // Total loss to writers if underlying expires at s
-    const callLoss = exp.calls.reduce((sum, o) => sum + o.oi * Math.max(0, s - o.strike), 0);
-    const putLoss  = exp.puts.reduce((sum, o)  => sum + o.oi * Math.max(0, o.strike - s), 0);
-    const pain = callLoss + putLoss;
-    if (pain < minPain) { minPain = pain; mpStrike = s; }
-  }
-  return mpStrike;
-}
 
 export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {
   const { coin, setCoin } = useCoinControl({ coin: coinProp, onCoinChange });

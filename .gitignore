@@ -12,6 +12,10 @@ coverage/
 .reasonix/
 .wrangler/
 
+# pnpm remnant (npm is the canonical package manager)
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
 # local database / runtime data
 *.db
 server/data/*.json

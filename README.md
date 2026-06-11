@@ -29,8 +29,6 @@ npm run dev
 
 启动后访问 http://localhost:3000/
 
-> 当前文档和脚本以 npm 为准。仓库里仍保留 `pnpm-lock.yaml`，如果团队决定改用 pnpm，请同步更新本节命令和 CI，避免两套 lockfile 漂移。
-
 ## 配置（.env）
 
 | 变量 | 必填 | 说明 |

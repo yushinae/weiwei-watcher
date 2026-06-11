@@ -338,6 +338,12 @@ export const CandleChartView = () => {
         mode: CrosshairMode.Normal,
         vertLine: { labelBackgroundColor: '#4A4A4A' },
       },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: { time: true, price: true },
+        axisDoubleClickReset: { time: true, price: true },
+      },
       rightPriceScale: { borderColor:'transparent', minimumWidth: 48 },
       timeScale: {
         borderColor:'transparent',
@@ -411,7 +417,45 @@ export const CandleChartView = () => {
       else { addDrawing({ type:tool, t1:pendingRef.current.t, p1:pendingRef.current.p, t2:time, p2:price }); pendingRef.current = null; setDrawHint(''); }
     });
 
-    return ()=>{ chart.remove(); chartRef.current=null; candleSeriesRef.current=null; nyMidnightRef.current=null; priceLevelsRef.current=null; };
+    const resetChartScale = () => {
+      chart.priceScale('right').setAutoScale(true);
+      candleSeries.applyOptions({});
+    };
+    const onWheel = (event: WheelEvent) => {
+      const scaleWidth = chart.priceScale('right').width();
+      const rect = el.getBoundingClientRect();
+      if (scaleWidth <= 0 || event.clientX < rect.right - scaleWidth) return;
+      const range = chart.priceScale('right').getVisibleRange();
+      if (!range) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      const localY = event.clientY - rect.top;
+      if (localY < 0 || localY > el.clientHeight - 28) return;
+      const anchor = candleSeries.coordinateToPrice(localY) ?? (range.from + range.to) / 2;
+      const clampedDelta = Math.max(-80, Math.min(80, event.deltaY));
+      const factor = Math.exp(clampedDelta * 0.0002);
+      const minSpan = Math.max(1, Math.abs(anchor) * 0.00001);
+      const nextFrom = anchor - (anchor - range.from) * factor;
+      const nextTo = anchor + (range.to - anchor) * factor;
+      if (nextTo - nextFrom < minSpan) return;
+      chart.priceScale('right').setVisibleRange({ from: nextFrom, to: nextTo });
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (!event.altKey || event.code !== 'KeyR') return;
+      event.preventDefault();
+      resetChartScale();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
+
+    return ()=>{
+      el.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+      chart.remove(); chartRef.current=null; candleSeriesRef.current=null; nyMidnightRef.current=null; priceLevelsRef.current=null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 

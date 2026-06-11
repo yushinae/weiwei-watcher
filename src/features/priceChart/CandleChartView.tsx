@@ -5,12 +5,12 @@ import {
   createChart, CandlestickSeries, ColorType, CrosshairMode, LineStyle, TickMarkType,
 } from 'lightweight-charts';
 import type {
-  IChartApi, ISeriesApi, IPriceLine, UTCTimestamp, CandlestickData, AutoscaleInfo, Time,
+  IChartApi, ISeriesApi, UTCTimestamp, CandlestickData, AutoscaleInfo, Time,
 } from 'lightweight-charts';
 import { ChevronDown, Eye, EyeOff, RotateCcw, Save, Settings2, X } from 'lucide-react';
 import { useCandles, computeChainLevels, type Resolution, type Candle } from './candles';
 import {
-  DRAW_TOOLS, DRAW_COLOR, NOTE_COLOR, TrendPrimitive, NotePrimitive, loadDrawings, saveDrawings, newId,
+  DRAW_TOOLS, NOTE_COLOR, NotePrimitive, loadDrawings, saveDrawings, newId,
   type DrawTool, type Drawing, type DrawingInput,
 } from './drawings';
 import {
@@ -73,6 +73,7 @@ const RES_MS: Record<Resolution, number> = {
 const PRICE_LABEL_RIGHT_GAP_PX = 2;
 const formatAxisPrice = (price: number) => price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 type PriceAxisOverlayLabel = { key: string; price: number; color: string; y: number; width: number };
+type CrosshairPriceLabel = { y: number; price: number; width: number } | null;
 const timeToDate = (time: Time): Date => {
   if (typeof time === 'number') return new Date(time * 1000);
   if (typeof time === 'string') return new Date(`${time}T00:00:00Z`);
@@ -205,16 +206,16 @@ export const CandleChartView = () => {
   const [countdown,setCountdown] = useState('0:00');
   const [lastPriceLabelPos,setLastPriceLabelPos] = useState<{x:number;y:number;width:number}|null>(null);
   const [levelAxisLabels,setLevelAxisLabels] = useState<PriceAxisOverlayLabel[]>([]);
+  const [crosshairPriceLabel,setCrosshairPriceLabel] = useState<CrosshairPriceLabel>(null);
   const [hoverCandle,setHoverCandle] = useState<LegendCandle|null>(null);
   const candleMetaRef = useRef<Map<number,{v:number;prevClose:number}>>(new Map());
 
-  // ── 画线层（自定义） ──────────────────────────────────────────────────────
+  // ── 标注层（自定义） ──────────────────────────────────────────────────────
   const [activeTool,setActiveTool] = useState<DrawTool|null>(null);
   const [drawHint,setDrawHint] = useState('');
   const activeToolRef = useRef<DrawTool|null>(null);
-  const pendingRef = useRef<{t:number;p:number}|null>(null);          // 两点工具的第一点
   const drawingsRef = useRef<Drawing[]>([]);
-  const drawVisualsRef = useRef<Map<string,{priceLine?:IPriceLine;primitive?:TrendPrimitive|NotePrimitive}>>(new Map());
+  const drawVisualsRef = useRef<Map<string,{primitive:NotePrimitive}>>(new Map());
   const coinRef = useRef<Coin>(coin);
   coinRef.current = coin;
 
@@ -228,21 +229,15 @@ export const CandleChartView = () => {
   function renderDrawing(d: Drawing) {
     const series = candleSeriesRef.current;
     if (!series) return;
-    if (d.type === 'h') {
-      const pl = series.createPriceLine({ price:d.price, color:DRAW_COLOR, lineWidth:1, lineStyle:LineStyle.Solid, axisLabelVisible:true, title:'' });
-      drawVisualsRef.current.set(d.id, { priceLine: pl });
-    } else {
-      const prim = d.type === 'note' ? new NotePrimitive(d) : new TrendPrimitive(d);
-      series.attachPrimitive(prim);
-      drawVisualsRef.current.set(d.id, { primitive: prim });
-    }
+    const prim = new NotePrimitive(d);
+    series.attachPrimitive(prim);
+    drawVisualsRef.current.set(d.id, { primitive: prim });
   }
   function unrenderDrawing(id: string) {
     const series = candleSeriesRef.current;
     const v = drawVisualsRef.current.get(id);
     if (v && series) {
-      if (v.priceLine) series.removePriceLine(v.priceLine);
-      if (v.primitive) series.detachPrimitive(v.primitive);
+      series.detachPrimitive(v.primitive);
     }
     drawVisualsRef.current.delete(id);
   }
@@ -260,21 +255,20 @@ export const CandleChartView = () => {
     unrenderDrawing(last.id);
     drawingsRef.current = drawingsRef.current.slice(0,-1);
     saveDrawings(coinRef.current, drawingsRef.current);
-    pendingRef.current = null; setDrawHint('');
+    setDrawHint('');
   }
   function clearDrawings() {
     closeNote();
     drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
     drawingsRef.current = [];
     saveDrawings(coinRef.current, drawingsRef.current);
-    pendingRef.current = null; setDrawHint('');
+    setDrawHint('');
   }
   function selectTool(t: DrawTool) {
     const next = activeToolRef.current === t ? null : t;
     activeToolRef.current = next;
-    pendingRef.current = null;
     setActiveTool(next);
-    setDrawHint(next === 'note' ? '点击图上位置放置标记' : next && next !== 'h' ? '点第一点…' : '');
+    setDrawHint(next === 'note' ? '点击图上位置放置标注' : '');
   }
 
   // ── 标记浮层 ────────────────────────────────────────────────────────────────
@@ -336,7 +330,8 @@ export const CandleChartView = () => {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { labelBackgroundColor: '#4A4A4A' },
+        vertLine: { labelBackgroundColor: '#404347' },
+        horzLine: { labelVisible: false },
       },
       handleScale: {
         mouseWheel: true,
@@ -380,6 +375,11 @@ export const CandleChartView = () => {
     priceLevelsRef.current = priceLevels;
 
     chart.subscribeCrosshairMove(param=>{
+      const scaleWidth = chart.priceScale('right').width();
+      const price = param.point ? candleSeries.coordinateToPrice(param.point.y) : null;
+      setCrosshairPriceLabel(param.point && price != null && scaleWidth > 0
+        ? { y:param.point.y, price, width:Math.max(66, scaleWidth) }
+        : null);
       const d = param.time && param.point ? param.seriesData.get(candleSeries) as CandlestickData|undefined : undefined;
       if (!d || d.open == null){ setHoverCandle(null); return; }
       const time = param.time as number;
@@ -398,23 +398,21 @@ export const CandleChartView = () => {
       if (!tool) {
         const rawHitId = param.hoveredInfo?.objectId ?? param.hoveredObjectId;
         const hitId = typeof rawHitId === 'string' ? rawHitId : null;
-        if (hitId && drawingsRef.current.some(d=>d.id===hitId && d.type==='note')) {
-          if (openNoteRef.current === hitId) closeNote(); else openNoteFor(hitId);
+        const hitDrawing = hitId ? drawingsRef.current.find(d=>d.id===hitId) : null;
+        if (hitDrawing) {
+          if (openNoteRef.current === hitDrawing.id) closeNote(); else openNoteFor(hitDrawing.id);
         } else if (openNoteRef.current) closeNote();
         return;
       }
       const price = s.coordinateToPrice(param.point.y);
       const time = (param.time ?? chart.timeScale().coordinateToTime(param.point.x)) as number | null;
       if (price == null || time == null) return;
-      if (tool === 'h') { addDrawing({ type:'h', price }); }
-      else if (tool === 'note') {
+      if (tool === 'note') {
         const d = addDrawing({ type:'note', t:time, p:price, text:'' });
         // 放置后退出工具并立即展开编辑
         activeToolRef.current = null; setActiveTool(null); setDrawHint('');
         openNoteFor(d.id);
       }
-      else if (!pendingRef.current) { pendingRef.current = { t:time, p:price }; setDrawHint('点第二点完成'); }
-      else { addDrawing({ type:tool, t1:pendingRef.current.t, p1:pendingRef.current.p, t2:time, p2:price }); pendingRef.current = null; setDrawHint(''); }
     });
 
     const resetChartScale = () => {
@@ -459,14 +457,14 @@ export const CandleChartView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  // 画线：按币种加载/切换并重建
+  // 标注：按币种加载/切换并重建
   useEffect(()=>{
     if (!candleSeriesRef.current) return;
     closeNote();
     drawingsRef.current.forEach(d=>unrenderDrawing(d.id));
     drawingsRef.current = loadDrawings(coin);
     drawingsRef.current.forEach(renderDrawing);
-    pendingRef.current = null; setDrawHint('');
+    setDrawHint('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[coin]);
 
@@ -689,9 +687,9 @@ export const CandleChartView = () => {
         <div className="w-px h-5 bg-[var(--color-border-subtle)] mx-0.5"/>
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#17181E]">
           {DRAW_TOOLS.map(t=><Pill key={t.tool} active={activeTool===t.tool} onClick={()=>selectTool(t.tool)}>{t.label}</Pill>)}
-          <button onClick={removeLastDrawing} title="撤销上一条画线"
+          <button onClick={removeLastDrawing} title="撤销上一条标注"
             className="px-2 h-[26px] rounded-md text-[12px] font-semibold text-white/45 hover:bg-[#3A3B40] hover:text-white/80 transition-colors duration-[120ms]">撤销</button>
-          <button onClick={clearDrawings} title="清除全部画线"
+          <button onClick={clearDrawings} title="清除全部标注"
             className="px-2 h-[26px] rounded-md text-[12px] font-semibold text-white/45 hover:bg-[#3A3B40] hover:text-[#FF5F57] transition-colors duration-[120ms]">清除</button>
         </div>
         {drawHint && <span className="text-[11px] text-[var(--nexus-accent)]/80 select-none">{drawHint}</span>}
@@ -778,6 +776,23 @@ export const CandleChartView = () => {
             >
               <div className="text-[11px] leading-[14px]">{lastClose.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-[11px] leading-[14px] text-white/70">{countdown}</div>
+            </div>
+          </div>
+        )}
+        {crosshairPriceLabel && (
+          <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-30 pointer-events-none">
+            <div
+              className="absolute rounded-[3px] bg-[#404347] px-1.5 py-[3px] text-left font-mono text-[11px] leading-[14px] tabular-nums text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
+              style={{
+                left: Math.max(0, (containerRef.current?.clientWidth ?? 0) - crosshairPriceLabel.width - PRICE_LABEL_RIGHT_GAP_PX),
+                top: Math.min(
+                  Math.max(4, crosshairPriceLabel.y - 11),
+                  Math.max(4, (containerRef.current?.clientHeight ?? 0) - 23),
+                ),
+                width: crosshairPriceLabel.width,
+              }}
+            >
+              {formatAxisPrice(crosshairPriceLabel.price)}
             </div>
           </div>
         )}

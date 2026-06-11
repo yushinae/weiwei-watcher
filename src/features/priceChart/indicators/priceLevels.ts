@@ -74,32 +74,17 @@ export class PriceLevelsPrimitive implements ISeriesPrimitive<Time> {
         const hr = scope.horizontalPixelRatio;
         const vr = scope.verticalPixelRatio;
         const h = 16 * vr;
-        const gap = 3 * vr;
         const padX = 6 * hr;
         const right = scope.bitmapSize.width - 10 * hr;
         const items = this.levels
           .map((level, index) => {
             const y = this.coordinate(index) * vr;
-            return Number.isFinite(y) && y >= 0 ? { ...level, y, labelY: y } : null;
+            return Number.isFinite(y) && y >= 0 && y <= scope.bitmapSize.height ? { ...level, y } : null;
           })
-          .filter((level): level is PriceLevel & { y: number; labelY: number } => Boolean(level))
+          .filter((level): level is PriceLevel & { y: number } => Boolean(level))
           .sort((a, b) => a.y - b.y);
 
         if (items.length === 0) return;
-
-        for (let i = 1; i < items.length; i += 1) {
-          items[i].labelY = Math.max(items[i].labelY, items[i - 1].labelY + h + gap);
-        }
-        const overflow = items[items.length - 1].labelY + h / 2 - (scope.bitmapSize.height - 3 * vr);
-        if (overflow > 0) {
-          for (const item of items) item.labelY -= overflow;
-        }
-        for (let i = items.length - 2; i >= 0; i -= 1) {
-          items[i].labelY = Math.min(items[i].labelY, items[i + 1].labelY - h - gap);
-        }
-        for (const item of items) {
-          item.labelY = Math.min(scope.bitmapSize.height - h / 2 - 3 * vr, Math.max(h / 2 + 3 * vr, item.labelY));
-        }
 
         ctx.save();
         ctx.lineWidth = 1 * vr;
@@ -121,10 +106,10 @@ export class PriceLevelsPrimitive implements ISeriesPrimitive<Time> {
           const textWidth = ctx.measureText(item.title).width;
           const w = Math.max(34 * hr, Math.ceil(textWidth + padX * 2));
           const x = right - w;
-          const y = item.labelY - h / 2;
+          const y = Math.min(scope.bitmapSize.height - h - 3 * vr, Math.max(3 * vr, item.y - h / 2));
           ctx.fillStyle = item.color;
           ctx.beginPath();
-          ctx.roundRect?.(x, y, w, h, 3 * hr);
+          ctx.roundRect?.(x, y, w, h, 3 * Math.min(hr, vr));
           if (!ctx.roundRect) ctx.rect(x, y, w, h);
           ctx.fill();
           ctx.fillStyle = '#ffffff';

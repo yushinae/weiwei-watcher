@@ -50,7 +50,7 @@ export function useGlobalAlertEngine(): void {
 // ── 应用内 Toast（即使未授权系统通知也能看到）────────────────────────────────
 type Toast = AlertTriggerEvent & { key: number };
 
-export const AlertToastHost: React.FC = () => {
+export const AlertToastHost: React.FC<{ hidden?: boolean }> = ({ hidden = false }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => subscribeAlertTriggers(e => {
@@ -60,32 +60,41 @@ export const AlertToastHost: React.FC = () => {
     setTimeout(() => setToasts(t => t.filter(x => x.key !== key)), 9000);
   }), []);
 
-  if (!toasts.length) return null;
+  if (hidden || !toasts.length) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-[300] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none">
       {toasts.map(t => {
         const meta = METRIC_META[t.metric];
         return (
           <div key={t.key}
-            className="pointer-events-auto w-[300px] flex items-start gap-2.5 px-3.5 py-3 rounded-xl
-                       bg-[var(--color-dropdown)] ring-1 ring-inset ring-[#FEBC2E]/40 shadow-[0_16px_40px_rgba(0,0,0,0.55)]
-                       animate-[fadeIn_.18s_ease-out]">
-            <span className="w-7 h-7 rounded-lg bg-[#FEBC2E]/15 flex items-center justify-center shrink-0">
-              <BellRing size={15} className="text-[#FEBC2E]" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-bold text-white/90">{t.coin} 告警触发</div>
-              <div className="text-[11px] text-white/60 mt-0.5">
-                {meta.label} {t.op} {t.threshold}{meta.unit}
-                <span className="text-white/40"> · 当前 </span>
-                <span className="font-semibold text-[#FEBC2E] tabular-nums">{t.value.toFixed(2)}{meta.unit}</span>
+            className="pointer-events-auto relative w-[292px] overflow-hidden rounded-[6px]
+                       bg-[#15161d]/96 shadow-[0_10px_28px_rgba(0,0,0,0.45)]
+                       ring-1 ring-inset ring-white/[0.08] backdrop-blur-md
+                       animate-[fadeIn_.16s_cubic-bezier(.2,.8,.2,1)]">
+            <span className="absolute inset-y-0 left-0 w-[3px] bg-[#f7a600]" />
+            <div className="flex items-start gap-2.5 px-3 py-2.5 pl-3.5">
+              <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-[4px] bg-[#f7a600]/12 ring-1 ring-inset ring-[#f7a600]/18 shrink-0">
+                <BellRing size={15} className="text-[#f7a600]" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[12px] font-semibold text-white/90">{t.coin}</span>
+                  <span className="rounded-[4px] bg-white/[0.06] px-1.5 py-[1px] text-[10px] font-semibold text-[#adb1b8]">
+                    告警触发
+                  </span>
+                </div>
+                <div className="mt-1 text-[11px] leading-[15px] text-[#adb1b8]">
+                  {meta.label} <span className="font-mono text-white/78">{t.op} {t.threshold}{meta.unit}</span>
+                  <span className="text-[#71757a]"> · 当前 </span>
+                  <span className="font-mono font-semibold text-[#f7a600] tabular-nums">{t.value.toFixed(2)}{meta.unit}</span>
+                </div>
               </div>
+              <button onClick={() => setToasts(ts => ts.filter(x => x.key !== t.key))}
+                className="mt-0.5 grid h-6 w-6 place-items-center rounded-[4px] text-white/30 hover:bg-white/[0.06] hover:text-white/70 transition-colors shrink-0">
+                <X size={14} />
+              </button>
             </div>
-            <button onClick={() => setToasts(ts => ts.filter(x => x.key !== t.key))}
-              className="text-white/30 hover:text-white/70 transition-colors shrink-0">
-              <X size={14} />
-            </button>
           </div>
         );
       })}

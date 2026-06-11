@@ -6,12 +6,25 @@
       "side": "long",
       "qty": 1,
       "avgEntryPrice": 175.79,
-      "markPrice": 682.41952551,
-      "unrealizedPnL": 506.62952551,
+      "markPrice": 172.21680203,
+      "unrealizedPnL": -3.5731979699999954,
       "delta": -0.20019,
       "gamma": 0.00018,
       "theta": -177.45617,
       "vega": 8.91318
+    },
+    {
+      "id": "co25kdb",
+      "symbol": "ETH-11JUN2026-1650-P",
+      "side": "long",
+      "qty": 1,
+      "avgEntryPrice": 32.9,
+      "markPrice": 35.32323917,
+      "unrealizedPnL": 2.423239170000002,
+      "delta": -0.52022856,
+      "gamma": 0.00536086,
+      "theta": -9.21032869,
+      "vega": 0.43484193
     }
   ],
   "openOrders": [],
@@ -69,6 +82,15 @@
       "price": 175.79,
       "fee": 0.087895,
       "timestamp": 1780997426796
+    },
+    {
+      "id": "biug3v9",
+      "symbol": "ETH-11JUN2026-1650-P",
+      "side": "buy",
+      "qty": 1,
+      "price": 32.9,
+      "fee": 0.01645,
+      "timestamp": 1781025923236
     }
   ],
   "orderHistory": [
@@ -247,6 +269,32 @@
       "optVega": 10.70669,
       "status": "cancelled",
       "createdAt": 1780997494312
+    },
+    {
+      "id": "fz4zzpu",
+      "symbol": "ETH-11JUN2026-1650-P",
+      "side": "buy",
+      "type": "limit",
+      "qty": 1,
+      "price": 32.1,
+      "optDelta": -0.52022856,
+      "optGamma": 0.00536086,
+      "optTheta": -9.21032869,
+      "optVega": 0.43484193,
+      "status": "cancelled",
+      "createdAt": 1781025909071
+    },
+    {
+      "id": "biug3v9",
+      "symbol": "ETH-11JUN2026-1650-P",
+      "side": "buy",
+      "type": "limit",
+      "qty": 1,
+      "price": 32.9,
+      "optDelta": -0.52022856,
+      "status": "filled",
+      "createdAt": 1781025923236,
+      "filledPrice": 32.9
     }
   ]
 }

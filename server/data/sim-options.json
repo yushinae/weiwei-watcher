@@ -19,12 +19,27 @@
       "side": "long",
       "qty": 1,
       "avgEntryPrice": 32.9,
-      "markPrice": 35.32323917,
-      "unrealizedPnL": 2.423239170000002,
+      "markPrice": 1.06226767,
+      "unrealizedPnL": -31.837732329999998,
       "delta": -0.52022856,
       "gamma": 0.00536086,
       "theta": -9.21032869,
       "vega": 0.43484193
+    },
+    {
+      "id": "fkeo3rg",
+      "symbol": "ETH-12JUN2026-1600-P",
+      "side": "long",
+      "qty": 1,
+      "avgEntryPrice": 7,
+      "markPrice": 6.48,
+      "unrealizedPnL": -0.5199999999999996,
+      "delta": -0.18784,
+      "gamma": 0.00431,
+      "theta": -6.5539,
+      "vega": 0.23839,
+      "source": "deribit",
+      "instrument": "ETH_USDC-12JUN26-1600-P"
     }
   ],
   "openOrders": [],
@@ -91,6 +106,15 @@
       "price": 32.9,
       "fee": 0.01645,
       "timestamp": 1781025923236
+    },
+    {
+      "id": "7fonqb3",
+      "symbol": "ETH-12JUN2026-1600-P",
+      "side": "buy",
+      "qty": 1,
+      "price": 7,
+      "fee": 0.0035,
+      "timestamp": 1781160875850
     }
   ],
   "orderHistory": [
@@ -295,6 +319,36 @@
       "status": "filled",
       "createdAt": 1781025923236,
       "filledPrice": 32.9
+    },
+    {
+      "id": "7fonqb3",
+      "symbol": "ETH-12JUN2026-1600-P",
+      "side": "buy",
+      "type": "limit",
+      "qty": 1,
+      "price": 7,
+      "optDelta": -0.18784,
+      "status": "filled",
+      "createdAt": 1781160875850,
+      "filledPrice": 7,
+      "source": "deribit",
+      "instrument": "ETH_USDC-12JUN26-1600-P"
+    },
+    {
+      "id": "4co5t3t",
+      "symbol": "ETH-12JUN2026-1600-P",
+      "side": "buy",
+      "type": "limit",
+      "qty": 1,
+      "price": 4.4,
+      "optDelta": -0.18784,
+      "optGamma": 0.00431,
+      "optTheta": -6.5539,
+      "optVega": 0.23839,
+      "status": "cancelled",
+      "createdAt": 1781160880033,
+      "source": "deribit",
+      "instrument": "ETH_USDC-12JUN26-1600-P"
     }
   ]
 }

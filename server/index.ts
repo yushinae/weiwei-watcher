@@ -209,6 +209,8 @@ app.delete('/api/credentials/bybit', async (c) => {
 interface ProxyRequest {
   path: string           // 例如 /v5/position/list
   params?: Record<string, string | number | undefined>
+  method?: 'GET' | 'POST'
+  body?: Record<string, string | number | boolean | undefined>
 }
 
 const BYBIT_REST = 'https://api.bybit.com'
@@ -217,26 +219,30 @@ app.post('/api/proxy/bybit', async (c) => {
   const creds = await readBybitCreds()
   if (!creds) return c.json({ retCode: 10001, retMsg: '后端未配置 Bybit Key' }, 401)
 
-  const { path, params = {} } = await c.req.json() as ProxyRequest
+  const { path, params = {}, method = 'GET', body = {} } = await c.req.json() as ProxyRequest
 
   // 组装 query string
   const entries = Object.entries(params).filter(([, v]) => v !== undefined)
   const queryString = entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
+  const jsonBody = method === 'POST' ? JSON.stringify(body) : ''
 
   // 签名（Bybit V5）
   const timestamp = Date.now().toString()
   const recvWindow = '5000'
-  const payload = timestamp + creds.apiKey + recvWindow + queryString
+  const payload = timestamp + creds.apiKey + recvWindow + (method === 'POST' ? jsonBody : queryString)
   const signature = createHmac('sha256', creds.apiSecret).update(payload).digest('hex')
 
   const url = `${BYBIT_REST}${path}${queryString ? `?${queryString}` : ''}`
   const resp = await fetch(url, {
+    method,
     headers: {
       'X-BAPI-API-KEY':     creds.apiKey,
       'X-BAPI-TIMESTAMP':   timestamp,
       'X-BAPI-RECV-WINDOW': recvWindow,
       'X-BAPI-SIGN':        signature,
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
     },
+    ...(method === 'POST' ? { body: jsonBody } : {}),
   })
   const json = await resp.json()
   return c.json(json)

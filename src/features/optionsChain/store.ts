@@ -50,6 +50,11 @@ const emit = () => listeners.forEach(l => l());
 
 export const ocStore = {
   getState: () => state,
+  setSelection(u: string, expiryIdx: number) {
+    if (u === state.underlying && expiryIdx === state.expiryIdx) return;
+    state = { underlying: u, expiryIdx };
+    emit();
+  },
   setUnderlying(u: string) {
     if (u === state.underlying) return;
     state = { ...state, underlying: u, expiryIdx: 0 };

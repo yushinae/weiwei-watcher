@@ -32,6 +32,7 @@ import './options-chain.css';
 type FilterKey = 'all' | 'atm5' | 'atm10';
 type TabState = {
   expiryIdx: number;
+  expiryKey?: string;
   filterKey: FilterKey;
   showDist: boolean;
   visibleColIds: string[];
@@ -45,15 +46,70 @@ const DEFAULT_TAB_STATE: TabState = {
   showDist: false,
   visibleColIds: DEFAULT_VISIBLE_COL_IDS,
 };
+const VIEW_STATE_KEY = 'options-chain.view-state.v1';
+const VALID_UNDERLYINGS = new Set(UNDERLYING_GROUPS.flatMap(g => g.items.map(item => item.value)));
+
+type PersistedViewState = {
+  tabs: string[];
+  activeTabIdx: number;
+  tabStates: Record<string, Partial<TabState>>;
+};
+
+function normalizeTabState(raw: Partial<TabState> | undefined): TabState {
+  const visibleColIds = Array.isArray(raw?.visibleColIds)
+    ? raw.visibleColIds.filter(id => DEFAULT_VISIBLE_COL_IDS.includes(id))
+    : DEFAULT_VISIBLE_COL_IDS;
+  return {
+    expiryIdx: Number.isFinite(raw?.expiryIdx) ? Math.max(0, Number(raw?.expiryIdx)) : DEFAULT_TAB_STATE.expiryIdx,
+    expiryKey: typeof raw?.expiryKey === 'string' ? raw.expiryKey : undefined,
+    filterKey: raw?.filterKey === 'atm5' || raw?.filterKey === 'atm10' ? raw.filterKey : DEFAULT_TAB_STATE.filterKey,
+    showDist: !!raw?.showDist,
+    visibleColIds: visibleColIds.length > 0 ? visibleColIds : DEFAULT_VISIBLE_COL_IDS,
+  };
+}
+
+function loadViewState(): { tabs: string[]; activeTabIdx: number; tabStates: Record<string, TabState> } {
+  try {
+    const raw = localStorage.getItem(VIEW_STATE_KEY);
+    if (!raw) throw new Error('empty');
+    const parsed = JSON.parse(raw) as PersistedViewState;
+    const tabs = Array.isArray(parsed.tabs)
+      ? parsed.tabs.filter(u => VALID_UNDERLYINGS.has(u))
+      : [];
+    const safeTabs = tabs.length > 0 ? [...new Set(tabs)] : ['BTC_USDC'];
+    const activeTabIdx = Math.min(Math.max(0, Number(parsed.activeTabIdx) || 0), safeTabs.length - 1);
+    const tabStates: Record<string, TabState> = {};
+    for (const u of safeTabs) tabStates[u] = normalizeTabState(parsed.tabStates?.[u]);
+    return { tabs: safeTabs, activeTabIdx, tabStates };
+  } catch {
+    return { tabs: ['BTC_USDC'], activeTabIdx: 0, tabStates: {} };
+  }
+}
+
+function saveViewState(tabs: string[], activeTabIdx: number, tabStates: Record<string, TabState>): void {
+  try {
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ tabs, activeTabIdx, tabStates }));
+  } catch {
+    // Ignore storage failures in private windows / restricted webviews.
+  }
+}
+
+function compactDteLabel(days: number): string {
+  if (days < 1) return `${Math.max(1, Math.round(days * 24))}H`;
+  return `${Math.max(1, Math.round(days))}D`;
+}
 
 export default function OptionsChainView() {
   // ── Tabs: multiple underlying tabs, click to switch ─────────────────────
-  const [tabs, setTabs] = useState<string[]>(['BTC_USDC']);
-  const [activeTabIdx, setActiveTabIdx] = useState(0);
+  const [initialViewState] = useState(loadViewState);
+  const initialActiveUnderlying = useRef(initialViewState.tabs[initialViewState.activeTabIdx] ?? 'BTC_USDC');
+  const skippedInitialNavDefault = useRef(false);
+  const [tabs, setTabs] = useState<string[]>(initialViewState.tabs);
+  const [activeTabIdx, setActiveTabIdx] = useState(initialViewState.activeTabIdx);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   // Per-tab remembered state (expiryIdx, filter, columns, dist) keyed by underlying.
-  const [tabStates, setTabStates] = useState<Record<string, TabState>>({});
+  const [tabStates, setTabStates] = useState<Record<string, TabState>>(initialViewState.tabStates);
 
   const activeUnderlying = tabs[activeTabIdx] ?? 'BTC_USDC';
   const coin = coinOf(activeUnderlying);
@@ -70,13 +126,22 @@ export default function OptionsChainView() {
     }));
   }, [activeUnderlying]);
 
-  // Sync the shared store so the global nav "期权" hover stays in sync.
-  useEffect(() => { ocStore.setUnderlying(activeUnderlying); }, [activeUnderlying]);
+  useEffect(() => {
+    saveViewState(tabs, activeTabIdx, tabStates);
+  }, [tabs, activeTabIdx, tabStates]);
 
   // When the top-nav picker chooses an underlying/expiry before entering this page,
   // materialize that selection as a real tab + per-tab expiry here.
   useEffect(() => {
     if (!navUnderlying) return;
+    const isInitialDefaultStoreValue =
+      !skippedInitialNavDefault.current
+      && navUnderlying === 'BTC_USDC'
+      && navExpiryIdx === 0
+      && initialActiveUnderlying.current !== 'BTC_USDC';
+    skippedInitialNavDefault.current = true;
+    if (isInitialDefaultStoreValue) return;
+
     setTabs(prev => {
       const existingIdx = prev.indexOf(navUnderlying);
       if (existingIdx >= 0) {
@@ -91,6 +156,7 @@ export default function OptionsChainView() {
       [navUnderlying]: {
         ...(prev[navUnderlying] ?? DEFAULT_TAB_STATE),
         expiryIdx: navExpiryIdx,
+        expiryKey: undefined,
       },
     }));
     setSelectedCell(null);
@@ -117,7 +183,6 @@ export default function OptionsChainView() {
   }, [activeTabIdx]);
 
   // ── Chain data ──────────────────────────────────────────────────────────
-  const expiryIdx = tabState.expiryIdx;
   const filterKey = tabState.filterKey;
   const showDist = tabState.showDist;
   const visibleColIds = useMemo(() => new Set(tabState.visibleColIds), [tabState.visibleColIds]);
@@ -147,7 +212,27 @@ export default function OptionsChainView() {
     return d.expiries.map(g => buildDeribitExpiry(g, d.spot));
   }, [source, bybit.data, deribit.data]);
 
-  const expiry = expiries[Math.min(expiryIdx, Math.max(0, expiries.length - 1))];
+  const expiryIdx = useMemo(() => {
+    if (expiries.length === 0) return 0;
+    if (tabState.expiryKey) {
+      const keyIdx = expiries.findIndex(e => e.key === tabState.expiryKey);
+      if (keyIdx >= 0) return keyIdx;
+    }
+    return Math.min(tabState.expiryIdx, expiries.length - 1);
+  }, [expiries, tabState.expiryIdx, tabState.expiryKey]);
+  const expiry = expiries[expiryIdx];
+
+  useEffect(() => {
+    if (expiries.length === 0 || tabState.expiryKey) return;
+    const key = expiries[expiryIdx]?.key;
+    if (key) setTabState({ expiryIdx, expiryKey: key });
+  }, [expiries, expiryIdx, setTabState, tabState.expiryKey]);
+
+  // Sync the shared store so the global nav "期权" hover stays in sync, without
+  // resetting restored per-tab expiry state during page refresh.
+  useEffect(() => {
+    ocStore.setSelection(activeUnderlying, expiryIdx);
+  }, [activeUnderlying, expiryIdx]);
   const liveSpot = useLiveSpot(coin);
   const spot = liveSpot ?? expiry?.spot ?? 0;
 
@@ -347,7 +432,7 @@ export default function OptionsChainView() {
     const idx = expiries.findIndex(e => e.dateLabel.replace(/\s+/g, '').toUpperCase() === pendingJump.expiryCompact);
     if (idx < 0) return;
     if (idx !== expiryIdx) {
-      setTabState({ expiryIdx: idx, filterKey: 'all' });
+      setTabState({ expiryIdx: idx, expiryKey: expiries[idx]?.key, filterKey: 'all' });
       return;
     }
 
@@ -450,7 +535,7 @@ export default function OptionsChainView() {
         <div className="flex flex-wrap items-center gap-2 py-1.5 border-b px-2" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
           <div className="relative">
             <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
-              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.label}</span>}
+              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{compactDteLabel(expiry.daysToExp)}</span>}
               <ChevronDown size={14} className="text-white/50" />
             </button>
             <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
@@ -459,10 +544,10 @@ export default function OptionsChainView() {
                 {expiries.map((e, i) => {
                   const on = i === expiryIdx;
                   return (
-                    <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); setTabState({ expiryIdx: i }); setSelectedCell(null); }}>
+                    <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); setTabState({ expiryIdx: i, expiryKey: e.key }); setSelectedCell(null); }}>
                       <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                      <span className="flex-1 font-semibold">{e.dateLabel}</span>
-                      <span className="text-white/35 font-mono text-[11px]">{dteLabel(e.daysToExp)}</span>
+                      <span className="flex-1 font-mono font-semibold">{compactDteLabel(e.daysToExp)}</span>
+                      <span className="text-white/35 font-mono text-[11px]">{e.dateLabel}</span>
                     </button>
                   );
                 })}

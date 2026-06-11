@@ -8,13 +8,23 @@
 //   TradingPanel   — the full trade modal body
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, memo, useCallback } from 'react';
 import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown, Pencil } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import type { Coin, DataSource, Side } from './chainModel';
-import { useLocalBook, fillAgainstBook, type DepthBook, type DepthLevel, type SimPosition } from './simBook';
+import { fillAgainstBook, type DepthBook, type DepthLevel, type SimPosition } from './simBook';
 import type { GlobalOptionBook } from './optionBookStore';
+import {
+  createBybitLiveAdapter,
+  createDeribitLiveAdapter,
+  createSimExecutionAdapter,
+  runRiskGate,
+  type ExecutionAdapter,
+  type ExecutionMode,
+  type TimeInForce,
+  type TradeIntent,
+} from './execution';
 import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
@@ -23,7 +33,7 @@ import {
 } from './chainConstants';
 import FreshnessTag from '../../components/FreshnessTag';
 import { useFreshness } from '../../registry/data/freshness';
-import { preTradeChecks, type CheckLevel } from './preTradeChecks';
+import type { CheckLevel } from './preTradeChecks';
 import { soundOrderError } from './orderSounds';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +60,48 @@ const TABLE_HEAD_BG = '#121318';
 const NAV_BG = '#15161D';
 const SUBTLE_LINE = 'rgba(255,255,255,0.06)';
 const ORANGE = '#ff9c2e';
+const EXEC_MODE_KEY = 'options.executionMode';
+const EXEC_TESTNET_KEY = 'options.liveTestnet';
+const EXEC_ARMED_UNTIL_KEY = 'options.liveArmedUntil';
+const LIVE_ARM_TTL_MS = 30 * 60 * 1000;
+
+function storageGet(key: string, fallback: string): string {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+
+function storageSet(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* noop */ }
+}
+
+function sessionGetNumber(key: string): number {
+  try { return Number(sessionStorage.getItem(key) ?? 0) || 0; } catch { return 0; }
+}
+
+function sessionSet(key: string, value: string): void {
+  try { sessionStorage.setItem(key, value); } catch { /* noop */ }
+}
+
+function sessionRemove(key: string): void {
+  try { sessionStorage.removeItem(key); } catch { /* noop */ }
+}
+
+function getDeribitCredentials() {
+  const clientId = import.meta.env.VITE_DERIBIT_API_KEY?.trim();
+  const clientSecret = import.meta.env.VITE_DERIBIT_API_SECRET?.trim();
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+function initialExecutionMode(): ExecutionMode {
+  return storageGet(EXEC_MODE_KEY, 'sim') === 'live' ? 'live' : 'sim';
+}
+
+function initialLiveTestnet(): boolean {
+  return storageGet(EXEC_TESTNET_KEY, 'true') !== 'false';
+}
+
+function initialLiveArmed(): boolean {
+  return sessionGetNumber(EXEC_ARMED_UNTIL_KEY) > Date.now();
+}
 
 const fmtSigned = (v: number, digits = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
 export type PositionMarketQuote = Pick<Side, 'bid' | 'ask' | 'mark' | 'iv' | 'delta' | 'gamma' | 'theta' | 'vega' | 'instrument'> & {
@@ -81,7 +133,7 @@ export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggle
 }
 
 export function PositionsPanel({ book, style, className, embedded, onSymbolClick, marketQuotes }: {
-  book: ReturnType<typeof useLocalBook> | GlobalOptionBook; style?: React.CSSProperties; className?: string; embedded?: boolean;
+  book: GlobalOptionBook; style?: React.CSSProperties; className?: string; embedded?: boolean;
   onSymbolClick?: (symbol: string, position?: SimPosition) => void;
   marketQuotes?: Map<string, PositionMarketQuote>;
 }) {
@@ -847,9 +899,91 @@ const SANITY: Record<CheckLevel, { color: string; text: string }> = {
   block: { color: '#EF4444', text: '先改一下再下单' },
 };
 
-export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, onClose, chainFeedKey, marketQuotes }: {
+function ExecutionModeControls({
+  executionMode,
+  liveTestnet,
+  liveArmed,
+  liveReady,
+  armedMinutesLeft,
+  source,
+  onModeChange,
+  onToggleTestnet,
+  onToggleArmed,
+}: {
+  executionMode: ExecutionMode;
+  liveTestnet: boolean;
+  liveArmed: boolean;
+  liveReady: { armed: boolean; credentials: boolean; venueSupported: boolean };
+  armedMinutesLeft: number;
+  source: DataSource;
+  onModeChange: (mode: ExecutionMode) => void;
+  onToggleTestnet: () => void;
+  onToggleArmed: () => void;
+}) {
+  const venueLabel = source === 'bybit' ? 'Bybit' : 'Deribit';
+  const statusText = executionMode === 'sim'
+    ? '模拟账本'
+    : !liveReady.venueSupported
+      ? '通道未接入'
+      : !liveReady.credentials
+        ? '缺少密钥'
+        : `${venueLabel} · ${liveTestnet ? '测试网' : '正式网'}`;
+
+  return (
+    <div className="hidden h-[50px] w-[272px] flex-col justify-center rounded-[4px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-extrabold text-white/40">执行</span>
+        <span className="truncate text-[10px] font-semibold text-white/35">{statusText}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        {(['sim', 'live'] as const).map(mode => {
+          const active = executionMode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onModeChange(mode)}
+              className="h-6 w-[46px] rounded-[4px] text-[10px] font-extrabold transition-colors active:translate-y-px"
+              style={{
+                background: active ? SELECTED_BG : 'transparent',
+                color: active ? ORANGE : 'rgba(255,255,255,0.55)',
+              }}
+            >
+              {mode === 'sim' ? '模拟' : '实盘'}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onToggleTestnet}
+          disabled={executionMode !== 'live'}
+          className="h-6 w-[58px] rounded-[4px] px-2 text-[10px] font-extrabold transition-colors active:translate-y-px disabled:opacity-35"
+          style={{ background: liveTestnet ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.14)', color: liveTestnet ? '#22C55E' : '#EF4444' }}
+          title="切换 testnet/mainnet"
+        >
+          {liveTestnet ? '测试网' : '正式网'}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleArmed}
+          disabled={executionMode !== 'live' || !liveReady.credentials || !liveReady.venueSupported}
+          className="h-6 flex-1 rounded-[4px] px-2 text-[10px] font-extrabold transition-colors active:translate-y-px disabled:opacity-35"
+          style={{
+            background: liveArmed ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.06)',
+            color: liveArmed ? '#EF4444' : 'rgba(255,255,255,0.55)',
+          }}
+          title={`ARMED 会话有效 ${LIVE_ARM_TTL_MS / 60_000} 分钟，过期自动回锁`}
+        >
+          {executionMode !== 'live' ? '安全' : liveArmed ? `已解锁 ${armedMinutesLeft}m` : '解锁'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, executionAdapter, onClose, chainFeedKey, marketQuotes }: {
   selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number;
-  book: ReturnType<typeof useLocalBook> | GlobalOptionBook; onClose: () => void; chainFeedKey: string;
+  book: GlobalOptionBook; executionAdapter?: ExecutionAdapter; onClose: () => void; chainFeedKey: string;
   marketQuotes?: Map<string, PositionMarketQuote>;
 }) => {
   const { row, side } = selected;
@@ -862,13 +996,78 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [price, setPrice] = useState((opt.ask ?? opt.mark).toFixed(dec));
   const [iv, setIv] = useState(opt.iv.toFixed(1));
   const [qty, setQty] = useState('1');
-  const [tif, setTif] = useState('GTC');
+  const [orderTypeOpen, setOrderTypeOpen] = useState(false);
+  const [tif, setTif] = useState<TimeInForce>('GTC');
   const [tifOpen, setTifOpen] = useState(false);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
+  const [executionMode, setExecutionModeState] = useState<ExecutionMode>(initialExecutionMode);
+  const [liveArmed, setLiveArmedState] = useState(initialLiveArmed);
+  const [liveTestnet, setLiveTestnetState] = useState(initialLiveTestnet);
+  const [armedUntil, setArmedUntil] = useState(() => sessionGetNumber(EXEC_ARMED_UNTIL_KEY));
 
-  const { placeOrder } = book;
+  const setExecutionMode = useCallback((mode: ExecutionMode) => {
+    setExecutionModeState(mode);
+    storageSet(EXEC_MODE_KEY, mode);
+    if (mode === 'sim') {
+      setLiveArmedState(false);
+      setArmedUntil(0);
+      sessionRemove(EXEC_ARMED_UNTIL_KEY);
+    }
+  }, []);
+  const toggleLiveTestnet = useCallback(() => {
+    setLiveTestnetState(prev => {
+      const next = !prev;
+      storageSet(EXEC_TESTNET_KEY, String(next));
+      return next;
+    });
+  }, []);
+  const toggleLiveArmed = useCallback(() => {
+    setLiveArmedState(prev => {
+      if (prev) {
+        setArmedUntil(0);
+        sessionRemove(EXEC_ARMED_UNTIL_KEY);
+        return false;
+      }
+      const until = Date.now() + LIVE_ARM_TTL_MS;
+      setArmedUntil(until);
+      sessionSet(EXEC_ARMED_UNTIL_KEY, String(until));
+      return true;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!liveArmed) return;
+    const timer = setInterval(() => {
+      if (sessionGetNumber(EXEC_ARMED_UNTIL_KEY) > Date.now()) return;
+      setLiveArmedState(false);
+      setArmedUntil(0);
+      sessionRemove(EXEC_ARMED_UNTIL_KEY);
+    }, 5_000);
+    return () => clearInterval(timer);
+  }, [liveArmed]);
+
+  const deribitCredentials = useMemo(() => getDeribitCredentials(), []);
+  const armedMinutesLeft = liveArmed ? Math.max(0, Math.ceil((armedUntil - Date.now()) / 60_000)) : 0;
+  const liveReady = useMemo(() => ({
+    armed: liveArmed,
+    credentials: source === 'deribit' ? !!deribitCredentials : true,
+    venueSupported: source === 'deribit' || source === 'bybit',
+  }), [deribitCredentials, liveArmed, source]);
+  const adapter = useMemo<ExecutionAdapter>(() => {
+    if (executionAdapter) return executionAdapter;
+    if (executionMode === 'sim') return createSimExecutionAdapter(book);
+    if (source === 'bybit') return createBybitLiveAdapter({
+      armed: liveArmed,
+      testnet: liveTestnet,
+    });
+    return createDeribitLiveAdapter({
+      armed: liveArmed,
+      testnet: liveTestnet,
+      credentials: deribitCredentials,
+    });
+  }, [book, deribitCredentials, executionAdapter, executionMode, liveArmed, liveTestnet, source]);
   const currentPosition = useMemo(() => book.positions.find(p => p.symbol === symbol), [book.positions, symbol]);
   const currentSignedQty = currentPosition ? (currentPosition.side === 'long' ? currentPosition.qty : -currentPosition.qty) : 0;
 
@@ -902,7 +1101,9 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     const b = fillAgainstBook(usdBook, 'buy', nQty), s = fillAgainstBook(usdBook, 'sell', nQty);
     return { buy: b, sell: s, worstPct: Math.max(b.slippagePct, s.slippagePct) };
   }, [usdBook, nQty]);
-  const notional = nPrice * nQty;
+  const orderPrice = orderType === 'market' ? opt.mark : nPrice;
+  const notional = orderPrice * nQty;
+  const deltaNotional = Math.abs(opt.delta * spot * nQty);
   const fee = notional * 0.0005;
   const margin = notional * 0.12;
   const totalCost = notional + fee;
@@ -910,67 +1111,105 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   // ── 下单前 sanity 灯：报价新鲜度 + 现价新鲜度 + 点差 + 限价偏离 + 数量 ──
   const chainFr = useFreshness(chainFeedKey);
   const spotFr = useFreshness('ws-deribit');
-  const sanity = useMemo(() => preTradeChecks({
+  const sanity = useMemo(() => runRiskGate({
+    mode: adapter.mode,
     bid: opt.bid, ask: opt.ask, mark: opt.mark,
     qty: nQty, price: nPrice, orderType,
     chainKind: chainFr?.kind ?? null, chainAgeMs: chainFr?.ageMs ?? null,
     spotKind: spotFr?.kind ?? null,
     marketSlippagePct: orderType === 'market' ? (slip?.worstPct ?? null) : null,
-  }), [opt.bid, opt.ask, opt.mark, nQty, nPrice, orderType, chainFr?.kind, chainFr?.ageMs, spotFr?.kind, slip?.worstPct]);
+    notional,
+    deltaNotional,
+    liveReady,
+  }), [adapter.mode, opt.bid, opt.ask, opt.mark, nQty, nPrice, orderType, chainFr?.kind, chainFr?.ageMs, spotFr?.kind, slip?.worstPct, notional, deltaNotional, liveReady]);
 
-  const submit = (s: 'buy' | 'sell') => {
+  const submit = useCallback(async (s: 'buy' | 'sell') => {
     if (sanity.blocking) {
       soundOrderError();
       return;
     }
-    placeOrder({
-      side: s, type: orderType, symbol, qty: nQty,
-      price: orderType === 'market' ? opt.mark : nPrice, mark: opt.mark, delta: opt.delta,
-      gamma: opt.gamma, theta: opt.theta, vega: opt.vega,
-      source, instrument: opt.instrument,
+    const intent: TradeIntent = {
+      mode: adapter.mode,
+      venue: source,
+      accountId: adapter.mode === 'sim' ? 'sim-options' : `${source}-${liveTestnet ? 'testnet' : 'mainnet'}`,
+      source: 'options-chain',
+      side: s,
+      orderType,
+      symbol,
+      qty: nQty,
+      price: orderPrice,
+      mark: opt.mark,
+      reduceOnly,
+      postOnly,
+      tif,
+      greeks: { delta: opt.delta, gamma: opt.gamma, theta: opt.theta, vega: opt.vega },
+      instrument: opt.instrument,
       book: usdBook ?? undefined,
-    });
-  };
+    };
+    const result = await adapter.placeOrder(intent);
+    if (result.status === 'rejected') soundOrderError();
+  }, [adapter, sanity.blocking, source, liveTestnet, orderType, symbol, nQty, orderPrice, opt.mark, opt.delta, opt.gamma, opt.theta, opt.vega, opt.instrument, reduceOnly, postOnly, tif, usdBook]);
 
   const light = SANITY[sanity.level];
   const issues = sanity.checks.filter(c => c.level !== 'ok');
+  const sideTone = side === 'call'
+    ? { bg: 'rgba(36,174,100,0.14)', color: 'var(--db-up)', label: 'CALL' }
+    : { bg: 'rgba(239,69,74,0.14)', color: 'var(--db-down)', label: 'PUT' };
+  const execTone = adapter.mode === 'sim'
+    ? { bg: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }
+    : liveArmed
+      ? { bg: 'rgba(239,68,68,0.16)', color: '#EF4444' }
+      : { bg: 'rgba(247,166,0,0.14)', color: ORANGE };
+  const headerMetrics = [
+    { label: '标记', value: opt.mark.toFixed(dec), color: 'rgba(255,255,255,0.86)' },
+    { label: 'IV', value: `${opt.iv.toFixed(1)}%`, color: 'var(--db-warn)' },
+    { label: 'Spot', value: spot.toLocaleString('en-US', { maximumFractionDigits: 2 }), color: 'rgba(255,255,255,0.70)' },
+    { label: 'Δ', value: opt.delta.toFixed(3), color: opt.delta >= 0 ? 'var(--db-up)' : 'var(--db-down)' },
+    { label: 'Θ', value: opt.theta.toFixed(4), color: 'var(--db-down)' },
+  ];
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden" style={{ backgroundColor: '#000000' }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, backgroundColor: NAV_BG }}>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-[14px] font-extrabold text-white/90 truncate">{contractName}</div>
-            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-[4px] shrink-0" style={{
-              background: side === 'call' ? 'rgba(40,200,64,0.10)' : 'rgba(255,95,87,0.10)',
-              color: side === 'call' ? 'var(--db-up)' : 'var(--db-down)',
-            }}>{side === 'call' ? 'CALL' : 'PUT'}</span>
-            <span className="text-[11px] font-mono font-bold text-white/35">·</span>
-            <span className="text-[11px] font-mono font-bold text-white/55">{dateLabel}</span>
-            <span className="text-[10px] font-extrabold px-2 py-[2px] rounded-[4px] shrink-0"
-              title="本面板为模拟交易，不会真实下单"
-              style={{ background: 'rgba(247,166,0,0.12)', color: ORANGE }}>模拟</span>
+        <div className="min-w-0 flex flex-col gap-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="truncate text-[15px] font-extrabold leading-none text-white/92">{contractName}</div>
+            <span className="shrink-0 rounded-[4px] px-2 py-1 text-[10px] font-extrabold leading-none"
+              style={{ background: sideTone.bg, color: sideTone.color }}>{sideTone.label}</span>
+            <span className="shrink-0 rounded-[4px] px-2 py-1 text-[10px] font-extrabold leading-none"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.58)' }}>{dateLabel}</span>
+            <span
+              className="shrink-0 rounded-[4px] px-2 py-1 text-[10px] font-extrabold leading-none"
+              title={adapter.mode === 'sim' ? '本面板为模拟交易，不会真实下单' : '实盘适配器接管下单前请确认风控开关'}
+              style={{ background: execTone.bg, color: execTone.color }}
+            >
+              {adapter.label}
+            </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-3 text-[11px]">
-            {[
-              { label: '标记', value: opt.mark.toFixed(dec), color: 'var(--db-text)' },
-              { label: 'IV', value: opt.iv.toFixed(1) + '%', color: 'var(--db-warn)' },
-              { label: 'Spot', value: spot.toLocaleString('en-US', { maximumFractionDigits: 2 }), color: 'var(--db-muted)' },
-              { label: 'Δ', value: opt.delta.toFixed(3), color: opt.delta > 0 ? 'var(--db-up)' : 'var(--db-down)' },
-              { label: 'Θ', value: opt.theta.toFixed(4), color: 'var(--db-down)' },
-            ].map(item => (
-              <div key={item.label} className="flex items-center gap-1.5">
-                <span className="text-white/35 font-semibold">{item.label}</span>
-                <FlashValue text={item.value} className="font-mono font-bold" style={{ color: item.color }} />
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px]">
+            {headerMetrics.map(item => (
+              <div key={item.label} className="flex h-5 items-center gap-1 rounded-[4px] px-1.5" style={{ background: 'rgba(255,255,255,0.035)' }}>
+                <span className="text-[10px] font-semibold text-white/35">{item.label}</span>
+                <FlashValue text={item.value} className="font-mono text-[11px] font-bold" style={{ color: item.color }} />
               </div>
             ))}
-            <span className="text-white/10">·</span>
             <FreshnessTag dataKey="ws-deribit" label="现价" />
             <FreshnessTag dataKey={chainFeedKey} label="报价" />
           </div>
         </div>
         <div className="flex-1" />
+        <ExecutionModeControls
+          executionMode={executionMode}
+          liveTestnet={liveTestnet}
+          liveArmed={liveArmed}
+          liveReady={liveReady}
+          armedMinutesLeft={armedMinutesLeft}
+          source={source}
+          onModeChange={setExecutionMode}
+          onToggleTestnet={toggleLiveTestnet}
+          onToggleArmed={toggleLiveArmed}
+        />
         <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG, color: 'rgba(255,255,255,0.55)' }}>
           <X size={16} />
         </button>
@@ -981,13 +1220,38 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
         <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: 320, borderRight: `1px solid ${SUBTLE_LINE}`, backgroundColor: PANEL_BG }}>
           <div className="px-3 pt-2">
             <div className="flex items-center gap-2">
-              <button className="flex-1 h-9 rounded-[4px] px-3 flex items-center justify-between transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG }}
-                onClick={() => setOrderType(t => t === 'limit' ? 'market' : 'limit')}>
-                <span className="text-[12px] font-extrabold text-white/85">
-                  {orderType === 'limit' ? '限价单' : orderType === 'market' ? '市价单' : '止损单'}{quoteMode === 'iv' ? '/IV' : ''}
-                </span>
-                <ChevronDown size={16} className="text-white/45" />
-              </button>
+              <div className="relative flex-1">
+                <button className="h-9 w-full rounded-[4px] px-3 flex items-center justify-between transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG }}
+                  onClick={() => setOrderTypeOpen(v => !v)}>
+                  <span className="text-[12px] font-extrabold text-white/85">
+                    {orderType === 'limit' ? '限价单' : orderType === 'market' ? '市价单' : '止损单'}{quoteMode === 'iv' ? '/IV' : ''}
+                  </span>
+                  <ChevronDown size={16} className="text-white/45" />
+                </button>
+                <Popover open={orderTypeOpen} onClose={() => setOrderTypeOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-full z-[320]">
+                  {([
+                    { key: 'limit' as const, label: '限价单' },
+                    { key: 'market' as const, label: '市价单' },
+                  ]).map(item => {
+                    const active = orderType === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className="w-full flex items-center justify-between px-3 py-2 text-[12px] rounded-[4px] transition-colors hover:bg-[rgba(255,255,255,0.08)]"
+                        style={{ color: active ? ORANGE : 'rgba(255,255,255,0.68)' }}
+                        onClick={() => {
+                          setOrderType(item.key);
+                          setOrderTypeOpen(false);
+                        }}
+                      >
+                        <span className="font-extrabold">{item.label}</span>
+                        {active ? <Check size={14} color={ORANGE} strokeWidth={3} /> : <span className="w-[14px]" />}
+                      </button>
+                    );
+                  })}
+                </Popover>
+              </div>
               <button className="h-9 px-3 rounded-[4px] flex items-center gap-2 text-[12px] font-extrabold text-white/85 transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG }} title="RFQ">
                 <span className="w-4 h-4 rounded-[4px] flex items-center justify-center text-[10px]" style={{ background: SELECTED_BG, color: 'rgba(255,255,255,0.70)' }}>◇</span>RFQ
               </button>

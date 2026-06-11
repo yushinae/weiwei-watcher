@@ -45,7 +45,8 @@ export function maxPain(exp: ExpiryGroup, spot: number): number {
 // 净 GEX —— 全 app 唯一口径（监控页 Gamma 速读 / GEX 图 / 决策页 GEX 关键位共用）
 // Σ bsGamma×OI×S²/100（call 正 / put 负，$ per 1% spot move），全部到期
 // （远月 gamma 本就趋零，全链聚合与近月聚合数值几乎一致，但语义诚实），
-// 行权价窗口 [0.7, 1.3]×spot；翻转点 = 净 GEX 变号处线性插值。
+// 行权价窗口 [0.65, 1.35]×spot（与 GEX by Strike 图的显示窗口一致，
+// 保证「净 GEX」= 图上 bar 之和）；翻转点 = 净 GEX 变号处线性插值。
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface NetGexSummary {
@@ -53,7 +54,7 @@ export interface NetGexSummary {
   flip: number | null;  // 翻转点价格（窗口内无变号则 null）
 }
 
-export function computeNetGex(data: DeribitData): NetGexSummary {
+export function computeNetGex(data: Pick<DeribitData, 'spot' | 'expiries'>): NetGexSummary {
   const spot = data.spot;
   const gexMap = new Map<number, number>();
   for (const exp of data.expiries) {
@@ -62,7 +63,7 @@ export function computeNetGex(data: DeribitData): NetGexSummary {
       gexMap.set(o.strike, (gexMap.get(o.strike) ?? 0) + (o.type === 'C' ? g : -g));
     }
   }
-  const strikes = [...gexMap.keys()].filter(k => k >= spot * 0.7 && k <= spot * 1.3).sort((a, b) => a - b);
+  const strikes = [...gexMap.keys()].filter(k => k >= spot * 0.65 && k <= spot * 1.35).sort((a, b) => a - b);
   const netGex = strikes.map(k => gexMap.get(k)!);
   const totalNet = netGex.reduce((s, g) => s + g, 0);
   let flip: number | null = null;

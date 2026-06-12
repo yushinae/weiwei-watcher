@@ -94,7 +94,7 @@ _registerWSPauseResume(
   () => DERIBIT_WS.pause(),
   () => DERIBIT_WS.resume(),
 );
-if (typeof document !== 'undefined' && !document.hidden) DERIBIT_WS.connect();
+if (typeof document !== 'undefined') DERIBIT_WS.connect();
 
 export const WS_FLUSH_MS = 500;
 

@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react';
 import { DERIBIT_WS } from '../../registry/data/ws';
 import { markError, markOk } from '../../registry/data/freshness';
+import { shouldRunFeedKey, subscribeRuntimePolicy } from '../../registry/data/runtimePolicy';
 import type { DataSource } from './chainModel';
 import type { DepthLevel } from './simBook';
 import { fetchWithRetry } from '../../lib/fetchRetry';
@@ -50,8 +51,13 @@ export function useOptionDepth(source: DataSource, instrument: string | undefine
       let alive = true;
       let timer: ReturnType<typeof setTimeout> | null = null;
       const controller = new AbortController();
+      const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
 
       const poll = async () => {
+        if (!shouldRun()) {
+          if (alive) timer = setTimeout(poll, BYBIT_POLL_MS);
+          return;
+        }
         try {
           const resp = await fetchWithRetry(
             `/bybit-api/v5/market/orderbook?category=option&symbol=${encodeURIComponent(instrument)}&limit=25`,
@@ -83,26 +89,36 @@ export function useOptionDepth(source: DataSource, instrument: string | undefine
     }
 
     const feedKey = depthFeedKey(instrument);
+    const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
     let bids: DepthLevel[] = [], asks: DepthLevel[] = [];
     let dirty = false;
+    let unsub: (() => void) | null = null;
 
-    const unsub = DERIBIT_WS.subscribe<{ bids?: unknown; asks?: unknown }>(
-      `book.${instrument}.none.10.100ms`,
-      d => {
-        if (!d) return;
-        // 深度限档频道每帧即完整 top-N → 直接替换
-        bids = parseLevels(d.bids).sort((a, b) => b.price - a.price);
-        asks = parseLevels(d.asks).sort((a, b) => a.price - b.price);
-        dirty = true;
-        markOk(feedKey, 2_000);
-      },
-    );
+    const subscribe = () => {
+      if (unsub) return;
+      unsub = DERIBIT_WS.subscribe<{ bids?: unknown; asks?: unknown }>(
+        `book.${instrument}.none.10.100ms`,
+        d => {
+          if (!d) return;
+          // 深度限档频道每帧即完整 top-N → 直接替换
+          bids = parseLevels(d.bids).sort((a, b) => b.price - a.price);
+          asks = parseLevels(d.asks).sort((a, b) => a.price - b.price);
+          dirty = true;
+          markOk(feedKey, 2_000);
+        },
+      );
+    };
+    const unsubscribe = () => { unsub?.(); unsub = null; };
+    const applyPolicy = () => { if (shouldRun()) subscribe(); else unsubscribe(); };
+
+    applyPolicy();
+    const unsubscribePolicy = subscribeRuntimePolicy(applyPolicy);
 
     const flush = setInterval(() => {
-      if (dirty) { dirty = false; setDepth({ bids, asks, ts: Date.now() }); }
+      if (shouldRun() && dirty) { dirty = false; setDepth({ bids, asks, ts: Date.now() }); }
     }, FLUSH_MS);
 
-    return () => { unsub(); clearInterval(flush); };
+    return () => { unsubscribe(); unsubscribePolicy(); clearInterval(flush); };
   }, [source, instrument]);
 
   return depth;

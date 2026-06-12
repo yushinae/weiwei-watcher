@@ -86,7 +86,7 @@ export const MarketHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   }), [spark.length, sparkColor, spark[spark.length - 1]]);
 
   return (
-    <div className="w-full h-full flex items-center gap-4 px-3 overflow-x-auto">
+    <div className="monitor-headline-strip w-full h-full flex items-center gap-4 px-3 overflow-x-auto">
       <Header coin={coin} setCoin={setCoin} live={!!ticker} />
       {/* 大价 + 24h 涨跌 + 多周期动量 */}
       <div className="flex flex-col gap-1 shrink-0">
@@ -160,7 +160,7 @@ export const MarketSignalsWidget = ({ coin: coinProp, onCoinChange }: CoinContro
         <span className="text-[10px] text-white/35">· 由下列 4 个信号综合（仓位/偏斜/资金/期限）</span>
       </div>
       {/* 4 信号 */}
-      <div className="flex gap-2 flex-1 items-stretch">
+      <div className="flex gap-2 flex-1 items-stretch flex-wrap md:flex-nowrap min-h-0">
         <Item label="PCR (OI)" value={sig.pcr.toFixed(2)} color={sig.pcr > 1.1 ? DOWN : sig.pcr < 0.7 ? UP : 'rgba(255,255,255,0.85)'}
           note={sig.pcr > 1.1 ? 'Put 堆积 · 偏悲观' : sig.pcr < 0.7 ? 'Call 偏多' : '均衡'} />
         <Item label="25Δ 偏斜" value={`${sig.rr25 >= 0 ? '+' : ''}${sig.rr25.toFixed(1)}`} color={sig.rr25 < 0 ? DOWN : sig.rr25 > 0 ? UP : MUTE}

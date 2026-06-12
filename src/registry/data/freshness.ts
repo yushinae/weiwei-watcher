@@ -11,25 +11,16 @@
 //   • 一个共享 1s ticker 驱动年龄重算，订阅者随之重渲染。
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { feedMetaForKey, type FeedMeta } from './feedCatalog';
+
 export type FreshKind =
   | 'live'     // 实时 / 刚刷新（绿）
   | 'aging'    // 开始变旧，仍可用（黄）
   | 'stale'    // 太久没更新，别信（红）
   | 'error'    // 拉取失败 / 连接断开（红）
-  | 'paused'   // 因窗口失焦/隐藏暂停了轮询（黄，会自动恢复）
+  | 'paused'   // 被资源策略显式暂停（黄，会自动恢复）
   | 'sample'   // 显示的是示例/演示数据（灰）
   | 'loading'; // 还没拿到第一份数据（中性）
-
-export interface FeedMeta {
-  /** 人类可读名，用于总闸下拉，如「Deribit 期权 book」。 */
-  label: string;
-  /** 数据来源标签，如 'Deribit' / 'Bybit'。 */
-  source?: string;
-  /** 预期刷新间隔（ms）。年龄超过它的倍数就降级。poller 会自动传入轮询间隔。 */
-  expectedMs: number;
-  /** 是否计入顶栏「数据健康」总闸。后台/可选数据设 false 以免噪音。 */
-  critical: boolean;
-}
 
 interface FeedState extends FeedMeta {
   key: string;
@@ -50,26 +41,6 @@ export interface Freshness {
   source?: string;
   error?: string | null;
 }
-
-// ── 已知 feed 目录（仅为漂亮的标签 + critical 标记；未知 key 自动登记） ──────────
-// 注意：expectedMs 一般由 poller 用真实轮询间隔覆盖，这里给的是兜底。
-const CATALOG: Record<string, Omit<FeedMeta, 'expectedMs'> & { expectedMs?: number }> = {
-  'ws-deribit':        { label: 'Deribit 实时行情 (WS)', source: 'Deribit', critical: true, expectedMs: 8_000 },
-  'options-BTC':       { label: 'BTC 期权 book',          source: 'Deribit', critical: true },
-  'options-ETH':       { label: 'ETH 期权 book',          source: 'Deribit', critical: true },
-  'deribit-chain-BTC': { label: 'BTC Deribit 期权链',     source: 'Deribit', critical: true },
-  'deribit-chain-ETH': { label: 'ETH Deribit 期权链',     source: 'Deribit', critical: true },
-  'deribit-usdc-chain-BTC': { label: 'BTC Deribit USDC 期权链', source: 'Deribit', critical: true },
-  'deribit-usdc-chain-ETH': { label: 'ETH Deribit USDC 期权链', source: 'Deribit', critical: true },
-  'option-chain-BTC':  { label: 'BTC Bybit 期权链',       source: 'Bybit',   critical: true },
-  'option-chain-ETH':  { label: 'ETH Bybit 期权链',       source: 'Bybit',   critical: true },
-  'flow-BTC':          { label: 'BTC 资金流 / 大单',       source: 'Deribit', critical: false },
-  'flow-ETH':          { label: 'ETH 资金流 / 大单',       source: 'Deribit', critical: false },
-  'history-BTC':       { label: 'BTC 历史波动',            source: 'Deribit', critical: false },
-  'history-ETH':       { label: 'ETH 历史波动',            source: 'Deribit', critical: false },
-  'sentiment-BTC':     { label: 'BTC 情绪指数',            source: 'Deribit', critical: false },
-  'sentiment-ETH':     { label: 'ETH 情绪指数',            source: 'Deribit', critical: false },
-};
 
 const FEEDS = new Map<string, FeedState>();
 const listeners = new Set<() => void>();
@@ -99,13 +70,10 @@ if (typeof document !== 'undefined') {
 function ensure(key: string, expectedMs?: number): FeedState {
   let f = FEEDS.get(key);
   if (!f) {
-    const cat = CATALOG[key];
+    const meta = feedMetaForKey(key, expectedMs);
     f = {
       key,
-      label: cat?.label ?? key,
-      source: cat?.source,
-      expectedMs: expectedMs ?? cat?.expectedMs ?? 60_000,
-      critical: cat?.critical ?? false,
+      ...meta,
       lastOkAt: null,
       lastErrAt: null,
       lastError: null,

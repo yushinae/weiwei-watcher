@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DERIBIT_WS } from '../../registry/data/ws';
+import { shouldRunFeedKey, subscribeRuntimePolicy } from '../../registry/data/runtimePolicy';
 import { BYBIT_OPTION_WS } from './bybitOptionWs';
 import type { Coin, DataSource, ChainExpiry, Side } from './chainModel';
 
@@ -103,10 +104,13 @@ function normalizeDeribit(d: Record<string, any>, instrument?: string): Partial<
 // 真实多档盘口 —— 替代 TradingPanel 旧的"示意盘口"（genBook 模拟深度）。
 //   • Deribit:  public/get_order_book（option 报价为币本位 → ×underlying 折 USD）
 //   • Bybit:    /bybit-api/v5/market/orderbook（已是 USDT≈USD）
-// REST 轮询 1.5s：期权盘口变化慢、且多档本就薄，足够；document.hidden 时暂停。
+// REST 轮询 1.5s：期权盘口变化慢、且多档本就薄，足够；按 runtime policy 只在可见界面运行。
 // 注意：期权盘口普遍很薄，多数行权价只有 1~3 档，空时返回 real=false（UI 显示"暂无"）。
 // ─────────────────────────────────────────────────────────────────────────────
 export interface BookLvl { price: number; size: number; total: number }
+
+const detailFeedKey = (kind: 'book' | 'trades' | 'chain-stream', source: DataSource, id: string) =>
+  `option-detail-${kind}-${source}-${id}`;
 
 export function useOrderBook(instrument: string | undefined, source: DataSource, spot: number) {
   const [book, setBook] = useState<{ asks: BookLvl[]; bids: BookLvl[]; real: boolean }>({ asks: [], bids: [], real: false });
@@ -125,7 +129,8 @@ export function useOrderBook(instrument: string | undefined, source: DataSource,
     };
 
     const poll = async () => {
-      if (document.hidden) return;
+      const feedKey = detailFeedKey('book', source, instrument);
+      if (!shouldRunFeedKey(feedKey, { mode: 'visible-live' })) return;
       try {
         let rawBids: [number, number][] = [];
         let rawAsks: [number, number][] = [];
@@ -174,7 +179,8 @@ export function useRecentTrades(instrument: string | undefined, source: DataSour
     let alive = true;
 
     const poll = async () => {
-      if (document.hidden) return;
+      const feedKey = detailFeedKey('trades', source, instrument);
+      if (!shouldRunFeedKey(feedKey, { mode: 'visible-live' })) return;
       try {
         let out: RecentTrade[] = [];
         if (source === 'bybit') {
@@ -235,10 +241,11 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
     const buf: LiveTicks = {};
     let dirty = false;
     let unsubs: Array<() => void> = [];
+    const feedKey = detailFeedKey('chain-stream', source, targetSig);
+    const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
 
-    // Subscribe / unsubscribe the per-option ticker channels. Paused while the tab
-    // is hidden — those subs are the heavy part (Deribit .100ms × dozens of strikes),
-    // so dropping them while not visible saves CPU / battery.
+    // These per-option ticker channels are the heavy part (Deribit .100ms × dozens
+    // of strikes), so runtime policy keeps them tied to visible UI.
     const subscribe = () => {
       if (unsubs.length) return;
       for (const { instrument, key } of targets) {
@@ -254,15 +261,15 @@ export function useChainStream(source: DataSource, expiry: ChainExpiry | undefin
       }
     };
     const unsubscribe = () => { unsubs.forEach(u => u()); unsubs = []; };
-    const onVisibility = () => { if (document.hidden) unsubscribe(); else subscribe(); };
+    const applyPolicy = () => { if (shouldRun()) subscribe(); else unsubscribe(); };
 
-    if (!document.hidden) subscribe();
-    document.addEventListener('visibilitychange', onVisibility);
+    applyPolicy();
+    const unsubscribePolicy = subscribeRuntimePolicy(applyPolicy);
 
-    const flush = setInterval(() => { if (!document.hidden && dirty) { dirty = false; setTicks({ ...buf }); } }, 1000);
+    const flush = setInterval(() => { if (shouldRun() && dirty) { dirty = false; setTicks({ ...buf }); } }, 1000);
     return () => {
       unsubscribe();
-      document.removeEventListener('visibilitychange', onVisibility);
+      unsubscribePolicy();
       clearInterval(flush);
       setTicks({});
     };

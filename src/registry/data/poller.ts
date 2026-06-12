@@ -1,10 +1,20 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shared polling scheduler
 // One setInterval per data-key, shared across every widget that needs the same
-// data. Pauses automatically when the window/tab is hidden (Page Visibility API).
+// data. Monitor data keeps running in the background so alerts and dashboards do
+// not silently freeze when the browser tab loses focus.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { markOk, markError, markAllPaused, setActive } from './freshness';
+import {
+  feedRunMode,
+  resetRuntimePolicyForTest,
+  setGlobalPaused,
+  setMonitorRoutePaused,
+  shouldRunFeed,
+  subscribeRuntimePolicy,
+} from './runtimePolicy';
+import type { FeedRunMode } from './feedCatalog';
 
 export type DataSub<T> = (data: T) => void;
 
@@ -18,32 +28,28 @@ export interface PollerEntry {
   inFlight: Promise<void> | null;
   requestSeq: number;
   pollOnMonitorRoute: boolean;
+  mode: FeedRunMode;
 }
 
 const POLLERS = new Map<string, PollerEntry>();
-let _isHidden    = false;
-let _monitorRoutePaused = false;
-let _focusLostAt: number | null = null;
-let _blurPauseTimer: ReturnType<typeof setTimeout> | null = null;
-const UNFOCUS_PAUSE_MS = 30_000;
 
-export function _shouldSkip(options?: { monitorScoped?: boolean }): boolean {
-  if (_isHidden) return true;
-  if (options?.monitorScoped && _monitorRoutePaused) return true;
-  if (_focusLostAt !== null && Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS) return true;
-  return false;
+export function _shouldSkip(options?: { monitorScoped?: boolean; mode?: FeedRunMode }): boolean {
+  return !shouldRunFeed({
+    mode: options?.mode ?? 'critical-background',
+    monitorScoped: options?.monitorScoped,
+  });
 }
 
 async function _pollOnce(key: string): Promise<void> {
   const e = POLLERS.get(key);
   if (!e || e.subscribers.size === 0) return;
-  if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute })) return;
+  if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute, mode: e.mode })) return;
   if (e.inFlight) return e.inFlight;
   const seq = ++e.requestSeq;
   e.inFlight = (async () => {
     try {
       const d = await e.fetcher();
-      if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute })) return;
+      if (_shouldSkip({ monitorScoped: e.pollOnMonitorRoute, mode: e.mode })) return;
       if (seq !== e.requestSeq) return;
       e.lastData = d;
       e.subscribers.forEach(fn => fn(d));
@@ -58,6 +64,25 @@ async function _pollOnce(key: string): Promise<void> {
   return e.inFlight;
 }
 
+function reconcilePollersWithRuntimePolicy(): void {
+  POLLERS.forEach((e, key) => {
+    const blocked = _shouldSkip({ monitorScoped: e.pollOnMonitorRoute, mode: e.mode });
+    if (blocked) {
+      if (e.timerId != null) {
+        clearInterval(e.timerId);
+        e.timerId = null;
+      }
+      return;
+    }
+    if (e.subscribers.size > 0 && e.timerId == null) {
+      _pollOnce(key);
+      e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
+    }
+  });
+}
+
+subscribeRuntimePolicy(reconcilePollersWithRuntimePolicy);
+
 let _wsPauseFn: (() => void) | null = null;
 let _wsResumeFn: (() => void) | null = null;
 
@@ -66,13 +91,7 @@ export function _resetPollersForTest(): void {
     if (e.timerId != null) clearInterval(e.timerId);
   });
   POLLERS.clear();
-  _isHidden = false;
-  _monitorRoutePaused = false;
-  _focusLostAt = null;
-  if (_blurPauseTimer !== null) {
-    clearTimeout(_blurPauseTimer);
-    _blurPauseTimer = null;
-  }
+  resetRuntimePolicyForTest();
   _wsPauseFn = null;
   _wsResumeFn = null;
 }
@@ -83,10 +102,10 @@ export function _registerWSPauseResume(pause: () => void, resume: () => void): v
 }
 
 export function _resumeAll(): void {
-  _isHidden = false;
+  setGlobalPaused(false);
   markAllPaused(false);
   POLLERS.forEach((e, key) => {
-    if (e.subscribers.size > 0 && e.timerId == null && !(_monitorRoutePaused && e.pollOnMonitorRoute)) {
+    if (e.subscribers.size > 0 && e.timerId == null && !_shouldSkip({ monitorScoped: e.pollOnMonitorRoute, mode: e.mode })) {
       _pollOnce(key);
       e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
     }
@@ -95,7 +114,7 @@ export function _resumeAll(): void {
 }
 
 export function _pauseAll(): void {
-  _isHidden = true;
+  setGlobalPaused(true);
   markAllPaused(true);
   POLLERS.forEach(e => {
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
@@ -104,60 +123,29 @@ export function _pauseAll(): void {
 }
 
 export function resumeMonitorPolling(): void {
-  _monitorRoutePaused = false;
+  setMonitorRoutePaused(false);
   POLLERS.forEach((e, key) => {
-    if (!e.pollOnMonitorRoute || e.subscribers.size === 0 || e.timerId != null || _isHidden) return;
+    if (!e.pollOnMonitorRoute || e.subscribers.size === 0 || e.timerId != null || _shouldSkip({ monitorScoped: true, mode: e.mode })) return;
     _pollOnce(key);
     e.timerId = setInterval(() => _pollOnce(key), e.intervalMs);
   });
 }
 
 export function pauseMonitorPolling(): void {
-  _monitorRoutePaused = true;
+  setMonitorRoutePaused(true);
   POLLERS.forEach(e => {
     if (!e.pollOnMonitorRoute) return;
     if (e.timerId != null) { clearInterval(e.timerId); e.timerId = null; }
   });
 }
 
-if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () =>
-    document.hidden ? _pauseAll() : _resumeAll()
-  );
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('blur', () => {
-    if (document.hasFocus()) return;
-    _focusLostAt = _focusLostAt ?? Date.now();
-    if (!_blurPauseTimer) {
-      _blurPauseTimer = setTimeout(() => {
-        _blurPauseTimer = null;
-        if (_focusLostAt !== null && !_isHidden) _wsPauseFn?.();
-      }, UNFOCUS_PAUSE_MS);
-    }
-  });
-  window.addEventListener('focus', () => {
-    if (_blurPauseTimer !== null) { clearTimeout(_blurPauseTimer); _blurPauseTimer = null; }
-    if (_focusLostAt === null) return;
-    const wasLongAway = Date.now() - _focusLostAt > UNFOCUS_PAUSE_MS;
-    _focusLostAt = null;
-    if (wasLongAway && !_isHidden) {
-      POLLERS.forEach((_, key) => _pollOnce(key));
-      _wsResumeFn?.();
-    }
-  });
-}
-
 export function setVisibleInterval(cb: () => void, ms: number): () => void {
   let id: ReturnType<typeof setInterval> | null = null;
-  const tick = () => { if (!_shouldSkip()) cb(); };
+  const tick = () => { cb(); };
   const start = () => { if (id == null) id = setInterval(tick, ms); };
   const stop  = () => { if (id != null) { clearInterval(id); id = null; } };
-  const onVis = () => document.hidden ? stop() : start();
-  if (!document.hidden) start();
-  document.addEventListener('visibilitychange', onVis);
-  return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
+  start();
+  return () => { stop(); };
 }
 
 export function subscribeData<T>(
@@ -165,11 +153,12 @@ export function subscribeData<T>(
   fetcher: () => Promise<T>,
   intervalMs: number,
   subscriber: DataSub<T>,
-  onErrorOrOptions?: ((err: unknown) => void) | { onError?: (err: unknown) => void; monitorScoped?: boolean },
+  onErrorOrOptions?: ((err: unknown) => void) | { onError?: (err: unknown) => void; monitorScoped?: boolean; mode?: FeedRunMode },
 ): () => void {
   let e = POLLERS.get(key);
   const onError = typeof onErrorOrOptions === 'function' ? onErrorOrOptions : onErrorOrOptions?.onError;
   const monitorScoped = typeof onErrorOrOptions === 'object' ? onErrorOrOptions.monitorScoped === true : false;
+  const mode = feedRunMode(key, typeof onErrorOrOptions === 'object' ? onErrorOrOptions.mode : undefined);
   if (!e) {
     e = {
       intervalMs,
@@ -181,6 +170,7 @@ export function subscribeData<T>(
       inFlight: null,
       requestSeq: 0,
       pollOnMonitorRoute: monitorScoped,
+      mode,
     };
     POLLERS.set(key, e);
   } else {
@@ -188,6 +178,7 @@ export function subscribeData<T>(
       console.warn(`[poller] subscribeData("${key}") reused with different interval (${e.intervalMs}ms → ${intervalMs}ms); keeping the first interval.`);
     }
     e.pollOnMonitorRoute = e.pollOnMonitorRoute || monitorScoped;
+    e.mode = mode;
   }
   const entry = e;
   const wasEmpty = entry.subscribers.size === 0;
@@ -197,7 +188,7 @@ export function subscribeData<T>(
 
   if (entry.lastData !== undefined) subscriber(entry.lastData as T);
 
-  if (entry.timerId == null && !_isHidden && !(entry.pollOnMonitorRoute && _monitorRoutePaused)) {
+  if (entry.timerId == null && !_shouldSkip({ monitorScoped: entry.pollOnMonitorRoute, mode: entry.mode })) {
     if (entry.lastData === undefined) _pollOnce(key);
     entry.timerId = setInterval(() => _pollOnce(key), intervalMs);
   }

@@ -54,7 +54,7 @@ export const GammaHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContro
   );
 
   return (
-    <div className="w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
+    <div className="monitor-headline-strip w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
       <Stat
         label="Gamma 区制"
         value={isPos ? '正 Gamma' : '负 Gamma'}

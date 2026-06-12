@@ -3,6 +3,7 @@ import { fetchOptionChain } from './bybitTickers';
 import { BYBIT_OPTION_WS } from './bybitOptionWs';
 import { fetchDeribitChainOptions } from '../../registry/data/deribit';
 import { DERIBIT_WS, WS_FLUSH_MS } from '../../registry/data/ws';
+import { shouldRunFeedKey, subscribeRuntimePolicy } from '../../registry/data/runtimePolicy';
 import type { SimPosition } from './simBook';
 
 const REST_FALLBACK_MS = 45_000;
@@ -125,6 +126,9 @@ export function useBookMarkFeed(
     let alive = true;
     const buf: Record<string, number> = {};
     let dirty = false;
+    let unsubs: Array<() => void> = [];
+    const feedKey = `option-book-marks-${targetSig}`;
+    const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
 
     const putMark = (symbol: string, mark: number | null) => {
       if (mark == null || mark <= 0) return;
@@ -132,14 +136,19 @@ export function useBookMarkFeed(
       dirty = true;
     };
 
-    const unsubs = [
-      ...targets.bybitWs.map(({ instrument, symbol }) =>
-        BYBIT_OPTION_WS.subscribe<Record<string, unknown>>(`tickers.${instrument}`, d => putMark(symbol, normalizeBybitMark(d))),
-      ),
-      ...targets.deribitWs.map(({ instrument, symbol }) =>
-        DERIBIT_WS.subscribe<Record<string, unknown>>(`ticker.${instrument}.100ms`, d => putMark(symbol, normalizeDeribitMark(d, instrument))),
-      ),
-    ];
+    const subscribe = () => {
+      if (unsubs.length > 0) return;
+      unsubs = [
+        ...targets.bybitWs.map(({ instrument, symbol }) =>
+          BYBIT_OPTION_WS.subscribe<Record<string, unknown>>(`tickers.${instrument}`, d => putMark(symbol, normalizeBybitMark(d))),
+        ),
+        ...targets.deribitWs.map(({ instrument, symbol }) =>
+          DERIBIT_WS.subscribe<Record<string, unknown>>(`ticker.${instrument}.100ms`, d => putMark(symbol, normalizeDeribitMark(d, instrument))),
+        ),
+      ];
+    };
+    const unsubscribe = () => { unsubs.forEach(u => u()); unsubs = []; };
+    const applyPolicy = () => { if (shouldRun()) subscribe(); else unsubscribe(); };
 
     const flush = () => {
       if (!alive || !dirty) return;
@@ -149,6 +158,7 @@ export function useBookMarkFeed(
     const flushId = setInterval(flush, WS_FLUSH_MS);
 
     const poll = async () => {
+      if (!shouldRun()) return;
       const marks: Record<string, number> = {};
 
       const bybitByCoin = new Map<'BTC' | 'ETH', RestTarget[]>();
@@ -192,12 +202,15 @@ export function useBookMarkFeed(
       }
     };
 
+    applyPolicy();
+    const unsubscribePolicy = subscribeRuntimePolicy(applyPolicy);
     void poll();
-    const pollId = setInterval(() => { if (!document.hidden) void poll(); }, REST_FALLBACK_MS);
+    const pollId = setInterval(() => { if (shouldRun()) void poll(); }, REST_FALLBACK_MS);
 
     return () => {
       alive = false;
-      unsubs.forEach(u => u());
+      unsubscribe();
+      unsubscribePolicy();
       clearInterval(flushId);
       clearInterval(pollId);
     };

@@ -84,7 +84,7 @@ export const FlowHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   const oiVal = oiChg ? `${oiChg.pct >= 0 ? '+' : ''}${oiChg.pct.toFixed(1)}%` : '—';
 
   return (
-    <div className="w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
+    <div className="monitor-headline-strip w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
       <Stat label="资金面" value={lean.t} color={lean.c} sub="综合判定" subColor="rgba(255,255,255,0.35)" />
       <div className="w-px h-8 bg-white/[0.08]" />
       <Stat label="资金费率/年" value={`${funding >= 0 ? '+' : ''}${funding.toFixed(1)}%`}

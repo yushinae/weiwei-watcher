@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useSyncExternalStore, useRef } from '
 import { fetchBybitOptionPositions, BybitAuthError, type BybitOptionPosition } from './rest';
 import { hasBrowserWsCredentials, isConfigured, subscribeAuthState } from './auth';
 import { BYBIT_PRIVATE_WS } from './ws';
+import { shouldRunFeedKey } from '../../registry/data/runtimePolicy';
 
 // Polling interval — WS handles incremental updates, REST keeps us honest if a
 // WS message slips through (e.g. across a reconnect race) and refreshes Greeks
@@ -59,7 +60,9 @@ export function useBybitPositions(): State & { refresh: () => void } {
   useEffect(() => {
     if (!configured) return;
     refresh();
-    const id = setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+    const id = setInterval(() => {
+      if (shouldRunFeedKey('bybit-positions', { mode: 'critical-background' })) refresh();
+    }, POLL_MS);
     return () => clearInterval(id);
   }, [configured, refresh]);
 

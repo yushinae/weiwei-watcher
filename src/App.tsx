@@ -479,9 +479,9 @@ const PageFallback = () => (
 );
 
 // 策略：
-// - 监控页（重，50+ widget）keep-alive：用 display:none 隐藏，永不卸载，避免反复初始化卡顿
-// - 监控页隐藏时暂停轮询（monitorWidgets 内置 visibilitychange 检测）
-// - 其他轻量页面正常按需挂载
+// - 页面按路由懒加载，导航 hover 时预加载 chunk，避免首屏一次性加载所有重页面
+// - 监控数据保持后台更新，切出浏览器也不冻结行情/告警
+// - 其他页面正常按需挂载；重数据源在各自 hook 内按需订阅/清理
 // - 预加载（hover）保留
 function AppRoutes() {
   return (

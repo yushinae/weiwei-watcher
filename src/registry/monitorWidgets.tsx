@@ -1348,7 +1348,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const fmtPx = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
 
   return (
-    <div className="w-full h-full flex items-stretch gap-1.5 px-3 py-2 overflow-x-auto">
+    <div className="w-full h-full flex flex-wrap md:flex-nowrap items-stretch content-start md:content-stretch gap-1.5 px-3 py-2 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden">
       {rows.map(r => {
         const barFill = (r.movePct / maxMove) * 100;
         const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#ff9c2e';
@@ -1477,10 +1477,10 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
   ];
 
   return (
-    <div className="w-full h-full flex items-stretch gap-2 px-3 py-2">
+    <div className="w-full h-full flex flex-wrap md:flex-nowrap items-stretch content-start md:content-stretch gap-2 px-3 py-2 overflow-y-auto md:overflow-y-hidden">
       {stats.map(s => (
         <div key={s.label}
-          className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-3 py-2.5 flex flex-col justify-between transition-colors hover:border-[var(--nexus-accent)]/25"
+          className="flex-1 min-w-[150px] bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-3 py-2.5 flex flex-col justify-between transition-colors hover:border-[var(--nexus-accent)]/25"
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-white/55">{s.label}</span>

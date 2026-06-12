@@ -422,6 +422,10 @@ html.is-scrolling * {
   isolation: isolate;
 }
 
+.widget-card--no-pad {
+  padding: 0;
+}
+
 /* 顶部微橙高光带（hover 时渐显） */
 .widget-card::before {
   display: none;
@@ -798,6 +802,33 @@ html.is-scrolling * {
   border-color: transparent;
 }
 
+.monitor-headline-strip {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .monitor-headline-strip {
+    flex-wrap: wrap;
+    align-items: stretch;
+    align-content: center;
+    overflow-x: hidden;
+  }
+
+  .monitor-headline-strip > .w-px {
+    display: none;
+  }
+
+  .monitor-headline-strip > [class*="min-w-"] {
+    min-width: min(100%, 160px);
+  }
+
+  .monitor-headline-strip > .h-full {
+    flex-basis: 100%;
+    max-width: none;
+    height: 72px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .widget-card,
   .widget-card:hover {
@@ -835,6 +866,13 @@ html.is-scrolling * {
   justify-content: space-between;
   padding-top: 4px;
   margin-bottom: 2px;
+  min-height: 28px;
+}
+
+.widget-head--compact {
+  min-height: 24px;
+  padding-top: 2px;
+  margin-bottom: 0;
 }
 
 .widget-drag-handle {
@@ -886,7 +924,7 @@ html.is-scrolling * {
 .widget-name {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   line-height: 1.3;
   color: rgba(255, 255, 255, 0.90);
 }

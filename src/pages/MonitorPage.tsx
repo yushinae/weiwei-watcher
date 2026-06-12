@@ -5,6 +5,7 @@ import { InspectorDrawer } from '../features/monitor/components/InspectorDrawer'
 import { useMonitorQueryState } from '../features/monitor/hooks/useMonitorQueryState';
 import { useMonitorSelection } from '../features/monitor/hooks/useMonitorSelection';
 import type { MonitorSelection } from '../features/monitor/types';
+import { MarketOverviewWidget } from '../features/monitor/MarketOverview';
 import {
   OIByStrikeWidget,
   GEXWidget,
@@ -23,7 +24,7 @@ import {
   GlobalGradDefs,
 } from '../registry/monitorWidgets';
 import { VolHeadlineWidget, VolSmileCurveWidget, VolTermWidget } from '../features/monitor/VolRead';
-import { MarketHeadlineWidget, MarketSignalsWidget } from '../features/monitor/MarketRead';
+import { MarketSignalsWidget } from '../features/monitor/MarketRead';
 import { GammaHeadlineWidget } from '../features/monitor/OIRead';
 import { FlowHeadlineWidget } from '../features/monitor/FlowRead';
 
@@ -49,16 +50,15 @@ export default function MonitorPage() {
             {/* ── 行情 ─────────────────────────────────────────────────────── */}
             {tab === 'market' && (
               <div className="grid grid-cols-12 gap-2">
-                {/* ① 行情头条：在哪 + 怎么动 */}
-                <WidgetCard title="实时行情" headerDensity="compact" className="col-span-12 h-[132px]">
-                  <MarketHeadlineWidget coin={coin} onCoinChange={setCoin} />
+                <WidgetCard title="市场总览" headerDensity="compact" className="col-span-12 h-[360px] sm:h-[260px] md:h-[166px]">
+                  <MarketOverviewWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ② 市场信号：综合倾向 + 四读数 */}
-                <WidgetCard title="市场信号" headerDensity="compact" className="col-span-12 h-[156px]">
+                <WidgetCard title="市场信号" headerDensity="compact" className="col-span-12 h-[260px] sm:h-[200px] md:h-[156px]">
                   <MarketSignalsWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ③ 市场定价的波动幅度 */}
-                <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[160px]">
+                <WidgetCard title="隐含波动区间" headerDensity="compact" className="col-span-12 h-[300px] sm:h-[190px] md:h-[160px]">
                   <ImpliedMoveWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ④ 大单在做什么 */}
@@ -72,25 +72,25 @@ export default function MonitorPage() {
             {tab === 'vol' && (
               <div className="grid grid-cols-12 gap-2">
                 {/* 分层阅读：① 结论条 */}
-                <WidgetCard title="波动率速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                <WidgetCard title="波动率速读" headerDensity="compact" className="col-span-12 h-[190px] sm:h-[142px] md:h-[96px]">
                   <VolHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ② 形态曲线（先看形状）*/}
-                <WidgetCard title="波动率微笑（按 Δ）" headerDensity="compact" className="col-span-6 h-[300px]">
+                <WidgetCard title="波动率微笑（按 Δ）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[300px]">
                   <VolSmileCurveWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="期限结构 + 偏斜（ATM IV · 25Δ RR）" headerDensity="compact" className="col-span-6 h-[300px]">
+                <WidgetCard title="期限结构 + 偏斜（ATM IV · 25Δ RR）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[300px]">
                   <VolTermWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 {/* ③ 明细：精确值表 + 历史时间序列 + IV 贵贱评级 */}
-                <WidgetCard title="IV 曲面偏斜表（精确值）" headerDensity="compact" className="col-span-6 self-start">
+                <WidgetCard title="IV 曲面偏斜表（精确值）" headerDensity="compact" className="col-span-12 md:col-span-6 self-start">
                   <IVSurfaceWidget
                     coin={coin}
                     onCoinChange={setCoin}
                     onPickCell={p => onPickSkewCell({ type: 'skewCell', ...p })}
                   />
                 </WidgetCard>
-                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-6 h-[280px]">
+                <WidgetCard title="DVOL 历史（90D）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[280px]">
                   <DVOLSeriesWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="波动率便宜/贵评级（IV vs 历史 RV 锥）" headerDensity="compact" className="col-span-12 h-[280px]">
@@ -103,16 +103,16 @@ export default function MonitorPage() {
             {tab === 'oi' && (
               <div className="grid grid-cols-12 gap-2">
                 {/* 分层阅读：① Gamma 速读（结论先行）*/}
-                <WidgetCard title="Gamma 速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                <WidgetCard title="Gamma 速读" headerDensity="compact" className="col-span-12 h-[190px] sm:h-[142px] md:h-[96px]">
                   <GammaHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="持仓分布（OI by Strike）" headerDensity="compact" className="col-span-6 h-[500px]">
+                <WidgetCard title="持仓分布（OI by Strike）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[500px]">
                   <OIByStrikeWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="Gamma 敞口（GEX by Strike）" headerDensity="compact" className="col-span-6 h-[500px]">
+                <WidgetCard title="Gamma 敞口（GEX by Strike）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[500px]">
                   <GEXWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[124px]">
+                <WidgetCard title="市场聚合 Dollar Greeks" headerDensity="compact" className="col-span-12 h-[220px] md:h-[124px]">
                   <DollarGreeksWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="到期日日历（OI · Max Pain · PCR）" headerDensity="compact" className="col-span-12 h-[400px]">
@@ -128,13 +128,13 @@ export default function MonitorPage() {
             {tab === 'flow' && (
               <div className="grid grid-cols-12 gap-2">
                 {/* 分层阅读：① 资金面速读（结论先行）*/}
-                <WidgetCard title="资金面速读" headerDensity="compact" className="col-span-12 h-[96px]">
+                <WidgetCard title="资金面速读" headerDensity="compact" className="col-span-12 h-[190px] sm:h-[142px] md:h-[96px]">
                   <FlowHeadlineWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="资金费率历史" headerDensity="compact" className="col-span-6 h-[240px]">
+                <WidgetCard title="资金费率历史" headerDensity="compact" className="col-span-12 md:col-span-6 h-[240px]">
                   <FundingRateWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
-                <WidgetCard title="期货基差（年化）" headerDensity="compact" className="col-span-6 h-[240px]">
+                <WidgetCard title="期货基差（年化）" headerDensity="compact" className="col-span-12 md:col-span-6 h-[240px]">
                   <FuturesBasisWidget coin={coin} onCoinChange={setCoin} />
                 </WidgetCard>
                 <WidgetCard title="期权成交量流向（24H）" headerDensity="compact" className="col-span-12 h-[300px]">

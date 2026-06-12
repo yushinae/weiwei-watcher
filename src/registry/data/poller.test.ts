@@ -6,6 +6,7 @@ import {
   pauseMonitorPolling,
   subscribeData,
 } from './poller';
+import { setAppHiddenForTest, shouldRunFeedKey, subscribeRuntimePolicy } from './runtimePolicy';
 
 const flushMicrotasks = () => new Promise<void>(resolve => queueMicrotask(resolve));
 
@@ -132,5 +133,62 @@ describe('subscribeData', () => {
 
     unsubShared();
     unsubMonitor();
+  });
+
+  it('keeps background feeds running while hidden but pauses visible-live feeds', async () => {
+    const backgroundFetcher = vi.fn(async () => 'background');
+    const visibleFetcher = vi.fn(async () => 'visible');
+    const backgroundSub = vi.fn();
+    const visibleSub = vi.fn();
+
+    setAppHiddenForTest(true);
+    const unsubBackground = subscribeData('options-BTC', backgroundFetcher, 1000, backgroundSub);
+    const unsubVisible = subscribeData('option-chain-BTC', visibleFetcher, 1000, visibleSub);
+    await flushMicrotasks();
+
+    expect(backgroundFetcher).toHaveBeenCalledTimes(1);
+    expect(visibleFetcher).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(backgroundFetcher).toHaveBeenCalledTimes(4);
+    expect(visibleFetcher).not.toHaveBeenCalled();
+
+    unsubBackground();
+    unsubVisible();
+  });
+
+  it('resumes visible-live pollers when the app becomes visible again', async () => {
+    const fetcher = vi.fn(async () => 'visible');
+    const subscriber = vi.fn();
+
+    setAppHiddenForTest(true);
+    const unsub = subscribeData('option-chain-BTC', fetcher, 1000, subscriber);
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(fetcher).not.toHaveBeenCalled();
+
+    setAppHiddenForTest(false);
+    await flushMicrotasks();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(subscriber).toHaveBeenCalledWith('visible');
+
+    unsub();
+  });
+
+  it('notifies runtime policy listeners when visibility state changes', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeRuntimePolicy(listener);
+
+    expect(shouldRunFeedKey('option-chain-BTC')).toBe(true);
+
+    setAppHiddenForTest(true);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(shouldRunFeedKey('option-chain-BTC')).toBe(false);
+    expect(shouldRunFeedKey('options-BTC')).toBe(true);
+
+    unsubscribe();
   });
 });

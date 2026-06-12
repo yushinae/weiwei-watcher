@@ -62,7 +62,7 @@ export const VolHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const ivc = ivRank == null ? 'rgba(255,255,255,0.85)' : ivRank >= 70 ? DOWN : ivRank <= 30 ? UP : YELLOW;
 
   return (
-    <div className="w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
+    <div className="monitor-headline-strip w-full h-full flex items-center gap-1 px-2 overflow-x-auto">
       <Stat label="IV Rank" value={ivRank != null ? `${ivRank.toFixed(0)}` : '—'} color={ivc} sub="52周百分位" />
       <div className="w-px h-8 bg-white/[0.08]" />
       <Stat label="DVOL" value={`${dvol.toFixed(1)}%`} color="rgba(255,255,255,0.85)" sub="实时" />

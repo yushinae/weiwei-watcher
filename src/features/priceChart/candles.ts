@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import type { Coin } from '../monitor/types';
+import { shouldRunFeedKey, subscribeRuntimePolicy } from '../../registry/data/runtimePolicy';
 
 export { computeChainLevels } from '../../registry/data/analysis';
 export type { ChainLevels } from '../../registry/data/analysis';
@@ -60,7 +61,7 @@ export async function fetchCandlesBefore(coin: Coin, res: Resolution, beforeTime
 }
 
 // WS-first：REST 回填一次历史，之后订阅 Binance kline WS 实时更新「形成中」的那根蜡烛。
-// 价格图独立于监控页生命周期，自管连接；document.hidden 时断开省电、可见时重连+重对齐。
+// 价格图独立于监控页生命周期，自管连接；按 runtime policy 可见时实时、不可见时省电。
 // 端点用公开数据流 data-stream.binance.vision（无 key、不受交易 API 地域限制，浏览器直连，
 // WS 不受 CORS 限制）。Resolution 字符串与 Binance interval 一致，可直接拼 @kline_{res}。
 // 兜底：仅在 WS 未连接时按 POLL_MS 慢轮询，保证 WS 被网络挡掉时图表也不会僵死。
@@ -81,6 +82,8 @@ export function useCandles(coin: Coin, res: Resolution) {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let backoff = 1_000;
     let wsConnected = false;
+    const feedKey = `candles-${coin}-${res}`;
+    const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
 
     const commit = (next: Candle[]) => { ref.current = next; if (alive) setCandles(next); };
 
@@ -109,12 +112,12 @@ export function useCandles(coin: Coin, res: Resolution) {
 
     const stopPoll = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
     const startPoll = () => {
-      if (pollTimer || document.hidden) return;
-      pollTimer = setInterval(() => { if (!wsConnected && !document.hidden) backfill(); }, POLL_MS[res]);
+      if (pollTimer || !shouldRun()) return;
+      pollTimer = setInterval(() => { if (!wsConnected && shouldRun()) backfill(); }, POLL_MS[res]);
     };
 
     const scheduleReconnect = () => {
-      if (!alive || reconnectTimer || document.hidden) return;
+      if (!alive || reconnectTimer || !shouldRun()) return;
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         backoff = Math.min(backoff * 2, 30_000);
@@ -123,7 +126,7 @@ export function useCandles(coin: Coin, res: Resolution) {
     };
 
     const connectWS = () => {
-      if (!alive || document.hidden) return;
+      if (!alive || !shouldRun()) return;
       const stream = `${COIN_SYMBOL[coin].toLowerCase()}@kline_${res}`;
       let sock: WebSocket;
       try { sock = new WebSocket(`wss://data-stream.binance.vision/ws/${stream}`); }
@@ -147,8 +150,8 @@ export function useCandles(coin: Coin, res: Resolution) {
       sock.onerror = () => { try { sock.close(); } catch { /* noop */ } };
     };
 
-    const onVis = () => {
-      if (document.hidden) {
+    const applyPolicy = () => {
+      if (!shouldRun()) {
         if (ws) { ws.onclose = null; try { ws.close(); } catch { /* noop */ } ws = null; }
         wsConnected = false;
         if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
@@ -161,11 +164,11 @@ export function useCandles(coin: Coin, res: Resolution) {
 
     backfill();
     connectWS();
-    document.addEventListener('visibilitychange', onVis);
+    const unsubscribePolicy = subscribeRuntimePolicy(applyPolicy);
 
     return () => {
       alive = false;
-      document.removeEventListener('visibilitychange', onVis);
+      unsubscribePolicy();
       if (ws) { ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null; try { ws.close(); } catch { /* noop */ } ws = null; }
       if (reconnectTimer) clearTimeout(reconnectTimer);
       stopPoll();

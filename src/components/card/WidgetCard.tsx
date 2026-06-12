@@ -84,6 +84,8 @@ export function WidgetCard({
   dragHandle = false,
   actions,
   status = { type: 'ready' },
+  headerDensity = 'default',
+  padding = 'default',
   updatedAt,
   dataSource,
   footer: footerProp,
@@ -117,11 +119,16 @@ export function WidgetCard({
       <div className={cn(
         'w-full h-full @container relative rounded-xl overflow-hidden group/card',
         'widget-card',
+        padding === 'none' && 'widget-card--no-pad',
         status.type === 'stale' && 'opacity-80',
         className
       )}>
         {/* Header */}
-        <div className={cn('widget-head', dragHandle && 'widget-drag-handle cursor-move')}>
+        <div className={cn(
+          'widget-head',
+          headerDensity === 'compact' && 'widget-head--compact',
+          dragHandle && 'widget-drag-handle cursor-move',
+        )}>
           <div className="widget-head-left">
             <div className="min-w-0">
               <span className={cn('widget-name', subtitle ? '' : '')}>{title}</span>

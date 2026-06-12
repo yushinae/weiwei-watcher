@@ -464,11 +464,6 @@ html.is-scrolling * {
   box-shadow: none;
   transition: background var(--dur-fast) var(--ease-emphasis);
 }
-.dash-tile:hover {
-  background: #3A3B40;
-  box-shadow: none;
-}
-
 .dash-tile.is-active,
 .dash-tile[aria-selected="true"],
 .dash-tile[data-active="true"] {
@@ -480,10 +475,6 @@ html.is-scrolling * {
   background: #2B2D35;
   border: 0;
   box-shadow: none;
-}
-
-.gex-key-tile:hover {
-  background: #3A3B40;
 }
 
 .gex-card {
@@ -545,11 +536,6 @@ html.is-scrolling * {
   box-shadow: none;
 }
 
-.dashboard-page .dash-tile:hover {
-  background: #3A3B40;
-  box-shadow: none;
-}
-
 .dashboard-page .dashboard-inner-tile,
 .dashboard-page .dashboard-control-block,
 .dashboard-page .dashboard-chart-panel {
@@ -558,10 +544,7 @@ html.is-scrolling * {
   box-shadow: none;
 }
 
-.dashboard-page .dashboard-inner-tile:hover,
 .dashboard-page .dashboard-control-block:hover,
-.dashboard-page .dashboard-chart-panel:hover,
-.dashboard-page .dashboard-inner-row:hover,
 .dashboard-page .dashboard-control-button:hover {
   background: #3A3B40;
 }
@@ -693,33 +676,6 @@ html.is-scrolling * {
   transition: background-color 120ms ease, color 120ms ease;
 }
 
-.app-page-scope [class*="bg-[var(--color-surface-2)]"]:hover,
-.accounts-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.journal-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.portfolio-risk-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.alerts-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.vol-history-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.price-chart-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.position-builder-page [class*="bg-[var(--color-surface-2)]"]:hover,
-.bybit-page-scope [class*="bg-[var(--color-surface-2)]"]:hover,
-.app-page-scope [class*="bg-[var(--color-surface-1)]"]:hover,
-.accounts-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.journal-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.portfolio-risk-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.alerts-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.vol-history-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.price-chart-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.position-builder-page [class*="bg-[var(--color-surface-1)]"]:hover,
-.bybit-page-scope [class*="bg-[var(--color-surface-1)]"]:hover,
-.app-page-scope [class*="bg-[#2B2D35]"]:hover,
-.accounts-page [class*="bg-[#2B2D35]"]:hover,
-.journal-page [class*="bg-[#2B2D35]"]:hover,
-.portfolio-risk-page [class*="bg-[#2B2D35]"]:hover,
-.alerts-page [class*="bg-[#2B2D35]"]:hover,
-.vol-history-page [class*="bg-[#2B2D35]"]:hover,
-.price-chart-page [class*="bg-[#2B2D35]"]:hover,
-.position-builder-page [class*="bg-[#2B2D35]"]:hover,
-.bybit-page-scope [class*="bg-[#2B2D35]"]:hover,
 .app-page-scope [class*="hover:bg-[var(--color-surface-5)]"]:hover,
 .accounts-page [class*="hover:bg-[var(--color-surface-5)]"]:hover,
 .journal-page [class*="hover:bg-[var(--color-surface-5)]"]:hover,
@@ -861,12 +817,6 @@ html.is-scrolling * {
   border-color: transparent;
 }
 
-.monitor-scope .widget-card .dash-tile:hover,
-.monitor-scope .widget-card [class*="bg-[var(--color-surface-2)]"]:hover,
-.monitor-scope .widget-card [class*="bg-[var(--color-surface-1)]"]:hover,
-.monitor-scope .widget-card [class*="bg-[#2B2D35]"]:hover,
-.monitor-scope .widget-card .bg-surface-2:hover,
-.monitor-scope .widget-card .bg-surface-2\/70:hover,
 .monitor-scope .widget-card [class*="hover:bg-[var(--color-surface-5)]"]:hover,
 .monitor-scope .widget-card [class*="hover:bg-white"]:hover,
 .monitor-scope .widget-card [class*="hover:bg-surface-2"]:hover,
@@ -876,42 +826,55 @@ html.is-scrolling * {
   box-shadow: none;
 }
 
-.ui-chart-surface {
-  background: transparent;
-}
-
-.app-page-scope .ui-chart-surface:hover,
-.accounts-page .ui-chart-surface:hover,
-.journal-page .ui-chart-surface:hover,
-.portfolio-risk-page .ui-chart-surface:hover,
-.alerts-page .ui-chart-surface:hover,
-.vol-history-page .ui-chart-surface:hover,
-.price-chart-page .ui-chart-surface:hover,
-.position-builder-page .ui-chart-surface:hover,
-.bybit-page-scope .ui-chart-surface:hover,
-.monitor-scope .widget-card .ui-chart-surface:hover {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.app-page-scope :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.accounts-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.journal-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.portfolio-risk-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.alerts-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.vol-history-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.price-chart-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.position-builder-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.bybit-page-scope :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
-.monitor-scope .widget-card :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover {
-  background: #2B2D35;
-  border-color: transparent;
-  box-shadow: none;
-}
-
 .monitor-scope .widget-card [class*="hover:border"]:hover {
   border-color: transparent;
+}
+
+/* ═══ 交互态唯一来源 ════════════════════════════════════════════════
+   hover 亮变 = 「可以点」的承诺，只属于可交互元素：
+   · 纯展示块（数据 tile / 图表面板 / 列表行）零 hover 反馈
+   · 可点的内部块挂 .is-interactive（或 <Tile interactive>），四态成套
+   · 已显式写 hover:bg-* 的按钮/行走上面的调色映射，不受影响
+   （放在所有 scope 规则之后：同特异性时靠书写顺序压过背景归一化规则） */
+.is-interactive {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.is-interactive:hover,
+:is(.app-page-scope, .accounts-page, .journal-page, .portfolio-risk-page, .alerts-page, .vol-history-page, .price-chart-page, .position-builder-page, .bybit-page-scope, .dashboard-page) .is-interactive:hover,
+.monitor-scope .widget-card .is-interactive:hover {
+  background: #3A3B40;
+}
+
+.is-interactive:active,
+:is(.app-page-scope, .accounts-page, .journal-page, .portfolio-risk-page, .alerts-page, .vol-history-page, .price-chart-page, .position-builder-page, .bybit-page-scope, .dashboard-page) .is-interactive:active,
+.monitor-scope .widget-card .is-interactive:active {
+  background: var(--color-surface-6);
+}
+
+.is-interactive:focus-visible {
+  outline: 1px solid rgba(255, 156, 46, 0.45);
+  outline-offset: 1px;
+}
+
+/* ── 行追踪微光：宽表格/列表的阅读辅助，非交互信号 ─────────────────
+   亮度刻意压在 3%：是「尺子」不是「按钮」。专用类绕开上方
+   [class*="hover:bg-white"] 调色映射（那是给按钮的 #3A3B40）。 */
+.row-track {
+  transition: background-color 120ms ease;
+}
+.row-track:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ── 新行入场：8% 橙光 2s 衰减——数据动效，余光即知有新单 ──────────── */
+@keyframes row-enter-fade {
+  from { background-color: rgba(255, 156, 46, 0.08); }
+  to   { background-color: transparent; }
+}
+.row-enter {
+  animation: row-enter-fade 2s ease-out;
 }
 
 .monitor-headline-strip {
@@ -945,6 +908,9 @@ html.is-scrolling * {
   .widget-card,
   .widget-card:hover {
     transform: none;
+  }
+  .row-enter {
+    animation: none;
   }
   .dash-tile,
   .dash-tile:hover {

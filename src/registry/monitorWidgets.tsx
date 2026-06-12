@@ -763,7 +763,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
       {/* Chart */}
       <div className="flex-1 min-h-0 px-3 pb-2">
-        <svg className="ui-chart-surface" viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
           {/* Grid */}
           {gridVals.map(v => {
             const y = (H - PY) - ((v - lo) / (hi - lo)) * (H - 2 * PY);
@@ -858,7 +858,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
       {/* Chart */}
       <div className="flex-1 min-h-0 px-3 pb-2">
-        <svg className="ui-chart-surface" viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
           {/* Zero line */}
           <line x1={PX} y1={mid} x2={W - PX} y2={mid} stroke="rgba(255,255,255,0.12)" strokeWidth={0.8} />
           {/* Positive fill (positive = longs pay shorts = bullish) */}
@@ -1110,7 +1110,7 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         <div className="flex-1 flex items-center justify-center text-[11px] text-white/55">暂无达到阈值的大宗成交</div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {filtered.map((t, i) => {
+          {filtered.map(t => {
             const isBuy = t.direction === 'buy';
             const dirColor = isBuy ? '#24AE64' : '#EF454A';
             const typeColor = t.optType === 'C' ? '#ff9c2e' : '#FF9C2E';
@@ -1119,8 +1119,9 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
               <div
                 key={t.tradeId}
                 className={cn(
-                    'grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-2 border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-surface-5)]',
-                  i === 0 && 'bg-white/[0.015]', // highlight newest
+                  'row-track grid grid-cols-[44px_1fr_44px_56px_56px_60px] gap-x-2 px-3 py-2 border-b border-[var(--color-border-subtle)]',
+                  // 新单入场橙光衰减；只给 10s 内的成交,避免初次加载整列泛橙
+                  Date.now() - t.ts < 10_000 && 'row-enter',
                 )}
               >
                 {/* Time */}
@@ -1707,7 +1708,7 @@ export const WatchlistWidget = ({ coin: coinProp, onCoinChange }: CoinControlPro
             const oiColor = item.oiDelta > 0 ? 'var(--nexus-green)' : item.oiDelta < 0 ? 'var(--nexus-red)' : '#6e6e6e';
             return (
               <div key={item.instrument}
-                className="grid items-center px-3 py-1.5 border-b border-white/4 hover:bg-white/2 transition-colors"
+                className="row-track grid items-center px-3 py-1.5 border-b border-white/4"
                 style={{ gridTemplateColumns: '1fr 56px 56px 44px 44px 50px 50px 24px' }}>
                 <span className="text-[9px] font-mono text-white/80 truncate">{item.instrument}</span>
                 <span className="text-right text-[9px] font-mono text-white/65">{item.bid.toFixed(4)}</span>

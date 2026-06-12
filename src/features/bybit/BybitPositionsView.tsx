@@ -350,7 +350,7 @@ function SimPositionRow({ position, onClose }: { position: SimPosition; onClose:
   const parsed = parseSymbol(position.symbol);
   const signedQty = position.side === 'long' ? position.qty : -position.qty;
   return (
-    <tr className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+    <tr className="row-track border-b border-white/[0.05]">
       <Td>
         <div className="flex flex-col leading-tight">
           <span className="text-white/90 font-mono">{position.symbol}</span>
@@ -416,7 +416,7 @@ function PositionsTable({ positions }: { positions: BybitOptionPosition[] }) {
               const dte = parsed ? daysUntil(parsed.expiryTs) : 0;
               const sideSign = p.side === 'Sell' ? -1 : 1;
               return (
-                <tr key={p.symbol} className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+                <tr key={p.symbol} className="row-track border-b border-white/[0.05]">
                   <Td>
                     <div className="flex flex-col leading-tight">
                       <span className="text-white/90 font-mono">{p.symbol}</span>
@@ -590,7 +590,7 @@ function TradeHistoryView() {
                 const pnlPct = t.pnl_percent ?? 0;
                 const isWin = pnl > 0;
                 return (
-                  <tr key={t.id} className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
+                  <tr key={t.id} className="row-track border-b border-white/[0.05]">
                     <Td>
                       <div className="flex flex-col leading-tight">
                         <span className="text-white/90 font-mono">{t.instrument}</span>

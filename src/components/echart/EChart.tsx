@@ -1,45 +1,12 @@
 // Thin wrapper around echarts-for-react with the app's dark widget theme.
-// Tree-shaken ECharts: we only register the chart/component modules each widget
-// actually uses, so the bundle stays small.
+// Tree-shaken ECharts: modules are registered in echartsCore.ts, and we go through
+// 'echarts-for-react/lib/core' — the full 'echarts-for-react' entry would import
+// the entire 'echarts' bundle and undo the tree-shaking.
 
-import React, { Suspense, lazy, useMemo } from 'react';
-import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  DataZoomComponent,
-  MarkLineComponent,
-  MarkPointComponent,
-  AxisPointerComponent,
-  VisualMapComponent,
-} from 'echarts/components';
-import { LineChart, BarChart, BoxplotChart, ScatterChart, HeatmapChart, CustomChart, GaugeChart } from 'echarts/charts';
+import React, { useMemo } from 'react';
+import ReactECharts from 'echarts-for-react/lib/core';
+import echartsCore from './echartsCore';
 import type { EChartsOption } from 'echarts';
-
-const ReactECharts = lazy(() => import('echarts-for-react'));
-
-// Register once. Adding a new chart type? Import it from 'echarts/charts' and
-// add it to this list. Keep imports narrow to keep bundle size in check.
-echarts.use([
-  CanvasRenderer,
-  LineChart,
-  BarChart,
-  BoxplotChart,   // 波动率锥
-  ScatterChart,   // 散点 / 当前 IV 标记
-  HeatmapChart,   // Vanna/Charm 热力图
-  GaugeChart,     // Fear&Greed / VolRegime 半圆仪表
-  CustomChart,    // 自定义渲染（保留以备需要）
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  DataZoomComponent,
-  MarkLineComponent,
-  MarkPointComponent,
-  AxisPointerComponent,
-  VisualMapComponent, // 热力图配色梯度
-]);
 
 interface Props {
   option: EChartsOption;
@@ -82,17 +49,16 @@ export const EChart = React.memo(function EChart({ option, notMerge, onEvents, c
   }), [option]);
 
   return (
-    <Suspense fallback={<div className={className} style={{ width: '100%', height: '100%', ...style }} />}>
-      <ReactECharts
-        option={merged}
-        notMerge={notMerge}
-        onEvents={onEvents}
-        lazyUpdate
-        opts={{ renderer: 'canvas' }}
-        style={{ width: '100%', height: '100%', ...style }}
-        className={className}
-      />
-    </Suspense>
+    <ReactECharts
+      echarts={echartsCore}
+      option={merged}
+      notMerge={notMerge}
+      onEvents={onEvents}
+      lazyUpdate
+      opts={{ renderer: 'canvas' }}
+      style={{ width: '100%', height: '100%', ...style }}
+      className={className}
+    />
   );
 });
 

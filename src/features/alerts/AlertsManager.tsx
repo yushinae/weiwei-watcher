@@ -5,7 +5,7 @@ import {
   addAlert, removeAlert, toggleAlert, subscribeAlerts,
   loadAlertHistory, clearAlertHistory, subscribeAlertHistory,
   type UserAlert, type AlertMetric, type AlertOp, type AlertHistoryItem,
-} from '../../registry/monitorWidgetsBase';
+} from '../../registry/data/store';
 import type { Coin } from '../monitor/types';
 import { ALWAYS_ON_METRICS, BOOK_METRICS } from './engine';
 import { ensureAlertNotifications } from './notifications';
@@ -19,7 +19,10 @@ const COOLDOWN_OPTIONS = [
   { label: '1 小时', value: 60 * 60_000 },
 ];
 
-const inputCls = 'h-[32px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[12px] text-white/85 outline-none focus:ring-white/20';
+const inputCls = 'h-8 rounded-[4px] bg-[#2B2D35] px-2 text-[12px] text-white/85 outline-none transition-colors duration-[120ms] hover:bg-[#3A3B40] focus:bg-[#3A3B40]';
+const cardCls = 'rounded-[8px] bg-[#17181E] shadow-none';
+const labelCls = 'text-[10px] font-medium text-white/42';
+const sectionTitleCls = 'text-[12px] font-semibold uppercase tracking-normal text-white/62';
 
 type Perm = 'default' | 'granted' | 'denied';
 const getPerm = (): Perm => (typeof Notification !== 'undefined' ? (Notification.permission as Perm) : 'denied');
@@ -64,39 +67,39 @@ export const AlertsManager = () => {
   const fmtTime = (ts: number) => new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="alerts-page absolute inset-0 overflow-y-auto dash-scroll text-white/85">
-      <div className="flex flex-col gap-3 p-3 min-h-full">
+    <div className="alerts-page absolute inset-0 overflow-y-auto dash-scroll bg-black text-white/85">
+      <div className="flex min-h-full flex-col gap-3 p-3">
 
         {/* 通知权限条 */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-[8px] bg-[var(--color-surface-2)] ring-1 ring-inset ring-[var(--color-border-subtle)] shrink-0">
+        <div className={`${cardCls} flex min-h-[48px] shrink-0 items-center gap-3 px-4 py-2.5`}>
           {perm === 'granted' ? (
-            <><CheckCircle2 size={18} className="text-[#28C840] shrink-0" />
-              <span className="text-[12px] text-white/75">浏览器通知已开启 —— 页面在后台时也会弹出系统通知；应用完全关闭后仍需后端常驻监控</span></>
+            <><span className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#2B2D35]"><CheckCircle2 size={17} className="text-[#24AE64]" /></span>
+              <span className="text-[12px] leading-[18px] text-white/72">浏览器通知已开启，页面在后台时也会弹出系统通知；应用完全关闭后仍需后端常驻监控</span></>
           ) : perm === 'denied' ? (
-            <><BellOff size={18} className="text-[#FF5F57] shrink-0" />
-              <span className="text-[12px] text-white/75">浏览器通知被拒绝 —— 仍会在应用内弹 Toast；如需系统通知请在浏览器站点设置中允许</span></>
+            <><span className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#2B2D35]"><BellOff size={17} className="text-[#EF454A]" /></span>
+              <span className="text-[12px] leading-[18px] text-white/72">浏览器通知被拒绝，仍会在应用内弹 Toast；如需系统通知请在浏览器站点设置中允许</span></>
           ) : (
-            <><Bell size={18} className="text-[#FEBC2E] shrink-0" />
-              <span className="text-[12px] text-white/75">开启浏览器通知，标签页后台时也能收到告警</span>
+            <><span className="grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#2B2D35]"><Bell size={17} className="text-[#FF9C2E]" /></span>
+              <span className="text-[12px] leading-[18px] text-white/72">开启浏览器通知，标签页后台时也能收到告警</span>
               <button onClick={requestPerm}
-                className="ml-auto h-[30px] px-3 rounded-md bg-[#FEBC2E]/15 text-[#FEBC2E] ring-1 ring-inset ring-[#FEBC2E]/30 text-[12px] font-semibold hover:bg-[#FEBC2E]/25 transition-colors">
+                className="ml-auto h-8 rounded-[4px] bg-[#FF9C2E] px-3 text-[12px] font-semibold text-[#101014] transition-colors duration-[120ms] hover:bg-[#FFAD45] active:bg-[#E88918]">
                 开启通知
               </button></>
           )}
         </div>
 
         {/* 新建规则 */}
-        <div className="flex flex-col gap-2 px-4 py-3 rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] shrink-0">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">新建告警规则</span>
+        <div className={`${cardCls} flex shrink-0 flex-col gap-2 px-4 py-3`}>
+          <span className={sectionTitleCls}>新建告警规则</span>
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/40">标的</span>
+              <span className={labelCls}>标的</span>
               <select className={inputCls} value={coin} onChange={e => setCoin(e.target.value as Coin)}>
                 {COINS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/40">指标</span>
+              <span className={labelCls}>指标</span>
               <select className={inputCls} value={metric} onChange={e => onMetric(e.target.value as AlertMetric)}>
                 {METRICS.map(m => (
                   <option key={m} value={m}>{METRIC_META[m].label}{ALWAYS_ON_METRICS.has(m) ? ' ·常驻' : BOOK_METRICS.has(m) ? ' ·持仓' : ''}</option>
@@ -104,43 +107,43 @@ export const AlertsManager = () => {
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/40">条件</span>
+              <span className={labelCls}>条件</span>
               <select className={inputCls} value={op} onChange={e => setOp(e.target.value as AlertOp)}>
                 <option value=">">大于 &gt;</option>
                 <option value="<">小于 &lt;</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/40">阈值（{METRIC_META[metric].unit}）</span>
+              <span className={labelCls}>阈值（{METRIC_META[metric].unit}）</span>
               <input type="number" className={`${inputCls} w-[120px] tabular-nums`} value={threshold} onChange={e => setThreshold(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/40">冷却</span>
+              <span className={labelCls}>冷却</span>
               <select className={inputCls} value={cooldownMs} onChange={e => setCooldownMs(Number(e.target.value))}>
                 {COOLDOWN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
             <button onClick={submit}
-              className="h-[32px] px-3 rounded-md bg-[var(--color-brand)]/15 text-[var(--color-brand)] ring-1 ring-inset ring-[var(--color-brand)]/30 text-[12px] font-semibold flex items-center gap-1.5 hover:bg-[var(--color-brand)]/25 transition-colors">
+              className="flex h-8 items-center gap-1.5 rounded-[4px] bg-[#FF9C2E] px-3 text-[12px] font-semibold text-[#101014] transition-colors duration-[120ms] hover:bg-[#FFAD45] active:bg-[#E88918]">
               <Plus size={14} /> 添加
             </button>
           </div>
         </div>
 
         {/* 规则列表 */}
-        <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)] flex-1">
-          <div className="px-4 pt-3 pb-2 text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60 shrink-0">
+        <div className={`${cardCls} flex flex-1 flex-col`}>
+          <div className={`${sectionTitleCls} shrink-0 px-4 pb-2 pt-3`}>
             告警规则 · {rules.length}
           </div>
           <div className="px-3 pb-3">
             {rules.length === 0 ? (
-              <div className="h-[120px] flex items-center justify-center text-[12px] text-white/40">
+              <div className="flex h-[120px] items-center justify-center rounded-[4px] bg-[#2B2D35] text-[12px] text-white/42">
                 还没有规则。用上面新建一条，例如「BTC Spot &lt; 60000」。
               </div>
             ) : (
-              <table className="w-full text-[12px]">
+              <table className="w-full border-separate border-spacing-y-1 text-[12px]">
                 <thead>
-                  <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                  <tr className="text-[10px] uppercase tracking-normal text-white/42">
                     <th className="text-left font-medium py-1.5 px-2">状态</th>
                     <th className="text-left font-medium py-1.5 px-2">标的</th>
                     <th className="text-left font-medium py-1.5 px-2">条件</th>
@@ -154,34 +157,34 @@ export const AlertsManager = () => {
                   {sorted.map(a => {
                     const meta = METRIC_META[a.metric];
                     return (
-                      <tr key={a.id} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
-                        <td className="py-1.5 px-2">
+                      <tr key={a.id} className="group">
+                        <td className="rounded-l-[4px] bg-[#2B2D35] px-2 py-1.5 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           <button onClick={() => toggleAlert(a.id)}
-                            className={`text-[10px] px-2 py-0.5 rounded font-semibold ${a.active ? 'bg-[#28C840]/15 text-[#28C840]' : 'bg-white/[0.06] text-white/45'}`}>
+                            className={`rounded-[4px] px-2 py-0.5 text-[10px] font-semibold transition-colors duration-[120ms] ${a.active ? 'bg-[#24AE64]/14 text-[#24AE64]' : 'bg-white/[0.06] text-white/45 hover:bg-white/[0.10] hover:text-white/70'}`}>
                             {a.active ? '启用' : '停用'}
                           </button>
                         </td>
-                        <td className="py-1.5 px-2 font-bold text-white/80">{a.coin}</td>
-                        <td className="py-1.5 px-2 text-white/75 whitespace-nowrap">
+                        <td className="bg-[#2B2D35] px-2 py-1.5 font-bold text-white/82 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{a.coin}</td>
+                        <td className="whitespace-nowrap bg-[#2B2D35] px-2 py-1.5 text-white/75 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
-                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[var(--nexus-accent)]">常驻</span>}
-                          {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 text-[9px] text-[#a78bfa]">持仓</span>}
+                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 rounded-[3px] bg-[#FF9C2E]/10 px-1 text-[9px] text-[#FF9C2E]">常驻</span>}
+                          {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 rounded-[3px] bg-white/[0.06] px-1 text-[9px] text-white/55">持仓</span>}
                         </td>
-                        <td className="py-1.5 px-2 text-white/45 whitespace-nowrap">
+                        <td className="whitespace-nowrap bg-[#2B2D35] px-2 py-1.5 text-white/48 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {fmtCooldown(a.cooldownMs)}
                           {a.lastNotifiedAt && <span className="ml-1 text-white/30">上次 {fmtTime(a.lastNotifiedAt)}</span>}
                         </td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-white/65">
+                        <td className="bg-[#2B2D35] px-2 py-1.5 text-right tabular-nums text-white/65 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {a.lastValue != null ? `${a.lastValue.toFixed(2)}${meta.unit}` : '—'}
                         </td>
-                        <td className="py-1.5 px-2">
+                        <td className="bg-[#2B2D35] px-2 py-1.5 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {a.triggered
-                            ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#FEBC2E]/15 text-[#FEBC2E] font-semibold">已触发</span>
+                            ? <span className="rounded-[4px] bg-[#FF9C2E]/12 px-1.5 py-0.5 text-[10px] font-semibold text-[#FF9C2E]">已触发</span>
                             : <span className="text-[10px] text-white/35">监控中</span>}
                         </td>
-                        <td className="py-1.5 px-2 text-right">
+                        <td className="rounded-r-[4px] bg-[#2B2D35] px-2 py-1.5 text-right transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           <button onClick={() => removeAlert(a.id)} title="删除"
-                            className="text-white/30 hover:text-[#FF5F57] transition-colors p-1">
+                            className="rounded-[4px] p-1 text-white/30 transition-colors duration-[120ms] hover:bg-white/[0.08] hover:text-[#EF454A]">
                             <Trash2 size={13} />
                           </button>
                         </td>
@@ -192,22 +195,22 @@ export const AlertsManager = () => {
               </table>
             )}
           </div>
-          <div className="px-4 pb-3 text-[10px] text-white/35 leading-relaxed">
-            <b className="text-white/45">常驻</b> 指标（Spot / DVOL）经全局 WebSocket 实时评估，**离开本页、切到其它标签页时也持续判定并推送**。
-            <b className="text-[#a78bfa]">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变）——需先到「账户」页同步过一次。
+          <div className="mx-3 mb-3 rounded-[4px] bg-[#2B2D35] px-3 py-2 text-[10px] leading-relaxed text-white/38">
+            <b className="text-white/50">常驻</b> 指标（Spot / DVOL）经全局 WebSocket 实时评估，离开本页、切到其它标签页时也持续判定并推送。
+            <b className="text-white/50">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变），需先到「账户」页同步过一次。
             其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，缓存新鲜时评估。
             浏览器后台通知已接入 Service Worker；但交易所行情仍由前端页面维护，应用完全关闭后的持续监控需本地/云端后端。
           </div>
         </div>
 
-        <div className="flex flex-col rounded-[8px] bg-[var(--color-bg-card)] ring-1 ring-inset ring-[var(--color-border-subtle)] shadow-[0_8px_22px_-14px_rgba(0,0,0,0.72)]">
+        <div className={`${cardCls} flex flex-col`}>
           <div className="flex items-center gap-2 px-4 pt-3 pb-2 shrink-0">
             <History size={15} className="text-white/45" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.02em] text-white/60">触发历史 · {history.length}</span>
+            <span className={sectionTitleCls}>触发历史 · {history.length}</span>
             {history.length > 0 && (
               <button
                 onClick={() => { clearAlertHistory(); setHistory([]); }}
-                className="ml-auto text-[11px] text-white/35 hover:text-white/65 transition-colors"
+                className="ml-auto h-7 rounded-[4px] px-2 text-[11px] text-white/38 transition-colors duration-[120ms] hover:bg-[#3A3B40] hover:text-white/72"
               >
                 清空
               </button>
@@ -215,13 +218,13 @@ export const AlertsManager = () => {
           </div>
           <div className="px-3 pb-3">
             {history.length === 0 ? (
-              <div className="h-[86px] flex items-center justify-center text-[12px] text-white/35">
+              <div className="flex h-[86px] items-center justify-center rounded-[4px] bg-[#2B2D35] text-[12px] text-white/35">
                 暂无触发记录。触发后的时间、当前值和规则会留在这里。
               </div>
             ) : (
-              <table className="w-full text-[12px]">
+              <table className="w-full border-separate border-spacing-y-1 text-[12px]">
                 <thead>
-                  <tr className="text-white/40 text-[10px] uppercase tracking-wider">
+                  <tr className="text-[10px] uppercase tracking-normal text-white/42">
                     <th className="text-left font-medium py-1.5 px-2">时间</th>
                     <th className="text-left font-medium py-1.5 px-2">标的</th>
                     <th className="text-left font-medium py-1.5 px-2">规则</th>
@@ -232,11 +235,11 @@ export const AlertsManager = () => {
                   {history.slice(0, 20).map(item => {
                     const meta = METRIC_META[item.metric];
                     return (
-                      <tr key={item.eventId} className="border-t border-white/[0.05] hover:bg-white/[0.025]">
-                        <td className="py-1.5 px-2 tabular-nums text-white/50 whitespace-nowrap">{fmtTime(item.at)}</td>
-                        <td className="py-1.5 px-2 font-bold text-white/80">{item.coin}</td>
-                        <td className="py-1.5 px-2 text-white/68">{meta.label} {item.op} {item.threshold}{meta.unit}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-[var(--color-brand)] font-semibold">{item.value.toFixed(2)}{meta.unit}</td>
+                      <tr key={item.eventId} className="group">
+                        <td className="whitespace-nowrap rounded-l-[4px] bg-[#2B2D35] px-2 py-1.5 tabular-nums text-white/50 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{fmtTime(item.at)}</td>
+                        <td className="bg-[#2B2D35] px-2 py-1.5 font-bold text-white/82 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{item.coin}</td>
+                        <td className="bg-[#2B2D35] px-2 py-1.5 text-white/68 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{meta.label} {item.op} {item.threshold}{meta.unit}</td>
+                        <td className="rounded-r-[4px] bg-[#2B2D35] px-2 py-1.5 text-right tabular-nums font-semibold text-[#FF9C2E] transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{item.value.toFixed(2)}{meta.unit}</td>
                       </tr>
                     );
                   })}

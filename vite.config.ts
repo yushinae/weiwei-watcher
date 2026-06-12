@@ -15,11 +15,14 @@ export default defineConfig(({mode}) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            // 重型第三方库单独成包，不阻塞主包解析
-            'vendor-echarts':  ['echarts', 'echarts-for-react'],
-            'vendor-motion':   ['motion'],
-            'vendor-react':    ['react', 'react-dom', 'react-router-dom'],
+          // 函数形式：只把「实际被 import 的模块」归组。对象形式会把整个包
+          // 入口强制打进 chunk —— echarts 全量 1.1MB 就是这么进来的。
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return undefined;
+            if (/node_modules\/(echarts|zrender|echarts-for-react)\//.test(id)) return 'vendor-echarts';
+            if (/node_modules\/(motion|framer-motion|motion-dom|motion-utils)\//.test(id)) return 'vendor-motion';
+            if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'vendor-react';
+            return undefined;
           },
         },
       },

@@ -54,11 +54,13 @@ import { useGlobalAlertEngine, AlertToastHost } from './features/alerts/engine';
 
 import { startCacheCleanup } from './registry/data/cacheCleanup';
 import { DERIBIT_WS } from './registry/data/ws';
+// 直接从 data/store 拿 hydrate —— 经 monitorWidgetsBase（barrel）会把整个
+// widget 基座 + EChart 拖进首屏主包，击穿路由级懒加载
 import {
   hydrateAlertsFromBackend,
   hydratePositionsFromBackend,
   hydrateWatchlistFromBackend,
-} from './registry/monitorWidgetsBase';
+} from './registry/data/store';
 import { hydrateAccountsFromBackend } from './features/accounts/store';
 import { hydrateFillsFromBackend } from './features/accounts/fillStore';
 

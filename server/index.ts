@@ -255,7 +255,8 @@ app.post('/api/proxy/bybit', async (c) => {
 app.get('/api/health', (c) => c.json({ ok: true, uptime: process.uptime() }))
 
 // ── 启动 ────────────────────────────────────────────────────────────────────
+// 只绑本机：/api/proxy/bybit 无鉴权且能用 Key 签名任意请求，绝不能暴露到局域网
 const PORT = 8787
-serve({ fetch: app.fetch, port: PORT }, (info) => {
+serve({ fetch: app.fetch, port: PORT, hostname: '127.0.0.1' }, (info) => {
   console.log(`🌱 weiwei-server running at http://localhost:${info.port}`)
 })

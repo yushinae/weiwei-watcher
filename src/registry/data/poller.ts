@@ -33,6 +33,14 @@ export interface PollerEntry {
 
 const POLLERS = new Map<string, PollerEntry>();
 
+// mode 冲突仲裁：数值越大越「常驻」（runtime policy 只对 visible-live 做后台拦截）
+const MODE_RANK: Record<FeedRunMode, number> = {
+  'critical-background': 3,
+  'slow-cache': 2,
+  'on-demand': 1,
+  'visible-live': 0,
+};
+
 export function _shouldSkip(options?: { monitorScoped?: boolean; mode?: FeedRunMode }): boolean {
   return !shouldRunFeed({
     mode: options?.mode ?? 'critical-background',
@@ -178,7 +186,9 @@ export function subscribeData<T>(
       console.warn(`[poller] subscribeData("${key}") reused with different interval (${e.intervalMs}ms → ${intervalMs}ms); keeping the first interval.`);
     }
     e.pollOnMonitorRoute = e.pollOnMonitorRoute || monitorScoped;
-    e.mode = mode;
+    // 同 key 多订阅者 mode 冲突时取「更常驻」的一档，防止后来者把
+    // critical-background 静默降级成 visible-live（后台告警会悄悄失效）
+    if (MODE_RANK[mode] > MODE_RANK[e.mode]) e.mode = mode;
   }
   const entry = e;
   const wasEmpty = entry.subscribers.size === 0;

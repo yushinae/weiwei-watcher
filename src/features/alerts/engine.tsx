@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, BellRing } from 'lucide-react';
+// 引擎常驻 App 顶层：必须绕开 monitorWidgetsBase barrel，否则首屏被拖入全部 widget
+import { DERIBIT_WS } from '../../registry/data/ws';
 import {
-  DERIBIT_WS, evalAlerts, METRIC_META, subscribeAlertTriggers,
+  evalAlerts, METRIC_META, subscribeAlertTriggers,
   type AlertTriggerEvent,
-} from '../../registry/monitorWidgetsBase';
+} from '../../registry/data/store';
 import { getBook } from '../accounts/bookStore';
 import { fromAccounts, buildBooks } from '../portfolioRisk/aggregate';
 import type { Coin } from '../monitor/types';

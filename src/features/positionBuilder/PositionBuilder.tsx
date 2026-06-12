@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
-import * as echarts from 'echarts';
+import ReactECharts from 'echarts-for-react/lib/core';
+import echarts from '../../components/echart/echartsCore';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { DERIBIT_WS } from '../../registry/data/ws';
 
 const PRESETS: Record<string, { spot: number; iv: number; strikeStep: number }> = {
   BTC: { spot: 65000, iv: 0.55, strikeStep: 1000 },
@@ -264,10 +265,8 @@ export function PositionBuilder() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const livePriceRef = useRef<number | null>(null);
   const [priceDir, setPriceDir] = useState<'up' | 'down' | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const prevPriceRef = useRef<number | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deferredTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const defer = useCallback((fn: () => void, ms: number) => {
@@ -308,63 +307,37 @@ export function PositionBuilder() {
   const [activeTab, setActiveTab] = useState<RightTab>('chart');
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── Deribit index price WebSocket ──────────────────────────────────────────
+  // ── Deribit index price — 共享 DERIBIT_WS 单例（复用连接 + 自动重连）。
+  // tick ~10次/秒，但本组件极重：flush 节流到 1Hz，否则每个 tick 全量重渲染。
   useEffect(() => {
     const indexName = DERIBIT_INDEX[symbol];
-    let ws: WebSocket;
-
-    function connect() {
-      ws = new WebSocket('wss://www.deribit.com/ws/api/v2');
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        ws.send(JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'public/subscribe',
-          params: { channels: [`deribit_price_index.${indexName}`] },
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.method === 'subscription' &&
-              msg.params?.channel === `deribit_price_index.${indexName}`) {
-            const newPrice: number = msg.params.data.price;
-            setLivePrice(newPrice);
-            if (prevPriceRef.current !== null && newPrice !== prevPriceRef.current) {
-              const dir = newPrice > prevPriceRef.current ? 'up' : 'down';
-              setPriceDir(dir);
-              if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-              flashTimerRef.current = setTimeout(() => setPriceDir(null), 700);
-            }
-            prevPriceRef.current = newPrice;
-          }
-        } catch { /* ignore parse errors */ }
-      };
-
-      ws.onclose = () => {
-        reconnectTimerRef.current = setTimeout(connect, 3000);
-      };
-
-      ws.onerror = () => ws.close();
-    }
+    let latest: number | null = null;
 
     setLivePrice(null);
     prevPriceRef.current = null;
-    connect();
+
+    const unsub = DERIBIT_WS.subscribe<{ price: number }>(
+      `deribit_price_index.${indexName}`,
+      d => { if (Number.isFinite(d?.price)) latest = d.price; },
+    );
+
+    const flush = setInterval(() => {
+      if (latest === null) return;
+      const newPrice = latest;
+      setLivePrice(newPrice);
+      if (prevPriceRef.current !== null && newPrice !== prevPriceRef.current) {
+        const dir = newPrice > prevPriceRef.current ? 'up' : 'down';
+        setPriceDir(dir);
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = setTimeout(() => setPriceDir(null), 700);
+      }
+      prevPriceRef.current = newPrice;
+    }, 1000);
 
     return () => {
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      unsub();
+      clearInterval(flush);
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      if (ws) {
-        ws.onclose = null;
-        ws.onerror = null;
-        ws.onmessage = null;
-        ws.onopen = null;
-        ws.close();
-      }
     };
   }, [symbol]);
   // ───────────────────────────────────────────────────────────────────────────
@@ -1577,6 +1550,7 @@ export function PositionBuilder() {
                 >
                   <ReactECharts
                     ref={plChartRef}
+                    echarts={echarts}
                     option={plOption}
                     notMerge={true}
                     style={{ width: '100%', height: 400 }}
@@ -1642,6 +1616,7 @@ export function PositionBuilder() {
               >
                 <ReactECharts
                   ref={dgChartRef}
+                  echarts={echarts}
                   option={dgOption}
                   notMerge={true}
                   style={{ width: '100%', height: 220 }}

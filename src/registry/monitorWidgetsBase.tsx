@@ -234,7 +234,7 @@ export const SmileChartLive = React.memo(({
       boundaryGap: false,
       axisPointer: {
         show: true,
-        label: { backgroundColor: 'rgba(37,232,137,0.85)', color: '#0a0e14', fontWeight: 'bold' },
+        label: { backgroundColor: '#3A3B40', color: '#FFFFFF', fontWeight: 'bold' },
       },
     },
     yAxis: {
@@ -318,7 +318,7 @@ export const VRPChart = React.memo(({ data: d }: { data: { iv: number; rv: numbe
     series: [
       { name: 'IV', type: 'line', smooth: 0.25, showSymbol: false,
         lineStyle: { color: BRAND, width: 1.6 },
-        areaStyle: { color: 'rgba(37,232,137,0.10)' },
+        areaStyle: { color: 'rgba(36,174,100,0.06)' },
         data: ivSeries },
       { name: 'RV', type: 'line', smooth: 0.25, showSymbol: false,
         lineStyle: { color: YELLOW, width: 1.2, type: 'dashed' as const },
@@ -359,15 +359,15 @@ export const IVRankChart = React.memo(({ data: d }: { data: number[] }) => {
       name: 'IV Rank',
       type: 'line', smooth: 0.25, showSymbol: false,
       lineStyle: { color: BRAND, width: 1.6 },
-      areaStyle: { color: 'rgba(37,232,137,0.10)' },
+      areaStyle: { color: 'rgba(36,174,100,0.06)' },
       data: d.map(v => +v.toFixed(1)),
       markLine: {
         symbol: 'none',
         lineStyle: { type: 'dashed', width: 1 },
         label: { color: 'rgba(255,255,255,0.4)', fontSize: 9, position: 'insideEndTop' },
         data: [
-          { yAxis: 30, lineStyle: { color: 'rgba(37,232,137,0.45)' },  label: { formatter: '低 30' } },
-          { yAxis: 70, lineStyle: { color: 'rgba(202,63,100,0.45)' }, label: { formatter: '高 70' } },
+          { yAxis: 30, lineStyle: { color: 'rgba(36,174,100,0.45)' }, label: { formatter: '低 30' } },
+          { yAxis: 70, lineStyle: { color: 'rgba(239,69,74,0.45)' }, label: { formatter: '高 70' } },
         ],
       },
     }],
@@ -405,7 +405,7 @@ export const VolConeChart = React.memo(({
   const option = {
     legend: {
       data: [
-        { name: '历史 RV 区间', icon: 'roundRect', itemStyle: { color: 'rgba(37,232,137,0.5)' } },
+        { name: '历史 RV 区间', icon: 'roundRect', itemStyle: { color: 'rgba(36,174,100,0.42)' } },
         { name: '当前 IV',     icon: 'roundRect', itemStyle: { color: YELLOW } },
       ],
       textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 10 },
@@ -431,8 +431,8 @@ export const VolConeChart = React.memo(({
         type: 'boxplot',
         data: boxData,
         itemStyle: {
-          color: 'rgba(37,232,137,0.18)',
-          borderColor: 'rgba(37,232,137,0.7)',
+          color: 'rgba(36,174,100,0.12)',
+          borderColor: 'rgba(36,174,100,0.66)',
           borderWidth: 1.2,
         },
         boxWidth: [14, 22],

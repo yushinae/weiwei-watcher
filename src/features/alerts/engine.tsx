@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, BellRing } from 'lucide-react';
+import { X } from 'lucide-react';
 // 引擎常驻 App 顶层：必须绕开 monitorWidgetsBase barrel，否则首屏被拖入全部 widget
 import { DERIBIT_WS } from '../../registry/data/ws';
 import {
@@ -70,32 +70,49 @@ export const AlertToastHost: React.FC<{ hidden?: boolean }> = ({ hidden = false 
         const meta = METRIC_META[t.metric];
         return (
           <div key={t.key}
-            className="pointer-events-auto relative w-[292px] overflow-hidden rounded-[6px]
-                       bg-[#15161d]/96 shadow-[0_10px_28px_rgba(0,0,0,0.45)]
-                       ring-1 ring-inset ring-white/[0.08] backdrop-blur-md
+            className="pointer-events-auto relative w-[336px] overflow-hidden rounded-[8px]
+                       border border-white/[0.07] bg-[rgba(21,23,25,0.92)]
+                       shadow-[0_8px_25px_rgba(0,0,0,0.40)] backdrop-blur-[20px]
                        animate-[fadeIn_.16s_cubic-bezier(.2,.8,.2,1)]">
-            <span className="absolute inset-y-0 left-0 w-[3px] bg-[#f7a600]" />
-            <div className="flex items-start gap-2.5 px-3 py-2.5 pl-3.5">
-              <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-[4px] bg-[#f7a600]/12 ring-1 ring-inset ring-[#f7a600]/18 shrink-0">
-                <BellRing size={15} className="text-[#f7a600]" />
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[12px] font-semibold text-white/90">{t.coin}</span>
-                  <span className="rounded-[4px] bg-white/[0.06] px-1.5 py-[1px] text-[10px] font-semibold text-[#adb1b8]">
-                    告警触发
-                  </span>
+            <span className="absolute left-3 right-3 top-0 h-px bg-[#f7a600]/55" />
+            <div className="px-3 py-3">
+              <div className="flex items-start gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] bg-[#2B2D35]">
+                  <img src="/icons/alerts.png" className="h-[22px] w-[22px] rounded-[6px]" alt="" />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[14px] font-semibold leading-5 text-white/92">{t.coin}</span>
+                    <span className="rounded-[4px] bg-white/[0.08] px-1.5 py-[2px] text-[10px] font-semibold leading-none text-[#adb1b8]">
+                      告警触发
+                    </span>
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] leading-4 text-[#71757a]">
+                    {new Date(t.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </div>
                 </div>
-                <div className="mt-1 text-[11px] leading-[15px] text-[#adb1b8]">
-                  {meta.label} <span className="font-mono text-white/78">{t.op} {t.threshold}{meta.unit}</span>
-                  <span className="text-[#71757a]"> · 当前 </span>
-                  <span className="font-mono font-semibold text-[#f7a600] tabular-nums">{t.value.toFixed(2)}{meta.unit}</span>
+
+                <button onClick={() => setToasts(ts => ts.filter(x => x.key !== t.key))}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-[4px] text-white/35 transition-colors hover:bg-white/[0.08] hover:text-white/72">
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="mt-3 grid grid-cols-[1fr_auto] gap-1.5">
+                <div className="min-w-0 rounded-[4px] bg-[#2B2D35] px-2.5 py-2">
+                  <div className="text-[10px] leading-none text-white/38">触发规则</div>
+                  <div className="mt-1 truncate text-[12px] font-semibold leading-4 text-white/82">
+                    {meta.label} <span className="font-mono tabular-nums">{t.op} {t.threshold}{meta.unit}</span>
+                  </div>
+                </div>
+                <div className="min-w-[116px] rounded-[4px] bg-[#2B2D35] px-2.5 py-2 text-right">
+                  <div className="text-[10px] leading-none text-white/38">当前值</div>
+                  <div className="mt-1 font-mono text-[14px] font-semibold leading-4 tabular-nums text-[#f7a600]">
+                    {t.value.toFixed(2)}{meta.unit}
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setToasts(ts => ts.filter(x => x.key !== t.key))}
-                className="mt-0.5 grid h-6 w-6 place-items-center rounded-[4px] text-white/30 hover:bg-white/[0.06] hover:text-white/70 transition-colors shrink-0">
-                <X size={14} />
-              </button>
             </div>
           </div>
         );

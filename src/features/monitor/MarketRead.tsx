@@ -11,9 +11,10 @@ import {
 } from '../../registry/monitorWidgetsBase';
 import { useCandles } from '../priceChart/candles';
 
-const UP = '#28C840';
-const DOWN = '#FF5F57';
-const YELLOW = '#FEBC2E';
+const UP = '#24AE64';
+const DOWN = '#EF454A';
+const YELLOW = '#FF9C2E';
+const ORANGE = '#FF9C2E';
 const MUTE = 'rgba(255,255,255,0.5)';
 
 const fmtPx = (v: number) => (v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(1));
@@ -72,18 +73,40 @@ export const MarketHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContr
   const spark = cl.slice(-48);
   const sparkUp = spark.length >= 2 ? spark[spark.length - 1] >= spark[0] : true;
   const sparkColor = sparkUp ? UP : DOWN;
+  const sparkMean = spark.length ? spark.reduce((sum, v) => sum + v, 0) / spark.length : 0;
   const sparkOption = useMemo<EChartsOption>(() => ({
-    grid: { left: 2, right: 2, top: 6, bottom: 2 },
+    animation: false,
+    grid: { left: 2, right: 2, top: 6, bottom: 4 },
     xAxis: { type: 'category', show: false, boundaryGap: false, data: spark.map((_, i) => i) },
     yAxis: { type: 'value', show: false, scale: true },
     tooltip: { show: false },
     series: [{
-      type: 'line', data: spark.map(v => +v.toFixed(1)), smooth: 0.2, showSymbol: false,
-      lineStyle: { color: sparkColor, width: 1.6 },
-      areaStyle: { color: sparkUp ? 'rgba(40,200,64,0.12)' : 'rgba(255,95,87,0.12)' },
+      type: 'line',
+      data: spark.map((v, i) => ({
+        value: +v.toFixed(1),
+        symbol: i === spark.length - 1 ? 'circle' : 'none',
+        symbolSize: i === spark.length - 1 ? 5 : 0,
+        itemStyle: {
+          color: i === spark.length - 1 ? ORANGE : sparkColor,
+          borderColor: '#17181E',
+          borderWidth: i === spark.length - 1 ? 1.5 : 0,
+        },
+      })),
+      smooth: 0.2,
+      showSymbol: true,
+      symbol: 'none',
+      lineStyle: { color: sparkColor, width: 1.7 },
+      areaStyle: { color: sparkUp ? 'rgba(36,174,100,0.06)' : 'rgba(239,69,74,0.06)' },
+      markLine: sparkMean > 0 ? {
+        symbol: 'none',
+        silent: true,
+        lineStyle: { color: 'rgba(255,255,255,0.08)', width: 1, type: 'dashed' },
+        label: { show: false },
+        data: [{ yAxis: +sparkMean.toFixed(1) }],
+      } : undefined,
     }],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [spark.length, sparkColor, spark[spark.length - 1]]);
+  }), [spark.length, sparkColor, spark[spark.length - 1], sparkMean]);
 
   return (
     <div className="monitor-headline-strip w-full h-full flex items-center gap-4 px-3 overflow-x-auto">

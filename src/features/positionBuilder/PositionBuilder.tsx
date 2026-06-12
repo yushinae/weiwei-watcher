@@ -1555,6 +1555,7 @@ export function PositionBuilder() {
                     notMerge={true}
                     style={{ width: '100%', height: 400 }}
                     opts={{ renderer: 'canvas' }}
+                    className="ui-chart-surface"
                   />
                 </Panel>}
 
@@ -1621,6 +1622,7 @@ export function PositionBuilder() {
                   notMerge={true}
                   style={{ width: '100%', height: 220 }}
                   opts={{ renderer: 'canvas' }}
+                  className="ui-chart-surface"
                 />
               </Panel>}
 
@@ -1979,7 +1981,7 @@ export function PositionBuilder() {
                     return (
                       <div className="mt-3 pt-3 border-t border-white/[0.05]">
                         <p className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-2">P/L 分布（5000 路径 · 1 日）</p>
-                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
+                        <svg viewBox={`0 0 ${W} ${H}`} className="ui-chart-surface w-full overflow-visible">
                           {histCounts.map((count, i) => {
                             const x = PAD.l + i * barW;
                             const bh = maxCount > 0 ? (count / maxCount) * innerH : 0;
@@ -2130,7 +2132,7 @@ export function PositionBuilder() {
                     const sy = (v: number) => PT + iH * (1 - (v - yMin) / yRng);
                     const zY = sy(0);
                     return (
-                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible mt-2">
+                      <svg viewBox={`0 0 ${W} ${H}`} className="ui-chart-surface w-full overflow-visible mt-2">
                         <line x1={PL} x2={W - PR} y1={zY} y2={zY} stroke="#2e2e2e" strokeWidth="1" />
                         {segs.map((seg, i) => {
                           const x = PL + i * cW + bP;
@@ -2428,7 +2430,7 @@ export function PositionBuilder() {
                     const tickStep = n <= 60 ? 7 : 30;
 
                     return (
-                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
+                      <svg viewBox={`0 0 ${W} ${H}`} className="ui-chart-surface w-full overflow-visible">
                         {/* Zero baseline */}
                         <line x1={PAD.l} x2={W - PAD.r} y1={zero_y} y2={zero_y} stroke="#2e2e2e" strokeWidth="1" />
                         {/* Daily theta bars */}
@@ -2478,7 +2480,7 @@ export function PositionBuilder() {
                     {/* Skew chart: per-expiry IV vs strike */}
                     <div>
                       <p className="text-[10px] text-white/55 uppercase tracking-[0.06em] mb-2">IV 偏斜（各到期日）</p>
-                      <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+                      <svg viewBox="0 0 240 120" className="ui-chart-surface w-full overflow-visible">
                         {(() => {
                           const allPts = ivSkewData.expiries.flatMap(e => e.points);
                           if (allPts.length === 0) return null;
@@ -2533,7 +2535,7 @@ export function PositionBuilder() {
                       {ivSkewData.termStructure.length < 2 ? (
                         <p className="text-[11px] text-white/55 italic pt-4">需要至少 2 个到期日的数据</p>
                       ) : (
-                        <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+                        <svg viewBox="0 0 240 120" className="ui-chart-surface w-full overflow-visible">
                           {(() => {
                             const ts = ivSkewData.termStructure;
                             const ivMin = Math.max(0, Math.min(...ts.map(t => t.iv)) - 5);

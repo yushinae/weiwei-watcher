@@ -59,9 +59,9 @@ function area(pts: [number, number][], H: number, padY = 0) {
 // Colors + helpers
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const GRID   = 'rgba(255,255,255,0.07)';
-const TXT    = 'rgba(255,255,255,0.32)';
-const BRAND  = 'rgba(37,232,137,0.92)';
+const GRID   = 'rgba(255,255,255,0.04)';
+const TXT    = '#71757A';
+const BRAND  = '#24AE64';
 const BLUE   = '#ff9c2e';
 
 // ── Global SVG gradient defs (render once in MonitorPage) ─────────────────────
@@ -73,33 +73,33 @@ export function GlobalGradDefs() {
       <defs>
         {/* vertical: colour → transparent */}
         <linearGradient id="wg-green" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#25e889" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#25e889" stopOpacity="0" />
+          <stop offset="0%" stopColor="#24AE64" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="#24AE64" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-green-strong" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#25e889" stopOpacity="0.32" />
-          <stop offset="100%" stopColor="#25e889" stopOpacity="0" />
+          <stop offset="0%" stopColor="#24AE64" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#24AE64" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-red" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FF5F57" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#FF5F57" stopOpacity="0" />
+          <stop offset="0%" stopColor="#EF454A" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="#EF454A" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-yellow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FEBC2E" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="#FEBC2E" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FF9C2E" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="#FF9C2E" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-blue" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ff9c2e" stopOpacity="0.20" />
           <stop offset="100%" stopColor="#ff9c2e" stopOpacity="0" />
         </linearGradient>
         <linearGradient id="wg-purple" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.20" />
-          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FF9C2E" stopOpacity="0.20" />
+          <stop offset="100%" stopColor="#FF9C2E" stopOpacity="0" />
         </linearGradient>
         {/* inverted (bottom → top) for short/negative fills */}
         <linearGradient id="wg-red-inv" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="#FF5F57" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#FF5F57" stopOpacity="0" />
+          <stop offset="0%" stopColor="#EF454A" stopOpacity="0.10" />
+          <stop offset="100%" stopColor="#EF454A" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -137,8 +137,8 @@ const Skeleton = () => (
 const HistLoadErr = () => (
   <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-center px-4">
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="opacity-40">
-      <circle cx="10" cy="10" r="9" stroke="#FF5F57" strokeWidth="1.5"/>
-      <path d="M10 5.5v5M10 13.5v1" stroke="#FF5F57" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="10" cy="10" r="9" stroke="#EF454A" strokeWidth="1.5"/>
+      <path d="M10 5.5v5M10 13.5v1" stroke="#EF454A" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
     <span className="text-[11px] text-white/55">历史数据加载失败</span>
     <span className="text-[10px] text-white/55">Deribit 历史 API 无响应，请刷新重试</span>
@@ -236,7 +236,7 @@ export const IVSurfaceWidget = ({
   const hi = allVals.length ? Math.max(...allVals) : 100;
 
   return (
-    <div className="overflow-hidden rounded-[18px]" style={{ backgroundColor: 'rgba(37,232,137,0.04)' }}>
+    <div className="overflow-hidden rounded-[18px]" style={{ backgroundColor: '#17181E' }}>
       <div className="w-full overflow-auto">
         <table className="w-full text-[11px]">
           <thead>
@@ -259,10 +259,10 @@ export const IVSurfaceWidget = ({
                     role={onPickCell ? 'button' : undefined}
                     tabIndex={onPickCell ? 0 : undefined}
                     className={cn(
-                      'px-2 py-1.5 text-right font-mono tnum text-white/85 font-bold',
-                      onPickCell && 'cursor-pointer hover:brightness-110',
+                      'px-2 py-1.5 text-right font-mono tnum text-white/85 font-bold transition-colors',
+                      onPickCell && 'cursor-pointer hover:bg-[#3A3B40]',
                     )}
-                    style={{ backgroundColor: `rgba(37,232,137,${(0.05 + (v - lo) / (hi - lo + 0.01) * 0.35).toFixed(2)})` }}
+                    style={{ backgroundColor: `rgba(255,255,255,${(0.04 + (v - lo) / (hi - lo + 0.01) * 0.10).toFixed(2)})` }}
                     onClick={() => onPickCell?.({ coin, row: row.label, col: cols[ci]?.label ?? '', value: v })}
                     onKeyDown={e => {
                       if (!onPickCell) return;
@@ -370,8 +370,8 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         fontSize: 9,
         color: (_v: string, i: number) => {
           const k = strikes[i];
-          if (spot > 0 && Math.abs(k - spot) < spot * 0.005) return '#FEBC2E';
-          if (spot > 0 && Math.abs(k - maxPain) < spot * 0.005) return 'rgba(37,232,137,0.9)';
+          if (spot > 0 && Math.abs(k - spot) < spot * 0.005) return '#FF9C2E';
+          if (spot > 0 && Math.abs(k - maxPain) < spot * 0.005) return 'rgba(36,174,100,0.88)';
           return 'rgba(255,255,255,0.55)';
         },
       },
@@ -391,9 +391,9 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         const marker = isSpot ? ' ◆ 现货' : isMP ? ' ★ 最大痛点' : '';
         const net = c - put;
         return `<div style="font-weight:bold;margin-bottom:4px">${fmtPrice(k)}${marker}</div>
-<span style="color:#FF5F57">●</span> Put OI: <b>${fmtOI(put)}</b><br/>
-<span style="color:#25e889">●</span> Call OI: <b>${fmtOI(c)}</b><br/>
-<span>净: <b style="color:${net >= 0 ? '#25e889' : '#FF5F57'}">${fmtOI(Math.abs(net))}</b></span>`;
+<span style="color:#EF454A">●</span> Put OI: <b>${fmtOI(put)}</b><br/>
+<span style="color:#24AE64">●</span> Call OI: <b>${fmtOI(c)}</b><br/>
+<span>净: <b style="color:${net >= 0 ? '#24AE64' : '#EF454A'}">${fmtOI(Math.abs(net))}</b></span>`;
       },
     },
     series: [
@@ -402,14 +402,14 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         type: 'bar',
         data: strikes.map(k => -(putOI.get(k) ?? 0)),
         barWidth: 24,
-        itemStyle: { color: 'rgba(255,95,87,0.7)', borderRadius: [2, 0, 0, 2] },
+        itemStyle: { color: 'rgba(239,69,74,0.66)', borderRadius: [2, 0, 0, 2] },
       },
       {
         name: 'Call OI',
         type: 'bar',
         data: strikes.map(k => callOI.get(k) ?? 0),
         barWidth: 24,
-        itemStyle: { color: 'rgba(37,232,137,0.7)', borderRadius: [0, 2, 2, 0] },
+        itemStyle: { color: 'rgba(36,174,100,0.66)', borderRadius: [0, 2, 2, 0] },
       },
     ],
   }), [strikes, callOI, putOI, spot, maxPain]);
@@ -449,10 +449,10 @@ export const OIByStrikeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
       {/* Stats row */}
       <div className="flex gap-2 px-3 py-2 shrink-0">
         {[
-          { label: 'Call OI', val: fmtOI(totalCallOI), color: '#25e889' },
-          { label: 'Put OI', val: fmtOI(totalPutOI), color: '#FF5F57' },
-          { label: 'PCR', val: pcr.toFixed(2), color: pcr >= 1.2 ? '#FF5F57' : pcr <= 0.7 ? '#25e889' : '#FEBC2E' },
-          { label: '最大痛点', val: maxPain.toLocaleString(), color: 'rgba(37,232,137,0.9)' },
+          { label: 'Call OI', val: fmtOI(totalCallOI), color: '#24AE64' },
+          { label: 'Put OI', val: fmtOI(totalPutOI), color: '#EF454A' },
+          { label: 'PCR', val: pcr.toFixed(2), color: pcr >= 1.2 ? '#EF454A' : pcr <= 0.7 ? '#24AE64' : '#FF9C2E' },
+          { label: '最大痛点', val: maxPain.toLocaleString(), color: 'rgba(36,174,100,0.88)' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5 transition-colors duration-150 ease-out hover:border-[var(--nexus-accent)]/25 hover:bg-[var(--color-surface-5)]">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
@@ -616,8 +616,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         fontSize: 9,
         color: (_v: string, i: number) => {
           const k = strikes[i];
-          if (spot > 0 && Math.abs(k - spot) / spot < 0.005) return '#FEBC2E';
-          if (zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005) return '#a78bfa';
+          if (spot > 0 && Math.abs(k - spot) / spot < 0.005) return '#FF9C2E';
+          if (zeroGamma !== null && Math.abs(k - zeroGamma) / spot < 0.005) return '#FF9C2E';
           return 'rgba(255,255,255,0.55)';
         },
       },
@@ -638,9 +638,9 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
         const cGex = e ? e.cGex : 0;   // call 正
         const pGexVal = e ? -e.pGex : 0; // put 负
         return `<div style="font-weight:bold;margin-bottom:4px">${fmtPx(k)}${marker}</div>
-<span style="color:#25e889">●</span> Call GEX: <b>${fmtGex(cGex)}</b><br/>
-<span style="color:#FF5F57">●</span> Put GEX: <b>${fmtGex(pGexVal)}</b><br/>
-<span>净 GEX: <b style="color:${net >= 0 ? '#25e889' : '#FF5F57'}">${fmtGex(net)}</b></span>`;
+<span style="color:#24AE64">●</span> Call GEX: <b>${fmtGex(cGex)}</b><br/>
+<span style="color:#EF454A">●</span> Put GEX: <b>${fmtGex(pGexVal)}</b><br/>
+<span>净 GEX: <b style="color:${net >= 0 ? '#24AE64' : '#EF454A'}">${fmtGex(net)}</b></span>`;
       },
     },
     series: [{
@@ -651,8 +651,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       itemStyle: {
         color: (params: unknown) =>
           (params as { value: number }).value >= 0
-            ? 'rgba(37,232,137,0.7)'
-            : 'rgba(248,113,113,0.7)',
+            ? 'rgba(36,174,100,0.66)'
+            : 'rgba(239,69,74,0.66)',
         borderRadius: (params: unknown) =>
           (params as { value: number }).value >= 0 ? [0, 2, 2, 0] : [2, 0, 0, 2],
       },
@@ -681,8 +681,8 @@ export const GEXWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) =>
       {/* Stats row */}
       <div className="flex gap-2 px-3 py-2 shrink-0">
         {[
-          { label: '净 GEX', val: fmtGex(totalNet), color: totalNet >= 0 ? '#25e889' : '#FF5F57' },
-          { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#FEBC2E' },
+          { label: '净 GEX', val: fmtGex(totalNet), color: totalNet >= 0 ? '#24AE64' : '#EF454A' },
+          { label: '零 Gamma', val: zeroGamma ? fmtPx(zeroGamma) : '—', color: '#FF9C2E' },
           { label: '现货', val: fmtPx(spot), color: 'rgba(255,255,255,0.6)' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5 transition-colors duration-150 ease-out hover:border-[var(--nexus-accent)]/25 hover:bg-[var(--color-surface-5)]">
@@ -752,7 +752,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         {[
           { label: 'DVOL 当前', val: `${currDvol.toFixed(1)}%`, color: BRAND },
           { label: 'RV30 当前', val: `${currRv.toFixed(1)}%`, color: BLUE },
-          { label: 'VRP', val: `${vrp >= 0 ? '+' : ''}${vrp.toFixed(1)}%`, color: vrp >= 0 ? '#25e889' : '#FF5F57' },
+          { label: 'VRP', val: `${vrp >= 0 ? '+' : ''}${vrp.toFixed(1)}%`, color: vrp >= 0 ? '#24AE64' : '#EF454A' },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
             <div className="text-[9px] text-white/55 uppercase tracking-[0.06em] mb-0.5">{s.label}</div>
@@ -763,7 +763,7 @@ export const DVOLSeriesWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
 
       {/* Chart */}
       <div className="flex-1 min-h-0 px-3 pb-2">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
+        <svg className="ui-chart-surface" viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
           {/* Grid */}
           {gridVals.map(v => {
             const y = (H - PY) - ((v - lo) / (hi - lo)) * (H - 2 * PY);
@@ -839,7 +839,7 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const negArea = `M ${mapped[0][0].toFixed(1)} ${mid} ${mapped.map(([x, y]) => `L ${x.toFixed(1)} ${Math.max(y, mid).toFixed(1)}`).join(' ')} L ${mapped[mapped.length - 1][0].toFixed(1)} ${mid} Z`;
 
   const fmtRate = (r: number) => `${r >= 0 ? '+' : ''}${r.toFixed(4)}%`;
-  const fundColor = data.currentFunding8h >= 0 ? '#25e889' : '#FF5F57';
+  const fundColor = data.currentFunding8h >= 0 ? '#24AE64' : '#EF454A';
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -858,13 +858,13 @@ export const FundingRateWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
       {/* Chart */}
       <div className="flex-1 min-h-0 px-3 pb-2">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
+        <svg className="ui-chart-surface" viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
           {/* Zero line */}
           <line x1={PX} y1={mid} x2={W - PX} y2={mid} stroke="rgba(255,255,255,0.12)" strokeWidth={0.8} />
           {/* Positive fill (positive = longs pay shorts = bullish) */}
-          <path d={posArea} fill="rgba(37,232,137,0.12)" />
+          <path d={posArea} fill="rgba(36,174,100,0.08)" />
           {/* Negative fill */}
-          <path d={negArea} fill="rgba(248,113,113,0.12)" />
+          <path d={negArea} fill="rgba(239,69,74,0.08)" />
           {/* Line */}
           <polyline
             points={mapped.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}
@@ -922,7 +922,7 @@ export const FuturesBasisWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       <div className="flex-1 min-h-0 px-3 pb-2">
         {basis.map((b, i) => {
           const barW = (Math.abs(b.annBasis) / maxBasis) * BAR_MAX;
-          const color = b.annBasis >= 0 ? 'rgba(37,232,137,0.7)' : 'rgba(248,113,113,0.7)';
+          const color = b.annBasis >= 0 ? 'rgba(36,174,100,0.66)' : 'rgba(239,69,74,0.66)';
           const px = (v: number) => v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0);
           return (
             <div key={i} className="flex items-center gap-3 py-1 border-b border-[var(--color-border-subtle)] last:border-0">
@@ -981,9 +981,9 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   const volRatio = callVol > 0 ? putVol / callVol : 1;
 
   const fmtVol = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
-  const sentiment = callPct > 55 ? { label: '看涨偏��', color: '#25e889' }
-                  : callPct < 45 ? { label: '看跌偏向', color: '#FF5F57' }
-                  : { label: '中性', color: '#FEBC2E' };
+  const sentiment = callPct > 55 ? { label: '看涨偏向', color: '#24AE64' }
+                  : callPct < 45 ? { label: '看跌偏向', color: '#EF454A' }
+                  : { label: '中性', color: '#FF9C2E' };
 
   // Flow by expiry (top 6)
   const expVol = (data.expiries.slice(0, 6)).map(e => ({
@@ -998,9 +998,9 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
       {/* Totals */}
       <div className="flex gap-2 px-3 pt-2 pb-2 shrink-0">
         {[
-          { label: 'Call 成交量', val: fmtVol(callVol), color: '#25e889' },
-          { label: 'Put 成交量', val: fmtVol(putVol), color: '#FF5F57' },
-          { label: 'P/C 比', val: volRatio.toFixed(2), color: '#FEBC2E' },
+          { label: 'Call 成交量', val: fmtVol(callVol), color: '#24AE64' },
+          { label: 'Put 成交量', val: fmtVol(putVol), color: '#EF454A' },
+          { label: 'P/C 比', val: volRatio.toFixed(2), color: '#FF9C2E' },
           { label: '方向', val: sentiment.label, color: sentiment.color },
         ].map(s => (
           <div key={s.label} className="flex-1 bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[8px] px-2 py-1.5">
@@ -1017,8 +1017,8 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
           <span>Put {putPct.toFixed(0)}%</span>
         </div>
           <div className="flex h-[6px] rounded-full overflow-hidden bg-[var(--color-surface-1)]">
-          <div className="h-full bg-[#25e889]/70 transition-all" style={{ width: `${callPct}%` }} />
-          <div className="h-full bg-[#FF5F57]/70 flex-1" />
+          <div className="h-full bg-[#24AE64]/70 transition-all" style={{ width: `${callPct}%` }} />
+          <div className="h-full bg-[#EF454A]/70 flex-1" />
         </div>
       </div>
 
@@ -1033,8 +1033,8 @@ export const OptionsFlowWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
             <div key={i} className="flex items-center gap-2 mb-1.5">
               <div className="w-[32px] text-[10px] font-mono text-white/55 shrink-0">{e.label}</div>
               <div className="flex-1 flex h-[12px] rounded-[3px] overflow-hidden bg-[var(--color-surface-1)]" style={{ maxWidth: `${barTotal}%` }}>
-                <div className="h-full bg-[#25e889]/60" style={{ width: `${cPct}%` }} />
-                <div className="h-full bg-[#FF5F57]/60 flex-1" />
+                <div className="h-full bg-[#24AE64]/60" style={{ width: `${cPct}%` }} />
+                <div className="h-full bg-[#EF454A]/60 flex-1" />
               </div>
               <div className="text-[9px] text-white/55 font-mono shrink-0 w-[28px] text-right">{fmtVol(total)}</div>
             </div>
@@ -1112,8 +1112,8 @@ export const BlockTradeWidget = ({ coin: coinProp, onCoinChange }: CoinControlPr
         <div className="flex-1 min-h-0 overflow-y-auto">
           {filtered.map((t, i) => {
             const isBuy = t.direction === 'buy';
-            const dirColor = isBuy ? '#25e889' : '#FF5F57';
-            const typeColor = t.optType === 'C' ? '#ff9c2e' : '#FEBC2E';
+            const dirColor = isBuy ? '#24AE64' : '#EF454A';
+            const typeColor = t.optType === 'C' ? '#ff9c2e' : '#FF9C2E';
             const sizeEmphasis = t.notionalUSD >= 1_000_000;
             return (
               <div
@@ -1223,8 +1223,8 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
         {rows.map((r, i) => {
           const callBarW = maxOI > 0 ? (r.callOI / maxOI) * (BAR_MAX / 2) : 0;
           const putBarW  = maxOI > 0 ? (r.putOI  / maxOI) * (BAR_MAX / 2) : 0;
-          const pcrColor2 = r.pcr >= 1.2 ? '#FF5F57' : r.pcr <= 0.7 ? '#25e889' : '#FEBC2E';
-          const mpColor   = r.mpPct >= 3 ? '#25e889' : r.mpPct <= -3 ? '#FF5F57' : 'rgba(255,255,255,0.4)';
+          const pcrColor2 = r.pcr >= 1.2 ? '#EF454A' : r.pcr <= 0.7 ? '#24AE64' : '#FF9C2E';
+          const mpColor   = r.mpPct >= 3 ? '#24AE64' : r.mpPct <= -3 ? '#EF454A' : 'rgba(255,255,255,0.4)';
           const isNear    = r.daysToExp <= 7;
 
           return (
@@ -1248,7 +1248,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
                 <div className="flex justify-end" style={{ width: `${BAR_MAX / 2}px` }}>
                   <div
                     className="h-[10px] rounded-l-[3px] transition-all"
-                    style={{ width: `${callBarW}px`, background: 'rgba(37,232,137,0.55)' }}
+                    style={{ width: `${callBarW}px`, background: 'rgba(36,174,100,0.52)' }}
                   />
                 </div>
                 {/* Centre spine */}
@@ -1257,7 +1257,7 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
                 <div className="flex justify-start" style={{ width: `${BAR_MAX / 2}px` }}>
                   <div
                     className="h-[10px] rounded-r-[3px] transition-all"
-                    style={{ width: `${putBarW}px`, background: 'rgba(248,113,113,0.55)' }}
+                    style={{ width: `${putBarW}px`, background: 'rgba(239,69,74,0.52)' }}
                   />
                 </div>
               </div>
@@ -1293,11 +1293,11 @@ export const ExpiryCalendarWidget = ({ coin: coinProp, onCoinChange }: CoinContr
         </span>
         <div className="flex items-center gap-3 ml-auto">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-2 rounded-[2px] bg-[rgba(37,232,137,0.55)]" />
+            <div className="w-3 h-2 rounded-[2px] bg-[rgba(36,174,100,0.52)]" />
             <span className="text-[9px] text-white/55">Call OI</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-2 rounded-[2px] bg-[rgba(248,113,113,0.55)]" />
+            <div className="w-3 h-2 rounded-[2px] bg-[rgba(239,69,74,0.52)]" />
             <span className="text-[9px] text-white/55">Put OI</span>
           </div>
         </div>
@@ -1351,7 +1351,7 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
     <div className="w-full h-full flex flex-wrap md:flex-nowrap items-stretch content-start md:content-stretch gap-1.5 px-3 py-2 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden">
       {rows.map(r => {
         const barFill = (r.movePct / maxMove) * 100;
-        const urgency = r.daysToExp <= 7 ? '#FEBC2E' : r.daysToExp <= 30 ? '#25e889' : '#ff9c2e';
+        const urgency = r.daysToExp <= 7 ? '#FF9C2E' : r.daysToExp <= 30 ? '#24AE64' : '#ff9c2e';
         return (
           <div key={r.label}
             className="flex-1 min-w-[96px] flex flex-col justify-between bg-[var(--color-surface-2)] border border-[var(--color-border-subtle)] rounded-[10px] px-2.5 py-2 shrink-0"
@@ -1369,8 +1369,8 @@ export const ImpliedMoveWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
 
             {/* Up / down targets */}
             <div className="flex justify-between text-[8.5px] font-mono mb-1.5">
-              <span style={{ color: '#25e889' }}>↑${fmtPx(r.upTarget)}</span>
-              <span style={{ color: '#FF5F57' }}>↓${fmtPx(r.downTarget)}</span>
+              <span style={{ color: '#24AE64' }}>↑${fmtPx(r.upTarget)}</span>
+              <span style={{ color: '#EF454A' }}>↓${fmtPx(r.downTarget)}</span>
             </div>
 
             {/* Bar proportional to move size */}
@@ -1450,7 +1450,7 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: 'Net $Δ',
       val: `${sign(netDollarDelta)}${fmtM(netDollarDelta)}`,
       sub: netDollarDelta > 0 ? '市场净多头' : '市场净空头',
-      color: netDollarDelta >= 0 ? '#25e889' : '#FF5F57',
+      color: netDollarDelta >= 0 ? '#24AE64' : '#EF454A',
       tip: 'OI加权净Delta，>0市场整体偏多',
     },
     {
@@ -1464,14 +1464,14 @@ export const DollarGreeksWidget = ({ coin: coinProp, onCoinChange }: CoinControl
       label: '$Θ / 天',
       val: `${fmtM(dollarTheta)}`,
       sub: '每日时间价值消耗',
-      color: '#FF5F57',
+      color: '#EF454A',
       tip: '每过一个自然日市场OI总时间价值衰减',
     },
     {
       label: '$Γ / 1% 现货',
       val: `${sign(dollarGamma)}${fmtM(dollarGamma)}`,
       sub: dollarGamma >= 0 ? '正Gamma — 稳定' : '负Gamma — 加速',
-      color: dollarGamma >= 0 ? '#25e889' : '#FEBC2E',
+      color: dollarGamma >= 0 ? '#24AE64' : '#FF9C2E',
       tip: '现货每涨1%时Delta变化引起的美元敞口',
     },
   ];
@@ -1543,7 +1543,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
 
   const moneyness = (o: ParsedOption) => {
     const pct = ((o.strike - spot) / spot) * 100;
-    if (Math.abs(pct) < 1) return { label: 'ATM', color: '#FEBC2E' };
+    if (Math.abs(pct) < 1) return { label: 'ATM', color: '#FF9C2E' };
     if (pct > 0) return { label: `OTM +${pct.toFixed(0)}%`, color: 'rgba(255,255,255,0.3)' };
     return { label: `OTM ${pct.toFixed(0)}%`, color: 'rgba(255,255,255,0.3)' };
   };
@@ -1561,7 +1561,7 @@ export const TopOIWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) 
         {sorted.map((o, i) => {
           const val = sortBy === 'oi' ? o.oi : o.volume;
           const barW = (val / maxVal) * 100;
-          const typeColor = o.type === 'C' ? '#ff9c2e' : '#FEBC2E';
+          const typeColor = o.type === 'C' ? '#ff9c2e' : '#FF9C2E';
           const m = moneyness(o);
           return (
             <div key={i}
@@ -1829,11 +1829,11 @@ export const IVCheapnessWidget = ({ coin: coinProp, onCoinChange }: CoinControlP
   }).filter(r => r.iv > 0);
 
   const verdictStyle = (v: RowData['verdict']) => ({
-    'very-cheap':     { bg: 'rgba(37,167,80,0.25)',   text: '#28C840', label: '极便宜' },
-    'cheap':          { bg: 'rgba(37,167,80,0.12)',   text: '#28C840', label: '便宜'   },
+    'very-cheap':     { bg: 'rgba(37,167,80,0.25)',   text: '#24AE64', label: '极便宜' },
+    'cheap':          { bg: 'rgba(37,167,80,0.12)',   text: '#24AE64', label: '便宜'   },
     'fair':           { bg: 'rgba(255,255,255,0.04)', text: '#9a9a9a', label: '合理'   },
-    'expensive':      { bg: 'rgba(244,63,94,0.12)',   text: '#FF5F57', label: '偏贵'   },
-    'very-expensive': { bg: 'rgba(244,63,94,0.25)',   text: '#FF5F57', label: '极贵'   },
+    'expensive':      { bg: 'rgba(239,69,74,0.08)',   text: '#EF454A', label: '偏贵'   },
+    'very-expensive': { bg: 'rgba(239,69,74,0.16)',   text: '#EF454A', label: '极贵'   },
   }[v]);
 
   return (

@@ -9,9 +9,9 @@ import {
   CoinLabel, type CoinControlProps,
 } from '../../registry/monitorWidgetsBase';
 
-const UP = '#28C840';
-const DOWN = '#FF5F57';
-const YELLOW = '#FEBC2E';
+const UP = '#24AE64';
+const DOWN = '#EF454A';
+const YELLOW = '#FF9C2E';
 
 const fmtPx = (v: number | null) => (v == null ? '—' : v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(0));
 
@@ -60,15 +60,15 @@ export const GammaHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinContro
         value={isPos ? '正 Gamma' : '负 Gamma'}
         color={isPos ? UP : DOWN}
         sub={isPos ? '压制波动 · 粘滞' : '放大波动 · 易爆'}
-        subColor={isPos ? 'rgba(40,200,64,0.7)' : 'rgba(255,95,87,0.7)'}
+        subColor={isPos ? 'rgba(36,174,100,0.72)' : 'rgba(239,69,74,0.72)'}
       />
       <div className="w-px h-8 bg-white/[0.08]" />
       <Stat label="翻转点" value={fmtPx(flip)} color={YELLOW}
         sub={flipDist != null ? `现价${flipDist >= 0 ? '上方' : '下方'} ${Math.abs(flipDist).toFixed(1)}%` : '区间内无变号'} />
       <Stat label="Call 墙 (阻力)" value={fmtPx(cw)} color="rgba(255,255,255,0.88)"
-        sub={cwDist != null ? `上方 ${Math.abs(cwDist).toFixed(1)}%` : '—'} subColor="rgba(255,95,87,0.65)" />
+        sub={cwDist != null ? `上方 ${Math.abs(cwDist).toFixed(1)}%` : '—'} subColor="rgba(239,69,74,0.68)" />
       <Stat label="Put 墙 (支撑)" value={fmtPx(pw)} color="rgba(255,255,255,0.88)"
-        sub={pwDist != null ? `下方 ${Math.abs(pwDist).toFixed(1)}%` : '—'} subColor="rgba(40,200,64,0.65)" />
+        sub={pwDist != null ? `下方 ${Math.abs(pwDist).toFixed(1)}%` : '—'} subColor="rgba(36,174,100,0.68)" />
       <div className="w-px h-8 bg-white/[0.08]" />
       <div className="flex-1 min-w-[240px] flex items-center px-3">
         <span className="text-[12px] leading-snug text-white/65">

@@ -57,7 +57,7 @@ export const EChart = React.memo(function EChart({ option, notMerge, onEvents, c
       lazyUpdate
       opts={{ renderer: 'canvas' }}
       style={{ width: '100%', height: '100%', ...style }}
-      className={className}
+      className={className ? `ui-chart-surface ${className}` : 'ui-chart-surface'}
     />
   );
 });

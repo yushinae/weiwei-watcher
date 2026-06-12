@@ -207,14 +207,14 @@ export function InspectorDrawer({
                   <>
                     <Row label="到期" value={selection.tenor} />
                     <Row label="Delta 档位" value={selection.label} />
-                    <Row label="隐含波动率" value={`${selection.value.toFixed(2)}%`} color="text-[#25e889]" />
+                    <Row label="隐含波动率" value={`${selection.value.toFixed(2)}%`} color="text-[#24AE64]" />
                   </>
                 )}
                 {selection.type === 'skewCell' && (
                   <>
                     <Row label="Delta 行" value={selection.row} />
                     <Row label="到期列" value={selection.col} />
-                    <Row label="隐含波动率" value={`${selection.value.toFixed(2)}%`} color="text-[#25e889]" />
+                    <Row label="隐含波动率" value={`${selection.value.toFixed(2)}%`} color="text-[#24AE64]" />
                   </>
                 )}
               </div>
@@ -234,7 +234,7 @@ export function InspectorDrawer({
                   <Row
                     label="Γ Gamma (每 1% S)"
                     value={`$${greeks.gamma.toFixed(2)}`}
-                    color="text-[#a78bfa]"
+                    color="text-[#FF9C2E]"
                   />
                   <Row
                     label="Θ Theta (每日)"

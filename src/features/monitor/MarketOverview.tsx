@@ -21,9 +21,9 @@ import {
   useGlobalHealth,
 } from '../../registry/data/freshness';
 
-const UP = '#28C840';
-const DOWN = '#FF5F57';
-const YELLOW = '#FEBC2E';
+const UP = '#24AE64';
+const DOWN = '#EF454A';
+const YELLOW = '#FF9C2E';
 const MUTE = 'rgba(255,255,255,0.58)';
 
 const fmtPx = (v: number) => (v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v.toFixed(1));

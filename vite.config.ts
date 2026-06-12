@@ -1,12 +1,33 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
+
+// lightweight-charts 打的是 node_modules 内补丁，但 Vite 预打包 URL 的 ?v= 哈希只看
+// lockfile+配置、不看文件内容，且响应是 immutable 强缓存——补丁内容变了浏览器也永远
+// 拿不到新代码。把补丁脚本内容哈希掺进 optimizeDeps 配置哈希，补丁一变 URL 必变。
+const lwcPatchRev = (() => {
+  try {
+    return createHash('md5')
+      .update(readFileSync(path.resolve(__dirname, 'scripts/patch-lightweight-charts.mjs')))
+      .digest('hex')
+      .slice(0, 8);
+  } catch {
+    return 'none';
+  }
+})();
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
+    optimizeDeps: {
+      esbuildOptions: {
+        define: {__LWC_PATCH_REV__: JSON.stringify(lwcPatchRev)},
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -13,12 +13,19 @@ const patches = [
       ['rendererOptions._internal_paddingOuter = currentFontSize / 12 * rendererOptions._internal_tickLength;', 'rendererOptions._internal_paddingOuter = 0;'],
       ['5 /* Constants.LabelOffset */', '0 /* Weiwei patch: tighter price scale label offset */'],
       [
-        "ctx.textAlign = this._private__isLeft ? 'right' : 'left';",
-        "ctx.textAlign = 'right';",
-      ],
-      [
-        'Math.round(tickMarkLeftX + rendererOptions._internal_tickLength + rendererOptions._internal_paddingInner);',
-        'Math.round(this._private__size.width - 1);',
+        // 必须整块原子替换：拆成两条时，"ctx.textAlign = 'right';" 在库里本就存在，
+        // 下方 includes(to) 幂等检查会误跳过它，右轴刻度文字就会以 left 对齐
+        // 从 width-1 开始画 → 整段画出画布外（刻度消失）。
+        `ctx.textAlign = this._private__isLeft ? 'right' : 'left';
+            ctx.textBaseline = 'middle';
+            const textLeftX = this._private__isLeft ?
+                Math.round(tickMarkLeftX - rendererOptions._internal_paddingInner) :
+                Math.round(tickMarkLeftX + rendererOptions._internal_tickLength + rendererOptions._internal_paddingInner);`,
+        `ctx.textAlign = 'right'; /* Weiwei patch: price ticks right-aligned */
+            ctx.textBaseline = 'middle';
+            const textLeftX = this._private__isLeft ?
+                Math.round(tickMarkLeftX - rendererOptions._internal_paddingInner) :
+                Math.round(this._private__size.width - 1);`,
       ],
       ['_internal_radius: 2 * horizontalPixelRatio,', '_internal_radius: 4 * horizontalPixelRatio,'],
       ['const radius$1 = 2;', 'const radius$1 = 4;'],
@@ -53,7 +60,7 @@ const patches = [
   {
     file: 'lightweight-charts.production.mjs',
     replacements: [
-      ['C:5', 'C:0'],
+      ['C:5', 'C:0/* ww */'], // to 必须含唯一标记：裸 "C:0" 在库里本就存在，会被幂等检查误跳过
       ['t.V=i/12*t.C,t.B=i/12*t.C', 't.V=3,t.B=0'],
       ['+5+a)', '+0+a)'],
       [
@@ -66,7 +73,7 @@ const patches = [
   {
     file: 'lightweight-charts.standalone.production.mjs',
     replacements: [
-      ['C:5', 'C:0'],
+      ['C:5', 'C:0/* ww */'], // to 必须含唯一标记：裸 "C:0" 在库里本就存在，会被幂等检查误跳过
       ['t.V=i/12*t.C,t.B=i/12*t.C', 't.V=3,t.B=0'],
       ['+5+a)', '+0+a)'],
       [
@@ -79,7 +86,7 @@ const patches = [
   {
     file: 'lightweight-charts.standalone.production.js',
     replacements: [
-      ['C:5', 'C:0'],
+      ['C:5', 'C:0/* ww */'], // to 必须含唯一标记：裸 "C:0" 在库里本就存在，会被幂等检查误跳过
       ['t.V=i/12*t.C,t.B=i/12*t.C', 't.V=3,t.B=0'],
       ['+5+a)', '+0+a)'],
       [

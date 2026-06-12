@@ -10,10 +10,14 @@ import {
   type CoinControlProps, type ExpiryGroup,
 } from '../../registry/monitorWidgetsBase';
 
-const UP = '#28C840';
-const DOWN = '#FF5F57';
-const BRAND = 'rgba(37,232,137,0.92)';
-const YELLOW = '#FEBC2E';
+const UP = '#24AE64';
+const DOWN = '#EF454A';
+const BRAND = '#24AE64';
+const YELLOW = '#FF9C2E';
+const CHART_GRID = 'rgba(255,255,255,0.04)';
+const CHART_AXIS = 'rgba(255,255,255,0.08)';
+const CHART_TEXT = '#71757A';
+const CHART_TOOLTIP = 'background: rgba(21,23,25,0.92); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.40); backdrop-filter: blur(12px);';
 
 // 取最接近 target 天的到期
 function pick(arr: ExpiryGroup[], target: number): ExpiryGroup | undefined {
@@ -111,15 +115,15 @@ export const VolTermWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps
     return {
       grid: { left: 36, right: 40, top: 28, bottom: 24, containLabel: true },
       legend: { data: [{ name: 'ATM IV', icon: 'roundRect' }, { name: '25Δ RR', icon: 'line' }], textStyle: { color: 'rgba(255,255,255,0.5)', fontSize: 10 }, right: 8, top: 0 },
-      xAxis: { type: 'category', data: labels, boundaryGap: false, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } }, axisLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 9 }, axisTick: { show: false } },
+      xAxis: { type: 'category', data: labels, boundaryGap: false, axisLine: { lineStyle: { color: CHART_AXIS } }, axisLabel: { color: CHART_TEXT, fontSize: 9 }, axisTick: { show: false } },
       yAxis: [
-        { type: 'value', scale: true, axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 9, formatter: (v: number) => `${v.toFixed(0)}%` }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+        { type: 'value', scale: true, axisLabel: { color: CHART_TEXT, fontSize: 9, formatter: (v: number) => `${v.toFixed(0)}%` }, splitLine: { lineStyle: { color: CHART_GRID } } },
         { type: 'value', scale: true, axisLabel: { color: YELLOW, fontSize: 9, formatter: (v: number) => v.toFixed(0) }, splitLine: { show: false } },
       ],
-      tooltip: { trigger: 'axis' },
+      tooltip: { trigger: 'axis', backgroundColor: 'rgba(21,23,25,0.92)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#ADB1B8', fontSize: 11 }, extraCssText: CHART_TOOLTIP },
       series: [
-        { name: 'ATM IV', type: 'line', smooth: 0.3, symbol: 'circle', symbolSize: 6, data: exp.map(e => +e.atmIV.toFixed(1)), lineStyle: { color: BRAND, width: 2 }, itemStyle: { color: BRAND }, areaStyle: { color: 'rgba(37,232,137,0.08)' }, label: { show: true, position: 'top', fontSize: 9, color: BRAND, formatter: (p: { value: number }) => p.value.toFixed(0) } },
-        { name: '25Δ RR', type: 'line', yAxisIndex: 1, smooth: 0.3, symbol: 'circle', symbolSize: 5, data: exp.map(e => +e.rr25.toFixed(2)), lineStyle: { color: YELLOW, width: 1.5, type: 'dashed' }, itemStyle: { color: YELLOW }, markLine: { symbol: 'none', silent: true, lineStyle: { color: 'rgba(255,255,255,0.15)', type: 'dotted' }, data: [{ yAxis: 0 }] } },
+        { name: 'ATM IV', type: 'line', smooth: 0.3, symbol: 'circle', symbolSize: 5, data: exp.map(e => +e.atmIV.toFixed(1)), lineStyle: { color: BRAND, width: 1.8 }, itemStyle: { color: BRAND }, areaStyle: { color: 'rgba(36,174,100,0.06)' }, label: { show: true, position: 'top', fontSize: 9, color: BRAND, formatter: (p: { value: number }) => p.value.toFixed(0) } },
+        { name: '25Δ RR', type: 'line', yAxisIndex: 1, smooth: 0.3, symbol: 'circle', symbolSize: 4, data: exp.map(e => +e.rr25.toFixed(2)), lineStyle: { color: YELLOW, width: 1.4, type: 'dashed' }, itemStyle: { color: YELLOW }, markLine: { symbol: 'none', silent: true, lineStyle: { color: 'rgba(255,255,255,0.12)', type: 'dotted' }, data: [{ yAxis: 0 }] } },
       ],
     };
   }, [data]);

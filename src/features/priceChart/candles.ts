@@ -82,6 +82,7 @@ export function useCandles(coin: Coin, res: Resolution) {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let backoff = 1_000;
     let wsConnected = false;
+    let backfilled = false; // 初次回填失败 + WS 正常时，poll 兜底继续重试，否则图上只剩 WS 那一根
     const feedKey = `candles-${coin}-${res}`;
     const shouldRun = () => shouldRunFeedKey(feedKey, { mode: 'visible-live' });
 
@@ -92,6 +93,8 @@ export function useCandles(coin: Coin, res: Resolution) {
       try {
         const d = await fetchCandles(coin, res);
         if (!alive) return;
+        backfilled = true;
+        if (wsConnected) stopPoll();
         commit(d);
         setError(false);
         setLoading(false);
@@ -113,7 +116,7 @@ export function useCandles(coin: Coin, res: Resolution) {
     const stopPoll = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
     const startPoll = () => {
       if (pollTimer || !shouldRun()) return;
-      pollTimer = setInterval(() => { if (!wsConnected && shouldRun()) backfill(); }, POLL_MS[res]);
+      pollTimer = setInterval(() => { if ((!wsConnected || !backfilled) && shouldRun()) backfill(); }, POLL_MS[res]);
     };
 
     const scheduleReconnect = () => {
@@ -132,7 +135,7 @@ export function useCandles(coin: Coin, res: Resolution) {
       try { sock = new WebSocket(`wss://data-stream.binance.vision/ws/${stream}`); }
       catch { startPoll(); scheduleReconnect(); return; }
       ws = sock;
-      sock.onopen = () => { wsConnected = true; backoff = 1_000; stopPoll(); };
+      sock.onopen = () => { wsConnected = true; backoff = 1_000; if (backfilled) stopPoll(); };
       sock.onmessage = (e: MessageEvent) => {
         try {
           const k = (JSON.parse(e.data as string) as { k?: { t: number; o: string; h: string; l: string; c: string; v: string } }).k;
@@ -159,11 +162,13 @@ export function useCandles(coin: Coin, res: Resolution) {
       } else {
         backfill();           // 回到前台先重对齐历史
         connectWS();
+        startPoll();
       }
     };
 
     backfill();
     connectWS();
+    startPoll(); // 兜底从一开始就挂着：初次回填失败时按 POLL_MS 重试，成功且 WS 在线后自停
     const unsubscribePolicy = subscribeRuntimePolicy(applyPolicy);
 
     return () => {

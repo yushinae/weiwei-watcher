@@ -9,9 +9,9 @@ import {
 } from '../../registry/monitorWidgetsBase';
 import { recordOISnapshot, getOIChange24h } from './oiSnapshot';
 
-const UP = '#28C840';
-const DOWN = '#FF5F57';
-const YELLOW = '#FEBC2E';
+const UP = '#24AE64';
+const DOWN = '#EF454A';
+const YELLOW = '#FF9C2E';
 const MUTE = 'rgba(255,255,255,0.55)';
 
 export const FlowHeadlineWidget = ({ coin: coinProp, onCoinChange }: CoinControlProps) => {

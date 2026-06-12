@@ -648,10 +648,20 @@ html.is-scrolling * {
 .vol-history-page [class*="bg-[var(--color-surface-2)]"],
 .price-chart-page [class*="bg-[var(--color-surface-2)]"],
 .position-builder-page [class*="bg-[var(--color-surface-2)]"],
-.bybit-page-scope [class*="bg-[var(--color-surface-2)]"] {
+.bybit-page-scope [class*="bg-[var(--color-surface-2)]"],
+.app-page-scope [class*="bg-[#2B2D35]"],
+.accounts-page [class*="bg-[#2B2D35]"],
+.journal-page [class*="bg-[#2B2D35]"],
+.portfolio-risk-page [class*="bg-[#2B2D35]"],
+.alerts-page [class*="bg-[#2B2D35]"],
+.vol-history-page [class*="bg-[#2B2D35]"],
+.price-chart-page [class*="bg-[#2B2D35]"],
+.position-builder-page [class*="bg-[#2B2D35]"],
+.bybit-page-scope [class*="bg-[#2B2D35]"] {
   background: #2B2D35;
   border-color: transparent;
   box-shadow: none;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .app-page-scope [class*="bg-[var(--color-bg-card)]"],
@@ -680,8 +690,36 @@ html.is-scrolling * {
   background: #2B2D35;
   border-color: transparent;
   box-shadow: none;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
+.app-page-scope [class*="bg-[var(--color-surface-2)]"]:hover,
+.accounts-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.journal-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.portfolio-risk-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.alerts-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.vol-history-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.price-chart-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.position-builder-page [class*="bg-[var(--color-surface-2)]"]:hover,
+.bybit-page-scope [class*="bg-[var(--color-surface-2)]"]:hover,
+.app-page-scope [class*="bg-[var(--color-surface-1)]"]:hover,
+.accounts-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.journal-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.portfolio-risk-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.alerts-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.vol-history-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.price-chart-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.position-builder-page [class*="bg-[var(--color-surface-1)]"]:hover,
+.bybit-page-scope [class*="bg-[var(--color-surface-1)]"]:hover,
+.app-page-scope [class*="bg-[#2B2D35]"]:hover,
+.accounts-page [class*="bg-[#2B2D35]"]:hover,
+.journal-page [class*="bg-[#2B2D35]"]:hover,
+.portfolio-risk-page [class*="bg-[#2B2D35]"]:hover,
+.alerts-page [class*="bg-[#2B2D35]"]:hover,
+.vol-history-page [class*="bg-[#2B2D35]"]:hover,
+.price-chart-page [class*="bg-[#2B2D35]"]:hover,
+.position-builder-page [class*="bg-[#2B2D35]"]:hover,
+.bybit-page-scope [class*="bg-[#2B2D35]"]:hover,
 .app-page-scope [class*="hover:bg-[var(--color-surface-5)]"]:hover,
 .accounts-page [class*="hover:bg-[var(--color-surface-5)]"]:hover,
 .journal-page [class*="hover:bg-[var(--color-surface-5)]"]:hover,
@@ -778,22 +816,96 @@ html.is-scrolling * {
 
 .monitor-scope .widget-card .dash-tile,
 .monitor-scope .widget-card [class*="bg-[var(--color-surface-2)]"],
+.monitor-scope .widget-card [class*="bg-[#2B2D35]"],
 .monitor-scope .widget-card .bg-surface-2,
 .monitor-scope .widget-card .bg-surface-2\/70 {
   background: #2B2D35;
   border-color: transparent;
   box-shadow: none;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .monitor-scope .widget-card [class*="bg-[var(--color-surface-1)]"] {
   background: #2B2D35;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.monitor-scope .widget-card [class*="border-[var(--color-border-subtle)]"],
+.monitor-scope .widget-card [class*="border-white"],
+.monitor-scope .widget-card [class*="ring-"] {
+  border-color: transparent;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-color: transparent;
+}
+
+.monitor-scope .widget-card input,
+.monitor-scope .widget-card select,
+.monitor-scope .widget-card textarea {
+  background: #2B2D35;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.monitor-scope .widget-card input:hover,
+.monitor-scope .widget-card select:hover,
+.monitor-scope .widget-card textarea:hover,
+.monitor-scope .widget-card input:focus,
+.monitor-scope .widget-card select:focus,
+.monitor-scope .widget-card textarea:focus {
+  background: #3A3B40;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.monitor-scope .widget-head button {
+  border-color: transparent;
 }
 
 .monitor-scope .widget-card .dash-tile:hover,
+.monitor-scope .widget-card [class*="bg-[var(--color-surface-2)]"]:hover,
+.monitor-scope .widget-card [class*="bg-[var(--color-surface-1)]"]:hover,
+.monitor-scope .widget-card [class*="bg-[#2B2D35]"]:hover,
+.monitor-scope .widget-card .bg-surface-2:hover,
+.monitor-scope .widget-card .bg-surface-2\/70:hover,
 .monitor-scope .widget-card [class*="hover:bg-[var(--color-surface-5)]"]:hover,
+.monitor-scope .widget-card [class*="hover:bg-white"]:hover,
 .monitor-scope .widget-card [class*="hover:bg-surface-2"]:hover,
-.monitor-scope .widget-card [class*="hover:bg-white"]:hover {
+.monitor-scope .widget-card [class*="hover:bg-white/"]:hover {
   background: #3A3B40;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.ui-chart-surface {
+  background: transparent;
+}
+
+.app-page-scope .ui-chart-surface:hover,
+.accounts-page .ui-chart-surface:hover,
+.journal-page .ui-chart-surface:hover,
+.portfolio-risk-page .ui-chart-surface:hover,
+.alerts-page .ui-chart-surface:hover,
+.vol-history-page .ui-chart-surface:hover,
+.price-chart-page .ui-chart-surface:hover,
+.position-builder-page .ui-chart-surface:hover,
+.bybit-page-scope .ui-chart-surface:hover,
+.monitor-scope .widget-card .ui-chart-surface:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.app-page-scope :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.accounts-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.journal-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.portfolio-risk-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.alerts-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.vol-history-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.price-chart-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.position-builder-page :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.bybit-page-scope :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover,
+.monitor-scope .widget-card :is([class*="bg-[var(--color-surface-2)]"], [class*="bg-[var(--color-surface-1)]"], [class*="bg-[#2B2D35]"], [class*="hover:bg-[var(--color-surface-5)]"], [class*="hover:bg-[var(--color-surface-2)]"], [class*="hover:bg-white"], [class*="hover:bg-surface-2"], .bg-surface-2, .bg-surface-2\/70, .dash-tile):has(.ui-chart-surface):hover {
+  background: #2B2D35;
   border-color: transparent;
   box-shadow: none;
 }

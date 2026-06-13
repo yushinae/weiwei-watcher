@@ -599,7 +599,75 @@ export default function App() {
   useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
   useEscapeKey(settingsOpen, () => setSettingsOpen(false));
+  useEscapeKey(walletOpen, () => setWalletOpen(false));
+
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  const walletMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openSettings = () => {
+    if (settingsTimer.current) { clearTimeout(settingsTimer.current); settingsTimer.current = null; }
+    setWalletOpen(false);
+    setSettingsOpen(true);
+  };
+  const closeSettings = () => {
+    if (settingsTimer.current) clearTimeout(settingsTimer.current);
+    settingsTimer.current = setTimeout(() => {
+      setSettingsOpen(false);
+      settingsTimer.current = null;
+    }, 300);
+  };
+
+  const walletTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openWallet = () => {
+    if (walletTimer.current) { clearTimeout(walletTimer.current); walletTimer.current = null; }
+    setSettingsOpen(false);
+    setWalletOpen(true);
+    preload.accounts();
+    preload.portfolioRisk();
+  };
+  const closeWallet = () => {
+    if (walletTimer.current) clearTimeout(walletTimer.current);
+    walletTimer.current = setTimeout(() => {
+      setWalletOpen(false);
+      walletTimer.current = null;
+    }, 300);
+  };
+
+  const walletMenuItems = [
+    {
+      label: '账户',
+      icon: Wallet,
+      to: '/accounts',
+      preload: preload.accounts,
+    },
+    {
+      label: '组合风险',
+      icon: ShieldAlert,
+      to: '/portfolio-risk',
+      preload: preload.portfolioRisk,
+    },
+  ];
+
+  const openWalletRoute = (to: string) => {
+    setWalletOpen(false);
+    navigate(to);
+  };
+
+  useEffect(() => {
+    if (!settingsOpen && !walletOpen) return;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (settingsOpen && settingsMenuRef.current && !settingsMenuRef.current.contains(target)) closeSettings();
+      if (walletOpen && walletMenuRef.current && !walletMenuRef.current.contains(target)) closeWallet();
+    };
+
+    document.addEventListener('pointermove', onPointerMove, { passive: true });
+    return () => document.removeEventListener('pointermove', onPointerMove);
+  }, [settingsOpen, walletOpen]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -665,22 +733,53 @@ export default function App() {
             <DigitalClock />
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSettingsOpen(o => !o)}
-              className={cn(
-                'bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
-                settingsOpen
-                  ? 'is-open text-[var(--bb-orange)]'
-                  : 'text-white/55 hover:text-white/85',
-              )}
-              title="UI 设置"
-              aria-label="UI 设置"
+            <div
+              ref={settingsMenuRef}
+              className="relative"
+              onMouseEnter={openSettings}
+              onPointerEnter={openSettings}
+              onMouseMove={openSettings}
+              onMouseLeave={closeSettings}
+              onPointerLeave={closeSettings}
             >
-              <img src="/icons/settings.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
-            </button>
+              <button
+                onFocus={openSettings}
+                className={cn(
+                  'bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                  settingsOpen
+                    ? 'is-open text-[var(--bb-orange)]'
+                    : 'text-white/55 hover:text-white/85',
+                )}
+                title="UI 设置"
+                aria-label="UI 设置"
+                aria-expanded={settingsOpen}
+                aria-haspopup="menu"
+              >
+                <img src="/icons/settings.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
+              </button>
+
+              {settingsOpen && (
+                <div
+                  onMouseEnter={openSettings}
+                  onPointerEnter={openSettings}
+                  onMouseMove={openSettings}
+                  onMouseLeave={closeSettings}
+                  onPointerLeave={closeSettings}
+                  className="bb-top-popover absolute top-full right-0 mt-1 w-[192px] p-1.5 z-[200]"
+                  role="menu"
+                >
+                  <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/35">设置</div>
+                  <UISettings />
+                </div>
+              )}
+            </div>
 
             <button
-              onClick={() => navigate('/alerts')}
+              onClick={() => {
+                setSettingsOpen(false);
+                setWalletOpen(false);
+                navigate('/alerts');
+              }}
               onMouseEnter={preload.alerts}
               className="bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 transition-colors duration-[120ms]"
               title="告警"
@@ -689,41 +788,64 @@ export default function App() {
               <img src="/icons/alerts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
             </button>
 
-            <button
-              onClick={() => navigate('/accounts')}
-              onMouseEnter={preload.accounts}
-              className="bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center text-white/55 hover:text-white/85 transition-colors duration-[120ms]"
-              title="账户"
-              aria-label="账户"
+            <div
+              ref={walletMenuRef}
+              className="relative"
+              onMouseEnter={openWallet}
+              onPointerEnter={openWallet}
+              onMouseMove={openWallet}
+              onMouseLeave={closeWallet}
+              onPointerLeave={closeWallet}
             >
-              <img src="/icons/accounts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
-            </button>
+              <button
+                onFocus={openWallet}
+                className={cn(
+                  'bb-topbar-button w-[32px] h-[32px] rounded-[8px] flex items-center justify-center transition-colors duration-[120ms]',
+                  walletOpen ? 'is-open text-[var(--bb-orange)]' : 'text-white/55 hover:text-white/85',
+                )}
+                title="账户"
+                aria-label="账户"
+                aria-expanded={walletOpen}
+                aria-haspopup="menu"
+              >
+                <img src="/icons/accounts.png" className="w-[22px] h-[22px] rounded-[6px]" alt="" />
+              </button>
+
+              {walletOpen && (
+                <div
+                  onMouseEnter={openWallet}
+                  onPointerEnter={openWallet}
+                  onMouseMove={openWallet}
+                  onMouseLeave={closeWallet}
+                  onPointerLeave={closeWallet}
+                  className="bb-top-popover absolute top-full right-0 mt-1 w-[160px] p-1.5 z-[200]"
+                  role="menu"
+                >
+                  <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/35">我的</div>
+                  <div className="flex flex-col gap-1">
+                    {walletMenuItems.map(item => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.to}
+                          type="button"
+                          role="menuitem"
+                          onMouseEnter={item.preload}
+                          onClick={() => openWalletRoute(item.to)}
+                          className="bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left"
+                        >
+                          <Icon size={16} className="shrink-0 text-[var(--bb-orange)]" />
+                          <span className="text-[13px] font-semibold text-white/80">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <DataHealthIndicator />
           </div>
-
-          {settingsOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-[190]"
-                onClick={() => setSettingsOpen(false)}
-              />
-              <div
-                className="bb-top-popover absolute top-full right-0 mt-2 w-[300px] p-4 z-[200]"
-              >
-                <div className="bb-top-menu-card flex items-center justify-between mb-3 px-2.5 py-2">
-                  <span className="text-[13px] font-semibold text-white/80">UI 设置</span>
-                  <button
-                    onClick={() => setSettingsOpen(false)}
-                    className="bb-top-menu-item w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70"
-                  >
-                    <span className="text-[14px] leading-none">✕</span>
-                  </button>
-                </div>
-                <UISettings />
-              </div>
-            </>
-          )}
         </div>
       </header>
 

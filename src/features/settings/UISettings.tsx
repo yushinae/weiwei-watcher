@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Moon } from 'lucide-react';
 
 const THEME_KEY = 'ui-theme';
 
@@ -27,20 +28,13 @@ export function useTheme() {
 
 export function UISettings() {
   const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <div className="flex flex-col gap-4 min-w-[260px]">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="text-[13px] font-semibold text-white/85">外观</span>
-          <span className="text-[11px] text-white/45">
-            {theme === 'dark' ? '暗色模式' : '亮色模式'}
-          </span>
-        </div>
-        <span className="h-[24px] px-2 rounded-md bg-white/[0.05] ring-1 ring-inset ring-white/[0.08] text-[11px] font-semibold text-white/55 flex items-center">
-          固定
-        </span>
-      </div>
-    </div>
+    <button type="button" className="bb-top-menu-item flex h-9 w-full items-center gap-3 px-3 text-left">
+      <Moon size={16} className="shrink-0 text-[var(--bb-orange)]" />
+      <span className="min-w-0 flex-1 whitespace-nowrap text-[13px] font-semibold text-white/80">{isDark ? '暗色模式' : '亮色模式'}</span>
+      <span className="bb-top-badge px-1.5 py-0.5 text-[10px] font-bold">固定</span>
+    </button>
   );
 }

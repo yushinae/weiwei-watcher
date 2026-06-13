@@ -382,16 +382,16 @@ export const PortfolioRiskView = () => {
       <div className="flex flex-col gap-3 p-3 min-h-full">
 
         {/* ── 提示条 ── */}
-        <div className="flex items-center gap-2 flex-wrap shrink-0 text-[11px]">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--nexus-green,#28C840)]/[0.12] ring-1 ring-inset ring-[#28C840]/30 text-[#28C840] font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#28C840] animate-pulse" /> {scopeLabel} · {tot.count} 腿
+        <div className="flex items-center gap-2 flex-wrap shrink-0 text-[12px]">
+          <span className="inline-flex h-[26px] items-center justify-center gap-1.5 rounded-md bg-[#28C840]/[0.12] px-2.5 text-[12px] font-semibold text-[#28C840] ring-1 ring-inset ring-[#28C840]/30 transition-colors duration-[120ms] hover:bg-[#28C840]/[0.16]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#28C840] animate-pulse" /> {scopeLabel} · {tot.count} 腿
           </span>
-          <div className="inline-flex items-center gap-1 rounded-md bg-white/[0.05] p-0.5 ring-1 ring-inset ring-white/10">
+          <div className="inline-flex items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5 ring-1 ring-inset ring-white/10">
             {modeButtons.map(b => {
               const active = viewMode === b.mode;
               return (
                 <button key={b.mode} onClick={() => setViewMode(b.mode)} disabled={b.count === 0}
-                  className={`h-[24px] px-2 rounded text-[11px] font-semibold transition-colors disabled:opacity-35 ${active ? 'bg-[var(--nexus-accent)]/16 text-[var(--nexus-accent)]' : 'text-white/55 hover:bg-white/[0.08] hover:text-white/80'}`}>
+                  className={`h-[26px] rounded-md px-2.5 text-[12px] font-semibold transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-35 ${active ? 'bg-[#3A3F40] text-[var(--nexus-accent)]' : 'bg-transparent text-white/50 hover:bg-[#3A3B40] hover:text-white/80'}`}>
                   {b.label}{b.count ? ` ${b.count}` : ''}
                 </button>
               );

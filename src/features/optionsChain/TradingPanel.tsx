@@ -35,6 +35,7 @@ import FreshnessTag from '../../components/FreshnessTag';
 import { useFreshness } from '../../registry/data/freshness';
 import type { CheckLevel } from './preTradeChecks';
 import { soundOrderError } from './orderSounds';
+import { requestAccountPositionsRefresh } from '../accounts/positionRefresh';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Positions panel — 仓位 / 未结订单 / 订单历史 / 交易历史 (shared: page + trade modal)
@@ -1055,6 +1056,13 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
     };
     const result = await adapter.placeOrder(intent);
     if (result.status === 'rejected') soundOrderError();
+    else if (adapter.mode === 'live') {
+      requestAccountPositionsRefresh({
+        reason: 'live-order-submitted',
+        venue: source,
+        orderId: result.orderId,
+      });
+    }
   }, [adapter, sanity.blocking, source, orderType, symbol, nQty, orderPrice, opt.mark, opt.delta, opt.gamma, opt.theta, opt.vega, opt.instrument, reduceOnly, postOnly, tif, usdBook]);
 
   const light = SANITY[sanity.level];

@@ -100,6 +100,7 @@ export const bybitAdapter: VenueAdapter = {
         const g = p as BybitOptGreeks; // Bybit 报每张希腊；× 带符号张数 = 仓位级
         positions.push({
           venue: 'Bybit', accountId: acct.id, coin: p.symbol.split('-')[0], kind: 'option',
+          instrument: p.symbol,
           size: sz, entryPx: Number(p.avgPrice) || null, markPx: Number(p.markPrice) || null,
           notionalUsd: Math.abs(Number(p.positionValue)), unrealizedPnl: Number(p.unrealisedPnl),
           leverage: null, liqPx: null,
@@ -116,6 +117,7 @@ export const bybitAdapter: VenueAdapter = {
         const sz = Number(p.size) * (p.side === 'Sell' ? -1 : 1);
         positions.push({
           venue: 'Bybit', accountId: acct.id, coin: coinOf(p.symbol), kind: 'perp',
+          instrument: p.symbol,
           size: sz, entryPx: Number(p.avgPrice) || null, markPx: Number(p.markPrice) || null,
           notionalUsd: Math.abs(Number(p.positionValue)), unrealizedPnl: Number(p.unrealisedPnl),
           leverage: p.leverage ? Number(p.leverage) : null, liqPx: p.liqPrice ? Number(p.liqPrice) : null,

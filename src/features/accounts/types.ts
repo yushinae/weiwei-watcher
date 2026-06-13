@@ -9,6 +9,7 @@ export interface UnifiedPosition {
   accountId: string;
   coin: string;                 // BTC / ETH / SOL …
   kind: 'perp' | 'option' | 'spot';
+  instrument?: string;           // 交易所原始合约名（期权用于跨模块去重/展示）
   size: number;                 // 带符号张/币数：正=多，负=空
   entryPx: number | null;
   markPx: number | null;

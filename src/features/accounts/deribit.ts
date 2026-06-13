@@ -72,6 +72,7 @@ export const deribitAdapter: VenueAdapter = {
         const mult = linear ? 1 : idx;   // USDC 已是 USD；BTC/ETH 反向 ×index
         positions.push({
           venue: 'Deribit', accountId: acct.id, coin: coinOf(p.instrument_name), kind: 'option',
+          instrument: p.instrument_name,
           size: p.size,
           entryPx: p.average_price ? p.average_price * mult : null,
           markPx: p.mark_price ? p.mark_price * mult : null,

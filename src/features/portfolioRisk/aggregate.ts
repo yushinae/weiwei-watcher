@@ -73,11 +73,12 @@ export function fromAccounts(positions: UnifiedPosition[], spotByCoin: Record<st
       const gamma = p.gamma ?? 0, vega = p.vega ?? 0, theta = p.theta ?? 0;
       const usd = p.greeksUsd ?? true;
       const kindLabel = p.kind === 'perp' ? '永续' : p.kind === 'option' ? '期权' : '现货';
+      const instrument = p.instrument ?? `${p.venue} ${p.coin} ${kindLabel}`;
       return {
-        id: `acct-${p.venue}-${p.coin}-${p.kind}-${p.size}`,
+        id: `acct-${p.accountId}-${p.venue}-${instrument}-${p.size}`,
         venue: p.venue,
         coin: p.coin,
-        instrument: `${p.venue} ${p.coin} ${kindLabel}`,
+        instrument,
         qty: p.size,
         spot,
         mark: p.markPx ?? 0,

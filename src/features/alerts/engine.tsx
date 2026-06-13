@@ -13,10 +13,8 @@ import { notifyAlert } from './notifications';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
 
-// 始终在线、永远只评估实时可得指标（spot/dvol）的两个；其余在监控数据新鲜时顺带评估。
-export const ALWAYS_ON_METRICS = new Set(['spot', 'dvol']);
-// 盯持仓指标：基于「账户」页同步的真实持仓 + 实时现价（净 Delta 随价格实时变）。
-export const BOOK_METRICS = new Set(['netDelta', 'netVega']);
+// 可靠性分级见 METRIC_META.tier：live(spot/dvol) 全局常驻、book(netDelta/netVega)
+// 盯持仓、foreground(其余) 仅监控页新鲜时评估。引擎每 4s 评估 live + book。
 
 // ── 全局告警引擎 ──────────────────────────────────────────────────────────────
 // 挂在 App 顶层一次。直接订阅 DERIBIT_WS 的 spot + DVOL（全局常驻连接，不受

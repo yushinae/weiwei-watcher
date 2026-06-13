@@ -40,13 +40,32 @@ type TabState = {
 type PendingJump = { coin: 'BTC' | 'ETH'; expiryCompact: string; strike: number };
 
 const DEFAULT_VISIBLE_COL_IDS = SIDE_COLS.map(c => c.id);
+// expiryIdx === -1 是「未选择」哨兵：到期日列表就绪后解析为「最近的流动周」(defaultExpiryIdx)，
+// 而不是第 0 档（最近、最薄、半空的 0DTE / 日内合约）。
 const DEFAULT_TAB_STATE: TabState = {
-  expiryIdx: 0,
+  expiryIdx: -1,
   filterKey: 'all',
   showDist: false,
   visibleColIds: DEFAULT_VISIBLE_COL_IDS,
 };
-const VIEW_STATE_KEY = 'options-chain.view-state.v1';
+
+// 默认到期日 = 最近的「流动周」：跳过 0DTE / 日内日历（薄、半空），落在最接近 7 天的到期。
+const DEFAULT_EXPIRY_TARGET_DAYS = 7;
+const DEFAULT_EXPIRY_MIN_DAYS = 4;
+function defaultExpiryIdx(expiries: ChainExpiry[]): number {
+  if (expiries.length === 0) return 0;
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  expiries.forEach((e, i) => {
+    if (e.daysToExp < DEFAULT_EXPIRY_MIN_DAYS) return;          // 跳过 0DTE / 日内薄合约
+    const score = Math.abs(e.daysToExp - DEFAULT_EXPIRY_TARGET_DAYS);
+    if (score < bestScore) { bestScore = score; bestIdx = i; }
+  });
+  return bestIdx >= 0 ? bestIdx : expiries.length - 1;          // 全是日内（极少见）→ 退回最长期
+}
+// v2：默认到期日从「第 0 档」改为哨兵 -1（最近流动周），bump key 让老用户重置生效，
+// 避免旧持久化的 expiryIdx:0 被当成「显式选了 0DTE」而错过新默认。
+const VIEW_STATE_KEY = 'options-chain.view-state.v2';
 const VALID_UNDERLYINGS = new Set(UNDERLYING_GROUPS.flatMap(g => g.items.map(item => item.value)));
 
 type PersistedViewState = {
@@ -60,7 +79,7 @@ function normalizeTabState(raw: Partial<TabState> | undefined): TabState {
     ? raw.visibleColIds.filter(id => DEFAULT_VISIBLE_COL_IDS.includes(id))
     : DEFAULT_VISIBLE_COL_IDS;
   return {
-    expiryIdx: Number.isFinite(raw?.expiryIdx) ? Math.max(0, Number(raw?.expiryIdx)) : DEFAULT_TAB_STATE.expiryIdx,
+    expiryIdx: Number.isFinite(raw?.expiryIdx) ? Math.max(-1, Number(raw?.expiryIdx)) : DEFAULT_TAB_STATE.expiryIdx,
     expiryKey: typeof raw?.expiryKey === 'string' ? raw.expiryKey : undefined,
     filterKey: raw?.filterKey === 'atm5' || raw?.filterKey === 'atm10' ? raw.filterKey : DEFAULT_TAB_STATE.filterKey,
     showDist: !!raw?.showDist,
@@ -137,7 +156,7 @@ export default function OptionsChainView() {
     const isInitialDefaultStoreValue =
       !skippedInitialNavDefault.current
       && navUnderlying === 'BTC_USDC'
-      && navExpiryIdx === 0
+      && navExpiryIdx <= 0
       && initialActiveUnderlying.current !== 'BTC_USDC';
     skippedInitialNavDefault.current = true;
     if (isInitialDefaultStoreValue) return;
@@ -151,11 +170,14 @@ export default function OptionsChainView() {
       setActiveTabIdx(prev.length);
       return [...prev, navUnderlying];
     });
+    // nav 的 expiryIdx 0 = 点了标的表头/未选具体到期 → 用哨兵 -1 落到「最近流动周」，
+    // 而非第 0 档（1H）。只有 >0 的具体到期选择才钉死。
+    const navExpiry = navExpiryIdx > 0 ? navExpiryIdx : -1;
     setTabStates(prev => ({
       ...prev,
       [navUnderlying]: {
         ...(prev[navUnderlying] ?? DEFAULT_TAB_STATE),
-        expiryIdx: navExpiryIdx,
+        expiryIdx: navExpiry,
         expiryKey: undefined,
       },
     }));
@@ -218,6 +240,7 @@ export default function OptionsChainView() {
       const keyIdx = expiries.findIndex(e => e.key === tabState.expiryKey);
       if (keyIdx >= 0) return keyIdx;
     }
+    if (tabState.expiryIdx < 0) return defaultExpiryIdx(expiries);   // 未选择 → 最近的流动周
     return Math.min(tabState.expiryIdx, expiries.length - 1);
   }, [expiries, tabState.expiryIdx, tabState.expiryKey]);
   const expiry = expiries[expiryIdx];

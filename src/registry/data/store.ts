@@ -201,15 +201,31 @@ export function buildLiveFromCache(positions: UserPosition[]): LivePosition[] {
 // Alerts system
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type AlertMetric = 'spot' | 'dvol' | 'ivrank' | 'funding' | 'sentiment' | 'callflow' | 'putflow'
+export type AlertMetric = 'spot' | 'dvol' | 'ivrank' | 'funding' | 'callflow' | 'putflow'
   | 'netDelta' | 'netVega';
 export type AlertOp     = '>' | '<';
+export type MetricTier  = 'live' | 'book' | 'foreground';
 
 export interface UserAlert {
   id: string; coin: Coin; metric: AlertMetric; op: AlertOp;
   threshold: number; active: boolean; cooldownMs: number;
   triggered: boolean; lastValue: number | null; triggeredAt: number | null; lastNotifiedAt: number | null;
 }
+
+// 指标元数据 + 可靠性分级（单一事实来源，UI 据此打标）：
+//  live       Spot / DVOL —— 全局 WebSocket 常驻，后台标签页也判定并推送
+//  book       净Delta / 净Vega —— 账户页同步的持仓 + 实时现价，每 4s 评估
+//  foreground IV / 资金费率 / 资金流 —— 仅监控页打开、缓存新鲜时评估，离页可能漏触发
+export const METRIC_META: Record<AlertMetric, { label: string; unit: string; defaultVal: number; tier: MetricTier }> = {
+  spot:      { label: 'Spot 价格',     unit: '$',    defaultVal: 90000, tier: 'live' },
+  dvol:      { label: 'DVOL',          unit: '%',    defaultVal: 60,    tier: 'live' },
+  ivrank:    { label: 'IV 百分位',     unit: '%ile', defaultVal: 80,    tier: 'foreground' },
+  funding:   { label: '年化资金费率',  unit: '%',    defaultVal: 50,    tier: 'foreground' },
+  callflow:  { label: 'Call 净流向',   unit: 'K$',   defaultVal: 1000,  tier: 'foreground' },
+  putflow:   { label: 'Put 净流向',    unit: 'K$',   defaultVal: -500,  tier: 'foreground' },
+  netDelta:  { label: '持仓净$Delta',   unit: '$',    defaultVal: 50000, tier: 'book' },
+  netVega:   { label: '持仓净$Vega/1%', unit: '$',    defaultVal: -2000, tier: 'book' },
+};
 
 const ALERT_HISTORY_KEY = 'ww_alert_history';
 export const DEFAULT_ALERT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -230,7 +246,7 @@ export function loadAlerts(): UserAlert[] {
   try {
     const raw = localStorage.getItem('ww_alerts');
     if (!raw) return [];
-    return (JSON.parse(raw) as UserAlert[]).map(a => normalizeAlert(a));
+    return (JSON.parse(raw) as UserAlert[]).filter(a => a && a.metric in METRIC_META).map(a => normalizeAlert(a));
   } catch { return []; }
 }
 
@@ -255,7 +271,7 @@ export async function hydrateAlertsFromBackend(): Promise<void> {
     const ids = new Set(ALERTS_STORE.map(a => a.id));
     let changed = false;
     for (const a of remote) {
-      if (!a?.id || ids.has(a.id)) continue;
+      if (!a?.id || ids.has(a.id) || !(a.metric in METRIC_META)) continue;
       ALERTS_STORE.push(normalizeAlert(a));
       ids.add(a.id);
       changed = true;
@@ -271,18 +287,6 @@ export async function hydrateAlertsFromBackend(): Promise<void> {
     /* backend is optional */
   }
 }
-
-export const METRIC_META: Record<AlertMetric, { label: string; unit: string; defaultVal: number }> = {
-  spot:      { label: 'Spot 价格',    unit: '$',    defaultVal: 90000 },
-  dvol:      { label: 'DVOL',         unit: '%',    defaultVal: 60    },
-  ivrank:    { label: 'IV 百分位',    unit: '%ile', defaultVal: 80    },
-  funding:   { label: '年化资金费率', unit: '%',    defaultVal: 50    },
-  sentiment: { label: '情绪评分',     unit: 'pts',  defaultVal: 30    },
-  callflow:  { label: 'Call 净流向',  unit: 'K$',   defaultVal: 1000  },
-  putflow:   { label: 'Put 净流向',   unit: 'K$',   defaultVal: -500  },
-  netDelta:  { label: '持仓净$Delta',  unit: '$',    defaultVal: 50000 },
-  netVega:   { label: '持仓净$Vega/1%', unit: '$',   defaultVal: -2000 },
-};
 
 // liveOverrides：全局引擎传入的 WS 实时值（spot/dvol），覆盖可能已过期的缓存值，
 // 使告警在离开监控页时仍能基于实时行情触发。
@@ -310,13 +314,16 @@ export function evalAlerts(coin: Coin, liveOverrides?: Partial<Record<AlertMetri
     if (!a.active || a.coin !== coin) continue;
     const v = vals[a.metric];
     if (v === undefined) continue;
-    a.lastValue = v;
+    const firstSeen = a.lastValue === null;   // 本次会话首次拿到该指标：只建立基线，不为「已在条件内」误报
     const prev = a.triggered;
+    a.lastValue = v;
     a.triggered = a.op === '>' ? v > a.threshold : v < a.threshold;
-    if (a.triggered) {
+    // 仅在「穿越」阈值的上升沿提醒一次；条件回到另一侧后自动重新武装。
+    // cooldown 退化为抖动防护：阈值附近反复穿越时限制最小提醒间隔。
+    if (a.triggered && !prev && !firstSeen) {
       const now = Date.now();
-      if (!prev) a.triggeredAt = now;
-      if (!prev || a.lastNotifiedAt == null || now - a.lastNotifiedAt >= a.cooldownMs) {
+      a.triggeredAt = now;
+      if (a.lastNotifiedAt == null || now - a.lastNotifiedAt >= a.cooldownMs) {
         a.lastNotifiedAt = now;
         saveAlerts();
         emitAlertTrigger({ id: a.id, coin: a.coin, metric: a.metric, op: a.op, threshold: a.threshold, value: v, at: now });
@@ -347,7 +354,7 @@ export function removeAlert(id: string): void {
 }
 export function toggleAlert(id: string): void {
   const a = ALERTS_STORE.find(x => x.id === id);
-  if (a) { a.active = !a.active; if (!a.active) a.triggered = false; saveAlerts(); _notifyAlerts(); }
+  if (a) { a.active = !a.active; a.triggered = false; a.lastValue = null; saveAlerts(); _notifyAlerts(); }
 }
 
 // ── 触发事件总线（供 UI toast 订阅）──────────────────────────────────────────

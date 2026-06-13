@@ -4,10 +4,9 @@ import {
   ALERTS_STORE, METRIC_META, DEFAULT_ALERT_COOLDOWN_MS,
   addAlert, removeAlert, toggleAlert, subscribeAlerts,
   loadAlertHistory, clearAlertHistory, subscribeAlertHistory,
-  type UserAlert, type AlertMetric, type AlertOp, type AlertHistoryItem,
+  type UserAlert, type AlertMetric, type AlertOp, type AlertHistoryItem, type MetricTier,
 } from '../../registry/data/store';
 import type { Coin } from '../monitor/types';
-import { ALWAYS_ON_METRICS, BOOK_METRICS } from './engine';
 import { ensureAlertNotifications } from './notifications';
 
 const COINS: Coin[] = ['BTC', 'ETH'];
@@ -23,6 +22,13 @@ const inputCls = 'h-8 rounded-[4px] bg-[#2B2D35] px-2 text-[12px] text-white/85 
 const cardCls = 'rounded-[8px] bg-[#17181E] shadow-none';
 const labelCls = 'text-[10px] font-medium text-white/42';
 const sectionTitleCls = 'text-[12px] font-semibold uppercase tracking-normal text-white/62';
+
+// 可靠性分级 → 行内徽章：实时(绿,可信) / 需同步(灰,要先同步账户) / 仅前台(琥珀,离页可能漏触发)
+const TIER_BADGE: Record<MetricTier, { label: string; cls: string }> = {
+  live:       { label: '实时',   cls: 'bg-[#24AE64]/14 text-[#24AE64]' },
+  book:       { label: '需同步', cls: 'bg-white/[0.06] text-white/55' },
+  foreground: { label: '仅前台', cls: 'bg-[#FF9C2E]/12 text-[#FF9C2E]' },
+};
 
 type Perm = 'default' | 'granted' | 'denied';
 const getPerm = (): Perm => (typeof Notification !== 'undefined' ? (Notification.permission as Perm) : 'denied');
@@ -102,7 +108,7 @@ export const AlertsManager = () => {
               <span className={labelCls}>指标</span>
               <select className={inputCls} value={metric} onChange={e => onMetric(e.target.value as AlertMetric)}>
                 {METRICS.map(m => (
-                  <option key={m} value={m}>{METRIC_META[m].label}{ALWAYS_ON_METRICS.has(m) ? ' ·常驻' : BOOK_METRICS.has(m) ? ' ·持仓' : ''}</option>
+                  <option key={m} value={m}>{METRIC_META[m].label} ·{TIER_BADGE[METRIC_META[m].tier].label}</option>
                 ))}
               </select>
             </label>
@@ -167,8 +173,7 @@ export const AlertsManager = () => {
                         <td className="bg-[#2B2D35] px-2 py-1.5 font-bold text-white/82 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">{a.coin}</td>
                         <td className="whitespace-nowrap bg-[#2B2D35] px-2 py-1.5 text-white/75 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {meta.label} {a.op} <span className="tabular-nums">{a.threshold}{meta.unit}</span>
-                          {ALWAYS_ON_METRICS.has(a.metric) && <span className="ml-1.5 rounded-[3px] bg-[#FF9C2E]/10 px-1 text-[9px] text-[#FF9C2E]">常驻</span>}
-                          {BOOK_METRICS.has(a.metric) && <span className="ml-1.5 rounded-[3px] bg-white/[0.06] px-1 text-[9px] text-white/55">持仓</span>}
+                          <span className={`ml-1.5 rounded-[3px] px-1 text-[9px] ${TIER_BADGE[meta.tier].cls}`}>{TIER_BADGE[meta.tier].label}</span>
                         </td>
                         <td className="whitespace-nowrap bg-[#2B2D35] px-2 py-1.5 text-white/48 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {fmtCooldown(a.cooldownMs)}
@@ -179,7 +184,7 @@ export const AlertsManager = () => {
                         </td>
                         <td className="bg-[#2B2D35] px-2 py-1.5 transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
                           {a.triggered
-                            ? <span className="rounded-[4px] bg-[#FF9C2E]/12 px-1.5 py-0.5 text-[10px] font-semibold text-[#FF9C2E]">已触发</span>
+                            ? <span className="rounded-[4px] bg-[#FF9C2E]/12 px-1.5 py-0.5 text-[10px] font-semibold text-[#FF9C2E]">条件满足</span>
                             : <span className="text-[10px] text-white/35">监控中</span>}
                         </td>
                         <td className="rounded-r-[4px] bg-[#2B2D35] px-2 py-1.5 text-right transition-colors duration-[120ms] group-hover:bg-[#3A3B40]">
@@ -195,11 +200,13 @@ export const AlertsManager = () => {
               </table>
             )}
           </div>
-          <div className="mx-3 mb-3 rounded-[4px] bg-[#2B2D35] px-3 py-2 text-[10px] leading-relaxed text-white/38">
-            <b className="text-white/50">常驻</b> 指标（Spot / DVOL）经全局 WebSocket 实时评估，离开本页、切到其它标签页时也持续判定并推送。
-            <b className="text-white/50">持仓</b> 指标（净$Delta / 净$Vega）基于「账户」页同步的真实持仓 + 实时现价（净Delta随价格实时变），需先到「账户」页同步过一次。
-            其余指标（IV 百分位 / 资金费率 / 情绪 / 资金流）依赖监控页数据，缓存新鲜时评估。
-            浏览器后台通知已接入 Service Worker；但交易所行情仍由前端页面维护，应用完全关闭后的持续监控需本地/云端后端。
+          <div className="mx-3 mb-3 flex flex-col gap-1 rounded-[4px] bg-[#2B2D35] px-3 py-2 text-[10px] leading-relaxed text-white/40">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span><b className="text-[#24AE64]">实时</b> Spot / DVOL，全局 WS 常驻，后台标签页也判</span>
+              <span><b className="text-white/60">需同步</b> 净Delta / 净Vega，先去账户页同步一次</span>
+              <span><b className="text-[#FF9C2E]">仅前台</b> IV / 资金费率 / 资金流，仅监控页打开时判，离页可能漏触发</span>
+            </div>
+            <div>告警在「穿越」阈值时提醒一次，回到另一侧后自动重新武装；冷却用于阈值附近抖动防护。应用完全关闭则不再监控。</div>
           </div>
         </div>
 

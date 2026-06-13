@@ -25,6 +25,7 @@ import { UISettings, useTheme } from './features/settings/UISettings';
 const MonitorPage = lazy(() => import('./pages/MonitorPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const PositionBuilderPage = lazy(() => import('./pages/PositionBuilderPage'));
+const StrategyBuilderPage = lazy(() => import('./pages/StrategyBuilderPage'));
 const BybitPositionsPage = lazy(() => import('./pages/BybitPositionsPage'));
 const OptionsChainPage = lazy(() => import('./pages/OptionsChainPage'));
 const PriceChartPage = lazy(() => import('./pages/PriceChartPage'));
@@ -39,6 +40,7 @@ const preload = {
   dashboard: () => import('./pages/DashboardPage'),
   monitor: () => import('./pages/MonitorPage'),
   positionBuilder: () => import('./pages/PositionBuilderPage'),
+  strategyBuilder: () => import('./pages/StrategyBuilderPage'),
   bybitPositions: () => import('./pages/BybitPositionsPage'),
   optionsChain: () => import('./pages/OptionsChainPage'),
   priceChart: () => import('./pages/PriceChartPage'),
@@ -228,11 +230,13 @@ const NineDots = ({ size = 24, className = "" }: { size?: number, className?: st
 const AppNavigationDropdown = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDashboard = location.pathname === '/dashboard';
   const isMonitor = location.pathname === '/monitor';
   const isOptionsChain = location.pathname === '/options-chain';
   const isPriceChart = location.pathname === '/price-chart';
-  const isPositionNav = location.pathname === '/bybit/positions' || location.pathname === '/position-builder';
+  const isDecisionNav = location.pathname === '/dashboard'
+    || location.pathname === '/strategy-builder';
+  const isPositionNav = location.pathname === '/bybit/positions'
+    || location.pathname === '/position-builder';
   const goTo = (to: string) => {
     if (location.pathname !== to) navigate(to);
   };
@@ -258,10 +262,25 @@ const AppNavigationDropdown = () => {
     optTimer.current = setTimeout(() => setOptOpen(false), 300);
   };
 
+  // 决策 — hover 弹出决策工具，点击默认去决策看板
+  const [decisionOpen, setDecisionOpen] = useState(false);
+  const decisionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openDecision = () => {
+    if (positionTimer.current) { clearTimeout(positionTimer.current); positionTimer.current = null; }
+    setPositionOpen(false);
+    if (decisionTimer.current) { clearTimeout(decisionTimer.current); decisionTimer.current = null; }
+    setDecisionOpen(true);
+  };
+  const closeDecision = () => {
+    decisionTimer.current = setTimeout(() => setDecisionOpen(false), 300);
+  };
+
   // 头寸 — hover 弹出头寸工具，点击默认去头寸可视化
   const [positionOpen, setPositionOpen] = useState(false);
   const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openPosition = () => {
+    if (decisionTimer.current) { clearTimeout(decisionTimer.current); decisionTimer.current = null; }
+    setDecisionOpen(false);
     if (positionTimer.current) { clearTimeout(positionTimer.current); positionTimer.current = null; }
     setPositionOpen(true);
   };
@@ -281,6 +300,7 @@ const AppNavigationDropdown = () => {
     ] },
     { title: '市场', items: [
       { label: '决策', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
+      { label: '策略构建器', icon: ListOrdered, to: '/strategy-builder', preload: preload.strategyBuilder },
       { label: '监控', icon: Activity, to: '/monitor', preload: preload.monitor },
       { label: '图表', icon: CandlestickChart, to: '/price-chart', preload: preload.priceChart },
       { label: '期权链', icon: ListOrdered, to: '/options-chain', preload: preload.optionsChain },
@@ -350,16 +370,59 @@ const AppNavigationDropdown = () => {
         监控
       </button>
 
-      <button
-        onClick={() => goTo('/dashboard')}
-        onMouseEnter={preload.dashboard}
-        className={cn(
-          "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
-          isDashboard ? "is-selected text-[var(--bb-orange)]" : "bg-transparent text-white/55 hover:text-white/85",
-        )}
+      <div
+        className="relative"
+        onMouseEnter={() => { openDecision(); preload.dashboard(); preload.strategyBuilder(); }}
+        onPointerEnter={() => { openDecision(); preload.dashboard(); preload.strategyBuilder(); }}
+        onMouseMove={openDecision}
+        onMouseLeave={closeDecision}
       >
-        决策
-      </button>
+        <button
+          onClick={() => goTo('/dashboard')}
+          onFocus={() => { openDecision(); preload.dashboard(); preload.strategyBuilder(); }}
+          className={cn(
+            "bb-topbar-button flex items-center justify-center px-3 h-[32px] rounded-[8px] transition-colors duration-[120ms] text-[13px] font-bold outline-none",
+            isDecisionNav
+              ? "is-selected text-[var(--bb-orange)]"
+              : decisionOpen
+                ? "is-open text-white/85"
+                : "bg-transparent text-white/55 hover:text-white/85",
+          )}
+        >
+          决策
+        </button>
+        {decisionOpen && (
+          <div
+            onMouseEnter={openDecision}
+            onPointerEnter={openDecision}
+            onMouseMove={openDecision}
+            onMouseLeave={closeDecision}
+            className="bb-top-popover absolute top-full left-0 mt-1 w-[176px] p-1.5 z-[200]"
+          >
+            {([
+              { label: '决策看板', icon: LayoutDashboard, to: '/dashboard', preload: preload.dashboard },
+              { label: '策略构建器', icon: ListOrdered, to: '/strategy-builder', preload: preload.strategyBuilder },
+            ]).map((it) => {
+              const Icon = it.icon;
+              const active = location.pathname === it.to;
+              return (
+                <button
+                  key={it.label}
+                  onClick={() => { goTo(it.to); setDecisionOpen(false); }}
+                  onMouseEnter={it.preload}
+                  className={cn(
+                    'bb-top-menu-item flex items-center gap-3 px-3 h-9 w-full text-left',
+                    active && 'bb-top-menu-item-active',
+                  )}
+                >
+                  <Icon size={16} className={cn('shrink-0', active ? 'text-[var(--bb-orange)]' : 'text-white/55')} />
+                  <span className={cn('text-[13px] font-semibold', active ? 'text-[var(--bb-orange)]' : 'text-white/80')}>{it.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="relative" onMouseEnter={() => { openOpt(); preload.optionsChain(); }} onMouseLeave={closeOpt}>
         <button
@@ -506,6 +569,13 @@ function AppRoutes() {
         <div className="absolute inset-0">
           <Suspense fallback={<PageFallback />}>
             <PositionBuilderPage />
+          </Suspense>
+        </div>
+      } />
+      <Route path="/strategy-builder" element={
+        <div className="absolute inset-0">
+          <Suspense fallback={<PageFallback />}>
+            <StrategyBuilderPage />
           </Suspense>
         </div>
       } />

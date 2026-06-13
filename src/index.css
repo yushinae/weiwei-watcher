@@ -235,6 +235,58 @@ body {
   background: #555A5C;
 }
 
+@media (max-width: 1160px) {
+  .strategy-builder-page .strategy-builder-sidebar {
+    width: 286px;
+  }
+
+  .strategy-builder-page .strategy-builder-workspace {
+    grid-template-columns: minmax(340px, 1fr) 320px;
+  }
+}
+
+@media (max-width: 980px) {
+  .strategy-builder-page .strategy-builder-sidebar {
+    width: 260px;
+  }
+
+  .strategy-builder-page .strategy-builder-main header > div:first-child {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .strategy-builder-page .strategy-builder-main header > div:first-child > div:first-child {
+    gap: 10px;
+  }
+
+  .strategy-builder-page .strategy-builder-main header > div:first-child > div:last-child {
+    gap: 6px;
+  }
+
+  .strategy-builder-page .strategy-builder-workspace {
+    grid-template-columns: minmax(320px, 1fr) 300px;
+  }
+}
+
+@media (max-width: 760px) {
+  .strategy-builder-page {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .strategy-builder-page > aside {
+    width: 100%;
+    max-height: 48dvh;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .strategy-builder-page > main {
+    min-width: 980px;
+    min-height: 720px;
+  }
+}
+
 @layer base {
 
   html,

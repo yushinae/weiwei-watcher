@@ -342,42 +342,80 @@ export interface ClassifyResult {
   dataMissing: string[];
 }
 
-const REGIME_INFO: Record<VolRegime, { label: string; color: string; description: (ivr: number, vrpNow: number, dvolChange: number, skew30: number, slope: number) => string; playbook: string[] }> = {
+type PlaybookFn = (ivr: number, vrpNow: number, dvolChange: number, skew30: number, slope: number, funding: number) => string[];
+
+const REGIME_INFO: Record<VolRegime, { label: string; color: string; description: (ivr: number, vrpNow: number, dvolChange: number, skew30: number, slope: number) => string; playbook: PlaybookFn }> = {
   'low-vol-complacent': {
     label: '低波 / 市场自满',
     color: '#25e889',
     description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile（低），VRP 充裕，期限结构正常——市场低估尾部风险。`,
-    playbook: ['卖 IV 策略（Iron Condor、Strangle）溢价充足', '注意尾部风险：低波容易逆转为快速扩张', '资金费率偏高时做空 perp 对冲多头 Delta 风险'],
+    playbook: (ivr, vrpNow, _dvolChange, _skew30, _slope, funding) => [
+      `卖 IV 策略（Iron Condor / Strangle）— VRP ${vrpNow.toFixed(1)}pp${vrpNow > 10 ? ' 极其充裕' : ' 尚可'}`,
+      `尾部风险对冲 ${ivr < 25 ? '建议用 10Δ OTM Put 买保护' : '比例可适当降低'}`,
+      funding > 20 ? '资金费率偏高 → 做空 perp 对冲多头 Delta 敞口' : '资金费率正常，无需额外对冲',
+    ],
   },
   'vol-expansion': {
     label: '波动率扩张',
     color: '#FF5F57',
     description: (vrpNow, dvolChange, skew30) => `DVOL 24h ${dvolChange >= 0 ? '+' : ''}${dvolChange.toFixed(1)}pp，VRP 受压（+${vrpNow.toFixed(1)}pp），Skew ${skew30.toFixed(1)}%——空间正在打开。`,
-    playbook: ['避免裸卖 vega；若已有 short vega 应收窄或对冲', '25D Put 或 OTM Put Spread 保护下行', '买入近端 Straddle 参与波动率重定价'],
+    playbook: (_ivr, vrpNow, dvolChange, skew30) => [
+      `避免裸卖 vega — DVOL 24h ${dvolChange >= 0 ? '+' : ''}${dvolChange.toFixed(1)}pp，short vega 应收窄或对冲`,
+      skew30 < -3
+        ? `Skew 负偏 ${skew30.toFixed(1)}% → 优先用 25Δ Put Spread 保护下行`
+        : 'Skew 中性偏平 → 用 ATM Straddle 参与重定价',
+      vrpNow < 2 ? 'VRP 已为负 → 买入近端 Straddle 性价比突出' : '买入近端 Straddle 参与波动率重定价',
+    ],
   },
   'high-vol-fear': {
     label: '高波 / 恐慌区间',
     color: '#ef4444',
     description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile（极高），期限结构倒挂，Skew 极度负偏——恐慌溢价高峰。`,
-    playbook: ['逆向考虑：卖近端 Put（高保护溢价），用远端对冲', 'Ratio Put Spread 可低成本或零成本构建', '等待 IV Rank 回落至 60% 以下再考虑卖方策略'],
+    playbook: (ivr, _vrpNow, _dvolChange, skew30, slope) => [
+      `逆向卖方机会：卖近端 ${slope < -5 ? '2-3 周' : '近月'} Put 收取高保护溢价`,
+      skew30 < -8
+        ? `Put Skew 极端（${skew30.toFixed(1)}%）→ Ratio Put Spread 可零成本构建`
+        : 'Put Spread / Bear Spread 对冲下行风险',
+      `等待 IV Rank 回落至 60% 以下再扩大卖方仓位（当前 ${ivr.toFixed(0)}%ile）`,
+    ],
   },
   'vol-compression': {
     label: '波动率收缩',
     color: '#ff9c2e',
     description: (vrpNow, dvolChange) => `DVOL 24h ${dvolChange.toFixed(1)}pp（下行），VRP 扩张至 +${vrpNow.toFixed(1)}pp——意味着卖 IV 窗口可能临近。`,
-    playbook: ['日历价差（Calendar Spread）受益于期限溢价', 'Theta 策略窗口打开：短期 Condor 或 Strangle', '监控 DVOL 是否企稳；若反弹应及时止损'],
+    playbook: (_ivr, vrpNow, dvolChange, _skew30, slope) => [
+      slope > 3
+        ? `期限正斜 ${slope.toFixed(1)}pp → 日历价差 Calendar Spread 受益`
+        : '日历价差条件一般，优先考虑短期方向策略',
+      vrpNow > 8
+        ? `VRP ${vrpNow.toFixed(1)}pp 偏丰厚 → 短期 Iron Condor / Strangle 入场`
+        : 'VRP 适中，Theta 策略可轻仓参与',
+      `DVOL 24h ${dvolChange.toFixed(1)}pp — ${dvolChange < -2 ? '急跌后关注是否企稳' : '缓慢收缩中，可逐步布局'}`,
+    ],
   },
   'mean-revert': {
     label: '均值回归区间',
     color: '#FEBC2E',
     description: (ivr) => `IV Rank ${ivr.toFixed(0)}%ile，VRP 正常，结构平稳——无明显方向性信号。`,
-    playbook: ['中性策略：Iron Condor 收取时间价值', '关注 Skew 偏向决定调整 Call/Put 比重', '保持仓位较小，等待更强方向信号'],
+    playbook: (_ivr, vrpNow, _dvolChange, skew30, slope, funding) => [
+      slope > 3
+        ? '期限正斜 → 日历价差（Calendar Spread）可关注'
+        : slope < -3
+          ? '期限轻微倒挂 → 近端短周期交易为主'
+          : '期限平坦 → Iron Condor 收取时间价值为主',
+      skew30 < -2
+        ? `Put Skew 偏大（${skew30.toFixed(1)}%）→ 考虑偏 Put Side 的 Iron Condor 或 Bear Put Spread`
+        : skew30 > 2
+          ? `Call Skew 偏大（${skew30.toFixed(1)}%）→ 考虑偏 Call Side 的 Iron Condor 或 Bull Call Spread`
+          : 'Skew 中性（多空均衡）→ 均衡 Iron Condor',
+      `VRP ${vrpNow >= 0 ? '+' : ''}${vrpNow.toFixed(1)}pp — ${funding > 15 ? '资金偏高，注意多头拥挤' : '资金正常'}，控制仓位等待方向信号`,
+    ],
   },
   'unknown': {
     label: '信号不足',
     color: 'rgba(255,255,255,0.3)',
     description: () => '数据采集中，请稍候…',
-    playbook: ['等待数据加载'],
+    playbook: () => ['等待数据加载'],
   },
 };
 
@@ -464,7 +502,7 @@ export function classifyRegime(
       confidence: conf,
       rawScore: score,
       description: info.description(ivr, vrpNow, dvolChange, skew30, slope),
-      playbook: info.playbook,
+      playbook: info.playbook(ivr, vrpNow, dvolChange, skew30, slope, funding),
     };
   }
 

@@ -237,17 +237,14 @@ body {
 
 @media (max-width: 1160px) {
   .strategy-builder-page .strategy-builder-sidebar {
-    width: 286px;
+    width: 260px;
   }
 
-  .strategy-builder-page .strategy-builder-workspace {
-    grid-template-columns: minmax(340px, 1fr) 320px;
-  }
 }
 
 @media (max-width: 980px) {
   .strategy-builder-page .strategy-builder-sidebar {
-    width: 260px;
+    width: 240px;
   }
 
   .strategy-builder-page .strategy-builder-main header > div:first-child {
@@ -263,9 +260,6 @@ body {
     gap: 6px;
   }
 
-  .strategy-builder-page .strategy-builder-workspace {
-    grid-template-columns: minmax(320px, 1fr) 300px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -785,6 +779,40 @@ html.is-scrolling * {
   background: #2B2D35;
   border-color: transparent;
   box-shadow: none;
+}
+
+.strategy-builder-page .strategy-template-card {
+  background: #17181E;
+}
+
+.strategy-builder-page .strategy-builder-sidebar.is-collapsed {
+  width: 48px;
+}
+
+.strategy-builder-page .strategy-template-card.is-selected,
+.strategy-builder-page .strategy-chain-row-selected {
+  background: rgb(255 255 255 / 3%);
+}
+
+.strategy-builder-page .strategy-template-card.is-selected {
+  border-color: #ff9c2e;
+}
+
+.strategy-builder-page .writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.strategy-builder-page .strategy-axis-leg-selected {
+  box-shadow: 0 0 0 999px rgb(255 255 255 / 3%) inset;
+}
+
+.strategy-builder-page .strategy-template-card:not(.is-selected):hover {
+  background: rgb(255 255 255 / 1.5%);
+}
+
+.strategy-builder-page .strategy-analysis-panel {
+  overflow: visible;
 }
 
 .position-builder-page [class*="hover:bg-white"]:hover,

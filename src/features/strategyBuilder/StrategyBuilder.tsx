@@ -21,7 +21,7 @@ import {
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
   pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, RecommendationSidebar } from './components';
+import { Panel, RecommendationSidebar, AddContractMenu } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -982,65 +982,14 @@ export function StrategyBuilder() {
                   + 添加合约
                 </button>
                 {addOpen && (
-                  <div className="absolute right-0 top-10 z-20 w-[560px] max-w-[calc(100vw-380px)] overflow-hidden rounded-[8px] border border-white/[0.08] bg-[rgba(21,23,25,.96)] shadow-[0_8px_25px_rgba(0,0,0,.4)] backdrop-blur-xl">
-                    <div className="flex items-center justify-between border-b border-white/[0.08] px-3 py-2">
-                      <div>
-                        <div className="text-[12px] font-semibold text-white/78">添加合约</div>
-                        <div className="text-[10px] text-white/38">{visibleChainLabel} · {hasRealChain ? 'Deribit' : '合成报价'} · Bid 卖出 / Ask 买入</div>
-                      </div>
-                      <button onClick={() => setAddOpen(false)} className="h-6 w-6 rounded-[4px] text-white/45 hover:bg-white/[0.08] hover:text-white/75">×</button>
-                    </div>
-                    <div className="grid grid-cols-[132px_1fr] min-h-[300px]">
-                      <div className="border-r border-white/[0.08] p-2">
-                        <div className="px-1 pb-1.5 text-[11px] text-white/40">快捷添加</div>
-                        {[
-                          ['buy', 'call', '买入 看涨'],
-                          ['sell', 'call', '卖出 看涨'],
-                          ['buy', 'put', '买入 看跌'],
-                          ['sell', 'put', '卖出 看跌'],
-                        ].map(([side, type, label]) => (
-                          <button key={`${side}-${type}`} onClick={() => addLeg('option', side as LegSide, type as OptionType)} className="mb-1 w-full rounded-[4px] px-2 py-1.5 text-left text-[12px] text-white/70 hover:bg-white/[0.08]">
-                            {label}
-                          </button>
-                        ))}
-                        <div className="mt-2 border-t border-white/[0.08] px-1 py-1.5 text-[11px] text-white/40">标的</div>
-                        <button onClick={() => addLeg('underlying', 'buy')} className="mb-1 w-full rounded-[4px] px-2 py-1.5 text-left text-[12px] text-white/70 hover:bg-white/[0.08]">买入 标的</button>
-                        <button onClick={() => addLeg('underlying', 'sell')} className="w-full rounded-[4px] px-2 py-1.5 text-left text-[12px] text-white/70 hover:bg-white/[0.08]">卖出 标的</button>
-                      </div>
-                      <div className="max-h-[340px] overflow-auto p-2">
-                        <table className="w-full min-w-[390px] border-separate border-spacing-0 text-center text-[12px]">
-                          <thead className="sticky top-0 z-10 bg-[rgba(21,23,25,.98)]">
-                            <tr>
-                              <th className="px-2 py-1.5 text-right text-[11px] font-medium text-[#24AE64]/75">C Bid</th>
-                              <th className="px-2 py-1.5 text-right text-[11px] font-medium text-[#EF454A]/75">C Ask</th>
-                              <th className="px-2 py-1.5 text-center text-[11px] font-semibold text-white/62">Strike</th>
-                              <th className="px-2 py-1.5 text-left text-[11px] font-medium text-[#EF454A]/75">P Ask</th>
-                              <th className="px-2 py-1.5 text-left text-[11px] font-medium text-[#24AE64]/75">P Bid</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {chainRows.map(row => (
-                              <tr key={row.strike} className={cn((row.isAtm || row.inStrategy) && 'strategy-chain-row-selected')}>
-                                <td className="border-t border-white/[0.04] px-1 py-1 text-right">
-                                  {row.call ? <button onClick={() => addContractLeg(row.call!, 'sell')} className="h-6 min-w-14 rounded-[4px] px-1.5 text-right tnum text-[#24AE64] hover:bg-[#3A3B40]">{formatPrice(row.call.bid, 2)}</button> : <span className="text-white/20">—</span>}
-                                </td>
-                                <td className="border-t border-white/[0.04] px-1 py-1 text-right">
-                                  {row.call ? <button onClick={() => addContractLeg(row.call!, 'buy')} className="h-6 min-w-14 rounded-[4px] px-1.5 text-right tnum text-[#EF454A] hover:bg-[#3A3B40]">{formatPrice(row.call.ask, 2)}</button> : <span className="text-white/20">—</span>}
-                                </td>
-                                <td className={cn('border-t border-white/[0.04] px-2 py-1.5 text-center tnum font-semibold', row.isAtm ? 'text-white/90' : row.inStrategy ? 'text-white/84' : 'text-white/72')}>{row.strike.toLocaleString()}</td>
-                                <td className="border-t border-white/[0.04] px-1 py-1 text-left">
-                                  {row.put ? <button onClick={() => addContractLeg(row.put!, 'buy')} className="h-6 min-w-14 rounded-[4px] px-1.5 text-left tnum text-[#EF454A] hover:bg-[#3A3B40]">{formatPrice(row.put.ask, 2)}</button> : <span className="text-white/20">—</span>}
-                                </td>
-                                <td className="border-t border-white/[0.04] px-1 py-1 text-left">
-                                  {row.put ? <button onClick={() => addContractLeg(row.put!, 'sell')} className="h-6 min-w-14 rounded-[4px] px-1.5 text-left tnum text-[#24AE64] hover:bg-[#3A3B40]">{formatPrice(row.put.bid, 2)}</button> : <span className="text-white/20">—</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
+                  <AddContractMenu
+                    visibleChainLabel={visibleChainLabel}
+                    hasRealChain={hasRealChain}
+                    chainRows={chainRows}
+                    addLeg={addLeg}
+                    addContractLeg={addContractLeg}
+                    onClose={() => setAddOpen(false)}
+                  />
                 )}
               </div>
               <button onClick={saveTrade} disabled={legs.length === 0} className="h-8 whitespace-nowrap rounded-[6px] bg-[#ff9c2e] px-3 text-[12px] font-semibold text-black hover:bg-[#ffad45] disabled:opacity-35">

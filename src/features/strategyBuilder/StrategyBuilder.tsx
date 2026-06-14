@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react/lib/core';
 import echarts from '../../components/echart/echartsCore';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
-import { bsDelta, bsGamma, bsTheta, bsVega, heatColor } from '../../registry/lib/bs-math';
+import { bsDelta, bsGamma, bsTheta, bsVega } from '../../registry/lib/bs-math';
 import { cn } from '../../lib/utils';
 import type {
   OptionType, LegSide, LegKind, ViewMode, ValueMode,
@@ -21,7 +21,7 @@ import {
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
   pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, RecommendationSidebar, AddContractMenu } from './components';
+import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -1374,79 +1374,13 @@ export function StrategyBuilder() {
             <div className="flex h-full min-h-0 flex-col p-3">
               <div className="min-h-0 flex-1">
                 {viewMode === 'table' && (
-                  <div className="h-full overflow-auto">
-                    <table className="w-full border-separate border-spacing-0 text-center text-[12px]">
-                      <thead className="sticky top-0 z-10 bg-[#17181E]">
-                        <tr>
-                          <th className="w-24 px-2 py-2 text-left text-white/50">标的</th>
-                          <th className="w-16 px-2 py-2 text-right text-white/50">涨幅</th>
-                          {timeColumns.map(day => <th key={day} className="px-2 py-2 text-white/50">{day === 0 ? '现在' : `T+${day}D`}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {priceRows.map((price, row) => (
-                          <tr key={price}>
-                            <td className="border-t border-white/[0.04] px-2 py-1.5 text-left font-semibold tnum text-white/78">{formatCompact(price)}</td>
-                            <td className="border-t border-white/[0.04] px-2 py-1.5 text-right tnum text-white/42">{((price / spot - 1) * 100).toFixed(1)}%</td>
-                            {tableData[row].map((value, col) => (
-                              <td
-                                key={`${price}-${col}`}
-                                className="border-t border-white/[0.04] px-2 py-1.5 tnum text-black/85"
-                                style={{ background: heatColor(value, tableAbsMax) }}
-                              >
-                                {valueMode === 'pnlPercent' ? `${value.toFixed(1)}%` : formatMoney(value, 0)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TableView timeColumns={timeColumns} priceRows={priceRows} tableData={tableData} tableAbsMax={tableAbsMax} spot={spot} valueMode={valueMode} />
                 )}
                 {viewMode === 'curve' && (
                   <ReactECharts echarts={echarts} option={curveOption} notMerge style={{ width: '100%', height: '100%' }} opts={{ renderer: 'canvas' }} />
                 )}
                 {viewMode === 'greeks' && (
-                  <div className="h-full overflow-auto">
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        ['Delta', greeks.delta, '标的价格变化 1 时组合价值的近似变化'],
-                        ['Gamma', greeks.gamma, 'Delta 对标的价格变化的敏感度'],
-                        ['Vega', greeks.vega, '隐含波动率变化 1% 时组合价值变化'],
-                        ['Theta', greeks.theta, '时间流逝 1 天的组合价值变化'],
-                      ].map(([label, value, hint]) => (
-                        <div key={label} className="rounded-[8px] bg-[#2B2D35] p-4">
-                          <div className="text-[12px] text-white/45">{label}</div>
-                          <div className={cn('mt-2 text-[24px] font-semibold tnum', Number(value) >= 0 ? 'text-[#24AE64]' : 'text-[#EF454A]')}>
-                            <AnimatedNumber value={Number(value)} format={v => formatMoney(v, 3)} duration={0.18} />
-                          </div>
-                          <div className="mt-3 text-[12px] leading-5 text-white/48">{hint}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 rounded-[8px] bg-[#2B2D35] p-3">
-                      <div className="mb-2 text-[13px] font-semibold text-white/72">逐腿 Greeks</div>
-                      <div className="space-y-1">
-                        {legs.map((leg, index) => {
-                          const scale = legSign(leg.side) * leg.qty;
-                          const legIv = Math.max(5, (leg.iv ?? iv) * ivMultiplier);
-                          const delta = leg.kind === 'underlying' ? scale : scale * bsDelta(spot, leg.strike ?? spot, years(leg.expiryDays), legIv, leg.type === 'put' ? 'P' : 'C');
-                          const gamma = leg.kind === 'underlying' ? 0 : scale * bsGamma(spot, leg.strike ?? spot, years(leg.expiryDays), legIv);
-                          const vega = leg.kind === 'underlying' ? 0 : scale * bsVega(spot, leg.strike ?? spot, years(leg.expiryDays), legIv);
-                          const theta = leg.kind === 'underlying' ? 0 : scale * bsTheta(spot, leg.strike ?? spot, years(leg.expiryDays), legIv);
-                          return (
-                            <div key={leg.id} className="grid grid-cols-5 rounded-[6px] bg-[#17181E] px-3 py-2 text-[12px]">
-                              <div className="text-white/72">#{index + 1} {leg.kind === 'underlying' ? '标的' : `${leg.strike} ${leg.type === 'call' ? 'C' : 'P'}`}</div>
-                              <div className="tnum text-white/55">Δ {formatMoney(delta, 3)}</div>
-                              <div className="tnum text-white/55">Γ {formatMoney(gamma, 5)}</div>
-                              <div className="tnum text-white/55">ν {formatMoney(vega, 2)}</div>
-                              <div className="tnum text-white/55">Θ {formatMoney(theta, 2)}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  <GreeksView greeks={greeks} legs={legs} iv={iv} ivMultiplier={ivMultiplier} spot={spot} />
                 )}
               </div>
 

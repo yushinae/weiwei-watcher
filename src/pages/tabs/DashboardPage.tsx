@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion, MotionConfig } from 'motion/react';
-import { Thermometer, BarChart3, Target, Calendar, Briefcase, Sigma } from 'lucide-react';
+import { Thermometer, BarChart3, Target, Calendar, Briefcase } from 'lucide-react';
 import type { Coin } from '../../features/monitor/types';
 import { AccountSummaryCard } from '../../features/accounts/AccountSummaryCard';
 import {
@@ -14,7 +14,6 @@ import {
 import { useTickerSnapshotWS } from '../../registry/monitorWidgetsBase';
 import { getUpcomingEvents, formatEventTime, daysUntil, isCalendarStale } from '../../registry/data/economicCalendar';
 import { EASE_EMPHASIS } from '../../motion/tokens';
-import StrategyQuickViewWidget from '../../features/strategyQuickView/StrategyQuickViewWidget';
 import { cn } from '../../lib/utils';
 
 // Entrance choreography — cards fade + rise + settle (subtle scale) with a short
@@ -149,20 +148,6 @@ export default function DashboardPage({ coin, setCoin }: Props) {
           </div>
           <div className="px-[18px] pb-[14px]">
             <E name="账户概览"><AccountSummaryCard /></E>
-          </div>
-        </motion.div>
-
-        {/* ── Row 4：策略速查卡 ── */}
-        <motion.div variants={rise} className="widget-card dash-card !p-0">
-          <div className="dash-card-head flex items-center px-[18px] pt-[14px] pb-[10px] shrink-0">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 flex items-center justify-center rounded-md bg-[var(--color-surface-2)] text-white/55"><Sigma size={15} /></span>
-              <span className="text-[13px] font-semibold uppercase tracking-[0.02em] text-white/65">策略速查卡</span>
-            </div>
-            <div className="ml-auto"><CoinBadge coin={coin} setCoin={setCoin} /></div>
-          </div>
-          <div className="px-[18px] pb-[14px]" style={{ minHeight: 340 }}>
-            <E name="策略速查"><StrategyQuickViewWidget coin={coin} /></E>
           </div>
         </motion.div>
       </motion.div>

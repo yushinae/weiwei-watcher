@@ -9,44 +9,26 @@
 
 import type { ExpiryGroup as BybitExpiryGroup, BybitOptionTicker } from './bybitTickers';
 import type { ExpiryGroup as DeribitExpiryGroup } from '../../registry/data/deribit';
+import {
+  bsCall, bsPut,
+  bsDelta as bsDeltaPct, bsGamma as bsGammaPct, bsVega as bsVegaPct, bsTheta as bsThetaPct,
+} from '../../registry/lib/bs-math';
 
 // ── Black-Scholes ───────────────────────────────────────────────────────────────
+// Single authoritative implementation lives in registry/lib/bs-math.ts. The chain's
+// public API takes sigma as a DECIMAL (0.5 = 50%) and a `call` boolean; bs-math takes
+// IV as a PERCENT and a 'C'|'P' tag — these thin wrappers bridge the two conventions.
 
-function normCDF(x: number): number {
-  const t = 1 / (1 + 0.2316419 * Math.abs(x));
-  const d = 0.3989422804 * Math.exp(-x * x / 2);
-  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-  return x >= 0 ? 1 - p : p;
-}
-export function bsPrice(S: number, K: number, T: number, sig: number, call: boolean) {
-  if (T <= 0 || sig <= 0 || S <= 0) return Math.max(call ? S - K : K - S, 0);
-  const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  const d2 = d1 - sig * Math.sqrt(T);
-  return call ? S * normCDF(d1) - K * normCDF(d2) : K * normCDF(-d2) - S * normCDF(-d1);
-}
-export function bsDelta(S: number, K: number, T: number, sig: number, call: boolean) {
-  if (T <= 0 || sig <= 0 || S <= 0) return call ? 1 : -1;
-  const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  return call ? normCDF(d1) : normCDF(d1) - 1;
-}
-export function bsGamma(S: number, K: number, T: number, sig: number) {
-  if (T <= 0 || sig <= 0 || S <= 0) return 0;
-  const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  return Math.exp(-0.5 * d1 * d1) * 0.3989422804 / (S * sig * Math.sqrt(T));
-}
-export function bsVega(S: number, K: number, T: number, sig: number) {
-  if (T <= 0 || sig <= 0 || S <= 0) return 0;
-  const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  return S * Math.sqrt(T) * Math.exp(-0.5 * d1 * d1) * 0.3989422804 * 0.01;
-}
-export function bsTheta(S: number, K: number, T: number, sig: number, call: boolean) {
-  if (T <= 0 || sig <= 0 || S <= 0) return 0;
-  const d1 = (Math.log(S / K) + 0.5 * sig * sig * T) / (sig * Math.sqrt(T));
-  const term = -(S * 0.3989422804 * Math.exp(-0.5 * d1 * d1) * sig) / (2 * Math.sqrt(T));
-  return (call
-    ? term
-    : term) / 365;
-}
+export const bsPrice = (S: number, K: number, T: number, sig: number, call: boolean) =>
+  call ? bsCall(S, K, T, sig * 100) : bsPut(S, K, T, sig * 100);
+export const bsDelta = (S: number, K: number, T: number, sig: number, call: boolean) =>
+  bsDeltaPct(S, K, T, sig * 100, call ? 'C' : 'P');
+export const bsGamma = (S: number, K: number, T: number, sig: number) =>
+  bsGammaPct(S, K, T, sig * 100);
+export const bsVega = (S: number, K: number, T: number, sig: number) =>
+  bsVegaPct(S, K, T, sig * 100);
+export const bsTheta = (S: number, K: number, T: number, sig: number, _call: boolean) =>
+  bsThetaPct(S, K, T, sig * 100);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

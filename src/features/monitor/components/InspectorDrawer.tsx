@@ -4,12 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { Drawer } from '../../../components/popup/Popup';
 import { cn } from '../../../lib/utils';
 import type { Coin, MonitorSelection } from '../types';
+import { normCDF, normPDF } from '../../../registry/lib/bs-math';
 
 // ── Black-Scholes approximations ──────────────────────────────────────────────
-
-function normPDF(x: number) {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-}
+// normCDF / normPDF come from the shared bs-math lib. This drawer additionally
+// back-solves d1 from a target delta (normInv below), which bs-math doesn't cover.
 
 // Rational approximation for Φ⁻¹ (inverse normal CDF), Beasley-Springer-Moro
 function normInv(p: number): number {
@@ -77,13 +76,7 @@ function computeGreeks(
   const theta = -(S * phi1 * sigma) / (2 * sqrtT) / 365; // per day
   const vega = S * phi1 * sqrtT / 100;                 // per 1% IV move
 
-  // Approximate option price via BS (no rates)
-  const normCDF = (x: number) => {
-    const t = 1 / (1 + 0.2316419 * Math.abs(x));
-    const poly = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
-    const w = 1 - normPDF(x) * poly;
-    return x >= 0 ? w : 1 - w;
-  };
+  // Approximate option price via BS (no rates), using the shared normCDF.
   // Strike K derived from d1: K = S * exp(-d1*sigma*sqrtT + 0.5*sigma²*T)
   const K = S * Math.exp(-d1 * sigma * sqrtT + 0.5 * sigma * sigma * T);
   const callPrice = S * normCDF(d1) - K * normCDF(d2);

@@ -63,9 +63,11 @@ export function bsVega(S: number, K: number, T: number, iv: number): number {
   return S * normPDF(d1) * sqrtT * 0.01; // per 1% IV
 }
 
-// Theta: $ change per 1 calendar day (negative = decay)
+// Theta: $ change per 1 calendar day (negative = decay).
+// Guard only the truly-degenerate inputs (T <= 0); sub-1-day theta is left to the
+// caller — the options chain shows it for 0DTE rows and relies on the raw value.
 export function bsTheta(S: number, K: number, T: number, iv: number): number {
-  if (T <= 1 / 365 || iv <= 0 || S <= 0 || K <= 0) return 0;
+  if (T <= 0 || iv <= 0 || S <= 0 || K <= 0) return 0;
   const sigma = iv / 100;
   const sqrtT = Math.sqrt(T);
   const d1 = (Math.log(S / K) + 0.5 * sigma * sigma * T) / (sigma * sqrtT);

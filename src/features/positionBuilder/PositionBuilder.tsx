@@ -4,6 +4,7 @@ import echarts from '../../components/echart/echartsCore';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { DERIBIT_WS } from '../../registry/data/ws';
+import { normCDF, normPDF, bsCall, bsPut } from '../../registry/lib/bs-math';
 
 const PRESETS: Record<string, { spot: number; iv: number; strikeStep: number }> = {
   BTC: { spot: 65000, iv: 0.55, strikeStep: 1000 },
@@ -17,25 +18,14 @@ const DERIBIT_INDEX: Record<string, string> = {
   SOL: 'sol_usd',
 };
 
-function normCdf(x: number) {
-  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
-  const ax = Math.abs(x) / Math.sqrt(2);
-  const t = 1.0 / (1.0 + p * ax);
-  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
-  return 0.5 * (1.0 + (x < 0 ? -1 : 1) * y);
-}
-function normPdf(x: number) {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-}
 function hoursToYears(h: number) { return h / (24 * 365); }
 
+// Price + first-order greeks delegate to the shared bs-math lib so the whole app uses
+// one normCDF. bs-math takes IV as a PERCENT; this file works in DECIMAL sigma, so the
+// wrappers scale ×100. Higher-order greeks (vanna/volga/charm/speed) below are
+// position-builder–specific and stay local.
 function bsPrice(S: number, K: number, T: number, sigma: number, type: 'call' | 'put') {
-  if (T <= 1e-12 || sigma <= 1e-12) return Math.max(0, type === 'call' ? S - K : K - S);
-  const sqrtT = Math.sqrt(T);
-  const d1 = (Math.log(S / K) + (sigma * sigma / 2) * T) / (sigma * sqrtT);
-  const d2 = d1 - sigma * sqrtT;
-  return type === 'call' ? S * normCdf(d1) - K * normCdf(d2) : K * normCdf(-d2) - S * normCdf(-d1);
+  return type === 'call' ? bsCall(S, K, T, sigma * 100) : bsPut(S, K, T, sigma * 100);
 }
 
 function bsGreeks(S: number, K: number, T: number, sigma: number, type: 'call' | 'put') {
@@ -48,14 +38,14 @@ function bsGreeks(S: number, K: number, T: number, sigma: number, type: 'call' |
   const sqrtT = Math.sqrt(T);
   const d1 = (Math.log(S / K) + (sigma * sigma / 2) * T) / (sigma * sqrtT);
   const d2 = d1 - sigma * sqrtT;
-  const pdf = normPdf(d1);
+  const pdf = normPDF(d1);
   let delta: number;
-  if (type === 'call') { delta = normCdf(d1); } else { delta = normCdf(d1) - 1; }
+  if (type === 'call') { delta = normCDF(d1); } else { delta = normCDF(d1) - 1; }
   const theta = (-S * pdf * sigma / (2 * sqrtT)) / 365;
   const gamma = pdf / (S * sigma * sqrtT);
   const vega = (S * pdf * sqrtT) / 100;
   // Higher-order Greeks (per 1% IV move convention matched to vega)
-  // Vanna = ∂Delta/∂σ = -d2/σ × normPdf(d1)  (scaled ×0.01 to match /1% vega)
+  // Vanna = ∂Delta/∂σ = -d2/σ × normPDF(d1)  (scaled ×0.01 to match /1% vega)
   const vanna = -(d2 / sigma) * pdf * 0.01;
   // Volga / Vomma = ∂²V/∂σ² = Vega × d1 × d2 / σ  (scaled /100 for vega, then ×0.01 for 1% σ step)
   const volga = vega * d1 * d2 / sigma * 0.01;
@@ -63,7 +53,7 @@ function bsGreeks(S: number, K: number, T: number, sigma: number, type: 'call' |
   const T1 = Math.max(1e-12, T - hoursToYears(24));
   const sqrtT1 = Math.sqrt(T1);
   const d1_1 = (Math.log(S / K) + (sigma * sigma / 2) * T1) / (sigma * sqrtT1);
-  const delta1 = type === 'call' ? normCdf(d1_1) : normCdf(d1_1) - 1;
+  const delta1 = type === 'call' ? normCDF(d1_1) : normCDF(d1_1) - 1;
   const charm = delta1 - delta; // negative for long calls: delta drifts toward 0 or 1
   // Speed = ∂Gamma/∂S = -Gamma × (d1/(σ√T) + 1) / S
   const speed = -gamma * (d1 / (sigma * sqrtT) + 1) / S;

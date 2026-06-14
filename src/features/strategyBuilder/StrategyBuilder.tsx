@@ -10,7 +10,7 @@ import type {
   DeribitBookSummary, ReviewItem, AxisDragState,
 } from './types';
 import {
-  AXIS_MAX_TICKS, AXIS_MIN_TICK_GAP, MARKETS, EXPIRIES, TAG_LABELS, VIEW_LABELS,
+  AXIS_MAX_TICKS, AXIS_MIN_TICK_GAP, MARKETS, EXPIRIES,
   TEMPLATES, INPUT_CLS, SELECT_CLS,
   SMALL_BUTTON_BASE, SMALL_BUTTON_ACTIVE, SMALL_BUTTON_DISABLED,
 } from './constants';
@@ -19,9 +19,9 @@ import {
   formatCompact, formatSignedPercent, formatSpotValue, exposureText, reviewTone,
   legSign, payoffAt, buildChain, deribitSummaryToContract, findContract,
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
-  fitTone, fitLabel, pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
+  pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, MiniPayoff } from './components';
+import { Panel, RecommendationSidebar } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -910,119 +910,19 @@ export function StrategyBuilder() {
 
   return (
     <div className="strategy-builder-page position-builder-page absolute inset-0 flex overflow-hidden bg-black text-white font-medium">
-      <aside className={cn('strategy-builder-sidebar shrink-0 border-r border-white/[0.08] bg-[#101014] flex flex-col min-h-0 transition-[width] duration-150', sidebarCollapsed ? 'is-collapsed w-[48px]' : 'w-[288px]')}>
-        <div className="h-12 px-3 flex items-center justify-between border-b border-white/[0.08]">
-          {sidebarCollapsed ? (
-            <button
-              onClick={() => setSidebarCollapsed(false)}
-              className={cn('mx-auto h-7 w-7 text-[13px]', SMALL_BUTTON_BASE)}
-              title="展开策略推荐"
-              aria-label="展开策略推荐"
-            >
-              ›
-            </button>
-          ) : (
-            <>
-              <div>
-                <div className="text-[14px] font-semibold text-white/85">策略推荐</div>
-                <div className="text-[11px] text-white/45">{VIEW_LABELS[marketView].label} · {rankedTemplates.length} 个候选</div>
-              </div>
-              <button
-                onClick={() => setSidebarCollapsed(true)}
-                className={cn('rounded-[4px] px-2 py-1 text-[11px]', SMALL_BUTTON_BASE)}
-                title="收起策略推荐"
-                aria-label="收起策略推荐"
-              >
-                收起
-              </button>
-            </>
-          )}
-        </div>
-
-        {sidebarCollapsed ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center gap-3 px-2 py-3">
-            <div className="writing-vertical text-[12px] font-semibold tracking-[0.1em] text-white/48">策略推荐</div>
-            <div className="rounded-[4px] bg-[#2B2D35] px-1.5 py-1 text-[10px] text-white/42">{rankedTemplates.length}</div>
-          </div>
-        ) : (
-          <>
-            <div className="p-3 border-b border-white/[0.08]">
-              <div className="grid grid-cols-4 gap-1.5">
-                {(['all', 'bullish', 'bearish', 'range', 'breakout', 'volUp', 'volDown', 'calendar'] as MarketView[]).map(view => (
-                  <button
-                    key={view}
-                    onClick={() => setMarketView(view)}
-                    className={cn(
-                      'h-8 text-[12px] font-semibold',
-                      SMALL_BUTTON_BASE,
-                      marketView === view && SMALL_BUTTON_ACTIVE,
-                    )}
-                  >
-                    {VIEW_LABELS[view].label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 rounded-[6px] bg-[#17181E] px-2 py-2">
-                <div className="text-[11px] leading-4 text-white/48">{VIEW_LABELS[marketView].hint}</div>
-                {marketView !== 'all' && <div className="mt-1 text-[10px] text-white/30">{weakTemplateCount} 个低匹配策略已降权隐藏</div>}
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-2">
-              {rankedTemplates.map(({ template, fit, reason }) => {
-                const selected = template.id === selectedTemplateId;
-                const expanded = template.id === expandedTemplateId;
-                return (
-                  <article
-                    key={template.id}
-                    className={cn(
-                      'strategy-template-card rounded-[8px] bg-[#17181E] border border-transparent transition-colors overflow-hidden',
-                      selected && 'is-selected',
-                    )}
-                  >
-                    <button onClick={() => applyTemplate(template)} className="w-full text-left p-3">
-                      <div className="flex gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-[14px] font-semibold text-white/88 truncate">{template.nameCn}</h3>
-                            {selected && <span className="rounded-[4px] bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-white/68">当前</span>}
-                            {!selected && <span className={cn('rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold', fitTone(fit))}>{fitLabel(fit)}</span>}
-                          </div>
-                          <div className="mt-0.5 text-[12px] text-white/45">{template.nameEn}</div>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {template.tags.map(tag => (
-                              <span key={tag} className="rounded-[4px] bg-[#2B2D35] px-1.5 py-0.5 text-[10px] text-white/55">{TAG_LABELS[tag]}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="hidden w-[96px] shrink-0 min-[1120px]:block">
-                          <MiniPayoff template={template} market={market} />
-                        </div>
-                      </div>
-                      <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-white/58">{template.summary}</p>
-                      {expanded && (
-                        <div className="mt-2 rounded-[6px] bg-[#2B2D35] px-2 py-1.5 text-[11px] leading-4 text-white/55">
-                          <div>{reason}</div>
-                          <div className="mt-1 text-white/45">{template.detail}</div>
-                        </div>
-                      )}
-                    </button>
-                    <div className="px-3 pb-3 flex items-center justify-between">
-                      <button
-                        onClick={() => setExpandedTemplateId(expanded ? '' : template.id)}
-                        className="text-[11px] text-white/45 hover:text-white/75"
-                      >
-                        {expanded ? '收起' : '展开'}
-                      </button>
-                      <span className="rounded-[4px] bg-white/[0.04] px-1.5 py-0.5 text-[11px] text-white/38">{template.legs.length || 0} 腿</span>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </aside>
+      <RecommendationSidebar
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
+        marketView={marketView}
+        setMarketView={setMarketView}
+        rankedTemplates={rankedTemplates}
+        weakTemplateCount={weakTemplateCount}
+        selectedTemplateId={selectedTemplateId}
+        expandedTemplateId={expandedTemplateId}
+        setExpandedTemplateId={setExpandedTemplateId}
+        applyTemplate={applyTemplate}
+        market={market}
+      />
 
       <main className="strategy-builder-main min-w-0 flex-1 flex flex-col overflow-hidden">
         <header className="h-[104px] shrink-0 border-b border-white/[0.08] bg-[#17181E]">

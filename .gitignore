@@ -21,3 +21,7 @@ pnpm-workspace.yaml
 server/data/*.json
 server/data/pg/
 server/data/runtime/
+
+# AI-generated docs (moved to local-only, not tracked)
+ARCHITECTURE.md
+DESIGN.md

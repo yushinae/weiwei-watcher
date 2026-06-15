@@ -12,7 +12,7 @@ import type {
 import {
   AXIS_MAX_TICKS, AXIS_MIN_TICK_GAP, MARKETS, EXPIRIES,
   TEMPLATES, INPUT_CLS, SELECT_CLS,
-  SMALL_BUTTON_BASE, SMALL_BUTTON_ACTIVE, SMALL_BUTTON_DISABLED,
+  SMALL_BUTTON_BASE, SMALL_BUTTON_ACTIVE,
 } from './constants';
 import {
   roundToStep, years, optionPrice, formatMoney, formatAbsMoney, formatPrice,
@@ -21,7 +21,7 @@ import {
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
   pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView, HeaderStatsStrip } from './components';
+import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView, HeaderStatsStrip, AnalysisControls } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -1367,100 +1367,21 @@ export function StrategyBuilder() {
                 )}
               </div>
 
-              <div className="mt-3 shrink-0 border-t border-white/[0.06] pt-3">
-                <div className={cn('mb-0.5 grid gap-2', viewMode === 'curve' ? 'grid-cols-3' : 'grid-cols-2')}>
-                  {viewMode === 'curve' && (
-                    <div className="rounded-[6px] bg-[#17181E]">
-                      <div className="mb-1 flex items-center gap-1.5 text-[11px]">
-                        <span className="text-white/45">日期</span>
-                        <span className="rounded-[5px] bg-[#2B2D35] px-2 py-0.5 tnum text-white/72">
-                          T+<AnimatedNumber value={analysisDay} format={value => value.toFixed(0)} duration={0.18} />D
-                        </span>
-                      </div>
-                      <input type="range" min="0" max="1" step="0.01" value={analysisDayRatio} onChange={event => setAnalysisDayRatio(Number(event.target.value))} className="range-slider w-full" />
-                    </div>
-                  )}
-                  <div className="group relative rounded-[6px] bg-[#17181E]">
-                    <div className="mb-1 flex items-center gap-1.5 text-[11px]">
-                      <span className="text-white/45">标的范围</span>
-                      <span className="h-4 w-4 rounded-full bg-[#2B2D35] text-center text-[10px] leading-4 text-white/48">?</span>
-                      <span className="rounded-[5px] bg-[#2B2D35] px-2 py-0.5 tnum text-white/72">
-                        ±<AnimatedNumber value={rangePct} format={value => value.toFixed(1)} duration={0.18} />%
-                      </span>
-                    </div>
-                    <input type="range" min="3" max="12" step="0.5" value={rangePct} onChange={event => setRangePct(Number(event.target.value))} className="range-slider w-full" />
-                    <div className="pointer-events-none absolute left-0 bottom-11 z-40 hidden w-[280px] rounded-[8px] bg-[rgba(21,23,25,.96)] p-3 text-[11px] leading-5 text-white/66 shadow-[0_8px_25px_rgba(0,0,0,.4)] backdrop-blur-xl group-hover:block">
-                      <div className="mb-1 font-semibold text-white/82">标的范围定义</div>
-                      <div>控制收益矩阵和曲线图展示的标的价格范围，以当前价格为中心向上下扩展。</div>
-                    </div>
-                  </div>
-                  <div className="group relative rounded-[6px] bg-[#17181E]">
-                    <div className="mb-1 flex items-center gap-1.5 text-[11px]">
-                      <span className="text-white/45">隐波</span>
-                      <span className="h-4 w-4 rounded-full bg-[#2B2D35] text-center text-[10px] leading-4 text-white/48">?</span>
-                      <span className="rounded-[5px] bg-[#2B2D35] px-2 py-0.5 tnum text-[#B77CFF]">
-                        <AnimatedNumber value={scenarioIv} format={value => `${value.toFixed(2)}%`} duration={0.18} />
-                      </span>
-                    </div>
-                    <input type="range" min="0.1" max="3" step="0.01" value={ivMultiplier} onChange={event => setIvMultiplier(Number(event.target.value))} className="range-slider w-full" />
-                    <div className="flex justify-between text-[10px] leading-[10px] text-white/36">
-                      <span>0.1x</span>
-                      <span>1x</span>
-                      <span>2x</span>
-                      <span>3x</span>
-                    </div>
-                    <div className="pointer-events-none absolute left-0 bottom-14 z-40 hidden w-[320px] rounded-[8px] bg-[rgba(21,23,25,.96)] p-3 text-[11px] leading-5 text-white/66 shadow-[0_8px_25px_rgba(0,0,0,.4)] backdrop-blur-xl group-hover:block">
-                      <div className="mb-1 font-semibold text-white/82">隐含波动率倍率</div>
-                      <div>以当前组合期权腿的平均市场隐波为基准，拖动滑块模拟隐波下降或上升；1x 表示使用当前市场隐波。</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-[1fr_1.2fr] gap-2">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(['table', 'curve', 'greeks'] as ViewMode[]).map(mode => (
-                      <button
-                        key={mode}
-                        onClick={() => {
-                          setViewMode(mode);
-                          if (mode === 'curve') setValueMode('pnl');
-                          setAddOpen(false);
-                        }}
-                        className={cn(
-                          'h-9 px-2 text-[12px] font-semibold',
-                          SMALL_BUTTON_BASE,
-                          viewMode === mode && SMALL_BUTTON_ACTIVE,
-                        )}
-                      >
-                        {mode === 'table' ? '收益矩阵' : mode === 'curve' ? '曲线' : '希腊字母'}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(['pnl', 'pnlPercent', 'contractValue'] as ValueMode[]).map(mode => {
-                      const disabled = viewMode === 'curve' && mode !== 'pnl';
-                      return (
-                        <button
-                          key={mode}
-                          disabled={disabled}
-                          onClick={() => {
-                            if (!disabled) setValueMode(mode);
-                          }}
-                          className={cn(
-                            'h-9 px-2 text-[12px] font-semibold',
-                            disabled
-                              ? SMALL_BUTTON_DISABLED
-                              : valueMode === mode
-                                ? cn(SMALL_BUTTON_BASE, SMALL_BUTTON_ACTIVE)
-                                : SMALL_BUTTON_BASE,
-                          )}
-                        >
-                          {mode === 'pnl' ? '盈亏金额' : mode === 'pnlPercent' ? '盈亏百分比' : '合约价值'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+              <AnalysisControls
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                valueMode={valueMode}
+                setValueMode={setValueMode}
+                analysisDay={analysisDay}
+                analysisDayRatio={analysisDayRatio}
+                setAnalysisDayRatio={setAnalysisDayRatio}
+                rangePct={rangePct}
+                setRangePct={setRangePct}
+                scenarioIv={scenarioIv}
+                ivMultiplier={ivMultiplier}
+                setIvMultiplier={setIvMultiplier}
+                setAddOpen={setAddOpen}
+              />
             </div>
           </Panel>
         </section>

@@ -7,7 +7,7 @@ import type { EChartsOption } from 'echarts';
 import echarts from '../../components/echart/echartsCore';
 import { cn } from '../../lib/utils';
 import { Panel } from './Panel';
-import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, INPUT_CLS, SELECT_CLS, formatHours, gClass } from './constants';
+import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, INPUT_CLS, SELECT_CLS, SCENARIO_PRESETS, formatHours, gClass } from './constants';
 import { bsGreeks, hoursToYears } from './greeks';
 import type { Leg, ExpiryGroup } from './types';
 
@@ -1241,6 +1241,181 @@ export function StrategyComposer({
         <p className="text-[12px] text-white/55 leading-relaxed pt-1 border-t border-white/[0.04]">
           选择到期日 + 行权价后自动从 Deribit 拉取市价权利金和该合约 IV。每条腿独立使用自己的 IV 定价；IV 偏移滑块在各腿基础上叠加偏移。未选真实合约时用全局 IV + BS 估算。
         </p>
+      </div>
+    </Panel>
+  );
+}
+
+// Scenario tab: stress presets, custom save/load, IV-rank range, correlated stress.
+export function ScenarioParamsPanel({
+  resetScenario, setSpotPctOffset, setIvAdjust, savedScenarios, deleteScenario,
+  scenarioName, setScenarioName, saveScenario, ivRankLow, setIvRankLow,
+  ivRankHigh, setIvRankHigh, ivRankPct, correlatedMode, setCorrelatedMode,
+  rho, setRho, volBeta, setVolBeta, spotPctOffset,
+}: {
+  resetScenario: () => void;
+  setSpotPctOffset: (n: number) => void;
+  setIvAdjust: (n: number) => void;
+  savedScenarios: { name: string; spotPct: number; ivAdj: number }[];
+  deleteScenario: (i: number) => void;
+  scenarioName: string;
+  setScenarioName: (s: string) => void;
+  saveScenario: () => void;
+  ivRankLow: number;
+  setIvRankLow: (n: number) => void;
+  ivRankHigh: number;
+  setIvRankHigh: (n: number) => void;
+  ivRankPct: number | null;
+  correlatedMode: boolean;
+  setCorrelatedMode: Dispatch<SetStateAction<boolean>>;
+  rho: number;
+  setRho: (n: number) => void;
+  volBeta: number;
+  setVolBeta: (n: number) => void;
+  spotPctOffset: number;
+}) {
+  return (
+    <Panel title="情景参数"
+      actions={
+        <button onClick={resetScenario}
+          className="flex items-center gap-1 px-3 py-1 rounded-[8px] bg-[#2B2D35] text-[12px] text-white/50 hover:bg-[#3A3B40] hover:text-white/70 transition-colors">
+          <span>↺</span> 重置情景
+        </button>
+      }>
+      {/* Correlated scenario presets */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {SCENARIO_PRESETS.map(p => (
+          <button
+            key={p.label}
+            onClick={() => { setSpotPctOffset(p.spotPct); setIvAdjust(p.ivAdj); }}
+            title={p.desc}
+            className={cn(
+              'px-3 py-1.5 rounded-[8px] border text-[12px] transition-colors',
+              p.historical
+                ? 'bg-[var(--nexus-yellow)]/[0.06] border-[var(--nexus-yellow)]/[0.15] text-[var(--nexus-yellow)]/60 hover:bg-[var(--nexus-yellow)]/[0.12] hover:text-[var(--nexus-yellow)]/80 hover:border-[var(--nexus-yellow)]/[0.25]'
+                : 'bg-[#2B2D35] border-transparent text-white/50 hover:bg-[#3A3B40] hover:text-white/75',
+            )}
+          >
+            {p.historical && <span className="mr-1 text-[10px] text-[var(--nexus-yellow)]/50">历史</span>}
+            {p.label}
+            <span className="ml-1.5 text-[10px] opacity-50">{p.desc}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Custom scenario save / load ───────────────────────── */}
+      {savedScenarios.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-1">
+          {savedScenarios.map((s, i) => (
+            <div key={i} className="flex items-center gap-0.5">
+              <button
+                onClick={() => { setSpotPctOffset(s.spotPct); setIvAdjust(s.ivAdj); }}
+                title={`spot ${s.spotPct >= 0 ? '+' : ''}${s.spotPct}% / IV ${s.ivAdj >= 0 ? '+' : ''}${(s.ivAdj * 100).toFixed(0)}%`}
+                className="px-2.5 py-1.5 rounded-[8px] bg-[var(--color-brand)]/[0.08] border border-[var(--color-brand)]/[0.20] text-[12px] text-[var(--color-brand)]/70 hover:bg-[var(--color-brand)]/[0.14] hover:text-[var(--color-brand)]/90 transition-colors"
+              >
+                {s.name}
+              </button>
+              <button onClick={() => deleteScenario(i)}
+                className="w-5 h-5 flex items-center justify-center text-[12px] text-white/55 hover:text-[var(--nexus-red)] rounded transition-colors">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          value={scenarioName}
+          onChange={e => setScenarioName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && saveScenario()}
+          placeholder="命名当前情景后保存…"
+          className={cn(INPUT_CLS, '!w-44 text-[12px]')}
+        />
+        <button
+          onClick={saveScenario}
+          disabled={!scenarioName.trim()}
+          className="px-3 py-1.5 rounded-[8px] bg-[#2B2D35] text-[12px] text-white/50 hover:text-white/70 hover:bg-[#3A3B40] disabled:opacity-30 transition-colors"
+        >
+          保存情景
+        </button>
+      </div>
+
+      {/* ── IV Rank range settings ──────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-4 text-[12px]">
+        <span className="text-white/65 shrink-0">IV Rank 区间</span>
+        <span className="text-white/55 text-[11px] shrink-0">历史低</span>
+        <input type="number" value={ivRankLow}
+          onChange={e => setIvRankLow(parseFloat(e.target.value) || 0)}
+          className="w-14 bg-[#2B2D35] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center focus:bg-[#3A3B40]" />
+        <span className="text-white/55">–</span>
+        <input type="number" value={ivRankHigh}
+          onChange={e => setIvRankHigh(parseFloat(e.target.value) || 0)}
+          className="w-14 bg-[#2B2D35] rounded-[6px] px-2 py-1 text-[12px] text-white/70 outline-none text-center focus:bg-[#3A3B40]" />
+        <span className="text-white/55 text-[11px]">% (52w 范围)</span>
+        {ivRankPct !== null && (
+          <div className="flex items-center gap-2 ml-2">
+            <div className="w-20 h-[4px] bg-white/[0.08] rounded-full overflow-hidden">
+              <div style={{ width: `${ivRankPct}%`, background: ivRankPct > 70 ? '#FF5F57' : ivRankPct < 30 ? '#28C840' : '#FEBC2E' }} className="h-full rounded-full" />
+            </div>
+            <span className={cn('font-mono tnum', ivRankPct > 70 ? 'text-[var(--nexus-red)]' : ivRankPct < 30 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-yellow)]')}>
+              {ivRankPct.toFixed(0)}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Correlated stress ──────────────────────────────────── */}
+      <div className={cn(
+        'mt-4 rounded-lg border p-3 transition-colors',
+        correlatedMode ? 'bg-[var(--nexus-yellow)]/[0.05] border-[var(--nexus-yellow)]/[0.20]' : 'bg-[var(--color-surface-2)] border-white/[0.06]',
+      )}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCorrelatedMode(v => !v)}
+              className={cn(
+                'w-8 h-4 rounded-full transition-colors relative shrink-0',
+                correlatedMode ? 'bg-[var(--nexus-yellow)]/60' : 'bg-white/[0.1]',
+              )}
+            >
+              <span className={cn(
+                'absolute top-0.5 w-3 h-3 rounded-full transition-all',
+                correlatedMode ? 'left-[18px] bg-[var(--nexus-yellow)]' : 'left-0.5 bg-white/40',
+              )} />
+            </button>
+            <span className={cn('text-[12px] font-semibold', correlatedMode ? 'text-[var(--nexus-yellow)]/80' : 'text-white/55')}>
+              相关性压力模式
+            </span>
+            {correlatedMode && (
+              <span className="text-[10px] text-[var(--nexus-yellow)]/50 ml-1">
+                Δσ = −ρ×β×ΔS/S = {(-rho * volBeta * spotPctOffset / 100 * 100).toFixed(1)}%
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-white/55">开启后 IV 偏移由 ρ 和 ΔS 自动计算</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-white/55">相关系数 ρ</span>
+              <span className="font-mono tnum text-[11px] text-white/60">{rho.toFixed(2)}</span>
+            </div>
+            <input type="range" min="-100" max="100" value={Math.round(rho * 100)}
+              onChange={e => setRho(parseInt(e.target.value) / 100)}
+              className="w-full range-slider" />
+            <p className="text-[10px] text-white/55 mt-1">加密市场典型值 −0.6 ~ −0.8（下跌时 IV 急升）</p>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-white/55">vol 敏感度 β</span>
+              <span className="font-mono tnum text-[11px] text-white/60">{volBeta.toFixed(2)}</span>
+            </div>
+            <input type="range" min="0" max="400" value={Math.round(volBeta * 100)}
+              onChange={e => setVolBeta(parseInt(e.target.value) / 100)}
+              className="w-full range-slider" />
+            <p className="text-[10px] text-white/55 mt-1">每 1% 价格变动带来的 IV 变化百分点（1.5 = 典型）</p>
+          </div>
+        </div>
       </div>
     </Panel>
   );

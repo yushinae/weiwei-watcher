@@ -59,6 +59,9 @@ export function formatHours(h: number) {
   return rh === 0 ? `${d}d` : `${d}d${rh}h`;
 }
 
+// Signed value → green/red/neutral text class.
+export const gClass = (val: number) => val > 0 ? 'text-[var(--nexus-green)]' : (val < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55');
+
 export function roundStrike(price: number, step: number) {
   return Math.round(price / step) * step;
 }

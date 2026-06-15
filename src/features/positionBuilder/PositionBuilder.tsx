@@ -8,10 +8,10 @@ import type { Leg, DeribitInstrument, ExpiryGroup, RightTab } from './types';
 import {
   PRESETS, DERIBIT_INDEX, N_POINTS, SPOT_OFFSETS, IV_OFFSETS, SCENARIO_PRESETS,
   HEATMAP_SPOT, HEATMAP_IV, LADDER_OFFSETS, RIGHT_TABS, INPUT_CLS, SELECT_CLS,
-  STORAGE_KEY, formatHours, roundStrike, TEMPLATES,
+  STORAGE_KEY, formatHours, roundStrike, TEMPLATES, gClass,
 } from './constants';
 import { Panel } from './Panel';
-import { ScenarioMatrixPanel } from './panels';
+import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel } from './panels';
 
 // ── localStorage persistence bootstrap (constants/types/greeks/Panel now live in
 //    ./constants, ./types, ./greeks, ./Panel) ─────────────────────────────────
@@ -897,8 +897,6 @@ export function PositionBuilder() {
     return () => clearTimeout(id);
   }, [activeTab]);
   // ─────────────────────────────────────────────────────────────────────────────
-
-  const gClass = (val: number) => val > 0 ? 'text-[var(--nexus-green)]' : (val < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55');
 
   return (
     <div className="position-builder-page absolute inset-0 flex flex-col font-medium">
@@ -2007,60 +2005,13 @@ export function PositionBuilder() {
                 />
               )}
               {activeTab === 'greeks' && greeksLadder && (
-                <Panel title="希腊字母价格阶梯" subtitle={`当前情景设置 · Spot 偏移 ±15% · ${formatHours(hoursForward)} 时间快进`}>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[11px] border-separate border-spacing-y-[2px]">
-                      <thead>
-                        <tr className="text-white/55 text-[10px] uppercase tracking-[0.06em]">
-                          <th className="text-left pb-2 font-normal">价格偏移</th>
-                          <th className="text-right pb-2 font-normal pr-2">{symbol} 价格</th>
-                          <th className="text-right pb-2 font-normal pr-2">P/L</th>
-                          <th className="text-right pb-2 font-normal pr-2">Delta</th>
-                          <th className="text-right pb-2 font-normal pr-2">Gamma</th>
-                          <th className="text-right pb-2 font-normal">Theta/天</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {greeksLadder.map(row => {
-                          const isCurrent = row.pct === 0;
-                          const isNearCurrent = Math.abs(row.pct - spotPctOffset) < 3;
-                          return (
-                            <tr key={row.pct}
-                              className={cn(
-                                'rounded-[4px] cursor-pointer transition-colors',
-                                isCurrent ? 'bg-white/[0.05]' : 'hover:bg-white/[0.03]',
-                                isNearCurrent && !isCurrent && 'ring-1 ring-inset ring-[var(--nexus-accent)]/35',
-                              )}
-                              onClick={() => setSpotPctOffset(row.pct)}
-                            >
-                              <td className={cn('pl-2 py-1.5 rounded-l-[4px] font-mono',
-                                row.pct < 0 ? 'text-[var(--nexus-red)]/70' : row.pct > 0 ? 'text-[var(--nexus-green)]/70' : 'text-white/50',
-                              )}>
-                                {row.pct >= 0 ? '+' : ''}{row.pct}%
-                              </td>
-                              <td className="text-right pr-2 font-mono text-white/55">
-                                {row.S.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                              </td>
-                              <td className={cn('text-right pr-2 font-mono font-semibold', gClass(row.pl))}>
-                                {row.pl >= 0 ? '+' : ''}{row.pl.toFixed(2)}
-                              </td>
-                              <td className={cn('text-right pr-2 font-mono', gClass(row.delta))}>
-                                {row.delta >= 0 ? '+' : ''}{row.delta.toFixed(3)}
-                              </td>
-                              <td className={cn('text-right pr-2 font-mono', gClass(row.gamma))}>
-                                {row.gamma.toFixed(5)}
-                              </td>
-                              <td className={cn('text-right pr-2 rounded-r-[4px] font-mono', gClass(row.theta))}>
-                                {row.theta.toFixed(2)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-[11px] text-white/55 mt-1.5">点击行跳转到对应 Spot 偏移情景</p>
-                </Panel>
+                <GreeksLadderPanel
+                  greeksLadder={greeksLadder}
+                  symbol={symbol}
+                  hoursForward={hoursForward}
+                  spotPctOffset={spotPctOffset}
+                  setSpotPctOffset={setSpotPctOffset}
+                />
               )}
 
               {activeTab === 'greeks' && greeksHeatmapData && (
@@ -2141,78 +2092,7 @@ export function PositionBuilder() {
               )}
 
               {activeTab === 'structure' && thetaCalendar && (
-                <Panel title="每日 Theta 日历" subtitle={`以情景基准价为锚 · ${thetaCalendar.length} 天 · 柱 = 日收益 / 线 = 累计 P/L`}>
-                  {(() => {
-                    const W = 560, H = 130, PAD = { l: 38, r: 10, t: 8, b: 22 };
-                    const innerW = W - PAD.l - PAD.r;
-                    const innerH = H - PAD.t - PAD.b;
-                    const n = thetaCalendar.length;
-                    const barW = Math.max(1, innerW / n - 1);
-
-                    const dailyMin = Math.min(...thetaCalendar.map(r => r.daily));
-                    const dailyMax = Math.max(...thetaCalendar.map(r => r.daily));
-                    const cumMin   = Math.min(...thetaCalendar.map(r => r.cumPL), 0);
-                    const cumMax   = Math.max(...thetaCalendar.map(r => r.cumPL), 0);
-
-                    // Normalise two independent scales
-                    const dRange = dailyMax - dailyMin || 1;
-                    const cRange = cumMax - cumMin || 1;
-                    const zero_y = PAD.t + innerH * (dailyMax / dRange);
-
-                    const sy  = (v: number) => PAD.t + innerH * (1 - (v - dailyMin) / dRange);
-                    const scy = (v: number) => PAD.t + innerH * (1 - (v - cumMin)   / cRange);
-                    const sx  = (i: number) => PAD.l + (i + 0.5) * (innerW / n);
-
-                    const cumPath = thetaCalendar.map((r, i) =>
-                      `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${scy(r.cumPL).toFixed(1)}`
-                    ).join(' ');
-
-                    // Tick marks: every 7 days or every 30
-                    const tickStep = n <= 60 ? 7 : 30;
-
-                    return (
-                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
-                        {/* Zero baseline */}
-                        <line x1={PAD.l} x2={W - PAD.r} y1={zero_y} y2={zero_y} stroke="#2e2e2e" strokeWidth="1" />
-                        {/* Daily theta bars */}
-                        {thetaCalendar.map((r, i) => {
-                          const barH = Math.abs(sy(r.daily) - zero_y);
-                          const barY = r.daily >= 0 ? zero_y - barH : zero_y;
-                          return (
-                            <rect key={i}
-                              x={PAD.l + i * (innerW / n)}
-                              y={barY} width={barW} height={Math.max(1, barH)}
-                              fill={r.daily >= 0 ? 'rgba(52,211,153,0.55)' : 'rgba(248,113,113,0.55)'}
-                            >
-                              <title>Day {r.day}: {r.daily >= 0 ? '+' : ''}{r.daily.toFixed(2)} / 累计 {r.cumPL.toFixed(2)}</title>
-                            </rect>
-                          );
-                        })}
-                        {/* Cumulative P/L line (right scale) */}
-                        <path d={cumPath} fill="none" stroke="#FEBC2E" strokeWidth="1.5" strokeOpacity="0.8" />
-                        {/* X-axis tick labels */}
-                        {thetaCalendar.filter((_, i) => i % tickStep === tickStep - 1).map((r, _) => (
-                          <text key={r.day} x={sx(r.day - 1)} y={H - 4}
-                            textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.25)">
-                            D{r.day}
-                          </text>
-                        ))}
-                        {/* Left y-axis label */}
-                        <text x="3" y={H / 2} fontSize="7" fill="rgba(255,255,255,0.2)"
-                          textAnchor="middle" transform={`rotate(-90,7,${H / 2})`}>日θ</text>
-                        {/* Right y-axis label */}
-                        <text x={W - 3} y={H / 2} fontSize="7" fill="rgba(251,191,36,0.4)"
-                          textAnchor="middle" transform={`rotate(90,${W - 5},${H / 2})`}>累计</text>
-                      </svg>
-                    );
-                  })()}
-                  <div className="flex gap-4 mt-1.5 text-[10px] text-white/55 flex-wrap">
-                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 bg-[rgba(52,211,153,0.55)]" />每日正收益（卖方）</span>
-                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 bg-[rgba(248,113,113,0.55)]" />每日 Theta 损耗（买方）</span>
-                    <span className="flex items-center gap-1"><span className="inline-block w-4 border-t border-[#FEBC2E] opacity-60" />累计 P/L（右轴）</span>
-                    <span className="ml-auto">总 Theta 衰减 {thetaCalendar[thetaCalendar.length - 1].cumPL.toFixed(2)} USDT</span>
-                  </div>
-                </Panel>
+                <ThetaCalendarPanel thetaCalendar={thetaCalendar} />
               )}
 
               {activeTab === 'structure' && ivSkewData && (

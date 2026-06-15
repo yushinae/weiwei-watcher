@@ -562,10 +562,10 @@ export default function OptionsChainView() {
         <div className="flex flex-wrap items-center gap-2 py-1.5 border-b px-2" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
           <div className="relative">
             <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
-              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.dateLabel}</span>}
+              {expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.dateLabel}</span>}
               <ChevronDown size={14} className="text-white/50" />
             </button>
-            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[180px]">
+            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[136px]">
               <div className="py-2 max-h-[360px] overflow-auto">
                 {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
                 {expiries.map((e, i) => {
@@ -587,7 +587,7 @@ export default function OptionsChainView() {
             <button className="db-menu-btn" onClick={() => { setColumnsOpen(v => !v); setFilterOpen(false); setExpiryMenuOpen(false); }}>
               <SlidersHorizontal size={13} /> 列
             </button>
-            <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[260px]">
+            <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[200px]">
               <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.08]">
                 <button className="text-[12px] font-semibold" style={{ color: 'var(--db-accent)' }} onClick={() => setTabState({ visibleColIds: SIDE_COLS.map(c => c.id) })}>全选</button>
                 <span className="text-white/25">·</span>
@@ -617,7 +617,7 @@ export default function OptionsChainView() {
             <button className="db-menu-btn" onClick={() => { setFilterOpen(v => !v); setColumnsOpen(false); }}>
               <Filter size={12} /> 过滤{filterKey !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--db-accent)' }} />}
             </button>
-            <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
+            <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[150px]">
               {([{ k: 'all' as const, l: '全部行权价' }, { k: 'atm5' as const, l: 'ATM ±5 档' }, { k: 'atm10' as const, l: 'ATM ±10 档' }]).map(({ k, l }) => (
                 <button key={k} className="db-menu-item text-left" onClick={() => { setFilterOpen(false); setTabState({ filterKey: k }); }}>
                   <span className={cn('db-check', filterKey === k && 'is-on')}>{filterKey === k && <Check size={12} className="text-black" strokeWidth={3} />}</span>{l}

@@ -150,7 +150,8 @@ export default function OptionsChainView() {
   }, [tabs, activeTabIdx, tabStates]);
 
   // When the top-nav picker chooses an underlying/expiry before entering this page,
-  // materialize that selection as a real tab + per-tab expiry here.
+  // materialize that selection by navigating the CURRENT tab (not adding a new tab).
+  // Only the "+" button can create additional tabs.
   useEffect(() => {
     if (!navUnderlying) return;
     const isInitialDefaultStoreValue =
@@ -167,8 +168,10 @@ export default function OptionsChainView() {
         setActiveTabIdx(existingIdx);
         return prev;
       }
-      setActiveTabIdx(prev.length);
-      return [...prev, navUnderlying];
+      // Not open — replace the current tab instead of adding a new one
+      const next = [...prev];
+      next[activeTabIdx] = navUnderlying;
+      return next;
     });
     // nav 的 expiryIdx 0 = 点了标的表头/未选具体到期 → 用哨兵 -1 落到「最近流动周」，
     // 而非第 0 档（1H）。只有 >0 的具体到期选择才钉死。
@@ -251,9 +254,15 @@ export default function OptionsChainView() {
     if (key) setTabState({ expiryIdx, expiryKey: key });
   }, [expiries, expiryIdx, setTabState, tabState.expiryKey]);
 
-  // Sync the shared store so the global nav "期权" hover stays in sync, without
-  // resetting restored per-tab expiry state during page refresh.
+  // Sync the shared store so the global nav "期权" hover stays in sync.
+  // Skip the very first run (mount): on mount the store already holds the
+  // nav menu's selection — running setSelection here would overwrite it
+  // with the initial tab's underlying, trigger a useSyncExternalStore
+  // forced synchronous re-render, and cause a "Maximum update depth exceeded"
+  // infinite loop.
+  const initialMount = useRef(true);
   useEffect(() => {
+    if (initialMount.current) { initialMount.current = false; return; }
     ocStore.setSelection(activeUnderlying, expiryIdx);
   }, [activeUnderlying, expiryIdx]);
   const liveSpot = useLiveSpot(coin);

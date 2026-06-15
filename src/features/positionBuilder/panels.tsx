@@ -615,3 +615,106 @@ export function PLAttributionPanel({
     </Panel>
   );
 }
+
+// Structure tab: per-leg IV — skew (left, IV vs strike) + term structure (right).
+export function IVSkewPanel({ ivSkewData, spot }: {
+  ivSkewData: {
+    expiries: { ts: number; label: string; points: { strike: number; iv: number; type: string }[] }[];
+    termStructure: { label: string; iv: number }[];
+  };
+  spot: number;
+}) {
+  return (
+    <Panel title="IV 结构" subtitle="各腿市场 IV — 偏斜（左）· 期限结构（右）">
+      <div className="grid grid-cols-2 gap-4">
+        {/* Skew chart: per-expiry IV vs strike */}
+        <div>
+          <p className="text-[10px] text-white/55 uppercase tracking-[0.06em] mb-2">IV 偏斜（各到期日）</p>
+          <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+            {(() => {
+              const allPts = ivSkewData.expiries.flatMap(e => e.points);
+              if (allPts.length === 0) return null;
+              const strikes = allPts.map(p => p.strike);
+              const ivs = allPts.map(p => p.iv);
+              const sMin = Math.min(...strikes), sMax = Math.max(...strikes);
+              const ivMin = Math.max(0, Math.min(...ivs) - 5), ivMax = Math.max(...ivs) + 5;
+              const sx = (s: number) => ((s - sMin) / (sMax - sMin || 1)) * 220 + 10;
+              const sy = (iv: number) => 110 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 100;
+              const COLORS = ['#ff9c2e', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+              return ivSkewData.expiries.map((exp, ei) => {
+                if (exp.points.length === 0) return null;
+                const color = COLORS[ei % COLORS.length];
+                const pts = exp.points.map(p => `${sx(p.strike).toFixed(1)},${sy(p.iv).toFixed(1)}`).join(' ');
+                return (
+                  <g key={exp.ts}>
+                    {exp.points.length > 1 && (
+                      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeOpacity="0.7" />
+                    )}
+                    {exp.points.map((p, pi) => (
+                      <circle key={pi} cx={sx(p.strike)} cy={sy(p.iv)} r="3"
+                        fill={color} fillOpacity="0.8">
+                        <title>{exp.label} K={p.strike} IV={p.iv.toFixed(1)}%</title>
+                      </circle>
+                    ))}
+                    {/* Spot line */}
+                    <line x1={sx(spot)} x2={sx(spot)} y1="10" y2="115"
+                      stroke="#8a8a8a" strokeWidth="0.8" strokeDasharray="3,3" strokeOpacity="0.4" />
+                  </g>
+                );
+              });
+            })()}
+            {/* Axes labels */}
+            <text x="125" y="120" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)">行权价</text>
+            <text x="2" y="60" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)" transform="rotate(-90,5,60)">IV %</text>
+          </svg>
+          <div className="flex gap-2 flex-wrap mt-1">
+            {ivSkewData.expiries.map((exp, ei) => {
+              const COLORS = ['#ff9c2e', '#28C840', '#FEBC2E', '#FF5F57', '#a78bfa'];
+              return (
+                <span key={exp.ts} className="flex items-center gap-1 text-[10px] text-white/65">
+                  <span className="inline-block w-2 h-0.5" style={{ backgroundColor: COLORS[ei % COLORS.length] }} />
+                  {exp.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        {/* Term structure: ATM IV per expiry */}
+        <div>
+          <p className="text-[10px] text-white/55 uppercase tracking-[0.06em] mb-2">期限结构（ATM IV）</p>
+          {ivSkewData.termStructure.length < 2 ? (
+            <p className="text-[11px] text-white/55 italic pt-4">需要至少 2 个到期日的数据</p>
+          ) : (
+            <svg viewBox="0 0 240 120" className="w-full overflow-visible">
+              {(() => {
+                const ts = ivSkewData.termStructure;
+                const ivMin = Math.max(0, Math.min(...ts.map(t => t.iv)) - 5);
+                const ivMax = Math.max(...ts.map(t => t.iv)) + 5;
+                const n = ts.length;
+                const sx = (i: number) => (i / (n - 1)) * 220 + 10;
+                const sy = (iv: number) => 100 - ((iv - ivMin) / (ivMax - ivMin || 1)) * 90;
+                const pts = ts.map((t, i) => `${sx(i).toFixed(1)},${sy(t.iv).toFixed(1)}`).join(' ');
+                return (
+                  <g>
+                    <polyline points={pts} fill="none" stroke="#28C840" strokeWidth="1.5" strokeOpacity="0.8" />
+                    {ts.map((t, i) => (
+                      <g key={i}>
+                        <circle cx={sx(i)} cy={sy(t.iv)} r="3" fill="#28C840" fillOpacity="0.85">
+                          <title>{t.label}  ATM IV {t.iv.toFixed(1)}%</title>
+                        </circle>
+                        <text x={sx(i)} y="115" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.25)">{t.label}</text>
+                        <text x={sx(i)} y={sy(t.iv) - 5} textAnchor="middle" fontSize="7" fill="rgba(52,211,153,0.7)">{t.iv.toFixed(1)}%</text>
+                      </g>
+                    ))}
+                  </g>
+                );
+              })()}
+              <text x="2" y="55" textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)" transform="rotate(-90,5,55)">IV %</text>
+            </svg>
+          )}
+        </div>
+      </div>
+      <p className="text-[11px] text-white/55 mt-2">数据来源：各腿 Deribit mark_iv · 点击刷新按钮更新</p>
+    </Panel>
+  );
+}

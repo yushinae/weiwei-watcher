@@ -236,7 +236,7 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
   const hasData = positions.length > 0 || openOrders.length > 0 || orderHistory.length > 0 || fills.length > 0;
 
   const SummaryMetric = ({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'down' | 'orange' }) => (
-    <div className="min-w-[82px] rounded-[4px] px-2.5 py-1.5 transition-colors hover:bg-[#3A3B40]" style={{ background: TILE_BG }}>
+    <div className="min-w-[82px] rounded-[6px] px-2.5 py-1.5 transition-colors hover:bg-[#3A3B40]" style={{ background: TILE_BG }}>
       <div className="text-[9px] uppercase tracking-[0.06em] text-white/40">{label}</div>
       <div
         className={cn('mt-0.5 font-mono text-[12px] font-bold tabular-nums', !tone && 'text-white/82')}
@@ -250,13 +250,13 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
   );
 
   const tabBar = (
-    <div className="flex items-center gap-1 rounded-[4px] p-0.5" style={{ background: TILE_BG }}>
+    <div className="flex items-center gap-1 rounded-[6px] p-[3px]" style={{ background: TILE_BG }}>
       {POS_TABS.map(t => {
         const on = btab === t.k;
         return (
           <button key={t.k} onClick={() => { setBtab(t.k); setCollapsed(false); }}
             className={cn(
-              'h-7 min-w-[56px] px-2.5 rounded-[4px] text-[11px] font-semibold transition-colors whitespace-nowrap active:translate-y-px',
+              'h-7 min-w-[56px] px-2.5 rounded-[6px] text-[11px] font-semibold transition-colors whitespace-nowrap active:translate-y-px',
               on ? 'text-[var(--db-accent)]' : 'text-white/55 hover:text-white/85',
             )}
             style={{ background: on ? SELECTED_BG : 'transparent' }}

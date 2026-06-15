@@ -12,6 +12,7 @@ export interface ParsedOption {
   type: 'C' | 'P';
   daysToExp: number;
   T: number;
+  expiryTs: number;   // UTC expiry timestamp (08:00 UTC on expiry date)
   iv: number;
   spot: number;
   delta: number;
@@ -26,6 +27,7 @@ export interface ParsedOption {
 export interface ExpiryGroup {
   label: string;
   daysToExp: number;
+  expiryTs: number;   // UTC expiry timestamp — for live DTE calculation
   calls: ParsedOption[];
   puts: ParsedOption[];
   atmIV: number;
@@ -136,7 +138,7 @@ export function processDeribitResponse(
     };
 
     parsed.push({
-      strike, type, daysToExp, T,
+      strike, type, daysToExp, T, expiryTs: expiry.getTime(),
       iv: item.mark_iv as number,
       spot,
       delta,
@@ -183,9 +185,13 @@ export function processDeribitResponse(
     const call10IV = closestDeltaIV(calls, 0.10);
     const put10IV  = closestDeltaIV(puts,  0.10);
 
+    // Use a precise daysToExp from the group instead of the rounded key
+    const preciseDays = opts[0].daysToExp;
+
     expiries.push({
       label: `${days}D`,
-      daysToExp: days,
+      daysToExp: preciseDays,
+      expiryTs: opts[0].expiryTs,
       calls,
       puts,
       atmIV,

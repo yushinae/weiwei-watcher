@@ -113,11 +113,6 @@ function saveViewState(tabs: string[], activeTabIdx: number, tabStates: Record<s
   }
 }
 
-function compactDteLabel(days: number): string {
-  if (days < 1) return `${Math.max(1, Math.round(days * 24))}H`;
-  return `${Math.max(1, Math.round(days))}D`;
-}
-
 export default function OptionsChainView() {
   // ── Tabs: multiple underlying tabs, click to switch ─────────────────────
   const [initialViewState] = useState(loadViewState);
@@ -318,7 +313,7 @@ export default function OptionsChainView() {
   const atmIV = expiry?.atmIV ?? 0;
   const dec = spot < 1 ? 6 : spot < 100 ? 4 : 2;
   const spotDp = dec;
-  const dte = expiry ? dteLabel(expiry.daysToExp) : '—';
+  const dte = expiry ? dteLabel(expiry.daysToExp, expiry.expiryTs) : '—';
 
   const marketQuotes = useMemo(() => {
     const next = new Map<string, PositionMarketQuote>();
@@ -567,10 +562,10 @@ export default function OptionsChainView() {
         <div className="flex flex-wrap items-center gap-2 py-1.5 border-b px-2" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
           <div className="relative">
             <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
-              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{compactDteLabel(expiry.daysToExp)}</span>}
+              到期日{expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.dateLabel}</span>}
               <ChevronDown size={14} className="text-white/50" />
             </button>
-            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[220px]">
+            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[180px]">
               <div className="py-2 max-h-[360px] overflow-auto">
                 {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
                 {expiries.map((e, i) => {
@@ -578,8 +573,7 @@ export default function OptionsChainView() {
                   return (
                     <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); setTabState({ expiryIdx: i, expiryKey: e.key }); setSelectedCell(null); }}>
                       <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                      <span className="flex-1 font-mono font-semibold">{compactDteLabel(e.daysToExp)}</span>
-                      <span className="text-white/35 font-mono text-[11px]">{e.dateLabel}</span>
+                      <span className="font-mono font-semibold">{e.dateLabel}</span>
                     </button>
                   );
                 })}

@@ -67,9 +67,9 @@ describe('genBook', () => {
 // ── Small utils ───────────────────────────────────────────────────────────────
 
 describe('utils', () => {
-  it('dteLabel formats hours/days', () => {
-    expect(dteLabel(0.5)).toBe('12h');
-    expect(dteLabel(13)).toBe('13天');
+  it('dteLabel formats days/hours/minutes', () => {
+    expect(dteLabel(0.5)).toBe('0d 12h 0m（每日）');
+    expect(dteLabel(13)).toBe('13d 0h 0m');
   });
   it('seedFor is stable & distinguishes inputs', () => {
     expect(seedFor('abc')).toBe(seedFor('abc'));
@@ -94,7 +94,8 @@ const bybitTicker = (o: Partial<BybitOptionTicker>): BybitOptionTicker => ({
 });
 
 const parsed = (o: Partial<ParsedOption>): ParsedOption => ({
-  strike: 100, type: 'C', daysToExp: 12, T: 12 / 365, iv: 51, spot: 100, delta: 0.5,
+  strike: 100, type: 'C', daysToExp: 12, T: 12 / 365, expiryTs: Date.now() + 12 * 86_400_000,
+  iv: 51, spot: 100, delta: 0.5,
   oi: 100, volume: 50, instrument: 'BTC-12JUN26-100-C', mark: 1000, bid: 990, ask: 1010, ...o,
 });
 
@@ -119,9 +120,11 @@ describe('buildBybitExpiry', () => {
 });
 
 describe('buildDeribitExpiry', () => {
+  const deribitExpiryTs = Date.now() + 12 * 86_400_000;
+
   it('uses REAL book mark/bid/ask (not Black-Scholes) and the instrument name', () => {
     const g: DeribitExpiryGroup = {
-      label: '12D', daysToExp: 12,
+      label: '12D', daysToExp: 12, expiryTs: deribitExpiryTs,
       calls: [parsed({ type: 'C', mark: 1234, bid: 1200, ask: 1260 })],
       puts: [], atmIV: 51, rr25: 0, bf25: 0, rr10: 0, bf10: 0,
     };
@@ -135,7 +138,7 @@ describe('buildDeribitExpiry', () => {
 
   it('falls back to Black-Scholes when book mark is missing', () => {
     const g: DeribitExpiryGroup = {
-      label: '12D', daysToExp: 12,
+      label: '12D', daysToExp: 12, expiryTs: deribitExpiryTs,
       calls: [parsed({ type: 'C', strike: 70000, iv: 50, mark: 0, bid: null, ask: null })],
       puts: [], atmIV: 50, rr25: 0, bf25: 0, rr10: 0, bf10: 0,
     };

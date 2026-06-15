@@ -66,6 +66,7 @@ export interface ChainExpiry {
   label: string;       // short tab label
   dateLabel: string;   // "26 MAR 2027"
   daysToExp: number;
+  expiryTs: number;    // UTC ms — for live DTE and cycle detection
   rows: ChainRow[];
   atmStrike: number;
   atmIV: number;       // percent
@@ -88,13 +89,37 @@ function fmtDate(ts: number): string {
   return `${d.getUTCDate()} ${MON_S[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-export function dteLabel(days: number): string {
-  if (days < 1) return `${Math.max(1, Math.round(days * 24))}h`;
-  if (days < 2) {
-    const h = Math.round(days * 24);
-    return `${h}h（每日）`;
+export function expiryCycle(expiryTs: number): string {
+  const d = new Date(expiryTs);
+  const day = d.getUTCDate();
+  const month = d.getUTCMonth();
+  const year = d.getUTCFullYear();
+  const dow = d.getUTCDay();
+
+  // Only Friday expiries can be quarterly/monthly/weekly
+  if (dow === 5) {
+    // Find the last Friday of this month
+    const lastDate = new Date(Date.UTC(year, month + 1, 0));
+    const lastDay = lastDate.getUTCDate();
+    const lastDOW = lastDate.getUTCDay();
+    const lastFriday = lastDay - ((lastDOW - 5 + 7) % 7);
+
+    if (day === lastFriday) {
+      return [2, 5, 8, 11].includes(month) ? '（每季度）' : '（每月）';
+    }
+    return '（每周）';
   }
-  return `${Math.round(days)}天`;
+
+  return '（每日）';
+}
+
+export function dteLabel(days: number, expiryTs?: number): string {
+  const totalMin = Math.max(0, Math.round(days * 24 * 60));
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  const suffix = expiryTs ? expiryCycle(expiryTs) : (days < 2 ? '（每日）' : '');
+  return `${d}d ${h}h ${m}m${suffix}`;
 }
 
 // ── Builders ────────────────────────────────────────────────────────────────────
@@ -141,6 +166,7 @@ export function buildBybitExpiry(g: BybitExpiryGroup, spot: number): ChainExpiry
     label: g.label,
     dateLabel: fmtDate(g.expiryTs),
     daysToExp: g.daysToExp,
+    expiryTs: g.expiryTs,
     rows,
     atmStrike: g.atmStrike,
     atmIV: atmCall ? atmCall.markIv * 100 : 0,
@@ -196,12 +222,16 @@ export function buildDeribitExpiry(g: DeribitExpiryGroup, spot: number): ChainEx
     };
   });
 
-  const expiryTs = Date.now() + g.daysToExp * 86_400_000;
+  // Compute DTE at display time from the stored expiry timestamp,
+  // so it's not stale from the 5-minute data cache.
+  const expiryTs = g.expiryTs;
+  const liveDaysToExp = (expiryTs - Date.now()) / 86_400_000;
   return {
     key: `deribit-${g.label}`,
     label: g.label,
     dateLabel: fmtDate(expiryTs),
-    daysToExp: g.daysToExp,
+    daysToExp: liveDaysToExp,
+    expiryTs,
     rows,
     atmStrike,
     atmIV: g.atmIV,

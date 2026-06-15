@@ -7,7 +7,9 @@ import type { EChartsOption } from 'echarts';
 import echarts from '../../components/echart/echartsCore';
 import { cn } from '../../lib/utils';
 import { Panel } from './Panel';
-import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, formatHours, gClass } from './constants';
+import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, INPUT_CLS, SELECT_CLS, formatHours, gClass } from './constants';
+import { bsGreeks, hoursToYears } from './greeks';
+import type { Leg, ExpiryGroup } from './types';
 
 interface VaRStats { var95: number; var99: number; cvar95: number; cvar99: number }
 
@@ -915,6 +917,331 @@ export function DeltaGammaPanel({ chartRef, option }: {
         style={{ width: '100%', height: 220 }}
         opts={{ renderer: 'canvas' }}
       />
+    </Panel>
+  );
+}
+
+// Left panel: base params, template picker, and the per-leg editor (the strategy core).
+export function StrategyComposer({
+  legs, refreshAllTickers, spot, setSpot, setLegs, repriceEntry, baseIv, setBaseIv,
+  applyTemplate, clearAll, hoursForward, currentS, ivAdjust, expiryGroups,
+  fetchTicker, removeLeg, updateLeg, clearDeferred, defer, resolveInstrument,
+  instrumentsLoading, legCurrentValue, addLeg,
+}: {
+  legs: Leg[];
+  refreshAllTickers: () => void;
+  spot: number;
+  setSpot: (n: number) => void;
+  setLegs: Dispatch<SetStateAction<Leg[]>>;
+  repriceEntry: (leg: Leg) => Leg;
+  baseIv: number;
+  setBaseIv: (n: number) => void;
+  applyTemplate: (key: string) => void;
+  clearAll: () => void;
+  hoursForward: number;
+  currentS: number;
+  ivAdjust: number;
+  expiryGroups: ExpiryGroup[];
+  fetchTicker: (legId: number, instrumentName: string) => void;
+  removeLeg: (id: number) => void;
+  updateLeg: (id: number, patch: Partial<Leg>) => void;
+  clearDeferred: () => void;
+  defer: (fn: () => void, ms: number) => void;
+  resolveInstrument: (legId: number, leg: Leg) => void;
+  instrumentsLoading: boolean;
+  legCurrentValue: (leg: Leg, S: number, hf: number, ivAdj: number) => number;
+  addLeg: (partial?: Partial<Leg>) => void;
+}) {
+  return (
+    <Panel title="策略组合" subtitle="期权腿组合"
+      actions={legs.some(l => l.instrumentName) ? (
+        <button onClick={refreshAllTickers}
+          className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors">
+          ↺ 刷新全部
+        </button>
+      ) : undefined}
+    >
+      <div className="flex flex-col gap-3 pt-1">
+        {/* ── 基准参数 ───────────────────────────────────────────── */}
+        <div className="bg-[var(--color-surface-2)] rounded-lg p-2.5 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-white/65 uppercase tracking-[0.06em] w-14 shrink-0" title="情景分析的坐标原点。点「用实时价」可同步到当前市场指数价。">基准价</span>
+            <input
+              type="number"
+              value={spot}
+              onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setSpot(v); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
+              className={cn(INPUT_CLS, 'flex-1')}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-white/65 uppercase tracking-[0.06em] w-14 shrink-0">基础 IV</span>
+            <input
+              type="number"
+              value={(baseIv * 100).toFixed(0)}
+              onChange={e => { const v = parseFloat(e.target.value); if (v > 0) { setBaseIv(v / 100); setLegs(prev => prev.map(l => repriceEntry(l))); } }}
+              className={cn(INPUT_CLS, 'flex-1')}
+            />
+            <span className="text-[12px] text-white/65 shrink-0">%</span>
+          </div>
+        </div>
+        {/* ── 模板 + 清空 ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-2">
+          <select onChange={e => { if (e.target.value) { applyTemplate(e.target.value); e.target.value = ''; } }}
+            className={cn(SELECT_CLS, 'flex-1 text-xs')}>
+            <option value="">— 选择模板 —</option>
+            <option value="longCall">单腿看涨</option>
+            <option value="longPut">单腿看跌</option>
+            <option value="coveredCall">备兑看涨</option>
+            <option value="bullCallSpread">牛市价差</option>
+            <option value="bearPutSpread">熊市价差</option>
+            <option value="longStraddle">买入跨式</option>
+            <option value="shortStrangle">卖出宽跨</option>
+            <option value="ironCondor">铁鹰</option>
+            <option value="calendar">日历价差</option>
+          </select>
+          <button onClick={clearAll}
+            className="px-3 py-1.5 rounded-[8px] bg-[var(--nexus-red)]/10 text-[var(--nexus-red)] hover:bg-[var(--nexus-red)]/20 text-[13px] font-semibold transition-colors shrink-0">
+            清空
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {legs.length === 0 ? (
+            <div className="py-6 text-center text-[13px] text-white/55 italic">
+              还没有腿。点 "+ 添加一腿" 或选择上方模板。
+            </div>
+          ) : legs.map((leg, idx) => {
+            const remH = Math.max(0, leg.hoursToExpiry - hoursForward);
+            const T = hoursToYears(remH);
+            const legSig = Math.max(0.01, (leg.legIv ?? baseIv) + ivAdjust);
+            const g = bsGreeks(currentS, leg.K, T, legSig, leg.type);
+            const d = leg.side * leg.qty * g.delta;
+            const gm = leg.side * leg.qty * g.gamma;
+            const th = leg.side * leg.qty * g.theta;
+            const v = leg.side * leg.qty * g.vega;
+
+            // Available strikes for this leg's selected expiry
+            const selGroup = expiryGroups.find(eg => eg.ts === leg.expiryTs);
+            const availStrikes = selGroup?.strikes ?? [];
+
+            return (
+              <div key={leg.id} className="bg-[var(--color-surface-2)] rounded-xl p-3">
+                {/* Header row */}
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[12px] text-white/55">#{idx + 1}</span>
+                    <span className={cn('text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
+                      leg.side === 1 ? 'bg-[var(--nexus-green)]/15 text-[var(--nexus-green)]' : 'bg-[var(--nexus-red)]/15 text-[var(--nexus-red)]')}>
+                      {leg.side === 1 ? '买入' : '卖出'}
+                    </span>
+                    <span className={cn('text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
+                      leg.type === 'call' ? 'bg-[var(--nexus-accent)]/15 text-[var(--nexus-accent)]' : 'bg-[var(--nexus-yellow)]/15 text-[var(--nexus-yellow)]')}>
+                      {leg.type === 'call' ? 'Call' : 'Put'}
+                    </span>
+                    {leg.legIv !== undefined && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/55 font-mono">
+                        IV {(leg.legIv * 100).toFixed(1)}%
+                      </span>
+                    )}
+                    {leg.fetchingTicker && (
+                      <span className="text-[11px] text-white/55 animate-pulse">拉取中…</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {leg.instrumentName && (
+                      <button
+                        onClick={() => fetchTicker(leg.id, leg.instrumentName!)}
+                        disabled={!!leg.fetchingTicker}
+                        className="w-6 h-6 flex items-center justify-center rounded-[6px] text-white/55 hover:text-white/60 hover:bg-white/[0.06] transition-colors text-[13px] disabled:opacity-30"
+                        title="刷新市价"
+                      >
+                        ↺
+                      </button>
+                    )}
+                    <button onClick={() => removeLeg(leg.id)}
+                      className="w-6 h-6 flex items-center justify-center rounded-[6px] text-white/55 hover:text-[var(--nexus-red)] hover:bg-[var(--nexus-red)]/15 transition-colors text-[14px]">
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                {/* Controls grid */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {/* 方向 */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">方向</label>
+                    <select value={leg.side}
+                      onChange={e => updateLeg(leg.id, { side: parseInt(e.target.value) as 1 | -1 })}
+                      className={SELECT_CLS}>
+                      <option value="1">买入 (Long)</option>
+                      <option value="-1">卖出 (Short)</option>
+                    </select>
+                  </div>
+                  {/* 类型 */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">类型</label>
+                    <select value={leg.type}
+                      onChange={e => {
+                        const type = e.target.value as 'call' | 'put';
+                        updateLeg(leg.id, { type, instrumentName: undefined, legIv: undefined });
+                        clearDeferred();
+                        defer(() => resolveInstrument(leg.id, { ...leg, type }), 0);
+                      }}
+                      className={SELECT_CLS}>
+                      <option value="call">看涨 Call</option>
+                      <option value="put">看跌 Put</option>
+                    </select>
+                  </div>
+                  {/* 到期日 */}
+                  <div className="col-span-2">
+                    <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">
+                      到期日 {instrumentsLoading && <span className="text-white/55 normal-case">（加载中…）</span>}
+                    </label>
+                    <select
+                      value={leg.expiryTs ?? ''}
+                      onChange={e => {
+                        const ts = parseInt(e.target.value);
+                        // Auto-snap to ATM strike for this expiry
+                        const group = expiryGroups.find(g => g.ts === ts);
+                        const atmK = group?.strikes.reduce((best, s) =>
+                          Math.abs(s - spot) < Math.abs(best - spot) ? s : best,
+                          group.strikes[0] ?? leg.K
+                        ) ?? leg.K;
+                        updateLeg(leg.id, { expiryTs: ts, K: atmK });
+                        clearDeferred();
+                        defer(() => resolveInstrument(leg.id, { ...leg, expiryTs: ts, K: atmK }), 0);
+                      }}
+                      className={SELECT_CLS}
+                    >
+                      <option value="">— 选择到期日 —</option>
+                      {expiryGroups.map(eg => (
+                        <option key={eg.ts} value={eg.ts}>{eg.displayLabel}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* 行权价 */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">行权价</label>
+                    {availStrikes.length > 0 ? (
+                      <select
+                        value={leg.K}
+                        onChange={e => {
+                          const K = parseFloat(e.target.value);
+                          updateLeg(leg.id, { K, instrumentName: undefined, legIv: undefined });
+                          clearDeferred();
+                          defer(() => resolveInstrument(leg.id, { ...leg, K }), 0);
+                        }}
+                        className={SELECT_CLS}
+                      >
+                        {availStrikes.map(k => {
+                          const pct = ((k - spot) / spot * 100);
+                          const tag = Math.abs(pct) < 0.5
+                            ? ' · ATM'
+                            : ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+                          return (
+                            <option key={k} value={k}>
+                              {k.toLocaleString()}{tag}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : (
+                      <input type="number" step="any" value={leg.K}
+                        onChange={e => updateLeg(leg.id, { K: parseFloat(e.target.value) })}
+                        className={INPUT_CLS} />
+                    )}
+                  </div>
+                  {/* 数量 */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.06em] text-white/55 block mb-1">数量</label>
+                    <input type="number" step="0.1" min="0.1" value={leg.qty}
+                      onChange={e => updateLeg(leg.id, { qty: parseFloat(e.target.value) })}
+                      className={INPUT_CLS} />
+                  </div>
+                  {/* 入场权利金 */}
+                  <div className="col-span-2 flex items-center justify-between pt-1">
+                    <span className="text-[10px] uppercase tracking-[0.06em] text-white/55">
+                      入场权利金 {leg.instrumentName ? '· 市价' : '· BS 估算'}
+                    </span>
+                    <span className="text-[14px] font-mono tnum text-white/80">
+                      {leg.entryPremium.toFixed(2)} USDT
+                    </span>
+                  </div>
+                  {/* 买一 / 卖一 / 点差 */}
+                  {leg.bid !== undefined && leg.ask !== undefined && (
+                    <div className="col-span-2 flex items-center justify-between bg-[var(--color-surface-2)] rounded-[6px] px-2 py-1">
+                      <span className="text-[10px] uppercase tracking-[0.06em] text-white/55">买一 / 卖一</span>
+                      <span className="text-[11px] font-mono tnum">
+                        <span className="text-[var(--nexus-green)]/70">{leg.bid.toFixed(2)}</span>
+                        <span className="text-white/55"> / </span>
+                        <span className="text-[var(--nexus-red)]/70">{leg.ask.toFixed(2)}</span>
+                        <span className="ml-2 text-white/65">
+                          点差 {(leg.ask - leg.bid).toFixed(2)}
+                          <span className="ml-1 text-white/55">
+                            ({leg.entryPremium > 0 ? ((leg.ask - leg.bid) / leg.entryPremium * 50).toFixed(1) : '—'}%)
+                          </span>
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary + live P/L */}
+                <div className="text-[12px] text-white/55 mb-1.5">
+                  ≈ {formatHours(leg.hoursToExpiry)} · 入场总额 {(leg.side * leg.qty * leg.entryPremium).toFixed(2)}
+                </div>
+                {(() => {
+                  const curVal = legCurrentValue(leg, currentS, hoursForward, ivAdjust);
+                  const legPlVal = leg.side * leg.qty * (curVal - leg.entryPremium);
+                  return (
+                    <div className="flex items-center justify-between text-[12px] mb-2">
+                      <span className="text-white/55">情景盯市 {curVal.toFixed(2)}</span>
+                      <span className={cn('font-mono tnum font-semibold', gClass(legPlVal))}>
+                        {legPlVal >= 0 ? '+' : ''}{legPlVal.toFixed(2)} USDT
+                      </span>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const legGrk = bsGreeks(currentS, leg.K, T, legSig, leg.type);
+                  return (
+                    <>
+                      <div className="flex gap-3 text-[12px] pt-2 border-t border-white/[0.05]">
+                        <span className="text-white/55">δ</span><span className="font-mono tnum"><span className={gClass(d)}>{d.toFixed(3)}</span></span>
+                        <span className="text-white/55">γ</span><span className="font-mono tnum"><span className={gClass(gm)}>{gm.toFixed(5)}</span></span>
+                        <span className="text-white/55">θ</span><span className="font-mono tnum"><span className={gClass(th)}>{th.toFixed(2)}</span></span>
+                        <span className="text-white/55">ν</span><span className="font-mono tnum"><span className={gClass(v)}>{v.toFixed(2)}</span></span>
+                      </div>
+                      <div className="flex gap-3 text-[12px] pt-1.5 flex-wrap" title="高阶希腊字母">
+                        {[
+                          { label: 'vanna', val: leg.side * leg.qty * legGrk.vanna, fmt: (v: number) => v.toFixed(4) },
+                          { label: 'volga', val: leg.side * leg.qty * legGrk.volga, fmt: (v: number) => v.toFixed(4) },
+                          { label: 'charm', val: leg.side * leg.qty * legGrk.charm, fmt: (v: number) => v.toFixed(4) },
+                          { label: 'speed', val: leg.side * leg.qty * legGrk.speed, fmt: (v: number) => v.toExponential(2) },
+                        ].map(({ label, val, fmt }) => (
+                          <span key={label} className="flex gap-1">
+                            <span className="text-white/55">{label}</span>
+                            <span className={cn('font-mono tnum text-[11px]', gClass(val))}>{fmt(val)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            );
+          })}
+        </div>
+
+        <button onClick={() => addLeg()}
+          className="w-full py-2 rounded-lg bg-[#2B2D35] text-[14px] font-semibold text-white/60 hover:bg-[#3A3B40] hover:text-white/80 transition-colors">
+          + 添加一腿
+        </button>
+
+        <p className="text-[12px] text-white/55 leading-relaxed pt-1 border-t border-white/[0.04]">
+          选择到期日 + 行权价后自动从 Deribit 拉取市价权利金和该合约 IV。每条腿独立使用自己的 IV 定价；IV 偏移滑块在各腿基础上叠加偏移。未选真实合约时用全局 IV + BS 估算。
+        </p>
+      </div>
     </Panel>
   );
 }

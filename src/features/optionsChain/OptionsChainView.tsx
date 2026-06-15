@@ -715,7 +715,7 @@ export default function OptionsChainView() {
                 initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} className="rounded-[10px] overflow-hidden border pointer-events-auto"
                 style={{ width: '88vw', height: '78vh', maxWidth: 1260, borderColor: BORDER_C, boxShadow: '0 32px 80px rgba(0,0,0,0.75)' }}>
-                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : deribitUniverse === 'linear-usdc' ? `deribit-usdc-chain-${coin}` : `deribit-chain-${coin}`} marketQuotes={marketQuotes} />
+                <TradingPanel selected={liveSelected ?? selectedCell} coin={coin} source={source} spot={spot} daysToExp={expiry.daysToExp} dateLabel={expiry.dateLabel} dec={dec} book={book} onClose={() => setSelectedCell(null)} chainFeedKey={source === 'bybit' ? `option-chain-${coin}` : deribitUniverse === 'linear-usdc' ? `deribit-usdc-chain-${coin}` : `deribit-chain-${coin}`} marketQuotes={marketQuotes} />
               </motion.div>
             </div>
           </>

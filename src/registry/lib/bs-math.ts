@@ -117,3 +117,21 @@ export function bsPut(S: number, K: number, T: number, iv: number): number {
   const d2 = d1 - sigma * sqrtT;
   return K * normCDF(-d2) - S * normCDF(-d1);
 }
+
+/** Newton-Raphson IV solver: find IV (percent, e.g. 48.3) that matches marketPrice. */
+export function bsIV(S: number, K: number, T: number, marketPrice: number, call: boolean): number | null {
+  if (S <= 0 || K <= 0 || T <= 1 / 365 || marketPrice <= 0) return null;
+  // Use the price function
+  const priceFn = call ? bsCall : bsPut;
+  let iv = 50; // initial guess: 50%
+  for (let i = 0; i < 20; i++) {
+    const p = priceFn(S, K, T, iv);
+    const diff = p - marketPrice;
+    if (Math.abs(diff) < 1e-8) return iv;
+    const v = bsVega(S, K, T, iv); // per 1% IV
+    if (v <= 1e-12) return null;
+    iv = iv - diff / v;
+    if (iv < 0.1 || iv > 500) return null; // sanity bounds
+  }
+  return iv;
+}

@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import type { Coin, DataSource, Side } from './chainModel';
 import { fillAgainstBook, type DepthBook, type DepthLevel, type SimPosition } from './simBook';
+import { bsIV } from '../../registry/lib/bs-math';
 import type { GlobalOptionBook } from './optionBookStore';
 import {
   createBybitLiveAdapter,
@@ -929,8 +930,8 @@ function ExecutionModeControls({
   );
 }
 
-export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, book, executionAdapter, onClose, chainFeedKey, marketQuotes }: {
-  selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number;
+export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec, daysToExp, book, executionAdapter, onClose, chainFeedKey, marketQuotes }: {
+  selected: SelectedCell; coin: Coin; source: DataSource; spot: number; dateLabel: string; dec: number; daysToExp: number;
   book: GlobalOptionBook; executionAdapter?: ExecutionAdapter; onClose: () => void; chainFeedKey: string;
   marketQuotes?: Map<string, PositionMarketQuote>;
 }) => {
@@ -993,10 +994,19 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   }, [rawDepth, opt.ask, opt.bid]);
 
   // 显示阶梯（带累计 total，各取前 8 档）
+  const T = daysToExp / 365;
   const ladder = useMemo(() => {
-    const mk = (levels: DepthLevel[]) => { let cum = 0; return levels.slice(0, 8).map(l => { cum += l.size; return { price: l.price, size: l.size, total: cum }; }); };
+    const strike = row.strike;
+    const isCall = side === 'call';
+    const mk = (levels: DepthLevel[]) => {
+      let cum = 0;
+      return levels.slice(0, 8).map(l => {
+        cum += l.size;
+        return { price: l.price, size: l.size, total: cum, iv: bsIV(spot, strike, T, l.price, isCall) };
+      });
+    };
     return { asks: mk(usdBook?.asks ?? []), bids: mk(usdBook?.bids ?? []) };
-  }, [usdBook]);
+  }, [usdBook, spot, row.strike, side, T]);
   const maxAskTotal = ladder.asks[ladder.asks.length - 1]?.total ?? 1;
   const maxBidTotal = ladder.bids[ladder.bids.length - 1]?.total ?? 1;
 
@@ -1320,19 +1330,29 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2 py-1 text-[11px]" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
+                      <div className="grid grid-cols-[2fr_1.5fr_3fr_2fr_2fr_3fr_1.5fr_2fr] px-2 py-1 text-[11px]" style={{ borderBottom: `1px solid ${SUBTLE_LINE}`, background: TABLE_HEAD_BG, color: 'rgba(255,255,255,0.45)' }}>
                         <span className="text-right">总计</span><span className="text-right">数量</span>
-                        <span className="text-right pr-3">买价</span><span className="text-left pl-3">卖价</span>
-                        <span className="text-right">数量</span><span className="text-right">总计</span>
+                        <span className="text-right pr-1">IV</span><span className="text-right pr-2">买价</span>
+                        <span className="text-left pl-2">卖价</span><span className="text-left pl-1">IV</span>
+                        <span className="text-left">数量</span><span className="text-left">总计</span>
                       </div>
                       {Array.from({ length: Math.max(ladder.asks.length, ladder.bids.length) }, (_, i) => {
                         const a = ladder.asks[i], b = ladder.bids[i];
                         return (
-                          <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_3fr_1.5fr_2fr] px-2" style={{ height: 26 }}>
+                          <div key={i} className="relative grid grid-cols-[2fr_1.5fr_3fr_2fr_2fr_3fr_1.5fr_2fr] px-2" style={{ height: 28 }}>
                             {b && <div className="absolute left-0 top-0 h-full pointer-events-none" style={{ width: `${(b.total / maxBidTotal) * 48}%`, background: 'rgba(40,200,64,0.08)' }} />}
                             {a && <div className="absolute right-0 top-0 h-full pointer-events-none" style={{ width: `${(a.total / maxAskTotal) * 48}%`, background: 'rgba(255,95,87,0.08)' }} />}
                             <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: 'rgba(255,255,255,0.45)' }}>{b ? b.total.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{b ? b.size.toFixed(2) : '—'}</span>
+                            <span
+                              className="justify-self-end text-[11px] text-right self-center relative z-10 rounded-[4px] px-1.5 py-0.5 transition-colors hover:bg-[rgba(36,174,100,0.08)]"
+                              style={{ ...TABNUM, color: '#EAECEF', cursor: b ? 'pointer' : 'default' }}
+                              onClick={() => b && setQty(b.size.toFixed(0))}
+                            >{b ? b.size.toFixed(2) : '—'}</span>
+                            <span
+                              className="justify-self-end text-[11px] text-right self-center relative z-10 rounded-[4px] px-1.5 py-0.5 font-mono transition-colors hover:bg-[rgba(36,174,100,0.08)]"
+                              style={{ color: b?.iv != null ? '#EAECEF' : 'transparent', cursor: b ? 'pointer' : 'default' }}
+                              onClick={() => b && setIv(b.iv.toFixed(1))}
+                            >{b?.iv != null ? `${b.iv.toFixed(1)}%` : '—'}</span>
                             <span
                               className="relative z-10 self-center justify-self-end rounded-[4px] px-2 py-0.5 text-right text-[12px] font-medium transition-colors hover:bg-[rgba(36,174,100,0.12)]"
                               style={{ ...TABNUM, color: 'var(--db-up)', cursor: b ? 'pointer' : 'default' }}
@@ -1347,8 +1367,17 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                             >
                               {a ? a.price.toFixed(dec) : '—'}
                             </span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: '#EAECEF' }}>{a ? a.size.toFixed(2) : '—'}</span>
-                            <span className="text-[11px] text-right self-center relative z-10" style={{ ...TABNUM, color: 'rgba(255,255,255,0.45)' }}>{a ? a.total.toFixed(2) : '—'}</span>
+                            <span
+                              className="justify-self-start text-[11px] text-left self-center relative z-10 rounded-[4px] px-1.5 py-0.5 font-mono transition-colors hover:bg-[rgba(239,69,74,0.08)]"
+                              style={{ color: a?.iv != null ? '#EAECEF' : 'transparent', cursor: a ? 'pointer' : 'default' }}
+                              onClick={() => a && setIv(a.iv.toFixed(1))}
+                            >{a?.iv != null ? `${a.iv.toFixed(1)}%` : '—'}</span>
+                            <span
+                              className="justify-self-start text-[11px] text-left self-center relative z-10 rounded-[4px] px-1.5 py-0.5 transition-colors hover:bg-[rgba(239,69,74,0.08)]"
+                              style={{ ...TABNUM, color: '#EAECEF', cursor: a ? 'pointer' : 'default' }}
+                              onClick={() => a && setQty(a.size.toFixed(0))}
+                            >{a ? a.size.toFixed(2) : '—'}</span>
+                            <span className="text-[11px] text-left self-center relative z-10" style={{ ...TABNUM, color: 'rgba(255,255,255,0.45)' }}>{a ? a.total.toFixed(2) : '—'}</span>
                           </div>
                         );
                       })}

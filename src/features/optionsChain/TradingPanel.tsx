@@ -98,15 +98,15 @@ export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggle
   return (
     <div className="flex items-center gap-0.5 shrink-0">
       {onToggleMaximize && (
-        <button type="button" className="db-frame-iconbtn" onClick={onToggleMaximize}
+        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80 active:translate-y-px" onClick={onToggleMaximize}
           aria-label={maximized ? '还原' : '最大化'} title={maximized ? '还原' : '最大化'} aria-pressed={!!maximized}>
-          {maximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          {maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
         </button>
       )}
       {onToggleCollapse && (
-        <button type="button" className="db-frame-iconbtn" onClick={onToggleCollapse}
+        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80 active:translate-y-px" onClick={onToggleCollapse}
           aria-label={collapsed ? '展开' : '收起'} title={collapsed ? '展开' : '收起'} aria-expanded={!collapsed}>
-          <ChevronsUpDown size={15} />
+          <ChevronsUpDown size={14} />
         </button>
       )}
     </div>

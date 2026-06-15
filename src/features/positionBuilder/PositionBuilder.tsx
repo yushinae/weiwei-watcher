@@ -11,7 +11,7 @@ import {
   STORAGE_KEY, formatHours, roundStrike, TEMPLATES, gClass,
 } from './constants';
 import { Panel } from './Panel';
-import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders } from './panels';
+import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders, PositionSummaryStrip } from './panels';
 
 // ── localStorage persistence bootstrap (constants/types/greeks/Panel now live in
 //    ./constants, ./types, ./greeks, ./Panel) ─────────────────────────────────
@@ -1257,66 +1257,17 @@ export function PositionBuilder() {
             <div className="col-span-8 flex flex-col gap-2">
               {/* ── Position Summary ─────────────────────────────────────── */}
               {legs.length > 0 && (
-                <div className="grid grid-cols-8 gap-px bg-[var(--color-surface-2)] rounded-xl overflow-hidden text-center text-[11px]">
-                  {[
-                    {
-                      label: '策略',
-                      value: strategyName ?? '—',
-                      color: strategyName ? 'text-[var(--nexus-accent)]/75' : 'text-white/55',
-                      hint: '自动识别策略结构',
-                    },
-                    {
-                      label: 'IV Rank',
-                      value: ivRankPct !== null ? `${ivRankPct.toFixed(0)}%` : '—',
-                      color: ivRankPct === null ? 'text-white/55'
-                           : ivRankPct > 70 ? 'text-[var(--nexus-red)]'
-                           : ivRankPct < 30 ? 'text-[var(--nexus-green)]'
-                           : 'text-[var(--nexus-yellow)]',
-                      hint: 'IV 历史百分位（高 = 可考虑卖方；低 = 买方占优）',
-                    },
-                    {
-                      label: '到期PoP',
-                      value: probOfProfit !== null ? `${(probOfProfit * 100).toFixed(1)}%` : '—',
-                      color: probOfProfit !== null ? (probOfProfit >= 0.5 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]') : 'text-white/65',
-                      hint: '对数正态到期盈利概率（风险中性）',
-                    },
-                    {
-                      label: '净权利金',
-                      value: `${netPremium >= 0 ? '−' : '+'}${Math.abs(netPremium).toFixed(2)}`,
-                      color: netPremium < 0 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]',
-                      hint: netPremium >= 0 ? '净付出（借方价差）' : '净收取（贷方价差）',
-                    },
-                    {
-                      label: '最大盈利',
-                      value: maxProfit === null ? '—' : maxProfit > 9999 ? '+∞' : `+${maxProfit.toFixed(0)}`,
-                      color: maxProfit !== null && maxProfit > 0 ? 'text-[var(--nexus-green)]' : 'text-white/65',
-                      hint: '图表范围内到期最大 P/L',
-                    },
-                    {
-                      label: '最大亏损',
-                      value: maxLoss === null ? '—' : maxLoss < -9999 ? '−∞' : maxLoss.toFixed(0),
-                      color: maxLoss !== null && maxLoss < 0 ? 'text-[var(--nexus-red)]' : 'text-white/65',
-                      hint: '图表范围内到期最大亏损',
-                    },
-                    {
-                      label: 'Δ 敞口',
-                      value: `${grk.delta >= 0 ? '+' : ''}${grk.delta.toFixed(3)}`,
-                      color: grk.delta > 0.05 ? 'text-[var(--nexus-green)]' : grk.delta < -0.05 ? 'text-[var(--nexus-red)]' : 'text-white/50',
-                      hint: `Delta = ${(grk.delta * currentS).toFixed(0)} USDT 名义方向敞口`,
-                    },
-                    {
-                      label: '入场摩擦',
-                      value: totalSlippage > 0 ? `−${totalSlippage.toFixed(2)}` : '—',
-                      color: totalSlippage > 0 ? 'text-[var(--nexus-yellow)]' : 'text-white/55',
-                      hint: '半点差×数量（以市价入场相对于中间价的成本）',
-                    },
-                  ].map(({ label, value, color, hint }) => (
-                    <div key={label} className="bg-[var(--color-surface-2)] py-2 px-1" title={hint}>
-                      <div className="text-[10px] uppercase tracking-[0.05em] text-white/55 mb-1">{label}</div>
-                      <div className={cn('font-mono tnum font-semibold text-[14px]', color)}>{value}</div>
-                    </div>
-                  ))}
-                </div>
+                <PositionSummaryStrip
+                  strategyName={strategyName}
+                  ivRankPct={ivRankPct}
+                  probOfProfit={probOfProfit}
+                  netPremium={netPremium}
+                  maxProfit={maxProfit}
+                  maxLoss={maxLoss}
+                  grk={grk}
+                  currentS={currentS}
+                  totalSlippage={totalSlippage}
+                />
               )}
 
               {activeTab === 'chart' && <Panel title="损益曲线" noPadding noScroll

@@ -1,9 +1,12 @@
 // Right-rail analysis panels for the position builder. Each is a presentational
 // component driven by one memoized dataset from PositionBuilder.
 
+import type { Dispatch, SetStateAction } from 'react';
 import { cn } from '../../lib/utils';
 import { Panel } from './Panel';
 import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, formatHours, gClass } from './constants';
+
+interface VaRStats { var95: number; var99: number; cvar95: number; cvar99: number }
 
 // Expiry P/L heat-matrix across spot offset × IV offset; click a cell to jump there.
 export function ScenarioMatrixPanel({
@@ -321,6 +324,169 @@ export function GreeksHeatmapPanel({
          : heatmapMetric === 'gamma' ? 'Gamma 集中处是凸性最强的区域 — 绿 = 正 Gamma（买方）/ 红 = 负 Gamma（卖方）'
          : 'Vega 越大说明 IV 变动影响越强 — 绿 = 正 Vega（buy vol）/ 红 = 负 Vega（sell vol）'}
       </p>
+    </Panel>
+  );
+}
+
+// Risk tab: Monte-Carlo VaR/CVaR cards + P/L histogram + optional Merton jump risk.
+export function VaRPanel({
+  varCvar, setVarSeed, showJumpRisk, setShowJumpRisk,
+  jumpLambda, setJumpLambda, jumpMuPct, setJumpMuPct, jumpSigPct, setJumpSigPct, jumpVaR,
+}: {
+  varCvar: VaRStats & { baseS: number; histEdges: number[]; histCounts: number[]; hWidth: number };
+  setVarSeed: Dispatch<SetStateAction<number>>;
+  showJumpRisk: boolean;
+  setShowJumpRisk: Dispatch<SetStateAction<boolean>>;
+  jumpLambda: number;
+  setJumpLambda: Dispatch<SetStateAction<number>>;
+  jumpMuPct: number;
+  setJumpMuPct: Dispatch<SetStateAction<number>>;
+  jumpSigPct: number;
+  setJumpSigPct: Dispatch<SetStateAction<number>>;
+  jumpVaR: VaRStats | null;
+}) {
+  return (
+    <Panel title="风险价值 VaR / CVaR"
+      subtitle={<span>1日 · 对数正态 MC 5000条路径 · 基准价 {varCvar.baseS.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>}
+      actions={
+        <button onClick={() => setVarSeed(s => s + 1)}
+          className="flex items-center gap-1 px-2 py-1 rounded-[7px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors">
+          ↺ 重算
+        </button>
+      }
+    >
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'VaR 95%',  val: varCvar.var95,  hint: '5% 最差情形 P/L 下限' },
+          { label: 'CVaR 95%', val: varCvar.cvar95, hint: '最差 5% 情形均值（尾部期望）' },
+          { label: 'VaR 99%',  val: varCvar.var99,  hint: '1% 最差情形 P/L 下限' },
+          { label: 'CVaR 99%', val: varCvar.cvar99, hint: '最差 1% 均值（Expected Shortfall）' },
+        ].map(({ label, val, hint }) => (
+          <div key={label} className="bg-[var(--color-surface-2)] rounded-lg p-3">
+            <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">{label}</div>
+            <div className={cn('text-[16px] font-mono tnum mb-1', val < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
+              {val >= 0 ? '+' : ''}{val.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-white/55 leading-snug">{hint}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-white/55 mt-2">对数正态路径 · IV = 全局基础 IV · 仅腿位/Spot/IV 变化时自动刷新 · 点「重算」强制重新采样</p>
+
+      {/* P/L distribution histogram */}
+      {varCvar.histEdges.length > 0 && (() => {
+        const { histEdges, histCounts, hWidth } = varCvar;
+        const n = histCounts.length;
+        const hMin = histEdges[0], hMax = histEdges[n - 1] + hWidth;
+        const maxCount = Math.max(...histCounts);
+        const W = 560, H = 80, PAD = { l: 36, r: 10, t: 4, b: 22 };
+        const innerW = W - PAD.l - PAD.r, innerH = H - PAD.t - PAD.b;
+        const barW = innerW / n;
+        const sx = (v: number) => PAD.l + ((v - hMin) / (hMax - hMin)) * innerW;
+        const zeroX = sx(0), v95X = sx(varCvar.var95), v99X = sx(varCvar.var99);
+        return (
+          <div className="mt-3 pt-3 border-t border-white/[0.05]">
+            <p className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-2">P/L 分布（5000 路径 · 1 日）</p>
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible">
+              {histCounts.map((count, i) => {
+                const x = PAD.l + i * barW;
+                const bh = maxCount > 0 ? (count / maxCount) * innerH : 0;
+                const edge = histEdges[i];
+                return (
+                  <rect key={i} x={x + 0.5} y={PAD.t + innerH - bh}
+                    width={Math.max(0.5, barW - 0.5)} height={bh}
+                    fill={edge >= 0 ? 'rgba(52,211,153,0.55)' : 'rgba(248,113,113,0.55)'}>
+                    <title>{edge.toFixed(0)}–{(edge + hWidth).toFixed(0)}: {count}条</title>
+                  </rect>
+                );
+              })}
+              {hMin < 0 && hMax > 0 && (
+                <line x1={zeroX} x2={zeroX} y1={PAD.t} y2={PAD.t + innerH + 2}
+                  stroke="#8a8a8a" strokeWidth="1" strokeDasharray="3,2" />
+              )}
+              <line x1={v95X} x2={v95X} y1={PAD.t} y2={PAD.t + innerH} stroke="#FEBC2E" strokeWidth="1.2" strokeDasharray="2,2" />
+              <text x={v95X} y={PAD.t + innerH + 11} textAnchor="middle" fontSize="7" fill="rgba(251,191,36,0.65)">VaR95</text>
+              <line x1={v99X} x2={v99X} y1={PAD.t} y2={PAD.t + innerH} stroke="#FF5F57" strokeWidth="1.2" strokeDasharray="2,2" />
+              <text x={v99X} y={PAD.t + innerH + 11} textAnchor="middle" fontSize="7" fill="rgba(248,113,113,0.65)">VaR99</text>
+              {[hMin, (hMin + hMax) / 2, hMax].map((v, i) => (
+                <text key={i} x={sx(v)} y={H - 2} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.2)">
+                  {v >= 0 ? '+' : ''}{v.toFixed(0)}
+                </text>
+              ))}
+              <text x="4" y={H / 2 + 3} fontSize="7" fill="rgba(255,255,255,0.15)" textAnchor="middle" transform={`rotate(-90,7,${H / 2})`}>频率</text>
+            </svg>
+          </div>
+        );
+      })()}
+
+      {/* Jump Risk (Merton model) */}
+      <div className={cn(
+        'mt-3 rounded-lg border p-3 transition-colors',
+        showJumpRisk ? 'bg-[var(--nexus-yellow)]/[0.04] border-[var(--nexus-yellow)]/[0.18]' : 'bg-[var(--color-surface-2)] border-white/[0.06]',
+      )}>
+        <div className="flex items-center gap-2 mb-2">
+          <button onClick={() => setShowJumpRisk(v => !v)}
+            className={cn('w-8 h-4 rounded-full relative shrink-0 transition-colors', showJumpRisk ? 'bg-[var(--nexus-yellow)]/60' : 'bg-white/[0.1]')}>
+            <span className={cn('absolute top-0.5 w-3 h-3 rounded-full transition-all', showJumpRisk ? 'left-[18px] bg-[var(--nexus-yellow)]' : 'left-0.5 bg-white/40')} />
+          </button>
+          <span className={cn('text-[12px] font-semibold', showJumpRisk ? 'text-[var(--nexus-yellow)]/80' : 'text-white/55')}>
+            跳跃风险（Merton Jump-Diffusion）
+          </span>
+          {showJumpRisk && (
+            <span className="text-[10px] text-[var(--nexus-yellow)]/50 ml-1">λ={jumpLambda}/年 · μ_J={jumpMuPct}% · σ_J={jumpSigPct}%</span>
+          )}
+        </div>
+        {showJumpRisk && (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-[11px] text-white/55">跳跃频率 λ（/年）</span>
+                  <span className="font-mono text-[11px] text-white/60">{jumpLambda.toFixed(1)}</span>
+                </div>
+                <input type="range" min="0" max="20" step="0.5" value={jumpLambda}
+                  onChange={e => setJumpLambda(parseFloat(e.target.value))} className="w-full range-slider" />
+                <p className="text-[10px] text-white/55 mt-1">加密典型值 2–5；极端年可达 10+</p>
+              </div>
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-[11px] text-white/55">均值跳幅 μ_J</span>
+                  <span className="font-mono text-[11px] text-white/60">{jumpMuPct >= 0 ? '+' : ''}{jumpMuPct}%</span>
+                </div>
+                <input type="range" min="-50" max="30" value={jumpMuPct}
+                  onChange={e => setJumpMuPct(parseInt(e.target.value))} className="w-full range-slider" />
+                <p className="text-[10px] text-white/55 mt-1">负值 = 向下跳为主（加密典型）</p>
+              </div>
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-[11px] text-white/55">跳幅波动 σ_J</span>
+                  <span className="font-mono text-[11px] text-white/60">{jumpSigPct}%</span>
+                </div>
+                <input type="range" min="1" max="40" value={jumpSigPct}
+                  onChange={e => setJumpSigPct(parseInt(e.target.value))} className="w-full range-slider" />
+                <p className="text-[10px] text-white/55 mt-1">每次跳跃幅度的标准差</p>
+              </div>
+            </div>
+            {jumpVaR && (
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'VaR 95% (+跳)', val: jumpVaR.var95  },
+                  { label: 'CVaR 95% (+跳)', val: jumpVaR.cvar95 },
+                  { label: 'VaR 99% (+跳)', val: jumpVaR.var99  },
+                  { label: 'CVaR 99% (+跳)', val: jumpVaR.cvar99 },
+                ].map(({ label, val }) => (
+                  <div key={label} className="bg-[var(--nexus-yellow)]/[0.05] border border-[var(--nexus-yellow)]/[0.12] rounded-[8px] p-2">
+                    <div className="text-[10px] text-[var(--nexus-yellow)]/40 uppercase tracking-[0.05em] mb-1">{label}</div>
+                    <div className={cn('text-[14px] font-mono tnum', val < 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
+                      {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </Panel>
   );
 }

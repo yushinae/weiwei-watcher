@@ -490,3 +490,128 @@ export function VaRPanel({
     </Panel>
   );
 }
+
+// Risk tab: first-order P/L attribution to greeks + waterfall chart.
+export function PLAttributionPanel({
+  plAttribution, currentS, spot, hoursForward, ivAdjust,
+}: {
+  plAttribution: { plDelta: number; plGamma: number; plTheta: number; plVega: number; plResidual: number; plTotal: number };
+  currentS: number;
+  spot: number;
+  hoursForward: number;
+  ivAdjust: number;
+}) {
+  return (
+    <Panel title="P/L 归因" subtitle="当前情景 P/L 拆解为各希腊字母贡献（一阶近似，以入场价为基点）">
+      <div className="grid grid-cols-6 gap-2 text-[12px]">
+        {[
+          { label: 'Delta', val: plAttribution.plDelta, hint: `δ×ΔS (ΔS=${currentS > spot ? '+' : ''}${(currentS-spot).toFixed(0)})` },
+          { label: 'Gamma', val: plAttribution.plGamma, hint: `½γΔS²` },
+          { label: 'Theta', val: plAttribution.plTheta, hint: `θ×${(hoursForward/24).toFixed(1)}d` },
+          { label: 'Vega',  val: plAttribution.plVega,  hint: `ν×${ivAdjust>=0?'+':''}${(ivAdjust*100).toFixed(0)}%` },
+          { label: '残差',  val: plAttribution.plResidual, hint: '高阶效应 + 模型误差' },
+          { label: '合计',  val: plAttribution.plTotal,    hint: '情景总 P/L' },
+        ].map(({ label, val, hint }) => (
+          <div key={label} className={cn(
+            'rounded-[8px] p-2.5 border',
+            label === '合计'
+              ? 'bg-[#3A3F40] border-transparent'
+              : 'bg-[var(--color-surface-2)] border-white/[0.05]',
+          )}>
+            <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">{label}</div>
+            <div className={cn('text-[15px] font-mono tnum mb-0.5', gClass(val))}>
+              {val >= 0 ? '+' : ''}{val.toFixed(2)}
+            </div>
+            <div className="text-[10px] text-white/55 leading-snug">{hint}</div>
+          </div>
+        ))}
+      </div>
+      {/* Waterfall chart */}
+      {(() => {
+        const { plDelta, plGamma, plTheta, plVega, plResidual, plTotal } = plAttribution;
+        const segs = [
+          { label: 'Δ', val: plDelta,    col: '#ff9c2e' },
+          { label: 'Γ', val: plGamma,    col: '#a78bfa' },
+          { label: 'Θ', val: plTheta,    col: '#FEBC2E' },
+          { label: 'ν', val: plVega,     col: '#28C840' },
+          { label: '残', val: plResidual, col: '#FF5F57' },
+        ];
+        const runs: number[] = [];
+        let r = 0;
+        for (const s of segs) { runs.push(r); r += s.val; }
+        const W = 480, H = 90, PL = 10, PR = 10, PT = 8, PB = 22;
+        const iW = W - PL - PR, iH = H - PT - PB;
+        const totalCols = segs.length + 2;
+        const cW = iW / totalCols, bW = cW * 0.68, bP = cW * 0.16;
+        const allY = [...runs, ...segs.map((s, i) => runs[i] + s.val), 0, plTotal];
+        const yMin = Math.min(...allY), yMax = Math.max(...allY);
+        const yRng = yMax - yMin || 1;
+        const sy = (v: number) => PT + iH * (1 - (v - yMin) / yRng);
+        const zY = sy(0);
+        return (
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible mt-2">
+            <line x1={PL} x2={W - PR} y1={zY} y2={zY} stroke="#2e2e2e" strokeWidth="1" />
+            {segs.map((seg, i) => {
+              const x = PL + i * cW + bP;
+              const y1 = sy(runs[i]), y2 = sy(runs[i] + seg.val);
+              const bY = Math.min(y1, y2), bH = Math.max(1, Math.abs(y1 - y2));
+              const alpha = seg.val >= 0 ? 'cc' : '88';
+              return (
+                <g key={i}>
+                  <rect x={x} y={bY} width={bW} height={bH}
+                    fill={seg.col + alpha} stroke={seg.col} strokeWidth="0.5" strokeOpacity="0.5">
+                    <title>{seg.label}: {seg.val >= 0 ? '+' : ''}{seg.val.toFixed(2)}</title>
+                  </rect>
+                  {i < segs.length - 1 && (
+                    <line x1={x + bW} x2={x + cW + bP} y1={sy(runs[i] + seg.val)} y2={sy(runs[i] + seg.val)}
+                      stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="2,2" />
+                  )}
+                  <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize="8.5"
+                    fill={seg.col} fillOpacity="0.8">{seg.label}</text>
+                  <text x={x + bW / 2} y={seg.val >= 0 ? bY - 2 : bY + bH + 8}
+                    textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.4)">
+                    {seg.val >= 0 ? '+' : ''}{seg.val.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })}
+            {(() => {
+              const x = PL + (segs.length + 1) * cW + bP;
+              const y1 = sy(0), y2 = sy(plTotal);
+              const bY = Math.min(y1, y2), bH = Math.max(1, Math.abs(y1 - y2));
+              const fill = plTotal >= 0 ? 'rgba(52,211,153,0.75)' : 'rgba(248,113,113,0.75)';
+              const stroke = plTotal >= 0 ? '#28C840' : '#FF5F57';
+              return (
+                <g>
+                  <rect x={x} y={bY} width={bW} height={bH} fill={fill} stroke={stroke} strokeWidth="1">
+                    <title>合计: {plTotal >= 0 ? '+' : ''}{plTotal.toFixed(2)}</title>
+                  </rect>
+                  <text x={x + bW / 2} y={H - 4} textAnchor="middle" fontSize="8.5" fill="rgba(255,255,255,0.55)">合计</text>
+                  <text x={x + bW / 2} y={plTotal >= 0 ? bY - 2 : bY + bH + 8}
+                    textAnchor="middle" fontSize="7" fill={plTotal >= 0 ? 'rgba(52,211,153,0.85)' : 'rgba(248,113,113,0.85)'}>
+                    {plTotal >= 0 ? '+' : ''}{plTotal.toFixed(1)}
+                  </text>
+                </g>
+              );
+            })()}
+            <text x="5" y={zY + 3} fontSize="7" fill="rgba(255,255,255,0.2)">0</text>
+          </svg>
+        );
+      })()}
+      <div className="flex gap-3 mt-1.5 flex-wrap text-[10px] text-white/65">
+        {[
+          { label: 'Delta', color: '#ff9c2e' },
+          { label: 'Gamma', color: '#a78bfa' },
+          { label: 'Theta', color: '#FEBC2E' },
+          { label: 'Vega',  color: '#28C840' },
+          { label: '残差',  color: '#FF5F57' },
+        ].map(({ label, color }) => (
+          <span key={label} className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: color, opacity: 0.7 }} />
+            {label}
+          </span>
+        ))}
+      </div>
+    </Panel>
+  );
+}

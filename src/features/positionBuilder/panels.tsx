@@ -3,7 +3,7 @@
 
 import { cn } from '../../lib/utils';
 import { Panel } from './Panel';
-import { SPOT_OFFSETS, IV_OFFSETS, formatHours, gClass } from './constants';
+import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, formatHours, gClass } from './constants';
 
 // Expiry P/L heat-matrix across spot offset × IV offset; click a cell to jump there.
 export function ScenarioMatrixPanel({
@@ -233,6 +233,94 @@ export function ThetaCalendarPanel({ thetaCalendar }: {
         <span className="flex items-center gap-1"><span className="inline-block w-4 border-t border-[#FEBC2E] opacity-60" />累计 P/L（右轴）</span>
         <span className="ml-auto">总 Theta 衰减 {thetaCalendar[thetaCalendar.length - 1].cumPL.toFixed(2)} USDT</span>
       </div>
+    </Panel>
+  );
+}
+
+// Greeks tab: Δ/Γ/ν heat-grid across spot × IV offsets, with a metric toggle.
+export function GreeksHeatmapPanel({
+  greeksHeatmapData, heatmapMetric, setHeatmapMetric, spotPctOffset, ivAdjust,
+}: {
+  greeksHeatmapData: number[][];
+  heatmapMetric: 'delta' | 'gamma' | 'vega';
+  setHeatmapMetric: (m: 'delta' | 'gamma' | 'vega') => void;
+  spotPctOffset: number;
+  ivAdjust: number;
+}) {
+  return (
+    <Panel title="Greeks 热力图"
+      subtitle={`${heatmapMetric === 'delta' ? 'Delta' : heatmapMetric === 'gamma' ? 'Gamma' : 'Vega'} · Spot 偏移 × IV 偏移（以入场时间为基点）`}
+      actions={
+        <div className="flex gap-1">
+          {(['delta', 'gamma', 'vega'] as const).map(m => (
+            <button key={m} onClick={() => setHeatmapMetric(m)}
+              className={cn(
+                'px-2 py-0.5 rounded-[5px] text-[11px] border transition-colors',
+                heatmapMetric === m
+                  ? 'bg-[var(--nexus-accent)]/15 border-[var(--nexus-accent)]/30 text-[var(--nexus-accent)]/80'
+                  : 'bg-white/[0.03] border-white/[0.07] text-white/55 hover:text-white/60',
+              )}>
+              {m === 'delta' ? 'Δ Delta' : m === 'gamma' ? 'Γ Gamma' : 'ν Vega'}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {(() => {
+        const absMax = Math.max(1e-8, ...greeksHeatmapData.flat().map(Math.abs));
+        const fmt = (v: number) => heatmapMetric === 'gamma' ? v.toFixed(4) : v.toFixed(3);
+        return (
+          <div className="overflow-x-auto">
+            <table className="w-full border-separate border-spacing-[3px] text-[11px]">
+              <thead>
+                <tr>
+                  <th className="text-left text-white/55 font-normal pb-1 pr-2 whitespace-nowrap">IV \ Spot</th>
+                  {HEATMAP_SPOT.map(s => (
+                    <th key={s} className={cn(
+                      'text-center font-mono font-normal pb-1 px-1',
+                      s === 0 ? 'text-white/60' : s < 0 ? 'text-[var(--nexus-red)]/60' : 'text-[var(--nexus-green)]/60',
+                    )}>
+                      {s >= 0 ? '+' : ''}{s}%
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {HEATMAP_IV.map((ivOff, ri) => (
+                  <tr key={ivOff}>
+                    <td className={cn('text-right pr-2 font-mono whitespace-nowrap', ivOff === 0 ? 'text-white/60' : 'text-white/65')}>
+                      {ivOff >= 0 ? '+' : ''}{(ivOff * 100).toFixed(0)}%
+                    </td>
+                    {greeksHeatmapData[ri].map((val, ci) => {
+                      const intensity = Math.min(0.75, Math.abs(val) / absMax * 0.75);
+                      const nearSpot = Math.abs(HEATMAP_SPOT[ci] - spotPctOffset) < 11;
+                      const nearIv   = Math.abs(ivOff - ivAdjust) < 0.12;
+                      return (
+                        <td key={ci}
+                          style={{ backgroundColor: val > 0 ? `rgba(52,211,153,${intensity})` : val < 0 ? `rgba(248,113,113,${intensity})` : 'transparent' }}
+                          className={cn(
+                            'text-center py-1 px-1.5 font-mono rounded-[4px]',
+                            val > 0 ? 'text-green-200' : val < 0 ? 'text-red-200' : 'text-white/55',
+                            nearSpot && nearIv && 'ring-1 ring-[var(--nexus-accent)]/70 ring-inset',
+                          )}
+                          title={`Spot ${HEATMAP_SPOT[ci] >= 0 ? '+' : ''}${HEATMAP_SPOT[ci]}% / IV ${ivOff >= 0 ? '+' : ''}${(ivOff * 100).toFixed(0)}%  →  ${heatmapMetric}=${fmt(val)}`}
+                        >
+                          {fmt(val)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+      <p className="text-[11px] text-white/55 mt-1.5">
+        {heatmapMetric === 'delta' ? 'Delta 越大说明方向性敞口越强，绿 = 净多 / 红 = 净空'
+         : heatmapMetric === 'gamma' ? 'Gamma 集中处是凸性最强的区域 — 绿 = 正 Gamma（买方）/ 红 = 负 Gamma（卖方）'
+         : 'Vega 越大说明 IV 变动影响越强 — 绿 = 正 Vega（buy vol）/ 红 = 负 Vega（sell vol）'}
+      </p>
     </Panel>
   );
 }

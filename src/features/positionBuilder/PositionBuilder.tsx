@@ -8,10 +8,9 @@ import type { Leg, DeribitInstrument, ExpiryGroup, RightTab } from './types';
 import {
   PRESETS, DERIBIT_INDEX, N_POINTS, SPOT_OFFSETS, IV_OFFSETS,
   HEATMAP_SPOT, HEATMAP_IV, LADDER_OFFSETS, RIGHT_TABS, SELECT_CLS,
-  STORAGE_KEY, formatHours, roundStrike, TEMPLATES, gClass,
+  STORAGE_KEY, formatHours, roundStrike, TEMPLATES,
 } from './constants';
-import { Panel } from './Panel';
-import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders, PositionSummaryStrip, PLCurvePanel, DeltaGammaPanel, StrategyComposer, ScenarioParamsPanel } from './panels';
+import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders, PositionSummaryStrip, PLCurvePanel, DeltaGammaPanel, StrategyComposer, ScenarioParamsPanel, PositionGreeksPanel } from './panels';
 
 // ── localStorage persistence bootstrap (constants/types/greeks/Panel now live in
 //    ./constants, ./types, ./greeks, ./Panel) ─────────────────────────────────
@@ -1072,174 +1071,23 @@ export function PositionBuilder() {
                 />
               )}
 
-              {activeTab === 'greeks' && <Panel title="希腊字母"
-                  subtitle={legs.length > 0 ? (
-                    <span className="flex items-center gap-3 text-[12px] text-white/55 flex-wrap">
-                      <span>
-                        情景 P/L&nbsp;
-                        <span className={cn('font-mono tnum', pl > 0 ? 'text-[var(--nexus-green)]' : pl < 0 ? 'text-[var(--nexus-red)]' : 'text-white/50')}>
-                          {pl >= 0 ? '+' : ''}{pl.toFixed(2)}
-                        </span>
-                      </span>
-                      <span className="text-white/55">·</span>
-                      <span>
-                        净权利金&nbsp;
-                        <span className={cn('font-mono tnum', netPremium < 0 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]')}>
-                          {netPremium >= 0 ? '−' : '+'}{Math.abs(netPremium).toFixed(2)}
-                        </span>
-                      </span>
-                      {probOfProfit !== null && (
-                        <>
-                          <span className="text-white/55">·</span>
-                          <span title="到期盈利概率：以情景基准价为中心的对数正态分布，积分盈利区间概率">
-                            到期PoP&nbsp;
-                            <span className={cn('font-mono tnum', probOfProfit >= 0.5 ? 'text-[var(--nexus-green)]' : 'text-[var(--nexus-red)]')}>
-                              {(probOfProfit * 100).toFixed(1)}%
-                            </span>
-                          </span>
-                        </>
-                      )}
-                      {totalSlippage > 0 && (
-                        <>
-                          <span className="text-white/55">·</span>
-                          <span title="各腿半点差 × 数量之和，即以市价入场相对于中间价的摩擦成本">
-                            入场摩擦&nbsp;
-                            <span className="font-mono tnum text-[var(--nexus-yellow)]">
-                              −{totalSlippage.toFixed(2)}
-                            </span>
-                          </span>
-                        </>
-                      )}
-                      {breakevens.length > 0 && (
-                        <>
-                          <span className="text-white/55">·</span>
-                          <span>
-                            盈亏平衡&nbsp;
-                            <span className="font-mono tnum text-[var(--nexus-green)]">
-                              {breakevens.map(b => b.toLocaleString('en-US', { maximumFractionDigits: 0 })).join(' / ')}
-                            </span>
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  ) : undefined}
-                >
-                  <div className="grid grid-cols-4 gap-3 pt-1">
-                    {[
-                      { label: 'Delta (Δ)', val: grk.delta, decimals: 3, desc: '标的涨 1 单位仓位变化' },
-                      { label: 'Gamma (Γ)', val: grk.gamma, decimals: 5, desc: 'Delta 的变化率' },
-                      { label: 'Theta (Θ) /天', val: grk.theta, decimals: 2, desc: '每天时间衰减' },
-                      { label: 'Vega (ν) /1%', val: grk.vega, decimals: 2, desc: 'IV 涨 1 个百分点' },
-                    ].map(({ label, val, decimals, desc }) => (
-                      <div key={label} className="bg-[var(--color-surface-2)] rounded-lg p-3">
-                        <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">{label}</div>
-                        <div className={cn('text-[18px] font-mono tnum mb-1', legs.length === 0 ? 'text-white/55' : gClass(val))}>
-                          {legs.length === 0 ? '—' : `${val >= 0 ? '+' : ''}${val.toFixed(decimals)}`}
-                        </div>
-                        <div className="text-[11px] text-white/55 leading-snug">{desc}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {legs.length > 0 && (
-                    <>
-                      {/* Dollar Greeks strip */}
-                      <div className="mt-2 flex items-center gap-4 flex-wrap px-3 py-2 rounded-[8px] bg-[var(--color-surface-2)] border border-white/[0.04] text-[12px]">
-                        <span className="text-[11px] text-white/55 uppercase tracking-[0.06em] shrink-0">美元化</span>
-                        <span className="text-white/65 shrink-0">$Δ</span>
-                        <span className={cn('font-mono tnum shrink-0', gClass(dollarGreeks.dollarDelta))}>
-                          {dollarGreeks.dollarDelta >= 0 ? '+' : ''}{dollarGreeks.dollarDelta.toFixed(0)}
-                        </span>
-                        <span className="text-white/55 text-[11px] shrink-0">USDT 名义敞口</span>
-                        <span className="text-white/55 shrink-0">·</span>
-                        <span className="text-white/65 shrink-0">$Γ /1%</span>
-                        <span className={cn('font-mono tnum shrink-0', gClass(dollarGreeks.dollarGamma))}>
-                          {dollarGreeks.dollarGamma >= 0 ? '+' : ''}{dollarGreeks.dollarGamma.toFixed(2)}
-                        </span>
-                        <span className="text-white/55 text-[11px] shrink-0">USDT 二阶 P/L</span>
-                      </div>
-
-                      {/* Per-leg Greeks table (only when 2+ legs) */}
-                      {legGreeksTable && legGreeksTable.length >= 2 && (
-                        <div className="mt-2 pt-2 border-t border-white/[0.04]">
-                          <p className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1.5">逐腿 Greeks 贡献</p>
-                          <table className="w-full text-[11px]">
-                            <thead>
-                              <tr className="text-white/55 text-[10px] uppercase tracking-[0.05em]">
-                                <th className="text-left font-normal pb-1.5 pr-2">腿</th>
-                                <th className="text-right font-normal pb-1.5 pr-2">Δ</th>
-                                <th className="text-right font-normal pb-1.5 pr-2">$Δ</th>
-                                <th className="text-right font-normal pb-1.5 pr-2">Γ</th>
-                                <th className="text-right font-normal pb-1.5 pr-2">Θ/天</th>
-                                <th className="text-right font-normal pb-1.5">ν/1%</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {legGreeksTable.map(row => (
-                                <tr key={row.label} className="border-t border-white/[0.03]">
-                                  <td className="py-1 pr-2 text-white/55 whitespace-nowrap">{row.label}</td>
-                                  <td className={cn('text-right pr-2 font-mono', gClass(row.delta))}>{row.delta >= 0 ? '+' : ''}{row.delta.toFixed(3)}</td>
-                                  <td className={cn('text-right pr-2 font-mono text-[10px]', gClass(row.dollarDelta))}>{row.dollarDelta >= 0 ? '+' : ''}{row.dollarDelta.toFixed(0)}</td>
-                                  <td className={cn('text-right pr-2 font-mono', gClass(row.gamma))}>{row.gamma.toFixed(5)}</td>
-                                  <td className={cn('text-right pr-2 font-mono', gClass(row.theta))}>{row.theta.toFixed(2)}</td>
-                                  <td className={cn('text-right font-mono', gClass(row.vega))}>{row.vega.toFixed(2)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-4 gap-3 mt-2">
-                        {[
-                          { label: 'Vanna /1% IV', val: grk.vanna, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'IV 涨 1% 带来的 delta 变化；方向-波动率交叉敞口' },
-                          { label: 'Volga /1% IV', val: grk.volga, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'IV 涨 1% 带来的 vega 变化（IV 凸性）；正值受益于 IV 大幅移动' },
-                          { label: 'Charm /天',    val: grk.charm, fmt: (v: number) => (v >= 0 ? '+' : '') + v.toFixed(4), desc: 'Delta 每天衰减量；临近到期时急速增大' },
-                          { label: 'Speed',        val: grk.speed, fmt: (v: number) => v.toExponential(2),                 desc: '∂Γ/∂S：大幅移动时 gamma 的变化；绝对值越大模型越快失效' },
-                        ].map(({ label, val, fmt, desc }) => (
-                          <div key={label} className="bg-[var(--color-surface-2)] border border-white/[0.04] rounded-lg p-3">
-                            <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">{label}</div>
-                            <div className={cn('text-[14px] font-mono tnum mb-1', gClass(val))}>{fmt(val)}</div>
-                            <div className="text-[10px] text-white/55 leading-snug">{desc}</div>
-                          </div>
-                        ))}
-                      </div>
-                      {/* Delta hedge suggestion */}
-                      <div className="mt-2 flex items-center gap-3 px-3 py-2 rounded-[8px] bg-[var(--color-surface-2)] border border-white/[0.04] text-[12px]">
-                        <span className="text-white/55 shrink-0">Δ 对冲建议</span>
-                        {Math.abs(grk.delta) < 0.001 ? (
-                          <span className="text-white/55">仓位已近似 Delta 中性</span>
-                        ) : (
-                          <>
-                            <span className={cn('font-mono tnum font-semibold', grk.delta > 0 ? 'text-[var(--nexus-red)]' : 'text-[var(--nexus-green)]')}>
-                              {grk.delta > 0 ? '做空' : '做多'} {Math.abs(grk.delta).toFixed(4)} {symbol}
-                            </span>
-                            <span className="text-white/55">
-                              (≈ {(Math.abs(grk.delta) * currentS).toFixed(0)} USDT 名义敞口)
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
-                  {(maxProfit !== null || maxLoss !== null) && (
-                    <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-white/[0.04]">
-                      <div className="bg-[var(--color-surface-2)] rounded-lg p-3">
-                        <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">最大盈利（到期）</div>
-                        <div className={cn('text-[18px] font-mono tnum mb-1', maxProfit && maxProfit > 0 ? 'text-[var(--nexus-green)]' : 'text-white/65')}>
-                          {maxProfit === null ? '—' : maxProfit > 9999 ? '+∞ *' : `+${maxProfit.toFixed(0)}`}
-                        </div>
-                        <div className="text-[11px] text-white/55">图表范围内最大值</div>
-                      </div>
-                      <div className="bg-[var(--color-surface-2)] rounded-lg p-3">
-                        <div className="text-[10px] uppercase tracking-[0.06em] text-white/55 mb-1">最大亏损（到期）</div>
-                        <div className={cn('text-[18px] font-mono tnum mb-1', maxLoss && maxLoss < 0 ? 'text-[var(--nexus-red)]' : 'text-white/65')}>
-                          {maxLoss === null ? '—' : maxLoss < -9999 ? '−∞ *' : `${maxLoss.toFixed(0)}`}
-                        </div>
-                        <div className="text-[11px] text-white/55">图表范围内最小值</div>
-                      </div>
-                    </div>
-                  )}
-                </Panel>}
+              {activeTab === 'greeks' && (
+                <PositionGreeksPanel
+                  legs={legs}
+                  pl={pl}
+                  netPremium={netPremium}
+                  probOfProfit={probOfProfit}
+                  totalSlippage={totalSlippage}
+                  breakevens={breakevens}
+                  grk={grk}
+                  dollarGreeks={dollarGreeks}
+                  legGreeksTable={legGreeksTable}
+                  symbol={symbol}
+                  currentS={currentS}
+                  maxProfit={maxProfit}
+                  maxLoss={maxLoss}
+                />
+              )}
 
               {activeTab === 'risk' && varCvar && (
                 <VaRPanel

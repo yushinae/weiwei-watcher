@@ -11,7 +11,7 @@ import {
   STORAGE_KEY, formatHours, roundStrike, TEMPLATES, gClass,
 } from './constants';
 import { Panel } from './Panel';
-import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel } from './panels';
+import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders } from './panels';
 
 // ── localStorage persistence bootstrap (constants/types/greeks/Panel now live in
 //    ./constants, ./types, ./greeks, ./Panel) ─────────────────────────────────
@@ -1354,36 +1354,16 @@ export function PositionBuilder() {
                 </Panel>}
 
               {/* ── 始终可见：三滑杆 ──────────────────────────────────── */}
-              <div className="bg-[#17181E] rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-3 items-center">
-                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
-                  <span className="text-[11px] text-white/65 uppercase tracking-[0.06em] shrink-0 w-14">时间快进</span>
-                  <input type="range" min="0" max={maxHours || 720} step="1" value={hoursForward}
-                    onChange={e => setHoursForward(Number(e.target.value))}
-                    className="range-slider flex-1" />
-                  <span className="text-[12px] font-mono tnum text-white/55 shrink-0 w-12 text-right">{formatHours(hoursForward)}</span>
-                </div>
-                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
-                  <span className={cn('text-[11px] uppercase tracking-[0.06em] shrink-0 w-14', correlatedMode ? 'text-[var(--nexus-yellow)]/50' : 'text-white/65')}>
-                    {correlatedMode ? 'IV (ρ)' : 'IV 偏移'}
-                  </span>
-                  <input type="range" min="-60" max="100" step="1" value={Math.round(ivAdjust * 100)}
-                    disabled={correlatedMode}
-                    onChange={e => setIvAdjust(Number(e.target.value) / 100)}
-                    className={cn('range-slider flex-1', correlatedMode && 'opacity-30')} />
-                  <span className={cn('text-[12px] font-mono tnum shrink-0 w-12 text-right', ivAdjust > 0 ? 'text-[var(--nexus-red)]' : ivAdjust < 0 ? 'text-[var(--nexus-green)]' : 'text-white/55')}>
-                    {ivAdjust >= 0 ? '+' : ''}{(ivAdjust * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 flex-1 min-w-[160px]">
-                  <span className="text-[11px] text-white/65 uppercase tracking-[0.06em] shrink-0 w-14">价格偏移</span>
-                  <input type="range" min="-30" max="30" step="0.5" value={spotPctOffset}
-                    onChange={e => setSpotPctOffset(Number(e.target.value))}
-                    className="range-slider flex-1" />
-                  <span className={cn('text-[12px] font-mono tnum shrink-0 w-12 text-right', spotPctOffset > 0 ? 'text-[var(--nexus-green)]' : spotPctOffset < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55')}>
-                    {spotPctOffset >= 0 ? '+' : ''}{spotPctOffset.toFixed(1)}%
-                  </span>
-                </div>
-              </div>
+              <ScenarioSliders
+                hoursForward={hoursForward}
+                setHoursForward={setHoursForward}
+                maxHours={maxHours}
+                correlatedMode={correlatedMode}
+                ivAdjust={ivAdjust}
+                setIvAdjust={setIvAdjust}
+                spotPctOffset={spotPctOffset}
+                setSpotPctOffset={setSpotPctOffset}
+              />
 
               {/* ── Tab 导航 ──────────────────────────────────────────── */}
               <div className="flex gap-1 px-1 pt-1 pb-0">

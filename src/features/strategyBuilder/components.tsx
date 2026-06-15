@@ -355,3 +355,32 @@ export function TableView({ timeColumns, priceRows, tableData, tableAbsMax, spot
     </div>
   );
 }
+
+// Header stats: current expiry · ATM IV · total open interest.
+export function HeaderStatsStrip({ visibleChainLabel, atmContract, iv, chain }: {
+  visibleChainLabel: string;
+  atmContract: { iv: number } | null | undefined;
+  iv: number;
+  chain: { oi: number }[];
+}) {
+  return (
+    <div className="hidden xl:grid grid-cols-3 gap-px overflow-hidden rounded-[6px] bg-black">
+      <div className="bg-[#2B2D35] px-3 py-1.5">
+        <div className="text-[10px] text-white/38">当前期限</div>
+        <div className="tnum text-[12px] font-semibold text-white/78">{visibleChainLabel}</div>
+      </div>
+      <div className="bg-[#2B2D35] px-3 py-1.5">
+        <div className="text-[10px] text-white/38">ATM IV</div>
+        <div className="tnum text-[12px] font-semibold text-white/78">
+          <AnimatedNumber value={atmContract?.iv ?? iv} format={value => `${value.toFixed(1)}%`} duration={0.18} />
+        </div>
+      </div>
+      <div className="bg-[#2B2D35] px-3 py-1.5">
+        <div className="text-[10px] text-white/38">Open Interest</div>
+        <div className="tnum text-[12px] font-semibold text-white/78">
+          <AnimatedNumber value={chain.reduce((sum, item) => sum + item.oi, 0)} format={formatCompact} duration={0.18} />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -21,7 +21,7 @@ import {
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
   pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView } from './components';
+import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView, HeaderStatsStrip } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -953,24 +953,7 @@ export function StrategyBuilder() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden xl:grid grid-cols-3 gap-px overflow-hidden rounded-[6px] bg-black">
-                <div className="bg-[#2B2D35] px-3 py-1.5">
-                  <div className="text-[10px] text-white/38">当前期限</div>
-                  <div className="tnum text-[12px] font-semibold text-white/78">{visibleChainLabel}</div>
-                </div>
-                <div className="bg-[#2B2D35] px-3 py-1.5">
-                  <div className="text-[10px] text-white/38">ATM IV</div>
-                  <div className="tnum text-[12px] font-semibold text-white/78">
-                    <AnimatedNumber value={atmContract?.iv ?? iv} format={value => `${value.toFixed(1)}%`} duration={0.18} />
-                  </div>
-                </div>
-                <div className="bg-[#2B2D35] px-3 py-1.5">
-                  <div className="text-[10px] text-white/38">Open Interest</div>
-                  <div className="tnum text-[12px] font-semibold text-white/78">
-                    <AnimatedNumber value={chain.reduce((sum, item) => sum + item.oi, 0)} format={formatCompact} duration={0.18} />
-                  </div>
-                </div>
-              </div>
+              <HeaderStatsStrip visibleChainLabel={visibleChainLabel} atmContract={atmContract} iv={iv} chain={chain} />
               <div className="relative">
                 <button
                   onClick={() => {

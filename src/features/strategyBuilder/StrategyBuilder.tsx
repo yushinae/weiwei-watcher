@@ -21,7 +21,7 @@ import {
   priceLegFromContract, makeLegFromContract, instantiateTemplate, rankTemplateForView,
   pickAxisStrikes, axisPositionPct, buildAxisLegLayout,
 } from './helpers';
-import { Panel, RecommendationSidebar, AddContractMenu, GreeksView, TableView, HeaderStatsStrip, AnalysisControls } from './components';
+import { Panel, RecommendationSidebar, GreeksView, TableView, AnalysisControls, StrategyBuilderHeader } from './components';
 
 // Types, the strategy-template catalog, and styling constants now live in ./types
 // and ./constants (imported above). Pure helpers + the component follow.
@@ -925,86 +925,35 @@ export function StrategyBuilder() {
       />
 
       <main className="strategy-builder-main min-w-0 flex-1 flex flex-col overflow-hidden">
-        <header className="h-[104px] shrink-0 border-b border-white/[0.08] bg-[#17181E]">
-          <div className="h-14 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <AnimatedNumber value={spot} format={formatSpotValue} duration={0.18} className="block text-[24px] font-semibold tnum" />
-                <div className={cn('text-[12px]', contracts.length > 0 ? 'text-[#24AE64]' : chainError ? 'text-[#FEBC2E]' : 'text-white/45')}>
-                  {chainLoading
-                    ? '加载 Deribit 期权链…'
-                    : contracts.length > 0
-                      ? `${hasRealChain ? 'Deribit 实盘链' : '合成期限'} · ${contracts.length} 合约`
-                      : chainError
-                        ? 'Deribit 不可用 · 模拟兜底'
-                        : '模拟兜底'}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <select value={marketSymbol} onChange={event => changeMarket(event.target.value)} className={cn(SELECT_CLS, '!w-32')}>
-                  {MARKETS.map(item => <option key={item.symbol} value={item.symbol}>{item.symbol} · {item.label}</option>)}
-                  </select>
-                <input
-                  value={spot}
-                  type="number"
-                  onChange={event => setSpot(Number(event.target.value) || market.spot)}
-                  className={cn(INPUT_CLS, '!w-28')}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <HeaderStatsStrip visibleChainLabel={visibleChainLabel} atmContract={atmContract} iv={iv} chain={chain} />
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setAddOpen(open => !open);
-                    setRiskMenuOpen(false);
-                  }}
-                  className="h-8 whitespace-nowrap rounded-[6px] bg-[#2B2D35] px-3 text-[12px] text-white/80 hover:bg-[#3A3B40]"
-                >
-                  + 添加合约
-                </button>
-                {addOpen && (
-                  <AddContractMenu
-                    visibleChainLabel={visibleChainLabel}
-                    hasRealChain={hasRealChain}
-                    chainRows={chainRows}
-                    addLeg={addLeg}
-                    addContractLeg={addContractLeg}
-                    onClose={() => setAddOpen(false)}
-                  />
-                )}
-              </div>
-              <button onClick={saveTrade} disabled={legs.length === 0} className="h-8 whitespace-nowrap rounded-[6px] bg-[#ff9c2e] px-3 text-[12px] font-semibold text-black hover:bg-[#ffad45] disabled:opacity-35">
-                {lastSavedAt ? '已保存' : '保存交易'}
-              </button>
-            </div>
-          </div>
-
-          <div className="h-[50px] px-5 flex items-center gap-2">
-            {expiryChoices.map(expiry => (
-              <button
-                key={expiry.expiryTs}
-                onClick={() => setSelectedExpiry(expiry.days)}
-                className={cn(
-                  'h-9 min-w-16 px-3 text-[12px]',
-                  SMALL_BUTTON_BASE,
-                  selectedExpiryInfo?.expiryTs === expiry.expiryTs && SMALL_BUTTON_ACTIVE,
-                )}
-              >
-                <div className="font-semibold">{expiry.label}</div>
-                <div className="text-[10px] text-white/42">{expiry.days}天</div>
-              </button>
-            ))}
-            <div className="ml-auto flex items-center gap-3">
-              <label className="flex items-center gap-2 text-[12px] text-white/55">
-                IV
-                <input type="number" value={iv} onChange={event => setIv(Number(event.target.value) || market.iv)} className={cn(INPUT_CLS, '!w-16 text-center')} />
-              </label>
-              <span className="text-[12px] text-white/38">模板：{activeTemplate.nameCn}</span>
-            </div>
-          </div>
-        </header>
+        <StrategyBuilderHeader
+          spot={spot}
+          contracts={contracts}
+          chainError={chainError}
+          chainLoading={chainLoading}
+          hasRealChain={hasRealChain}
+          marketSymbol={marketSymbol}
+          changeMarket={changeMarket}
+          setSpot={setSpot}
+          market={market}
+          visibleChainLabel={visibleChainLabel}
+          atmContract={atmContract}
+          iv={iv}
+          chain={chain}
+          addOpen={addOpen}
+          setAddOpen={setAddOpen}
+          setRiskMenuOpen={setRiskMenuOpen}
+          chainRows={chainRows}
+          addLeg={addLeg}
+          addContractLeg={addContractLeg}
+          saveTrade={saveTrade}
+          legs={legs}
+          lastSavedAt={lastSavedAt}
+          expiryChoices={expiryChoices}
+          setSelectedExpiry={setSelectedExpiry}
+          selectedExpiryInfo={selectedExpiryInfo}
+          setIv={setIv}
+          activeTemplate={activeTemplate}
+        />
 
         <div className="strategy-builder-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <section className="shrink-0 border-b border-white/[0.08] bg-black px-4 py-1.5">

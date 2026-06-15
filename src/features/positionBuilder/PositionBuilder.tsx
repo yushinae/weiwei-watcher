@@ -7,10 +7,10 @@ import { bsPrice, bsGreeks, hoursToYears } from './greeks';
 import type { Leg, DeribitInstrument, ExpiryGroup, RightTab } from './types';
 import {
   PRESETS, DERIBIT_INDEX, N_POINTS, SPOT_OFFSETS, IV_OFFSETS,
-  HEATMAP_SPOT, HEATMAP_IV, LADDER_OFFSETS, RIGHT_TABS, SELECT_CLS,
+  HEATMAP_SPOT, HEATMAP_IV, LADDER_OFFSETS, RIGHT_TABS,
   STORAGE_KEY, formatHours, roundStrike, TEMPLATES,
 } from './constants';
-import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders, PositionSummaryStrip, PLCurvePanel, DeltaGammaPanel, StrategyComposer, ScenarioParamsPanel, PositionGreeksPanel } from './panels';
+import { ScenarioMatrixPanel, GreeksLadderPanel, ThetaCalendarPanel, GreeksHeatmapPanel, VaRPanel, PLAttributionPanel, IVSkewPanel, ScenarioSliders, PositionSummaryStrip, PLCurvePanel, DeltaGammaPanel, StrategyComposer, ScenarioParamsPanel, PositionGreeksPanel, PositionBuilderHeader } from './panels';
 
 // ── localStorage persistence bootstrap (constants/types/greeks/Panel now live in
 //    ./constants, ./types, ./greeks, ./Panel) ─────────────────────────────────
@@ -899,63 +899,16 @@ export function PositionBuilder() {
 
   return (
     <div className="position-builder-page absolute inset-0 flex flex-col font-medium">
-      <header className="glass-nav px-4 py-3 flex items-center gap-4 sticky top-0 z-10" style={{ background: 'var(--color-surface-3)' }}>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[17px] font-semibold text-white/90 tracking-[-0.01em]">头寸压力测试</span>
-          <span className="text-[12px] text-white/55 uppercase tracking-[0.08em]">U 本位 · 策略训练沙盒</span>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-white/55 uppercase tracking-[0.06em]">{symbol} 指数</span>
-          {livePrice !== null ? (
-            <>
-              <span className={cn(
-                'font-mono tnum text-[15px] font-semibold transition-colors duration-150',
-                priceDir === 'up' ? 'price-flash-up' : priceDir === 'down' ? 'price-flash-down' : 'text-white/80',
-              )}>
-                {livePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <span className={cn(
-                'text-[12px] transition-opacity duration-150',
-                priceDir === 'up' ? 'text-[var(--nexus-green)]' : priceDir === 'down' ? 'text-[var(--nexus-red)]' : 'opacity-0',
-              )}>
-                {priceDir === 'up' ? '▲' : '▼'}
-              </span>
-              <button
-                onClick={() => { setSpot(livePrice); setLegs(prev => prev.map(l => repriceEntry(l))); }}
-                className="px-2 py-0.5 rounded-[6px] bg-[#2B2D35] text-[11px] text-white/55 hover:text-white/70 hover:bg-[#3A3B40] transition-colors"
-              >
-                用实时价
-              </button>
-            </>
-          ) : (
-            <span className="text-[13px] text-white/55 animate-pulse">连接中…</span>
-          )}
-        </div>
-
-        {livePL !== null && (
-          <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-white/[0.06]">
-            <span className="text-[11px] text-white/55 uppercase tracking-[0.06em]">实时盯市</span>
-            <span className={cn(
-              'font-mono tnum text-[15px] font-semibold',
-              livePL > 0 ? 'text-[var(--nexus-green)]' : livePL < 0 ? 'text-[var(--nexus-red)]' : 'text-white/55',
-            )}>
-              {livePL >= 0 ? '+' : ''}{livePL.toFixed(2)}
-            </span>
-            <span className="text-[11px] text-white/55">USDT</span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <span className="text-[12px] text-white/65 uppercase tracking-[0.06em]">标的</span>
-          <select value={symbol} onChange={e => changeSymbol(e.target.value)} className={cn(SELECT_CLS, '!w-24')}>
-            <option value="BTC">BTC</option>
-            <option value="ETH">ETH</option>
-            <option value="SOL">SOL</option>
-          </select>
-        </div>
-
-      </header>
+      <PositionBuilderHeader
+        symbol={symbol}
+        livePrice={livePrice}
+        priceDir={priceDir}
+        setSpot={setSpot}
+        setLegs={setLegs}
+        repriceEntry={repriceEntry}
+        livePL={livePL}
+        changeSymbol={changeSymbol}
+      />
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-2 pb-2">

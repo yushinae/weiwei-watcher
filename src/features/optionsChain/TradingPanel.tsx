@@ -778,8 +778,7 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
             ...style,
           }}>
           <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-b border-white/[0.05]">
-            <div className="text-[12px] font-semibold text-white/78">模拟仓位</div>
-            <span className="rounded px-1.5 py-[2px] text-[9px] font-bold text-[var(--db-accent)]" style={{ background: 'rgba(247,166,0,0.12)' }}>SIM</span>
+            <div className="text-[12px] font-semibold text-white/78">持仓</div>
             {tabBar}
             <div className="flex-1" />
             <button onClick={() => setCollapsed(c => !c)} className="flex h-7 w-7 items-center justify-center rounded-[8px] text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80" title={collapsed ? '展开仓位面板' : '收起仓位面板'}>
@@ -807,7 +806,7 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
     <>
       <div className={cn('flex flex-col shrink-0 min-h-0', className)} style={{ borderTop: BORDER, backgroundColor: PANEL_BG, ...style }}>
         <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-b border-white/[0.05]">
-          <div className="text-[12px] font-semibold text-white/78">模拟仓位</div>
+          <div className="text-[12px] font-semibold text-white/78">持仓</div>
           {tabBar}
         </div>
         <div className="border-b border-white/[0.04] px-3 py-2">{summary}</div>

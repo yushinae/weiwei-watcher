@@ -1,7 +1,10 @@
 // Right-rail analysis panels for the position builder. Each is a presentational
 // component driven by one memoized dataset from PositionBuilder.
 
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction, Ref } from 'react';
+import ReactECharts from 'echarts-for-react/lib/core';
+import type { EChartsOption } from 'echarts';
+import echarts from '../../components/echart/echartsCore';
 import { cn } from '../../lib/utils';
 import { Panel } from './Panel';
 import { SPOT_OFFSETS, IV_OFFSETS, HEATMAP_SPOT, HEATMAP_IV, formatHours, gClass } from './constants';
@@ -842,5 +845,76 @@ export function PositionSummaryStrip({
         </div>
       ))}
     </div>
+  );
+}
+
+// Chart tab: payoff curve (current scenario / expiry / live / breakeven).
+export function PLCurvePanel({ legs, showTimeSlices, setShowTimeSlices, chartRef, option }: {
+  legs: unknown[];
+  showTimeSlices: boolean;
+  setShowTimeSlices: Dispatch<SetStateAction<boolean>>;
+  chartRef: Ref<ReactECharts>;
+  option: EChartsOption;
+}) {
+  return (
+    <Panel title="损益曲线" noPadding noScroll
+      subtitle={
+        <span className="flex items-center gap-3 flex-wrap text-[12px] text-white/65">
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[var(--nexus-accent)]" />当前情景</span>
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed border-white/30" />到期</span>
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full border-2 border-white bg-transparent" />实时</span>
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rotate-45 bg-[#28C840]" />盈亏平衡</span>
+          {legs.length > 0 && (
+            <button
+              onClick={() => setShowTimeSlices(v => !v)}
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[11px] transition-colors',
+                showTimeSlices
+                  ? 'border-[var(--nexus-accent)]/40 text-[var(--nexus-accent)]/80 bg-[var(--nexus-accent)]/10'
+                  : 'border-transparent bg-[#2B2D35] text-white/65 hover:bg-[#3A3B40] hover:text-white/80',
+              )}
+            >
+              <span className="inline-block w-3 border-t border-dotted border-current" />
+              时间切片
+            </button>
+          )}
+        </span>
+      }
+    >
+      <ReactECharts
+        ref={chartRef}
+        echarts={echarts}
+        option={option}
+        notMerge={true}
+        style={{ width: '100%', height: 400 }}
+        opts={{ renderer: 'canvas' }}
+      />
+    </Panel>
+  );
+}
+
+// Chart tab: Delta (left axis) / Gamma (right axis) profile curves.
+export function DeltaGammaPanel({ chartRef, option }: {
+  chartRef: Ref<ReactECharts>;
+  option: EChartsOption;
+}) {
+  return (
+    <Panel title="Delta / Gamma 曲线" noPadding noScroll
+      subtitle={
+        <span className="flex items-center gap-3 text-[12px] text-white/65">
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 h-[2px] bg-[var(--nexus-accent)]" />Delta（左轴）</span>
+          <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dotted border-[#a78bfa]" />Gamma（右轴）</span>
+        </span>
+      }
+    >
+      <ReactECharts
+        ref={chartRef}
+        echarts={echarts}
+        option={option}
+        notMerge={true}
+        style={{ width: '100%', height: 220 }}
+        opts={{ renderer: 'canvas' }}
+      />
+    </Panel>
   );
 }

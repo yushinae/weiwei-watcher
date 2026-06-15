@@ -25,8 +25,9 @@ import { Popover, ChainRowComp, ColHeaderRow, SectionRow } from './chainCells';
 import type { SelectedCell } from './chainCells';
 import { useGlobalOptionBook } from './optionBookStore';
 import { useBookMarkFeed } from './useBookMarkFeed';
-import { FrameControls, PositionsPanel, TradingPanel, type PositionMarketQuote } from './TradingPanel';
+import { ExecutionModeControls, FrameControls, PositionsPanel, TradingPanel, type PositionMarketQuote } from './TradingPanel';
 import type { SimPosition } from './simBook';
+import { useExecutionLiveReady, useExecutionMode } from './executionMode';
 import './options-chain.css';
 
 type FilterKey = 'all' | 'atm5' | 'atm10';
@@ -217,6 +218,8 @@ export default function OptionsChainView() {
   const deribitUniverse = activeUnderlying.endsWith('USDC') ? 'linear-usdc' : 'inverse';
   const deribit = useDeribitChainOptions(coin, deribitUniverse);
   const error = source === 'bybit' ? bybit.error : null;
+  const [executionMode, setExecutionMode] = useExecutionMode();
+  const { liveReady } = useExecutionLiveReady(source, executionMode);
 
   const book = useGlobalOptionBook();
 
@@ -485,150 +488,165 @@ export default function OptionsChainView() {
 
       <div ref={parentRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden pb-1">
 
-        {/* ── Tab bar — underlying tabs + + button ─────────────────────── */}
-        <div className="flex items-center gap-0.5 pt-1 px-1 shrink-0" style={{ backgroundColor: BG_HEADER }}>
-          {tabs.map((u, i) => {
-            const isActive = i === activeTabIdx;
-            const src = sourceOf(u);
-            const c = src === 'bybit' ? '#f7a600' : 'var(--db-accent)';
-            return (
-              <div key={u} className="relative flex items-center">
-                <button
-                  onClick={() => setActiveTabIdx(i)}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 rounded-t-md text-[12px] font-bold transition-colors',
-                    isActive
-                      ? 'text-white/90'
-                      : 'text-white/45 hover:text-white/65',
-                  )}
-                  style={{ background: isActive ? BG_CARD : 'transparent' }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c }} />
-                  {u}
-                </button>
-                {isActive && (
-                  <div className="absolute bottom-0 left-2 right-2" style={{ height: 2, background: `linear-gradient(90deg, ${c} 0%, transparent 100%)` }} />
-                )}
-                {tabs.length > 1 && (
+        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-[32px_40px]" style={{ backgroundColor: BG_HEADER, borderBottom: `1px solid ${BORDER_C}` }}>
+          {/* ── Tab bar — underlying tabs + + button ─────────────────────── */}
+          <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-0.5 px-1 pt-1">
+            {tabs.map((u, i) => {
+              const isActive = i === activeTabIdx;
+              const src = sourceOf(u);
+              const c = src === 'bybit' ? '#f7a600' : 'var(--db-accent)';
+              return (
+                <div key={u} className="relative flex items-center">
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeTab(i); }}
-                    className="ml-0.5 w-4 h-4 flex items-center justify-center rounded hover:bg-white/[0.08] text-white/25 hover:text-white/55 transition-colors"
-                    title={`关闭 ${u}`}
+                    onClick={() => setActiveTabIdx(i)}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-t-md text-[12px] font-bold transition-colors',
+                      isActive
+                        ? 'text-white/90'
+                        : 'text-white/45 hover:text-white/65',
+                    )}
+                    style={{ background: isActive ? BG_CARD : 'transparent' }}
                   >
-                    <X size={10} />
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c }} />
+                    {u}
                   </button>
-                )}
-              </div>
-            );
-          })}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-2 right-2" style={{ height: 2, background: `linear-gradient(90deg, ${c} 0%, transparent 100%)` }} />
+                  )}
+                  {tabs.length > 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeTab(i); }}
+                      className="ml-0.5 w-4 h-4 flex items-center justify-center rounded hover:bg-white/[0.08] text-white/25 hover:text-white/55 transition-colors"
+                      title={`关闭 ${u}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
 
-          {/* + Add tab button */}
-          {availableUnderlyings.length > 0 && (
+            {/* + Add tab button */}
+            {availableUnderlyings.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setAddMenuOpen(v => !v)}
+                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/[0.06] text-white/35 hover:text-white/60 transition-colors"
+                  title="添加标的"
+                >
+                  <Plus size={14} />
+                </button>
+                <Popover open={addMenuOpen} onClose={() => setAddMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-1 w-[200px]">
+                  <div className="py-2 max-h-[300px] overflow-auto">
+                    {UNDERLYING_GROUPS.map(g => (
+                      <div key={g.title}>
+                        <div className="px-3 py-1 text-[10px] font-semibold text-white/30 uppercase">{g.title}</div>
+                        {g.items.filter(item => !tabs.includes(item.value)).map(item => (
+                          <button key={item.value} className="db-menu-item text-left" onClick={() => addTab(item.value)}>
+                            {item.value}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </Popover>
+              </div>
+            )}
+
+            <div className="flex-1" />
+            <div className="sm:hidden">
+              <FrameControls
+                collapsed={chainCollapsed} onToggleCollapse={() => setChainCollapsed(c => !c)} />
+            </div>
+          </div>
+
+          {/* ── Toolbar ──────────────────────────────────────────────────── */}
+          <div className="col-start-1 row-start-2 flex min-w-0 flex-wrap items-center gap-2 px-2 py-1.5">
             <div className="relative">
-              <button
-                onClick={() => setAddMenuOpen(v => !v)}
-                className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/[0.06] text-white/35 hover:text-white/60 transition-colors"
-                title="添加标的"
-              >
-                <Plus size={14} />
+              <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
+                {expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.dateLabel}</span>}
+                <ChevronDown size={14} className="text-white/50" />
               </button>
-              <Popover open={addMenuOpen} onClose={() => setAddMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-1 w-[200px]">
-                <div className="py-2 max-h-[300px] overflow-auto">
-                  {UNDERLYING_GROUPS.map(g => (
-                    <div key={g.title}>
-                      <div className="px-3 py-1 text-[10px] font-semibold text-white/30 uppercase">{g.title}</div>
-                      {g.items.filter(item => !tabs.includes(item.value)).map(item => (
-                        <button key={item.value} className="db-menu-item text-left" onClick={() => addTab(item.value)}>
-                          {item.value}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
+              <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[136px]">
+                <div className="py-2 max-h-[360px] overflow-auto">
+                  {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
+                  {expiries.map((e, i) => {
+                    const on = i === expiryIdx;
+                    return (
+                      <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); setTabState({ expiryIdx: i, expiryKey: e.key }); setSelectedCell(null); }}>
+                        <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
+                        <span className="font-mono font-semibold">{e.dateLabel}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </Popover>
             </div>
-          )}
 
-          <div className="flex-1" />
+            <div className="w-px h-4" style={{ background: BORDER_C }} />
 
-          <FrameControls
-            collapsed={chainCollapsed} onToggleCollapse={() => setChainCollapsed(c => !c)} />
-        </div>
+            <div className="relative">
+              <button className="db-menu-btn" onClick={() => { setColumnsOpen(v => !v); setFilterOpen(false); setExpiryMenuOpen(false); }}>
+                <SlidersHorizontal size={13} /> 列
+              </button>
+              <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[200px]">
+                <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.08]">
+                  <button className="text-[12px] font-semibold" style={{ color: 'var(--db-accent)' }} onClick={() => setTabState({ visibleColIds: SIDE_COLS.map(c => c.id) })}>全选</button>
+                  <span className="text-white/25">·</span>
+                  <button className="text-[12px] font-semibold text-white/55 hover:text-white/80" onClick={() => setTabState({ visibleColIds: ['mark', 'bid', 'ask', 'ivBid', 'ivAsk', 'delta', 'size', 'pos'] })}>精简</button>
+                  <div className="ml-auto text-[12px] text-white/45">{visibleColIds.size}/{SIDE_COLS.length}</div>
+                </div>
+                <div className="py-2 max-h-[420px] overflow-auto">
+                  {SIDE_COLS.map(c => {
+                    const on = visibleColIds.has(c.id);
+                    return (
+                      <button key={c.id} className="db-menu-item text-left" onClick={() => {
+                        const ids = tabState.visibleColIds;
+                        const next = ids.includes(c.id) ? ids.filter(id => id !== c.id) : [...ids, c.id];
+                        setTabState({ visibleColIds: next });
+                      }}>
+                        <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
+                        <span className="flex-1">{c.label}<span className="ml-2 text-white/35 font-mono text-[12px]">{c.subLabel}</span></span>
+                        <span className="text-white/30 font-mono text-[12px]">{c.w}px</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Popover>
+            </div>
 
-        {/* ── Toolbar ──────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 py-1.5 border-b px-2" style={{ borderBottom: `1px solid ${BORDER_C}`, backgroundColor: BG_HEADER }}>
-          <div className="relative">
-            <button className="db-menu-btn" onClick={() => { setExpiryMenuOpen(v => !v); setColumnsOpen(false); setFilterOpen(false); }}>
-              {expiry && <span className="font-mono font-bold" style={{ color: 'var(--db-accent)' }}>{expiry.dateLabel}</span>}
-              <ChevronDown size={14} className="text-white/50" />
+            <div className="relative">
+              <button className="db-menu-btn" onClick={() => { setFilterOpen(v => !v); setColumnsOpen(false); }}>
+                <Filter size={12} /> 过滤{filterKey !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--db-accent)' }} />}
+              </button>
+              <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[150px]">
+                {([{ k: 'all' as const, l: '全部行权价' }, { k: 'atm5' as const, l: 'ATM ±5 档' }, { k: 'atm10' as const, l: 'ATM ±10 档' }]).map(({ k, l }) => (
+                  <button key={k} className="db-menu-item text-left" onClick={() => { setFilterOpen(false); setTabState({ filterKey: k }); }}>
+                    <span className={cn('db-check', filterKey === k && 'is-on')}>{filterKey === k && <Check size={12} className="text-black" strokeWidth={3} />}</span>{l}
+                  </button>
+                ))}
+              </Popover>
+            </div>
+
+            <button className="db-menu-btn" onClick={() => setTabState({ showDist: !showDist })}>
+              <span className={cn('db-check', showDist && 'is-on')}>{showDist && <Check size={12} className="text-black" strokeWidth={3} />}</span>Dist
             </button>
-            <Popover open={expiryMenuOpen} onClose={() => setExpiryMenuOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[136px]">
-              <div className="py-2 max-h-[360px] overflow-auto">
-                {expiries.length === 0 && <div className="px-3 py-2 text-[12px] text-white/35">加载中…</div>}
-                {expiries.map((e, i) => {
-                  const on = i === expiryIdx;
-                  return (
-                    <button key={e.key} className="db-menu-item text-left" onClick={() => { setExpiryMenuOpen(false); setTabState({ expiryIdx: i, expiryKey: e.key }); setSelectedCell(null); }}>
-                      <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                      <span className="font-mono font-semibold">{e.dateLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Popover>
+
+            <div className="flex-1" />
           </div>
 
-          <div className="w-px h-4" style={{ background: BORDER_C }} />
-
-          <div className="relative">
-            <button className="db-menu-btn" onClick={() => { setColumnsOpen(v => !v); setFilterOpen(false); setExpiryMenuOpen(false); }}>
-              <SlidersHorizontal size={13} /> 列
-            </button>
-            <Popover open={columnsOpen} onClose={() => setColumnsOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[200px]">
-              <div className="px-3 py-2 flex items-center gap-2 border-b border-white/[0.08]">
-                <button className="text-[12px] font-semibold" style={{ color: 'var(--db-accent)' }} onClick={() => setTabState({ visibleColIds: SIDE_COLS.map(c => c.id) })}>全选</button>
-                <span className="text-white/25">·</span>
-                <button className="text-[12px] font-semibold text-white/55 hover:text-white/80" onClick={() => setTabState({ visibleColIds: ['mark', 'bid', 'ask', 'ivBid', 'ivAsk', 'delta', 'size', 'pos'] })}>精简</button>
-                <div className="ml-auto text-[12px] text-white/45">{visibleColIds.size}/{SIDE_COLS.length}</div>
-              </div>
-              <div className="py-2 max-h-[420px] overflow-auto">
-                {SIDE_COLS.map(c => {
-                  const on = visibleColIds.has(c.id);
-                  return (
-                    <button key={c.id} className="db-menu-item text-left" onClick={() => {
-                      const ids = tabState.visibleColIds;
-                      const next = ids.includes(c.id) ? ids.filter(id => id !== c.id) : [...ids, c.id];
-                      setTabState({ visibleColIds: next });
-                    }}>
-                      <span className={cn('db-check', on && 'is-on')}>{on && <Check size={12} className="text-black" strokeWidth={3} />}</span>
-                      <span className="flex-1">{c.label}<span className="ml-2 text-white/35 font-mono text-[12px]">{c.subLabel}</span></span>
-                      <span className="text-white/30 font-mono text-[12px]">{c.w}px</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Popover>
+          <div className="col-start-2 row-span-2 row-start-1 hidden items-center gap-3 px-3 sm:flex">
+            <ExecutionModeControls
+              compact
+              className="w-[146px]"
+              executionMode={executionMode}
+              liveReady={liveReady}
+              source={source}
+              onModeChange={setExecutionMode}
+            />
+            <FrameControls
+              collapsed={chainCollapsed} onToggleCollapse={() => setChainCollapsed(c => !c)} />
           </div>
-
-          <div className="relative">
-            <button className="db-menu-btn" onClick={() => { setFilterOpen(v => !v); setColumnsOpen(false); }}>
-              <Filter size={12} /> 过滤{filterKey !== 'all' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--db-accent)' }} />}
-            </button>
-            <Popover open={filterOpen} onClose={() => setFilterOpen(false)} panelClassName="db-menu-panel absolute left-0 top-full mt-2 w-[150px]">
-              {([{ k: 'all' as const, l: '全部行权价' }, { k: 'atm5' as const, l: 'ATM ±5 档' }, { k: 'atm10' as const, l: 'ATM ±10 档' }]).map(({ k, l }) => (
-                <button key={k} className="db-menu-item text-left" onClick={() => { setFilterOpen(false); setTabState({ filterKey: k }); }}>
-                  <span className={cn('db-check', filterKey === k && 'is-on')}>{filterKey === k && <Check size={12} className="text-black" strokeWidth={3} />}</span>{l}
-                </button>
-              ))}
-            </Popover>
-          </div>
-
-          <button className="db-menu-btn" onClick={() => setTabState({ showDist: !showDist })}>
-            <span className={cn('db-check', showDist && 'is-on')}>{showDist && <Check size={12} className="text-black" strokeWidth={3} />}</span>Dist
-          </button>
-
-          <div className="flex-1" />
-
         </div>
 
         {/* ── Chain card ────────────────────────────────────────────────── */}

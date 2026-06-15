@@ -26,6 +26,13 @@ import {
   type TimeInForce,
   type TradeIntent,
 } from './execution';
+import {
+  LIVE_ARMED,
+  LIVE_TESTNET,
+  executionStatusText,
+  useExecutionLiveReady,
+  useExecutionMode,
+} from './executionMode';
 import { useOptionDepth, depthFeedKey } from './optionDepth';
 import { Popover } from './chainCells';
 import type { SelectedCell } from './chainCells';
@@ -62,27 +69,6 @@ const TABLE_HEAD_BG = '#121318';
 const NAV_BG = '#15161D';
 const SUBTLE_LINE = 'rgba(255,255,255,0.06)';
 const ORANGE = '#ff9c2e';
-const EXEC_MODE_KEY = 'options.executionMode';
-const LIVE_TESTNET = false;
-const LIVE_ARMED = true;
-
-function storageGet(key: string, fallback: string): string {
-  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
-}
-
-function storageSet(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* noop */ }
-}
-
-function getDeribitCredentials() {
-  const clientId = import.meta.env.VITE_DERIBIT_API_KEY?.trim();
-  const clientSecret = import.meta.env.VITE_DERIBIT_API_SECRET?.trim();
-  return clientId && clientSecret ? { clientId, clientSecret } : null;
-}
-
-function initialExecutionMode(): ExecutionMode {
-  return storageGet(EXEC_MODE_KEY, 'sim') === 'live' ? 'live' : 'sim';
-}
 
 const fmtSigned = (v: number, digits = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
 export type PositionMarketQuote = Pick<Side, 'bid' | 'ask' | 'mark' | 'iv' | 'delta' | 'gamma' | 'theta' | 'vega' | 'instrument'> & {
@@ -873,33 +859,40 @@ const SANITY: Record<CheckLevel, { color: string; text: string }> = {
   block: { color: '#EF4444', text: '先改一下再下单' },
 };
 
-function ExecutionModeControls({
+export function ExecutionModeControls({
   executionMode,
   liveReady,
   source,
   onModeChange,
+  className,
+  compact = false,
 }: {
   executionMode: ExecutionMode;
   liveReady: { armed: boolean; credentials: boolean; venueSupported: boolean };
   source: DataSource;
   onModeChange: (mode: ExecutionMode) => void;
+  className?: string;
+  compact?: boolean;
 }) {
-  const venueLabel = source === 'bybit' ? 'Bybit' : 'Deribit';
-  const statusText = executionMode === 'sim'
-    ? '模拟账本'
-    : !liveReady.venueSupported
-      ? '通道未接入'
-      : !liveReady.credentials
-        ? '缺少密钥'
-        : `${venueLabel} 实盘`;
+  const statusText = executionStatusText(executionMode, liveReady, source);
 
   return (
-    <div className="hidden h-[50px] w-[132px] flex-col justify-center rounded-[6px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
-      <div className="mb-1 flex items-center justify-between gap-2">
+    <div
+      className={cn(
+        compact ? 'flex' : 'hidden lg:flex',
+        'flex-col rounded-[6px]',
+        compact ? 'py-1.5' : 'h-[54px] py-1.5',
+        compact ? 'w-[158px]' : 'w-[132px]',
+        compact ? 'justify-center px-1.5' : 'justify-center px-2',
+        className,
+      )}
+      style={{ background: TILE_BG }}
+    >
+      <div className={cn('flex items-center justify-between gap-2', compact ? 'mb-1.5' : 'mb-1')}>
         <span className="text-[10px] font-extrabold text-white/40">执行</span>
-        <span className="truncate text-[10px] font-semibold text-white/35">{statusText}</span>
+        <span className={cn('truncate text-[10px] font-semibold text-white/35', compact && 'max-w-[76px]')}>{statusText}</span>
       </div>
-      <div className="flex items-center gap-1">
+      <div className={cn('grid grid-cols-2', compact ? 'gap-1' : 'gap-1')}>
         {(['sim', 'live'] as const).map(mode => {
           const active = executionMode === mode;
           return (
@@ -908,7 +901,10 @@ function ExecutionModeControls({
               type="button"
               onClick={() => onModeChange(mode)}
               aria-pressed={active}
-              className="h-6 flex-1 rounded-[6px] text-[10px] font-extrabold transition-colors active:translate-y-px"
+              className={cn(
+                'rounded-[5px] text-[10px] font-extrabold transition-colors active:translate-y-px',
+                compact ? 'h-7 px-1' : 'h-6 px-1.5',
+              )}
               style={{
                 background: active ? (mode === 'sim' ? SELECTED_BG : 'rgba(239,68,68,0.18)') : 'transparent',
                 color: active ? (mode === 'sim' ? ORANGE : '#EF4444') : 'rgba(255,255,255,0.55)',
@@ -944,19 +940,8 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
   const [rtab, setRtab] = useState<'book' | 'trades' | 'greeks'>('book');
-  const [executionMode, setExecutionModeState] = useState<ExecutionMode>(initialExecutionMode);
-
-  const setExecutionMode = useCallback((mode: ExecutionMode) => {
-    setExecutionModeState(mode);
-    storageSet(EXEC_MODE_KEY, mode);
-  }, []);
-
-  const deribitCredentials = useMemo(() => getDeribitCredentials(), []);
-  const liveReady = useMemo(() => ({
-    armed: executionMode === 'live' ? LIVE_ARMED : false,
-    credentials: source === 'deribit' ? !!deribitCredentials : true,
-    venueSupported: source === 'deribit' || source === 'bybit',
-  }), [deribitCredentials, executionMode, source]);
+  const [executionMode, setExecutionMode] = useExecutionMode();
+  const { deribitCredentials, liveReady } = useExecutionLiveReady(source, executionMode);
   const adapter = useMemo<ExecutionAdapter>(() => {
     if (executionAdapter) return executionAdapter;
     if (executionMode === 'sim') return createSimExecutionAdapter(book);

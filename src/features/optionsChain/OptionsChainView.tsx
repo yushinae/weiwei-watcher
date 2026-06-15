@@ -210,7 +210,6 @@ export default function OptionsChainView() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [expiryMenuOpen, setExpiryMenuOpen] = useState(false);
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
-  const [maximized, setMaximized] = useState(false);
   const [chainCollapsed, setChainCollapsed] = useState(false);
   const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
 
@@ -481,8 +480,7 @@ export default function OptionsChainView() {
     .filter(item => !tabs.includes(item.value));
 
   return (
-    <div className={cn('db-oc-root deribit flex flex-col overflow-hidden select-none',
-      maximized ? 'fixed inset-0 z-[100]' : 'relative h-full')}
+    <div className={cn('db-oc-root deribit flex flex-col overflow-hidden select-none relative h-full')}
       style={{ backgroundColor: BG_MAIN, color: 'var(--db-text)', fontVariantNumeric: 'tabular-nums' }}>
 
       <div ref={parentRef} className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden pb-1">
@@ -554,7 +552,6 @@ export default function OptionsChainView() {
           <div className="flex-1" />
 
           <FrameControls
-            maximized={maximized} onToggleMaximize={() => setMaximized(m => !m)}
             collapsed={chainCollapsed} onToggleCollapse={() => setChainCollapsed(c => !c)} />
         </div>
 

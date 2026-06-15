@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useEffect, useRef, memo, useCallback } from 'react';
-import { ChevronDown, X, Check, Maximize2, Minimize2, ChevronsUpDown, Pencil } from 'lucide-react';
+import { ChevronDown, X, Check, ChevronsUpDown, Pencil } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useEscapeKey } from '../../lib/useEscapeKey';
 import type { Coin, DataSource, Side } from './chainModel';
@@ -90,23 +90,16 @@ export type PositionMarketQuote = Pick<Side, 'bid' | 'ask' | 'mark' | 'iv' | 'de
   dec: number;
 };
 
-// Window-frame controls (最大化 / 收起) — top-right of a component card.
-export function FrameControls({ maximized, onToggleMaximize, collapsed, onToggleCollapse }: {
-  maximized?: boolean; onToggleMaximize?: () => void;
+// Window-frame controls (收起) — top-right of a component card.
+export function FrameControls({ collapsed, onToggleCollapse }: {
   collapsed?: boolean; onToggleCollapse?: () => void;
 }) {
   return (
     <div className="flex items-center gap-0.5 shrink-0">
-      {onToggleMaximize && (
-        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80 active:translate-y-px" onClick={onToggleMaximize}
-          aria-label={maximized ? '还原' : '最大化'} title={maximized ? '还原' : '最大化'} aria-pressed={!!maximized}>
-          {maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-        </button>
-      )}
       {onToggleCollapse && (
-        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80 active:translate-y-px" onClick={onToggleCollapse}
+        <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[8px] text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80 active:translate-y-px" onClick={onToggleCollapse}
           aria-label={collapsed ? '展开' : '收起'} title={collapsed ? '展开' : '收起'} aria-expanded={!collapsed}>
-          <ChevronsUpDown size={14} />
+          <ChevronsUpDown size={15} strokeWidth={2.5} />
         </button>
       )}
     </div>
@@ -803,8 +796,8 @@ export function PositionsPanel({ book, style, className, embedded, onSymbolClick
             <span className="rounded px-1.5 py-[2px] text-[9px] font-bold text-[var(--db-accent)]" style={{ background: 'rgba(247,166,0,0.12)' }}>SIM</span>
             {tabBar}
             <div className="flex-1" />
-            <button onClick={() => setCollapsed(c => !c)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80" title={collapsed ? '展开仓位面板' : '收起仓位面板'}>
-              <ChevronsUpDown size={13} />
+            <button onClick={() => setCollapsed(c => !c)} className="flex h-7 w-7 items-center justify-center rounded-[8px] text-white/45 transition-colors hover:bg-[#3A3B40] hover:text-white/80" title={collapsed ? '展开仓位面板' : '收起仓位面板'}>
+              <ChevronsUpDown size={15} strokeWidth={2.5} />
             </button>
           </div>
           <div className="border-b border-white/[0.04] px-3 py-2">{summary}</div>

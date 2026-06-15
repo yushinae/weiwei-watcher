@@ -901,7 +901,7 @@ function ExecutionModeControls({
         : `${venueLabel} 实盘`;
 
   return (
-    <div className="hidden h-[50px] w-[184px] flex-col justify-center rounded-[4px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
+    <div className="hidden h-[50px] w-[132px] flex-col justify-center rounded-[6px] px-2 py-1.5 lg:flex" style={{ background: TILE_BG }}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-[10px] font-extrabold text-white/40">执行</span>
         <span className="truncate text-[10px] font-semibold text-white/35">{statusText}</span>
@@ -915,7 +915,7 @@ function ExecutionModeControls({
               type="button"
               onClick={() => onModeChange(mode)}
               aria-pressed={active}
-              className="h-6 flex-1 rounded-[4px] text-[10px] font-extrabold transition-colors active:translate-y-px"
+              className="h-6 flex-1 rounded-[6px] text-[10px] font-extrabold transition-colors active:translate-y-px"
               style={{
                 background: active ? (mode === 'sim' ? SELECTED_BG : 'rgba(239,68,68,0.18)') : 'transparent',
                 color: active ? (mode === 'sim' ? ORANGE : '#EF4444') : 'rgba(255,255,255,0.55)',
@@ -1128,7 +1128,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
           source={source}
           onModeChange={setExecutionMode}
         />
-        <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[4px] flex items-center justify-center transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG, color: 'rgba(255,255,255,0.55)' }}>
+        <button type="button" onClick={onClose} aria-label="关闭下单面板" className="w-8 h-8 rounded-[6px] flex items-center justify-center transition-colors hover:bg-[#3A3B40] active:translate-y-px" style={{ background: TILE_BG, color: 'rgba(255,255,255,0.55)' }}>
           <X size={16} />
         </button>
       </div>
@@ -1395,7 +1395,7 @@ export const TradingPanel = memo(({ selected, coin, source, spot, dateLabel, dec
                     { label: 'IV', value: opt.iv.toFixed(2) + '%', color: 'var(--db-warn)' },
                     { label: 'Mark', value: opt.mark.toFixed(dec), color: '#EAECEF' },
                   ].map(g => (
-                    <div key={g.label} className="rounded-[4px] p-3 transition-colors hover:bg-[#3A3B40]" style={{ backgroundColor: TILE_BG }}>
+                    <div key={g.label} className="rounded-[6px] p-3 transition-colors hover:bg-[#3A3B40]" style={{ backgroundColor: TILE_BG }}>
                       <div className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{g.label}</div>
                       <div className="text-[14px] font-bold" style={{ ...TABNUM, color: g.color }}>{g.value}</div>
                     </div>

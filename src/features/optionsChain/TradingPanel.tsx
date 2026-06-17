@@ -894,19 +894,31 @@ export function ExecutionModeControls({
       <div className={cn('grid grid-cols-2', compact ? 'gap-1' : 'gap-1')}>
         {(['sim', 'live'] as const).map(mode => {
           const active = executionMode === mode;
+          const liveLocked = mode === 'live' && !liveReady.armed;
           return (
             <button
               key={mode}
               type="button"
-              onClick={() => onModeChange(mode)}
+              onClick={() => {
+                if (liveLocked) return;
+                onModeChange(mode);
+              }}
+              disabled={liveLocked}
               aria-pressed={active}
               className={cn(
-                'rounded-[5px] text-[10px] font-extrabold transition-colors active:translate-y-px',
+                'rounded-[5px] text-[10px] font-extrabold transition-colors',
+                !liveLocked && 'active:translate-y-px',
                 compact ? 'h-7 px-1' : 'h-6 px-1.5',
               )}
               style={{
                 background: active ? (mode === 'sim' ? SELECTED_BG : 'rgba(239,68,68,0.18)') : 'transparent',
-                color: active ? (mode === 'sim' ? ORANGE : '#EF4444') : 'rgba(255,255,255,0.55)',
+                color: active
+                  ? (mode === 'sim' ? ORANGE : '#EF4444')
+                  : liveLocked
+                    ? 'rgba(255,255,255,0.25)'
+                    : 'rgba(255,255,255,0.55)',
+                cursor: liveLocked ? 'not-allowed' : undefined,
+                opacity: liveLocked ? 0.4 : undefined,
               }}
             >
               {mode === 'sim' ? '模拟' : '实盘'}

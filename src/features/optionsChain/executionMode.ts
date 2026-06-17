@@ -63,14 +63,6 @@ export function useExecutionLiveReady(
   });
 
   useEffect(() => {
-    if (executionMode !== 'live') {
-      setState({
-        deribitCredentials: null,
-        liveReady: { armed: false, credentials: false, venueSupported: false },
-      });
-      return;
-    }
-
     const bybitKey = import.meta.env.VITE_BYBIT_API_KEY?.trim();
     const bybitSecret = import.meta.env.VITE_BYBIT_API_SECRET?.trim();
     const deribitKey = import.meta.env.VITE_DERIBIT_API_KEY?.trim();
@@ -78,6 +70,18 @@ export function useExecutionLiveReady(
 
     const hasBybit = !!(bybitKey && bybitSecret);
     const hasDeribit = !!(deribitKey && deribitSecret);
+
+    if (executionMode !== 'live') {
+      setState({
+        deribitCredentials: null,
+        liveReady: {
+          armed: LIVE_ARMED,
+          credentials: source === 'bybit' ? hasBybit : hasDeribit,
+          venueSupported: true,
+        },
+      });
+      return;
+    }
 
     setState({
       deribitCredentials: deribitKey && deribitSecret

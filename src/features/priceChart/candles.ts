@@ -3,7 +3,7 @@
 // 期权关键位计算（computeChainLevels）已上移到 registry/data/analysis.ts
 // （决策页/监控页/价格图共用一套口径），此处仅 re-export 保持旧 import 路径可用。
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import type { Coin } from '../monitor/types';
 import { shouldRunFeedKey, subscribeRuntimePolicy } from '../../registry/data/runtimePolicy';
 
@@ -30,6 +30,8 @@ export const RESOLUTION_LABEL: Record<Resolution, string> = { '5m': '5分', '15m
 // 每个分辨率取多少根（Binance limit ≤ 1000）与轮询间隔（ms）
 const LIMIT: Record<Resolution, number> = { '5m': 1000, '15m': 1000, '1h': 1000, '4h': 1000, '1d': 1000, '1w': 500 };
 export { LIMIT };
+// 往左滑可加载更早历史，但总量封顶，避免长会话内存无限增长
+const MAX_CANDLES = 5000;
 const POLL_MS: Record<Resolution, number> = { '5m': 10_000, '15m': 20_000, '1h': 30_000, '4h': 60_000, '1d': 300_000, '1w': 600_000 };
 
 export const COIN_SYMBOL: Record<Coin, string> = { BTC: 'BTCUSDT', ETH: 'ETHUSDT' };
@@ -70,12 +72,18 @@ export function useCandles(coin: Coin, res: Resolution) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const ref = useRef<Candle[]>([]);
+  const loadingOlderRef = useRef(false);   // 正在加载更早历史（防重入）
+  const exhaustedRef = useRef(false);       // 已到最早，没有更多历史
+  const genRef = useRef(0);                 // 币种/周期代次，丢弃过期的异步结果
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setError(false);
     ref.current = [];
+    loadingOlderRef.current = false;
+    exhaustedRef.current = false;
+    genRef.current += 1;
 
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -95,7 +103,11 @@ export function useCandles(coin: Coin, res: Resolution) {
         if (!alive) return;
         backfilled = true;
         if (wsConnected) stopPoll();
-        commit(d);
+        // 保留已加载的更早历史：用最新一批覆盖近端，旧的更早历史拼回前面
+        const prev = ref.current;
+        const firstFresh = d.length ? d[0].t : Infinity;
+        const merged = prev.length > d.length ? [...prev.filter(c => c.t < firstFresh), ...d] : d;
+        commit(merged);
         setError(false);
         setLoading(false);
       } catch {
@@ -109,7 +121,7 @@ export function useCandles(coin: Coin, res: Resolution) {
       if (!arr.length) { commit([k]); return; }
       const last = arr[arr.length - 1];
       if (k.t === last.t) { const next = arr.slice(); next[next.length - 1] = k; commit(next); }
-      else if (k.t > last.t) { commit([...arr, k].slice(-LIMIT[res])); }
+      else if (k.t > last.t) { commit([...arr, k].slice(-MAX_CANDLES)); }
       // 更早的帧忽略
     };
 
@@ -180,5 +192,24 @@ export function useCandles(coin: Coin, res: Resolution) {
     };
   }, [coin, res]);
 
-  return { candles, loading, error };
+  // 往左滑到头时调用：拉取当前最早一根之前的历史并前插（防重入、切换时丢弃过期结果、总量封顶）
+  const loadOlder = useCallback(async () => {
+    const arr = ref.current;
+    if (loadingOlderRef.current || exhaustedRef.current || arr.length === 0 || arr.length >= MAX_CANDLES) return;
+    const earliest = arr[0].t;
+    const gen = genRef.current;
+    loadingOlderRef.current = true;
+    try {
+      const older = await fetchCandlesBefore(coin, res, earliest - 1);
+      if (gen !== genRef.current) return;              // 期间切了币种/周期 → 丢弃
+      const add = older.filter(c => c.t < earliest);
+      if (add.length === 0) { exhaustedRef.current = true; return; }
+      const next = [...add, ...ref.current];
+      ref.current = next;
+      setCandles(next);
+    } catch { /* 忽略，下次滑动可重试 */ }
+    finally { if (gen === genRef.current) loadingOlderRef.current = false; }
+  }, [coin, res]);
+
+  return { candles, loading, error, loadOlder };
 }

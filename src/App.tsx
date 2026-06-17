@@ -593,13 +593,8 @@ function AppRoutes() {
           </Suspense>
         </div>
       } />
-      <Route path="/price-chart" element={
-        <div className="absolute inset-0">
-          <Suspense fallback={<PageFallback />}>
-            <PriceChartPage />
-          </Suspense>
-        </div>
-      } />
+      {/* 图表页由常驻挂载渲染（见 <main>），这里占位避免落到通配重定向 */}
+      <Route path="/price-chart" element={null} />
       <Route path="/journal" element={
         <div className="absolute inset-0">
           <Suspense fallback={<PageFallback />}>
@@ -665,8 +660,14 @@ const TickerBar = () => {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   useTheme();
   useGlobalAlertEngine(); // 全局告警引擎：始终在线评估 ALERTS_STORE
+
+  // 图表页「秒开」：首次访问后常驻挂载，靠显示/隐藏切换（不卸载），切走时图表内部暂停后台动画
+  const isChart = location.pathname === '/price-chart';
+  const [chartMounted, setChartMounted] = useState(false);
+  useEffect(() => { if (isChart) setChartMounted(true); }, [isChart]);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
@@ -921,6 +922,14 @@ export default function App() {
 
       <main className="flex-1 relative overflow-hidden z-[1]">
         <AppRoutes />
+        {/* 图表页常驻挂载：首访后即留存，路由切走只隐藏不卸载 → 再回来瞬开 */}
+        {chartMounted && (
+          <div className="absolute inset-0" style={{ display: isChart ? undefined : 'none' }}>
+            <Suspense fallback={<PageFallback />}>
+              <PriceChartPage active={isChart} />
+            </Suspense>
+          </div>
+        )}
       </main>
 
       {/* 全局告警 Toast（应用内，独立于系统通知）*/}

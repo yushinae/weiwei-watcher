@@ -49,7 +49,13 @@ const NY_PARTS = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
 });
 
-function nyParts(ts: number): { dateKey: string; hour: number; minute: number; dow: number } {
+type NYParts = { dateKey: string; hour: number; minute: number; dow: number };
+// Intl.formatToParts 很慢；同一根 K 线的起始时间戳是固定的，按 ts 缓存避免每次实时帧/重算都重复解析。
+const nyPartsCache = new Map<number, NYParts>();
+
+function nyParts(ts: number): NYParts {
+  const cached = nyPartsCache.get(ts);
+  if (cached) return cached;
   const parts = NY_PARTS.formatToParts(new Date(ts));
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === type)?.value ?? '0';
   const year = Number(get('year'));
@@ -57,12 +63,15 @@ function nyParts(ts: number): { dateKey: string; hour: number; minute: number; d
   const day = Number(get('day'));
   const hour = Number(get('hour'));
   const minute = Number(get('minute'));
-  return {
+  const result: NYParts = {
     dateKey: `${year}-${month}-${day}`,
     hour,
     minute,
     dow: new Date(Date.UTC(year, month - 1, day)).getUTCDay(),
   };
+  if (nyPartsCache.size > 20_000) nyPartsCache.clear(); // 简单封顶，避免长会话无限增长
+  nyPartsCache.set(ts, result);
+  return result;
 }
 
 export function computeNYMidnightEvents(

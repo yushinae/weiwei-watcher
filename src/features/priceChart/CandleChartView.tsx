@@ -2,10 +2,10 @@
 // 蜡烛 + 成交量 + 关键位价线（Call/Put 墙 / 最大痛点 / ±1σ，并入价轴自动缩放范围）。
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createChart, CandlestickSeries, ColorType, CrosshairMode, LineStyle, TickMarkType,
+  createChart, CandlestickSeries, HistogramSeries, ColorType, CrosshairMode, LineStyle, TickMarkType,
 } from 'lightweight-charts';
 import type {
-  IChartApi, ISeriesApi, UTCTimestamp, CandlestickData, AutoscaleInfo, Time,
+  IChartApi, ISeriesApi, UTCTimestamp, CandlestickData, HistogramData, AutoscaleInfo, Time,
 } from 'lightweight-charts';
 import { ChevronDown, Eye, EyeOff, RotateCcw, Save, Settings2, X } from 'lucide-react';
 import { useCandles, computeChainLevels, type Resolution, type Candle } from './candles';
@@ -71,8 +71,20 @@ const RES_MS: Record<Resolution, number> = {
   '1w': 7 * 24 * 60 * 60 * 1000,
 };
 const PRICE_LABEL_RIGHT_GAP_PX = 2;
+// 默认视图：显示最近这么多根 K 线（不是全部），右侧留几根空白当呼吸位——按 Option+R 复位到这个倍数
+const DEFAULT_VISIBLE_BARS = 120;
+const DEFAULT_RIGHT_MARGIN_BARS = 20;
+// 把视图复位到「最近 N 根、最新贴右」；数据不足 N 根时退回铺满
+const applyDefaultView = (chart: IChartApi, count: number) => {
+  const ts = chart.timeScale();
+  if (count > DEFAULT_VISIBLE_BARS) {
+    ts.setVisibleLogicalRange({ from: count - DEFAULT_VISIBLE_BARS, to: count - 1 + DEFAULT_RIGHT_MARGIN_BARS });
+  } else {
+    ts.fitContent();
+  }
+};
 const formatAxisPrice = (price: number) => price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-type PriceAxisOverlayLabel = { key: string; price: number; color: string; y: number; width: number };
+type LevelLabelDef = { key: string; price: number; color: string };
 type CrosshairPriceLabel = { y: number; price: number; width: number } | null;
 const timeToDate = (time: Time): Date => {
   if (typeof time === 'number') return new Date(time * 1000);
@@ -120,6 +132,9 @@ const LevelChip = ({label,value,sub,color}:{label:string;value:string;sub?:strin
 );
 
 const toCandle = (c: Candle): CandlestickData => ({ time: Math.floor(c.t/1000) as UTCTimestamp, open:c.o, high:c.h, low:c.l, close:c.c });
+// 成交量柱：涨绿跌红，半透明叠在图表底部约 18%（与蜡烛同一时间轴）
+const VOL_UP = 'rgba(40,200,64,0.5)'; const VOL_DOWN = 'rgba(255,95,87,0.5)';
+const toVolume = (c: Candle): HistogramData => ({ time: Math.floor(c.t/1000) as UTCTimestamp, value: c.v, color: c.c >= c.o ? VOL_UP : VOL_DOWN });
 
 type LegendCandle = { o:number; h:number; l:number; c:number; v:number; change:number; pct:number };
 type NYSettingsTab = 'inputs' | 'style' | 'visibility';
@@ -169,13 +184,29 @@ function saveNYMidnightDefault(value: NYSavedDefault): void {
   try { localStorage.setItem(NY_MIDNIGHT_DEFAULTS_KEY, JSON.stringify(value)); } catch { /* ignore */ }
 }
 
-export const CandleChartView = () => {
+// 记住上次看的币种 / 周期，下次打开图表直接回到原样
+const CHART_PREFS_KEY = 'ww_chart_prefs';
+function loadChartPrefs(): { coin: Coin; res: Resolution } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CHART_PREFS_KEY) ?? '{}') as Partial<{ coin: Coin; res: Resolution }>;
+    return {
+      coin: COINS.includes(parsed.coin as Coin) ? parsed.coin as Coin : 'BTC',
+      res: RESOLUTIONS.includes(parsed.res as Resolution) ? parsed.res as Resolution : '1h',
+    };
+  } catch {
+    return { coin: 'BTC', res: '1h' };
+  }
+}
+
+export const CandleChartView = ({ active = true }: { active?: boolean }) => {
   const savedNYDefault = useMemo(loadNYMidnightDefault, []);
-  const [coin,setCoin] = useState<Coin>('BTC');
-  const [res,setRes] = useState<Resolution>('1h');
+  const savedChartPrefs = useMemo(loadChartPrefs, []);
+  const [coin,setCoin] = useState<Coin>(savedChartPrefs.coin);
+  const [res,setRes] = useState<Resolution>(savedChartPrefs.res);
   const [expirySel,setExpirySel] = useState<string|'ALL'>('NEAREST');
   const [showLevels,setShowLevels] = useState(true);
   const [showEM,setShowEM] = useState(true);
+  const [showVolume,setShowVolume] = useState(true);
   const [showNYMidnight,setShowNYMidnight] = useState(true);
   const [nyOptions,setNyOptions] = useState<NYMidnightOptions>(savedNYDefault.options);
   const [nyDraftOptions,setNyDraftOptions] = useState<NYMidnightOptions>(savedNYDefault.options);
@@ -186,7 +217,7 @@ export const CandleChartView = () => {
   const [nyVisibleOn,setNyVisibleOn] = useState<ResolutionVisibility>(savedNYDefault.visibleOn);
   const [nyDraftVisibleOn,setNyDraftVisibleOn] = useState<ResolutionVisibility>(savedNYDefault.visibleOn);
 
-  const {candles,loading,error} = useCandles(coin,res);
+  const {candles,loading,error,loadOlder} = useCandles(coin,res);
   const {data:opt} = useDeribitOptions(coin);
   const liveSpot = useLiveSpot(coin);
   const lastClose = candles.length ? candles[candles.length-1].c : 0;
@@ -199,13 +230,20 @@ export const CandleChartView = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi|null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'>|null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'>|null>(null);
   const nyMidnightRef = useRef<NYMidnightPrimitive|null>(null);
   const priceLevelsRef = useRef<PriceLevelsPrimitive|null>(null);
   const levelPricesRef = useRef<number[]>([]);     // 当前关键位价，供 autoscaleInfoProvider 并入价轴范围
+  const candleCountRef = useRef(0);                // 当前 K 线根数，供 Option+R 复位计算默认可见区
+  const prevFirstTRef = useRef(0);                 // 上次首根起始时间，用于识别「历史前插」
+  const prevLenRef = useRef(0);                    // 上次根数，用于前插后平移视图保持不跳
   const fullReloadRef = useRef(true);              // coin/res 切换 → 下一帧 setData 重建（否则 update 增量）
   const [countdown,setCountdown] = useState('0:00');
-  const [lastPriceLabelPos,setLastPriceLabelPos] = useState<{x:number;y:number;width:number}|null>(null);
-  const [levelAxisLabels,setLevelAxisLabels] = useState<PriceAxisOverlayLabel[]>([]);
+  // 最新价标签 / 关键位价标签：结构（哪些标签、什么颜色）很少变 → React 状态；
+  // 位置（缩放/平移时每帧都在动）→ 直接写 DOM 的 transform，不触发整页重渲染。
+  const lastPriceLabelRef = useRef<HTMLDivElement|null>(null);
+  const [levelLabelDefs,setLevelLabelDefs] = useState<LevelLabelDef[]>([]);
+  const levelLabelNodes = useRef<Map<string,HTMLDivElement>>(new Map());
   const [crosshairPriceLabel,setCrosshairPriceLabel] = useState<CrosshairPriceLabel>(null);
   const [hoverCandle,setHoverCandle] = useState<LegendCandle|null>(null);
   const candleMetaRef = useRef<Map<number,{v:number;prevClose:number}>>(new Map());
@@ -334,10 +372,16 @@ export const CandleChartView = () => {
         horzLine: { labelVisible: false },
       },
       handleScale: {
-        mouseWheel: true,
+        mouseWheel: false,   // 滚轮/触控板缩放完全自定义（见 onWheel）
         pinch: true,
         axisPressedMouseMove: { time: true, price: true },
         axisDoubleClickReset: { time: true, price: true },
+      },
+      handleScroll: {
+        mouseWheel: false,   // 滚轮/触控板平移也自定义
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
       },
       rightPriceScale: { borderColor:'transparent', minimumWidth: 48 },
       timeScale: {
@@ -367,6 +411,15 @@ export const CandleChartView = () => {
       },
     });
     candleSeriesRef.current = candleSeries;
+    // 成交量直方图：独立 overlay 价轴，挤到底部约 18%，不影响蜡烛的价轴缩放
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    volumeSeriesRef.current = volumeSeries;
     const nyMidnight = new NYMidnightPrimitive();
     candleSeries.attachPrimitive(nyMidnight);
     nyMidnightRef.current = nyMidnight;
@@ -415,29 +468,64 @@ export const CandleChartView = () => {
       }
     });
 
+    // Option/Alt + R：复位到默认视图——最近 N 根、最新贴右、价格轴自适应（与刚打开图表一致）
     const resetChartScale = () => {
+      applyDefaultView(chart, candleCountRef.current);
       chart.priceScale('right').setAutoScale(true);
       candleSeries.applyOptions({});
     };
+    // 触控板手感（与 TradingView 一致）：
+    //  · 双指横向滑 → 平移 K 线（不缩放）
+    //  · 双指在主图纵向滑 → 只缩放时间（K 线疏密），最新一根钉在右边不动
+    //  · 双指在价格轴纵向滑 → 只缩放价格（K 线高矮），锚定光标所在价位
+    //  · 触控板捏合（ctrlKey）→ 缩放时间
     const onWheel = (event: WheelEvent) => {
-      const scaleWidth = chart.priceScale('right').width();
-      const rect = el.getBoundingClientRect();
-      if (scaleWidth <= 0 || event.clientX < rect.right - scaleWidth) return;
-      const range = chart.priceScale('right').getVisibleRange();
-      if (!range) return;
+      const ts = chart.timeScale();
+      const absX = Math.abs(event.deltaX), absY = Math.abs(event.deltaY);
+      if (absX === 0 && absY === 0) return;
 
+      // 1) 横向滑动 → 平移
+      if (!event.ctrlKey && absX > absY) {
+        event.preventDefault();
+        event.stopPropagation();
+        const barSpacing = ts.options().barSpacing || 6;
+        ts.scrollToPosition(ts.scrollPosition() + event.deltaX / barSpacing, false);
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const scaleWidth = chart.priceScale('right').width();
+      const localY = event.clientY - rect.top;
+
+      // 2) 价格轴纵向 → 缩放价格（光标价位为锚点）
+      if (!event.ctrlKey && scaleWidth > 0 && event.clientX >= rect.right - scaleWidth) {
+        const range = chart.priceScale('right').getVisibleRange();
+        if (!range || localY < 0 || localY > el.clientHeight - 28) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const anchor = candleSeries.coordinateToPrice(localY) ?? (range.from + range.to) / 2;
+        const clamped = Math.max(-60, Math.min(60, event.deltaY));
+        const factor = Math.exp(clamped * 0.0025);            // deltaY>0 → 价格范围变大 → K 线变矮（缩小）
+        const minSpan = Math.max(1, Math.abs(anchor) * 0.00001);
+        const nextFrom = anchor - (anchor - range.from) * factor;
+        const nextTo = anchor + (range.to - anchor) * factor;
+        if (nextTo - nextFrom < minSpan) return;
+        chart.priceScale('right').setVisibleRange({ from: nextFrom, to: nextTo });
+        return;
+      }
+
+      // 3) 主图纵向（或捏合）→ 缩放时间，右边缘固定（最新钉右）
+      const lr = ts.getVisibleLogicalRange();
+      if (!lr) return;
       event.preventDefault();
       event.stopPropagation();
-      const localY = event.clientY - rect.top;
-      if (localY < 0 || localY > el.clientHeight - 28) return;
-      const anchor = candleSeries.coordinateToPrice(localY) ?? (range.from + range.to) / 2;
-      const clampedDelta = Math.max(-80, Math.min(80, event.deltaY));
-      const factor = Math.exp(clampedDelta * 0.0002);
-      const minSpan = Math.max(1, Math.abs(anchor) * 0.00001);
-      const nextFrom = anchor - (anchor - range.from) * factor;
-      const nextTo = anchor + (range.to - anchor) * factor;
-      if (nextTo - nextFrom < minSpan) return;
-      chart.priceScale('right').setVisibleRange({ from: nextFrom, to: nextTo });
+      const clamped = Math.max(-60, Math.min(60, event.ctrlKey ? event.deltaY * 4 : event.deltaY));
+      const factor = Math.exp(clamped * 0.0025);              // deltaY>0 → 跨度变大 → K 线更密集（缩小）
+      const span = lr.to - lr.from;
+      const minSpan = 10;                                     // 最多放大到约 10 根
+      const maxSpan = candleCountRef.current + DEFAULT_RIGHT_MARGIN_BARS;
+      const newSpan = Math.max(minSpan, Math.min(maxSpan, span * factor));
+      ts.setVisibleLogicalRange({ from: lr.to - newSpan, to: lr.to });
     };
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -446,13 +534,13 @@ export const CandleChartView = () => {
       event.preventDefault();
       resetChartScale();
     };
-    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('wheel', onWheel, { passive: false, capture: true });
     window.addEventListener('keydown', onKeyDown);
 
     return ()=>{
-      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions);
       window.removeEventListener('keydown', onKeyDown);
-      chart.remove(); chartRef.current=null; candleSeriesRef.current=null; nyMidnightRef.current=null; priceLevelsRef.current=null;
+      chart.remove(); chartRef.current=null; candleSeriesRef.current=null; volumeSeriesRef.current=null; nyMidnightRef.current=null; priceLevelsRef.current=null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
@@ -470,7 +558,7 @@ export const CandleChartView = () => {
 
   // 标记浮层位置跟随：展开期间每帧把锚点 (t,p) 换算成像素，pan/zoom 时浮层贴着 pin 走
   useEffect(()=>{
-    if (!openNote) return;
+    if (!openNote || !active) return;
     let raf = 0;
     const tick = ()=>{
       const chart = chartRef.current, s = candleSeriesRef.current, el = containerRef.current;
@@ -489,79 +577,115 @@ export const CandleChartView = () => {
     };
     tick();
     return ()=>cancelAnimationFrame(raf);
-  },[openNote]);
+  },[openNote,active]);
 
+  // 价轴标签位置跟随：每帧把价格换算成像素后「直接写 DOM」（transform/display），
+  // 不经过 React 状态，避免缩放/平移时每帧重渲染整个页面。隐藏（切走）时停跑，省电不发热。
   useEffect(()=>{
+    if (!active) return;
     let raf = 0;
     const tick = ()=>{
       const chart = chartRef.current, series = candleSeriesRef.current, el = containerRef.current;
-      const scaleWidth = chart?.priceScale('right').width() ?? 0;
-      if (chart && series && el && lastClose > 0) {
-        const y = series.priceToCoordinate(lastClose);
-        if (y == null || y < 0 || y > el.clientHeight) {
-          setLastPriceLabelPos(p=>p===null?p:null);
-        } else {
-          const width = Math.max(66, scaleWidth);
-          const x = Math.max(0, el.clientWidth - width - PRICE_LABEL_RIGHT_GAP_PX);
-          setLastPriceLabelPos(p =>
-            p && Math.abs(p.x-x)<0.5 && Math.abs(p.y-y)<0.5 && Math.abs(p.width-width)<0.5
-              ? p
-              : { x, y, width },
-          );
+      if (chart && series && el) {
+        const ch = el.clientHeight, cw = el.clientWidth;
+        const scaleWidth = chart.priceScale('right').width();
+        const width = Math.max(66, scaleWidth);
+        const right = Math.max(0, cw - width - PRICE_LABEL_RIGHT_GAP_PX);
+
+        const lp = lastPriceLabelRef.current;
+        if (lp) {
+          const y = lastClose > 0 ? series.priceToCoordinate(lastClose) : null;
+          if (y == null || y < 0 || y > ch) {
+            lp.style.display = 'none';
+          } else {
+            const top = Math.min(Math.max(7, y - 17), Math.max(7, ch - 41));
+            lp.style.display = '';
+            lp.style.width = `${width}px`;
+            lp.style.transform = `translate(${right}px,${top}px)`;
+          }
         }
-      } else {
-        setLastPriceLabelPos(p=>p===null?p:null);
+
+        for (const def of levelLabelDefs) {
+          const node = levelLabelNodes.current.get(def.key);
+          if (!node) continue;
+          const y = series.priceToCoordinate(def.price);
+          if (y == null || y < 0 || y > ch || scaleWidth <= 0) {
+            node.style.display = 'none';
+          } else {
+            const top = Math.min(Math.max(3, y - 10), Math.max(3, ch - 22));
+            node.style.display = '';
+            node.style.width = `${width}px`;
+            node.style.transform = `translate(${right}px,${top}px)`;
+          }
+        }
       }
-      const levelLabels = levelPricesRef.current
-        .map((price, index) => {
-          const y = series?.priceToCoordinate(price);
-          const level = priceLevelsRef.current?.level(index);
-          return series && el && level && y != null && y >= 0 && y <= el.clientHeight && scaleWidth > 0
-            ? {
-              key: `${level.title}-${level.price}`,
-              price: level.price,
-              color: level.color,
-              y,
-              width: Math.max(66, scaleWidth),
-            }
-            : null;
-        })
-        .filter((label): label is PriceAxisOverlayLabel => Boolean(label));
-      setLevelAxisLabels(prev => {
-        if (prev.length !== levelLabels.length) return levelLabels;
-        const same = prev.every((p, i) => {
-          const n = levelLabels[i];
-          return p.key === n.key && p.color === n.color && p.price === n.price
-            && Math.abs(p.y - n.y) < 0.5 && Math.abs(p.width - n.width) < 0.5;
-        });
-        return same ? prev : levelLabels;
-      });
       raf = requestAnimationFrame(tick);
     };
     tick();
     return ()=>cancelAnimationFrame(raf);
-  },[lastClose]);
+  },[lastClose,levelLabelDefs,active]);
 
-  // 2) coin/res 切换 → 标记需要整图重建
-  useEffect(()=>{ fullReloadRef.current = true; },[coin,res]);
-
-  // 3) 喂数据：重建用 setData（重置视图），实时帧用 update（保留缩放/平移）
+  // 2) coin/res 切换 → 标记需要整图重建，并记住选择供下次打开
   useEffect(()=>{
-    const series = candleSeriesRef.current, chart = chartRef.current;
+    fullReloadRef.current = true;
+    try { localStorage.setItem(CHART_PREFS_KEY, JSON.stringify({ coin, res })); } catch { /* ignore */ }
+  },[coin,res]);
+
+  // 3) 喂数据：
+  //  · coin/res 切换 → setData 重建并复位默认视图
+  //  · 历史前插（往左滑加载更早）→ setData 后把可见区右移相同根数，画面不跳
+  //  · 重连/回前台补齐缺口（尾部多出 >1 根）→ setData，逻辑索引不变、视图保持
+  //  · 形成中或新增一根 → update（最省）
+  useEffect(()=>{
+    const series = candleSeriesRef.current, chart = chartRef.current, vol = volumeSeriesRef.current;
+    candleCountRef.current = candles.length;
     if (!series || !chart || candles.length===0) return;
+    const firstT = candles[0].t;
+    const lenDelta = candles.length - prevLenRef.current;
     if (fullReloadRef.current){
       series.setData(candles.map(toCandle));
-      chart.timeScale().fitContent();
+      vol?.setData(candles.map(toVolume));
+      applyDefaultView(chart, candles.length);
       fullReloadRef.current = false;
+    } else if (firstT < prevFirstTRef.current){
+      const lr = chart.timeScale().getVisibleLogicalRange();
+      series.setData(candles.map(toCandle));
+      vol?.setData(candles.map(toVolume));
+      if (lr && lenDelta > 0) chart.timeScale().setVisibleLogicalRange({ from: lr.from + lenDelta, to: lr.to + lenDelta });
+    } else if (lenDelta > 1){
+      series.setData(candles.map(toCandle));
+      vol?.setData(candles.map(toVolume));
     } else {
       const last = candles[candles.length-1];
       series.update(toCandle(last));
+      vol?.update(toVolume(last));
     }
+    prevFirstTRef.current = firstT;
+    prevLenRef.current = candles.length;
   },[candles]);
 
+  // 成交量指标开关：隐藏只是不渲染（数据保留，开回来即显示）
+  useEffect(()=>{ volumeSeriesRef.current?.applyOptions({ visible: showVolume }); },[showVolume]);
+
+  // 往左滑接近最早一根（逻辑索引靠近 0）→ 自动加载更早历史
+  useEffect(()=>{
+    const chart = chartRef.current;
+    if (!chart) return;
+    const ts = chart.timeScale();
+    const onRange = (range: { from: number; to: number } | null) => {
+      if (range && range.from < 10) loadOlder();
+    };
+    ts.subscribeVisibleLogicalRangeChange(onRange);
+    return ()=>ts.unsubscribeVisibleLogicalRangeChange(onRange);
+  },[loadOlder]);
+
+  // 午夜线只依赖每根 K 线的「起始时间」，与形成中那根的 OHLC 实时跳动无关。
+  // 用「根数 + 首尾起始时间」当指纹，避免每个 WS 帧都对上千根重算（含很慢的 Intl 解析）。
+  const candleTimeKey = candles.length ? `${candles.length}:${candles[0].t}:${candles[candles.length - 1].t}` : '';
   const nyMidnightEvents = useMemo(
     () => showNYMidnight && nyVisibleOn[res] ? computeNYMidnightEvents(candles, res, nyOptions) : [],
-    [candles, res, showNYMidnight, nyOptions, nyVisibleOn],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [candleTimeKey, res, showNYMidnight, nyOptions, nyVisibleOn],
   );
 
   useEffect(()=>{
@@ -590,6 +714,8 @@ export const CandleChartView = () => {
     }
     priceLevelsRef.current?.setData(nextLevels);
     levelPricesRef.current = prices;
+    // 价轴标签的「结构」只在关键位变化时更新一次（位置由 rAF 每帧直接写 DOM）
+    setLevelLabelDefs(nextLevels.map(l => ({ key: `${l.title}-${l.price}`, price: l.price, color: l.color })));
     // 触发价轴按新关键位重算（applyOptions 会促使重绘；不改动用户的缩放/平移）
     series.applyOptions({});
   },[showLevels,showEM,levels.callWall,levels.putWall,levels.maxPain,levels.emSigma,spot]);
@@ -733,6 +859,12 @@ export const CandleChartView = () => {
                 <Settings2 className="h-3.5 w-3.5"/>
               </IndicatorIconButton>
             </div>
+            <div className={`group flex items-center gap-1.5 ${showVolume ? 'text-white/70' : 'text-white/28'}`}>
+              <span>成交量</span>
+              <IndicatorIconButton title={showVolume ? '隐藏' : '显示'} onClick={()=>setShowVolume(v=>!v)}>
+                {showVolume ? <Eye className="h-3.5 w-3.5"/> : <EyeOff className="h-3.5 w-3.5"/>}
+              </IndicatorIconButton>
+            </div>
           </div>
         </div>
         {(candles.length===0||loading)&&(
@@ -740,39 +872,26 @@ export const CandleChartView = () => {
             {error?'数据加载失败，重试中…':loading?'加载 K 线中…':'暂无数据'}
           </div>
         )}
-        {levelAxisLabels.length > 0 && (
+        {levelLabelDefs.length > 0 && (
           <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-20 pointer-events-none">
-            {levelAxisLabels.map(label => (
+            {levelLabelDefs.map(label => (
               <div
                 key={label.key}
-                className="absolute rounded-[4px] px-1.5 py-[3px] text-left font-mono text-[11px] leading-[14px] tabular-nums text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
-                style={{
-                  left: Math.max(0, (containerRef.current?.clientWidth ?? 0) - label.width - PRICE_LABEL_RIGHT_GAP_PX),
-                  top: Math.min(
-                    Math.max(3, label.y - 10),
-                    Math.max(3, (containerRef.current?.clientHeight ?? 0) - 22),
-                  ),
-                  width: label.width,
-                  backgroundColor: label.color,
-                }}
+                ref={node => { if (node) levelLabelNodes.current.set(label.key, node); else levelLabelNodes.current.delete(label.key); }}
+                className="absolute left-0 top-0 rounded-[4px] px-1.5 py-[3px] text-left font-mono text-[11px] leading-[14px] tabular-nums text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
+                style={{ display: 'none', backgroundColor: label.color, willChange: 'transform' }}
               >
                 {formatAxisPrice(label.price)}
               </div>
             ))}
           </div>
         )}
-        {lastPriceLabelPos && lastClose > 0 && (
+        {lastClose > 0 && (
           <div className="absolute left-1.5 top-1.5 bottom-0 right-0 z-20 pointer-events-none">
             <div
-              className="absolute rounded-[3px] bg-[#4A4A4A] px-1.5 py-[3px] text-left font-mono tabular-nums leading-none text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
-              style={{
-                left: lastPriceLabelPos.x,
-                top: Math.min(
-                  Math.max(7, lastPriceLabelPos.y - 17),
-                  Math.max(7, (containerRef.current?.clientHeight ?? 0) - 41),
-                ),
-                width: lastPriceLabelPos.width,
-              }}
+              ref={lastPriceLabelRef}
+              className="absolute left-0 top-0 rounded-[3px] bg-[#4A4A4A] px-1.5 py-[3px] text-left font-mono tabular-nums leading-none text-white shadow-[0_1px_2px_rgba(0,0,0,0.22)]"
+              style={{ display: 'none', willChange: 'transform' }}
             >
               <div className="text-[11px] leading-[14px]">{lastClose.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-[11px] leading-[14px] text-white/70">{countdown}</div>

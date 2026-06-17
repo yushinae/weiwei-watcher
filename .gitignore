@@ -22,3 +22,7 @@ server/data/*.json
 server/data/pg/
 server/data/runtime/
 
+# Personal architecture / design docs — not meant for public consumption
+ARCHITECTURE.md
+DESIGN.md
+

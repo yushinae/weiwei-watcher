@@ -4,6 +4,7 @@ import { subscribeData, _shouldSkip, _registerWSPauseResume } from './poller';
 import { DERIBIT_CACHE, fetchDeribitHistory, HIST_TTL, type HistoryData } from './deribit';
 import { processPremiumFlow, processLargeTrades } from './store';
 import { BaseWS } from '../../lib/baseWs';
+import { maybeSaveMarketSnapshot, queueOptionTrade } from '../../lib/persistSnapshot';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DeribitWS — singleton WebSocket manager
@@ -187,7 +188,11 @@ export function useTickerSnapshotWS(coin: Coin): TickerSnapshot | null {
       if (!flushTimerRef.current) {
         flushTimerRef.current = setTimeout(() => {
           flushTimerRef.current = null;
-          if (alive && pendingRef.current && !_shouldSkip()) setSnap(pendingRef.current);
+          if (alive && pendingRef.current && !_shouldSkip()) {
+            const s = pendingRef.current;
+            setSnap(s);
+            maybeSaveMarketSnapshot({ coin, spot: s.spot, dvol: s.dvol, fundingAnn: s.fundingAnn, optOI_M: s.optOI_M });
+          }
         }, WS_FLUSH_MS);
       }
     };
@@ -276,6 +281,10 @@ export function useOptionTradesWS(coin: Coin): RawOptionTrade[] {
           });
         }
         if (newTrades.length === 0) return;
+        // 持久化期权成交快照
+        for (const t of newTrades) {
+          queueOptionTrade({ ...t, coin: t.instrument.split('-')[0] });
+        }
         if (seenRef.current.size > 5000) {
           const arr = [...seenRef.current];
           arr.slice(0, arr.length - 3000).forEach(id => seenRef.current.delete(id));

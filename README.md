@@ -137,7 +137,7 @@ server/                 本地后端
 - **纯本地运行**：浏览器直连交易所 WS/REST，不走第三方中继
 - **数据新鲜度系统**：页面切走时自动暂停非关键轮询，回到页面恢复
 - **模拟/实盘分离**：期权执行有风险闸门（risk gate），模拟和实盘用不同适配器
-- **详情见**：[ARCHITECTURE.md](./ARCHITECTURE.md) | [DESIGN.md](./DESIGN.md) | [PRODUCT.md](./PRODUCT.md)
+- **详见**：[PRODUCT.md](./PRODUCT.md)
 
 ## 注意
 
